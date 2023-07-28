@@ -1,0 +1,9 @@
+[submodule "src/bluespace_ai_xsens_ros_mti_driver"]
+	path = src/bluespace_ai_xsens_ros_mti_driver
+	url = git@github.com:bluespace-ai/bluespace_ai_xsens_ros_mti_driver.git
+[submodule "src/drivers/bluespace_ai_xsens_ros_mti_driver"]
+	path = src/drivers/bluespace_ai_xsens_ros_mti_driver
+	url = git@github.com:bluespace-ai/bluespace_ai_xsens_ros_mti_driver.git
+[submodule "src/drivers/velodyne"]
+	path = src/drivers/velodyne
+	url = git@github.com:ros-drivers/velodyne.git
