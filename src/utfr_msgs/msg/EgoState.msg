@@ -1,4 +1,4 @@
-# Car Pose, Velocities and Acceleration
+# Car Pose, Acceleration, Velocity
 
 # Header for timestamp
 std_msgs/Header header

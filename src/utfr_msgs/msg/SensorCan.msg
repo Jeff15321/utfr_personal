@@ -6,7 +6,7 @@ std_msgs/Header steering_header
 int16 steering_angle
 
 # Motor speed data 
-std_msgs/Header steering_header
+std_msgs/Header motor_header
 float64 motor_speed
 
 # Service brake data 

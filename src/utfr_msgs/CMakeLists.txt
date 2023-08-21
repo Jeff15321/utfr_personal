@@ -19,21 +19,21 @@ find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/BoundingBox.msg"
   "msg/Cone.msg"
   "msg/ConeDetections.msg"
   "msg/ConeMap.msg"
   "msg/ControlCmd.msg"
   "msg/EgoState.msg"
   "msg/Heartbeat.msg"
-  "msg/Jetson.msg"
-  "msg/NavDebug.msg"
+  "msg/PerceptionDebug.msg"
+  "msg/PlanningDebug.msg"
+  "msg/SensorCan.msg"
   "msg/SystemStatus.msg"
   "msg/TargetState.msg"
   "msg/TrajectoryPath.msg"
   "msg/TrajectoryPoint.msg"
   "msg/WaypointPath.msg"
-  "msg/BoundingBox.msg"
-  "msg/PerceptionDebug.msg"
   DEPENDENCIES builtin_interfaces std_msgs geometry_msgs nav_msgs sensor_msgs
 )
 
