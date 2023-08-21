@@ -1,6 +1,6 @@
 # Individual definition for Cone attributes
 
-# Header for frame and stamp
+# Header for timestamp
 std_msgs/Header header
 
 geometry_msgs/Vector3 pos # x, y, null [m, m, n/a]

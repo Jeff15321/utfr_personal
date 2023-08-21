@@ -1,7 +1,8 @@
 # Map of all cones in world frame
 
-# Header for frame
+# Header for timestamp
 std_msgs/Header header
+
 Cone[] left_cones
 Cone[] right_cones
 Cone[] large_orange_cones
