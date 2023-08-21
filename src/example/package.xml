@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>example</name>
+  <version>0.0.1</version>
+  <description>example ros2 package</description>
+  <maintainer email="kelvinwhcui@gmail.com">kelvin cui</maintainer>
+  <license>TODO</license>
+  <author>kelvinwhcui@gmail.com</author>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <build_depend>rclcpp</build_depend>
+  <build_depend>rclcpp_components</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>utfr_common</build_depend>
+
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>rclcpp_components</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>utfr_common</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

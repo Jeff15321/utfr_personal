@@ -1,0 +1,8 @@
+example_subscriber: # Name of Node
+  ros__parameters:
+    echo_string: "Subscriber Recieved Msg: "
+
+example_publisher: # Name of Node
+  ros__parameters:
+    publish_string: "Message Number : "
+    publish_rate: 500.0 #[ms]
