@@ -27,23 +27,23 @@ int16 Acceleration_longitudinal # m/s^2, scale: 1/512
 int16 Acceleration_lateral # m/s^2, scale: 1/512
 int16 Yaw_rate # deg/s, scale: 1/128
 
-# DV System Status
-uint8 AS_state_off=1 # 3 bits used for CANbus
-uint8 AS_state_ready=2 # 3 bits used for CANbus
-uint8 AS_state_driving=3 # 3 bits used for CANbus
-uint8 AS_state_emergency_brake=4 # 3 bits used for CANbus
-uint8 AS_state_finish=5 # 3 bits used for CANbus
+# DV system status
+uint8 AS_state_off=1
+uint8 AS_state_ready=2
+uint8 AS_state_driving=3
+uint8 AS_state_emergency_brake=4
+uint8 AS_state_finish=5
 
-uint8 EBS_state_unavailable=1 # 3 bits used for CANbus
-uint8 EBS_state_armed=2 # 3 bits used for CANbus
-uint8 EBS_state_activated=3 # 3 bits used for CANbus
+uint8 EBS_state_unavailable=1
+uint8 EBS_state_armed=2
+uint8 EBS_state_activated=3
 
-uint8 AMI_state_acceleration=1 # 3 bits used for CANbus
-uint8 AMI_state_skidpad=2 # 3 bits used for CANbus
-uint8 AMI_state_trackdrive=3 # 3 bits used for CANbus
-uint8 AMI_state_braketest=4 # 3 bits used for CANbus
-uint8 AMI_state_inspection=5 # 3 bits used for CANbus
-uint8 AMI_state_autocross=6 # 3 bits used for CANbus
+uint8 AMI_state_acceleration=1
+uint8 AMI_state_skidpad=2
+uint8 AMI_state_trackdrive=3
+uint8 AMI_state_braketest=4
+uint8 AMI_state_inspection=5
+uint8 AMI_state_autocross=6
 
 uint8 Steering_state # bool, 1 bit used for CANbus
 
