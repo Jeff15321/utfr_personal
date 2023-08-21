@@ -3,7 +3,7 @@
 # Header for timestamp
 std_msgs/Header header
 
-float64 thr_cmd #[0.0, 1.0] Accel in m/s2
-float64 brk_cmd #[-1.0, 0.0] 
-float64 str_cmd #[-1.0, 1.0] Rate in rad/s 
+int16 thr_cmd # [-3276.8, 3276.7] Nm
+uint8 brk_cmd #[0, 255] PWM
+int16 str_cmd #[-4096, 4096] PWM 
 
