@@ -490,5 +490,7 @@
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter"
     },
-    "python.formatting.provider": "none"
+    "[cpp]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    }
 }
