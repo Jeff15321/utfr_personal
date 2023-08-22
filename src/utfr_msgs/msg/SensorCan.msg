@@ -11,8 +11,8 @@ float64 motor_speed
 
 # Service brake data 
 std_msgs/Header asb_header
-uint16 asb_pressure_1
-uint16 asb_pressure_2
+uint16 asb_pressure_front
+uint16 asb_pressure_rear
 
 # EBS pressure data 
 std_msgs/Header ebs_header
