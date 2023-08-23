@@ -449,18 +449,18 @@ class PerceptionNode(Node):
     self.right_ready_ = msg.data
 
   def process(self, left_img_, right_img_, detection_method_): 
-  """
-  main detection function for perception node
+    """
+    main detection function for perception node
 
-  inputs:
-    left_img_: left camera image, in a 3d array of width, height in rgb
-    right_img_: right camera image, 3d array
-  
-  outputs:
-    left_bounding_boxes: array of left camera detections ([x, y, w, h])
-    right_bounding_boxes: array of right camera detections
-    cone_detections: array of 3d cone detections using stereo ([x, y, z, color])
-  """
+    inputs:
+      left_img_: left camera image, in a 3d array of width, height in rgb
+      right_img_: right camera image, 3d array
+    
+    outputs:
+      left_bounding_boxes: array of left camera detections ([x, y, w, h])
+      right_bounding_boxes: array of right camera detections
+      cone_detections: array of 3d cone detections using stereo ([x, y, z, color])
+    """
     
     left_bounding_boxes, left_classes, left_image = deep_process(left_img_, \
       self.translation, self.intrinsics_left, self.session, self.confidence_)
