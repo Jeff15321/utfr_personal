@@ -1,6 +1,6 @@
 # dv24
 
-### When adding a new package with deps
+### When adding a new node/driver with deps
 ```
 rosdep update -q --rosdistro=humble
 rosdep install --from-paths src --ignore-src -y --rosdistro humble
