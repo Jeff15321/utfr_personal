@@ -383,8 +383,8 @@ TEST(math, getCrosstrackError) {
   p2.pos.y = 1;
 
   utfr_msgs::msg::EgoState ego;
-  ego.pos.x = 0;
-  ego.pos.y = 1;
+  ego.pose.pose.position.x = 0;
+  ego.pose.pose.position.y = 1;
 
   ASSERT_NEAR(getCrosstrackError(p1, p2, ego), 0.707107, 1e-3);
 
@@ -393,8 +393,8 @@ TEST(math, getCrosstrackError) {
   p1.pos.y = 44;
   p2.pos.x = 56;
   p2.pos.y = 699;
-  ego.pos.x = 965;
-  ego.pos.y = 531;
+  ego.pose.pose.position.x = 965;
+  ego.pose.pose.position.y = 531;
   ASSERT_NEAR(getCrosstrackError(p1, p2, ego), 479.342434, 1e-3);
 
   // Test Case: 2
@@ -402,8 +402,8 @@ TEST(math, getCrosstrackError) {
   p1.pos.y = 603;
   p2.pos.x = 484;
   p2.pos.y = 477;
-  ego.pos.x = 699;
-  ego.pos.y = 842;
+  ego.pose.pose.position.x = 699;
+  ego.pose.pose.position.y = 842;
   ASSERT_NEAR(getCrosstrackError(p1, p2, ego), 118.629011, 1e-3);
 
   // Test Case: 3
@@ -411,8 +411,8 @@ TEST(math, getCrosstrackError) {
   p1.pos.y = 294;
   p2.pos.x = 874;
   p2.pos.y = 117;
-  ego.pos.x = 485;
-  ego.pos.y = 214;
+  ego.pose.pose.position.x = 485;
+  ego.pose.pose.position.y = 214;
   ASSERT_NEAR(getCrosstrackError(p1, p2, ego), 311.016827, 1e-3);
 
   // Test Case: 4
@@ -420,8 +420,8 @@ TEST(math, getCrosstrackError) {
   p1.pos.y = 655;
   p2.pos.x = 213;
   p2.pos.y = 810;
-  ego.pos.x = 155;
-  ego.pos.y = 56;
+  ego.pose.pose.position.x = 155;
+  ego.pose.pose.position.y = 56;
   ASSERT_NEAR(getCrosstrackError(p1, p2, ego), 366.736486, 1e-3);
 
   // Test Case: 5
@@ -429,8 +429,8 @@ TEST(math, getCrosstrackError) {
   p1.pos.y = 804;
   p2.pos.x = 493;
   p2.pos.y = 401;
-  ego.pos.x = 357;
-  ego.pos.y = 44;
+  ego.pose.pose.position.x = 357;
+  ego.pose.pose.position.y = 44;
   ASSERT_NEAR(getCrosstrackError(p1, p2, ego), 302.508425, 1e-3);
 
   // Test Case: 6
@@ -438,8 +438,8 @@ TEST(math, getCrosstrackError) {
   p1.pos.y = 462;
   p2.pos.x = 654;
   p2.pos.y = 440;
-  ego.pos.x = 666;
-  ego.pos.y = 460;
+  ego.pose.pose.position.x = 666;
+  ego.pose.pose.position.y = 460;
   ASSERT_NEAR(getCrosstrackError(p1, p2, ego), 20.505247, 1e-3);
 
   // Test Case: 7
@@ -447,8 +447,8 @@ TEST(math, getCrosstrackError) {
   p1.pos.y = 469;
   p2.pos.x = 393;
   p2.pos.y = 46;
-  ego.pos.x = 986;
-  ego.pos.y = 770;
+  ego.pose.pose.position.x = 986;
+  ego.pose.pose.position.y = 770;
   ASSERT_NEAR(getCrosstrackError(p1, p2, ego), 21.479974, 1e-3);
 
   // Test Case: 8
@@ -456,8 +456,8 @@ TEST(math, getCrosstrackError) {
   p1.pos.y = 758;
   p2.pos.x = 133;
   p2.pos.y = 810;
-  ego.pos.x = 158;
-  ego.pos.y = 95;
+  ego.pose.pose.position.x = 158;
+  ego.pose.pose.position.y = 95;
   ASSERT_NEAR(getCrosstrackError(p1, p2, ego), 633.197320, 1e-3);
 
   // Test Case: 9
@@ -465,8 +465,8 @@ TEST(math, getCrosstrackError) {
   p1.pos.y = 611;
   p2.pos.x = 107;
   p2.pos.y = 257;
-  ego.pos.x = 602;
-  ego.pos.y = 176;
+  ego.pose.pose.position.x = 602;
+  ego.pose.pose.position.y = 176;
   ASSERT_NEAR(getCrosstrackError(p1, p2, ego), 500.282204, 1e-3);
 
   // Test Case: 10
@@ -474,8 +474,8 @@ TEST(math, getCrosstrackError) {
   p1.pos.y = 380;
   p2.pos.x = 276;
   p2.pos.y = 420;
-  ego.pos.x = 972;
-  ego.pos.y = 973;
+  ego.pose.pose.position.x = 972;
+  ego.pose.pose.position.y = 973;
   ASSERT_NEAR(getCrosstrackError(p1, p2, ego), 594.830770, 1e-3);
 }
 
