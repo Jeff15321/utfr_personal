@@ -1,2 +1,18 @@
 # dv24
-2024 repo
+
+### When adding a new package with deps
+```
+rosdep update -q --rosdistro=humble
+rosdep install --from-paths src --ignore-src -y --rosdistro humble
+```
+
+### When building/launching
+```
+colcon build --<options>
+source install/setup.bash
+```
+
+### Launch
+```
+ros2 launch <node name> <launch file name>
+```
