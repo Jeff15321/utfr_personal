@@ -31,7 +31,7 @@ const std::string kPerceptionHeartbeat{"perception/heartbeat"};
 
 // EKF
 const std::string kEgoState{"ekf/ego_state"};
-const std::string kStateEstimationHeartbeat{"ekf/heartbeat"};
+const std::string kEKFHeartbeat{"ekf/heartbeat"};
 
 // Mapping
 const std::string kConeMap{"mapping/cone_map"};
@@ -40,12 +40,12 @@ const std::string kMappingHeartbeat{"mapping/heartbeat"};
 // Planning
 const std::string kTargetState{"planning/target_state"};
 const std::string kWaypointPath{"planning/waypoint_path"};
-const std::string kNavDebug{"planning/debug"};
-const std::string kNavigationHeartbeat{"planning/heartbeat"};
+const std::string kPlanningDebug{"planning/debug"};
+const std::string kPlanningHeartbeat{"planning/heartbeat"};
 
 // Controls
 const std::string kControlCmd{"controls/control_cmd"};
-const std::string kControlSystemsHeartbeat{"controls/heartbeat"};
+const std::string kControlsHeartbeat{"controls/heartbeat"};
 
 // Sim
 const std::string kEUFSControlCmd{"cmd"};
@@ -54,7 +54,7 @@ const std::string kEUFSEgoState{"ground_truth/state"};
 const std::string kEUFSConeDetection{"ground_truth/cones"};
 
 // Car interface
-const std::string kSystemStatus("mission_manager/system_status");
+const std::string kSystemStatus("car_interface/system_status");
 const std::string kSensorCan{"interface/sensor_can"};
 
 } // namespace topics

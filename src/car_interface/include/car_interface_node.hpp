@@ -7,7 +7,7 @@
 ██████    ████   ███████      ██
 
 * file: car_interface_node.hpp
-* auth: Youssef Elhadad
+* auth: Youssef Elhadad, Daniel Asadi
 * desc: car_interface node class header
 */
 
@@ -36,8 +36,9 @@
 #include <utfr_common/math.hpp>
 #include <utfr_common/topics.hpp>
 
-// CAN Interface
+// Library Requirements
 #include <canbus_util.hpp>
+#include <heartbeat_monitor.hpp>
 
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
@@ -96,6 +97,10 @@ private:
    */
   void initCAN();
 
+  /*! Initialize heartbeat monitor
+   */
+  void initMonitor();
+
   /*! Config Sensors
    *
    */
@@ -109,6 +114,12 @@ private:
    *
    */
   void initTimers();
+
+  /*! Callback function for heartbeat_subscribers_[module_name]
+   *
+   *  @param[in] msg utfr_msgs::msg::Heartbeat latest heartbeat
+   */
+  void heartbeatCB(const utfr_msgs::msg::Heartbeat &msg);
 
   /*! Callback function for control_cmd_subscriber_
    *
@@ -143,12 +154,17 @@ private:
   rclcpp::Publisher<utfr_msgs::msg::SensorCan>::SharedPtr sensor_can_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::SystemStatus>::SharedPtr
       system_status_publisher_;
+  std::map<std::string,
+           rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr>
+      heartbeat_subscribers_;
   rclcpp::TimerBase::SharedPtr main_timer_;
 
   // Parameters
   double update_rate_;
+  double heartbeat_tolerance_;
+  std::vector<std::string> heartbeat_modules_;
 
-  // Callback Variable
+  // Callback Variables
   utfr_msgs::msg::ControlCmd control_cmd_;
 
   // Published messages
@@ -190,8 +206,20 @@ private:
   // CAN objects
   CanInterfaceUPtr can1_{nullptr};
   CanInterfaceUPtr can0_{nullptr};
-
   rclcpp::TimerBase::SharedPtr can_timer_;
+
+  // Heartbeat object
+  HeartbeatMonitorUPtr heartbeat_monitor_{nullptr};
+
+  // TO DO: Add drivers and other nodes
+  // Heartbeat map
+  std::unordered_map<std::string, std::string> heartbeat_topics_map_{
+      {"perception", topics::kPerceptionHeartbeat},
+      {"mapping", topics::kMappingHeartbeat},
+      {"ekf", topics::kEKFHeartbeat},
+      {"navigation", topics::kPlanningHeartbeat},
+      {"controls", topics::kControlsHeartbeat},
+  };
 };
 
 } // namespace car_interface

@@ -7,8 +7,9 @@
 ██████    ████   ███████      ██
 
 * file: car_interface_node.cpp
-* auth: Youssef Elhadad
-* desc: car_interface node class
+* auth: Youssef Elhadad, Daniel Asadi
+* desc: Read sensor can data from car, read/write system state data from/to car,
+* process main state machine logic
 */
 
 #include <car_interface_node.hpp>
@@ -18,6 +19,7 @@ namespace car_interface {
 
 CarInterface::CarInterface() : Node("car_interface_node") {
   this->initParams();
+  this->initMonitor();
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
@@ -26,11 +28,18 @@ CarInterface::CarInterface() : Node("car_interface_node") {
 }
 
 void CarInterface::initParams() {
+  std::vector<std::string> default_modules = {"perception", "mapping", "ekf",
+                                              "planning", "controls"};
+
   // Initialize Params with default values
   this->declare_parameter("update_rate", 33.33);
-  this->declare_parameter("test_brake", 1.0);
+  this->declare_parameter("heartbeat_tolerance", 1.5);
+  this->declare_parameter("heartbeat_modules", default_modules);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
+  heartbeat_tolerance_ = this->get_parameter("heartbeat_tolerance").as_double();
+  heartbeat_modules_ =
+      this->get_parameter("heartbeat_modules").as_string_array();
 
   steering_rate_cmd_ = 0;
   braking_cmd_ = 0;
@@ -45,10 +54,26 @@ void CarInterface::initParams() {
 }
 
 void CarInterface::initSubscribers() {
+  const std::string function_name{"CarInterface::initSubscribers: "};
   control_cmd_subscriber_ =
       this->create_subscription<utfr_msgs::msg::ControlCmd>(
           topics::kControlCmd, 10,
           std::bind(&CarInterface::controlCmdCB, this, _1));
+
+  for (const auto &module_name : heartbeat_modules_) {
+
+    auto search = heartbeat_topics_map_.find(module_name);
+    if (search == heartbeat_topics_map_.end()) { // Module not found :
+      RCLCPP_ERROR(this->get_logger(), "%s Module %s topic not in map",
+                   function_name.c_str(), module_name.c_str());
+      continue;
+    }
+
+    std::string topic = heartbeat_topics_map_[module_name];
+    heartbeat_subscribers_[module_name] =
+        this->create_subscription<utfr_msgs::msg::Heartbeat>(
+            topic, 10, std::bind(&CarInterface::heartbeatCB, this, _1));
+  }
 
   RCLCPP_INFO(this->get_logger(), "Finished Initializing Subscribers");
 }
@@ -78,7 +103,7 @@ void CarInterface::initCAN() {
   if (can1_->connect("can1")) {
     RCLCPP_INFO(this->get_logger(), "Finished Initializing CAN");
   } else
-    RCLCPP_INFO(this->get_logger(), "Failed To Initialize CAN");
+    RCLCPP_ERROR(this->get_logger(), "Failed To Initialize CAN");
 
   while (can1_->read_can())
     ;
@@ -86,7 +111,7 @@ void CarInterface::initCAN() {
   if (can0_->connect("can0")) {
     RCLCPP_INFO(this->get_logger(), "Finished Initializing CAN");
   } else
-    RCLCPP_INFO(this->get_logger(), "Failed To Initialize CAN");
+    RCLCPP_ERROR(this->get_logger(), "Failed To Initialize CAN");
 
   while (can0_->read_can())
     ;
@@ -94,7 +119,16 @@ void CarInterface::initCAN() {
   return;
 }
 
+void CarInterface::initMonitor() {
+  heartbeat_monitor_ = std::make_unique<HeartbeatMonitor>(
+      heartbeat_modules_, this->get_clock()->now(), heartbeat_tolerance_);
+}
+
 void CarInterface::initSensors() {}
+
+void CarInterface::heartbeatCB(const utfr_msgs::msg::Heartbeat &msg) {
+  heartbeat_monitor_->updateHeartbeat(msg, this->get_clock()->now());
+}
 
 void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   const std::string function_name{"controlCmdCB:"};
