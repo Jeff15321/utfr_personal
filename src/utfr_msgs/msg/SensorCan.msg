@@ -19,7 +19,7 @@ std_msgs/Header ebs_header
 uint16 ebs_pressure_1
 uint16 ebs_pressure_2
 
-# Wheelspeed sensor data 
+# Wheel speed sensor data 
 std_msgs/Header sensor_header
 float64 wheelspeed_fl
 float64 wheelspeed_fr

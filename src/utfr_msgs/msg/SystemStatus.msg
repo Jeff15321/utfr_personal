@@ -52,4 +52,4 @@ uint8 steering_state # bool, 1 bit used for canbus
 
 uint8 lap_counter # 4 bits used for canbus
 uint8 cones_count_actual # 8 bits used for canbus
-uint cones_count_all # 17 bits used for canbus
+uint32 cones_count_all # 17 bits used for canbus

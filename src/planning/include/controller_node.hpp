@@ -30,7 +30,6 @@
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
-#include <utfr_msgs/msg/nav_debug.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>

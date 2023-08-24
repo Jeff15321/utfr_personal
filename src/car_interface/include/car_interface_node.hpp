@@ -6,9 +6,9 @@
 ██   ██  ██  ██  ██           ██
 ██████    ████   ███████      ██
 
-* file: jetson_interface_node.hpp
+* file: car_interface_node.hpp
 * auth: Youssef Elhadad
-* desc: jetson_interface node class header
+* desc: car_interface node class header
 */
 
 // ROS2 Requirements
@@ -26,37 +26,34 @@
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <utfr_msgs/msg/cone_detections.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
+#include <utfr_msgs/msg/control_cmd.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
+#include <utfr_msgs/msg/sensor_can.hpp>
+#include <utfr_msgs/msg/system_status.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
 #include <utfr_common/math.hpp>
 #include <utfr_common/topics.hpp>
 
-// Message Requirements
-#include <utfr_msgs/msg/control_cmd.hpp>
-#include <utfr_msgs/msg/heartbeat.hpp>
-#include <utfr_msgs/msg/jetson.hpp>
-#include <utfr_msgs/msg/system_status.hpp>
-
 // CAN Interface
-#include <can_interface.hpp>
+#include <canbus_util.hpp>
 
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
 
 namespace utfr_dv {
-namespace jetson_interface {
+namespace car_interface {
 
-class JetsonInterface : public rclcpp::Node {
+class CarInterface : public rclcpp::Node {
 public:
-  JetsonInterface();
+  CarInterface();
 
 private:
   /*! Initialize and load params from config.yaml:
    *
    *  publish_rate_ : double :
-   *    Publish rate in [ms] for jetson_interface_publisher_
+   *    Publish rate in [ms] for car_interface_publisher_
    */
   void initParams();
 
@@ -73,8 +70,13 @@ private:
 
   /*! Initialize Publishers:
    *
-   *  jetson_publisher_:
-   *    msg: utfr_msgs::msg::Teensy, topic: kTeensy
+   *  sensor_can_publisher_:
+   *    msg: utfr_msgs::msg::SystemStatus
+   *    topic: kSensorCan
+   *  system_status_publisher_:
+   *    msg: utfr_msgs::msg::SystemStatus
+   *    topic: kSystemStatus
+   *
    */
   void initPublishers();
 
@@ -115,11 +117,21 @@ private:
    */
   void controlCmdCB(const utfr_msgs::msg::ControlCmd &msg);
 
-  /*! Callback function for system_status_subscriber_
-   *
-   *  @param[in] msg utfr_msgs::msg::SystemStatus latest status of system
-   */
-  void systemStatusCB(const utfr_msgs::msg::SystemStatus &msg);
+  void getSteeringAngleSensorData();
+
+  void getMotorSpeedData();
+
+  void getServiceBrakeData();
+
+  void getEBSPressureData();
+
+  void getWheelspeedSensorData();
+
+  void getIMUData();
+
+  void getSensorCan();
+
+  void getSystemStatus();
 
   /*! Callback function for timer
    */
@@ -128,12 +140,9 @@ private:
   // Publishers, Subscribers and Timers
   rclcpp::Subscription<utfr_msgs::msg::ControlCmd>::SharedPtr
       control_cmd_subscriber_;
-  rclcpp::Publisher<utfr_msgs::msg::Jetson>::SharedPtr jetson_publisher_;
-  rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::SensorCan>::SharedPtr sensor_can_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::SystemStatus>::SharedPtr
       system_status_publisher_;
-  rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
-      system_status_subscriber_;
   rclcpp::TimerBase::SharedPtr main_timer_;
 
   // Parameters
@@ -141,32 +150,39 @@ private:
 
   // Callback Variable
   utfr_msgs::msg::ControlCmd control_cmd_;
-  utfr_msgs::msg::SystemStatus system_status_;
-  utfr_msgs::msg::Heartbeat heartbeat_;
 
-  // Published jetson message
-  utfr_msgs::msg::SensorCan jetson_cmd_;
-  utfr_msgs::msg::SystemStatus as_state_;
+  // Published messages
+  utfr_msgs::msg::SensorCan sensor_can_;
+  utfr_msgs::msg::SystemStatus system_status_;
 
   // Commands to rest of car
   int16_t steering_rate_cmd_;
   uint8_t braking_cmd_;
   int throttle_cmd_;
 
-  // Information Recieved:
   // Steering
   int16_t current_steering_angle_;
 
-  // Velocity
+  // Motor speed
   double motor_speed_;
-  //*GPS*
-  geometry_msgs::msg::Vector3 imu_accel_;
-  double roll_rate_;
-  double yaw_rate_;
 
-  // Braking:
-  uint16_t front_brake_pressure_;
-  uint16_t rear_brake_pressure_;
+  // Braking
+  uint16_t asb_pressure_front_;
+  uint16_t asb_pressure_rear_;
+
+  uint16_t ebs_pressure_1_;
+  uint16_t ebs_pressure_2_;
+
+  // Wheel speed
+  double wheelspeed_fl_;
+  double wheelspeed_fr_;
+  double wheelspeed_rl_;
+  double wheelspeed_rr_;
+
+  // IMU
+  double imu_;
+
+  // TODO: GNSS/INS
 
   // AS STATE:
   int res;
@@ -178,5 +194,5 @@ private:
   rclcpp::TimerBase::SharedPtr can_timer_;
 };
 
-} // namespace jetson_interface
+} // namespace car_interface
 } // namespace utfr_dv

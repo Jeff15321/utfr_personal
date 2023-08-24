@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>jetson_interface</name>
+  <name>car_interface</name>
   <version>0.0.1</version>
-  <description>jetson_interface package</description>
+  <description>car_interface package</description>
   <maintainer email="kelvinwhcui@gmail.com">kelvin cui</maintainer>
   <license>TODO</license>
   <author>kelvinwhcui@gmail.com</author>

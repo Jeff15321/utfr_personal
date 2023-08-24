@@ -6,15 +6,15 @@
 ██   ██  ██  ██  ██           ██
 ██████    ████   ███████      ██
 
-* file: can_interface.cpp
+* file: canbus_util.cpp
 * auth: Youssef Elhadad
 * desc: CAN Interfacing Library for Jetson
 */
 
-#include <can_interface.hpp>
+#include <canbus_util.hpp>
 
 namespace utfr_dv {
-namespace jetson_interface {
+namespace car_interface {
 
 std::map<int, canid_t> msg_array_dvjet_sensor{
     {(int)msg_dvjet_sensor_e::RBP, 0x008},
@@ -93,8 +93,8 @@ int CanInterface::get_can(msg_dvjet_sensor_e msgName) {
 }
 
 static void *thread_read(void *node) {
-  utfr_dv::jetson_interface::CanInterface *canNode =
-      (utfr_dv::jetson_interface::CanInterface *)node;
+  utfr_dv::car_interface::CanInterface *canNode =
+      (utfr_dv::car_interface::CanInterface *)node;
   pthread_mutex_lock(&(canNode->lock));
   while (1) {
     struct canfd_frame recieved;
@@ -141,5 +141,5 @@ void CanInterface::write_can(msg_dvjet_sensor_e msgName, long long data) {
     perror("CAN...'T WRITE (<size)");
 }
 
-} // namespace jetson_interface
+} // namespace car_interface
 } // namespace utfr_dv

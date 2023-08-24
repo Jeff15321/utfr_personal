@@ -6,7 +6,7 @@
 ██   ██  ██  ██  ██           ██
 ██████    ████   ███████      ██
 
-* file: can_interface.hpp
+* file: canbus_util.hpp
 * auth: Youssef Elhadad
 * desc: CAN Interfacing Library for Jetson
 */
@@ -28,7 +28,7 @@
 #include <unistd.h>
 
 namespace utfr_dv {
-namespace jetson_interface {
+namespace car_interface {
 
 #ifndef _UTFR_CAN_JETSON_
 #define _UTFR_CAN_JETSON_
@@ -141,5 +141,5 @@ public:
 using CanInterfaceUPtr = std::unique_ptr<CanInterface>;
 using CanInterfaceSPtr = std::shared_ptr<CanInterface>;
 
-} // namespace jetson_interface
+} // namespace car_interface
 } // namespace utfr_dv

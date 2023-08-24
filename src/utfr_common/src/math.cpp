@@ -168,26 +168,27 @@ double getCrosstrackError(const utfr_msgs::msg::TrajectoryPoint &point1,
   double deltaX = point2.pos.x - point1.pos.x;
   // double deltaY = point2.pos.y - point1.pos.y, trajectorySlope;
   if (deltaX == 0)
-    return std::abs(ego.pos.x - point1.pos.x);
+    return std::abs(ego.pose.pose.position.x - point1.pos.x);
 
   double trajectorySlope =
       (point1.pos.y - point2.pos.y) / (point1.pos.x - point2.pos.x);
 
   if (trajectorySlope == 0)
-    return std::abs(ego.pos.y - point1.pos.y);
+    return std::abs(ego.pose.pose.position.y - point1.pos.y);
 
   double invertedSlope = -1 / trajectorySlope;
 
   // find constants of every line
   double bTrajectory = point1.pos.y - (trajectorySlope * point1.pos.x),
-         bInverted = ego.pos.y - (invertedSlope * ego.pos.x);
+         bInverted = ego.pose.pose.position.y -
+                     (invertedSlope * ego.pose.pose.position.x);
   double xIntersection =
       (bTrajectory - bInverted) / (invertedSlope - trajectorySlope);
   double yIntersection = (xIntersection * trajectorySlope) + bTrajectory;
 
   // Return Euclidean distance between intersection and car (lateral distance)
-  return euclidianDistance2D(ego.pos.x, xIntersection, ego.pos.y,
-                             yIntersection);
+  return euclidianDistance2D(ego.pose.pose.position.x, xIntersection,
+                             ego.pose.pose.position.y, yIntersection);
 }
 
 bool withinBounds(double a, double b, double bound) {

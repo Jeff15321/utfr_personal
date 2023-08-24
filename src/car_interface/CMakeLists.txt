@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(jetson_interface)
+project(car_interface)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -31,26 +31,26 @@ endforeach()
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
 ## Add Executables
-add_executable(jetson_interface src/jetson_interface.cpp)
-target_link_libraries(jetson_interface jetson_interface_library)
+add_executable(car_interface src/car_interface.cpp)
+target_link_libraries(car_interface car_interface_library)
 # Set Target Dependencies  
-ament_target_dependencies(jetson_interface ${THIS_PACKAGE_INCLUDE_DEPENDS})
+ament_target_dependencies(car_interface ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
 ## Add Headers to executables
-target_include_directories(jetson_interface
+target_include_directories(car_interface
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
 
 ## Add Libaries
-add_library(jetson_interface_library
-   src/jetson_interface_node.cpp
-   src/can_interface.cpp)
+add_library(car_interface_library
+   src/car_interface_node.cpp
+   src/canbus_util.cpp)
 # Set Target Dependencies  
-ament_target_dependencies(jetson_interface_library ${THIS_PACKAGE_INCLUDE_DEPENDS})
+ament_target_dependencies(car_interface_library ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
 ## Add Headers to library
-target_include_directories(jetson_interface_library
+target_include_directories(car_interface_library
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
@@ -66,14 +66,14 @@ install(
 )
 
 ## Install Libraries
-install(TARGETS jetson_interface_library
+install(TARGETS car_interface_library
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
     INCLUDES DESTINATION include/${PROJECT_NAME})
 
 ## Install Executables
-install(TARGETS jetson_interface 
+install(TARGETS car_interface 
     DESTINATION lib/${PROJECT_NAME})
 
 ## Install Launch file
