@@ -160,18 +160,18 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   steeringRateToSC |= (uint16_t)(directionBit << 12);
 
   // Send command
-  can1_->write_can(msg_dvjet_sensor_e::STR_RATE_CMD, (steeringRateToSC));
+  can1_->write_can(dv_can_msg::STR_RATE_CMD, (steeringRateToSC));
 
   //*******   Braking   *******
   RCLCPP_INFO(this->get_logger(), "Braking PWM: %d", braking_cmd_);
-  can1_->write_can(msg_dvjet_sensor_e::BRK_RATE_CMD, braking_cmd_);
+  can1_->write_can(dv_can_msg::BRK_RATE_CMD, braking_cmd_);
 
   //*******   Throttle   *******
   // TO DO: ADD THR CHECKS
   RCLCPP_INFO(this->get_logger(), "Sending Throttle: %f",
               (double)(int)((throttle_cmd_)));
 
-  can1_->write_can(msg_dvjet_sensor_e::DV_THR_COMMAND,
+  can1_->write_can(dv_can_msg::DV_THR_COMMAND,
                    (double)(((throttle_cmd_ << 1) | 0x1)));
 }
 
@@ -180,7 +180,7 @@ void CarInterface::getSteeringAngleSensorData() {
 
   try {
     current_steering_angle_ =
-        -((int16_t)(can1_->get_can(msg_dvjet_sensor_e::ANGSENREC)) / 10);
+        -((int16_t)(can1_->get_can(dv_can_msg::ANGSENREC)) / 10);
 
     // Check for sensor malfunction
     if (current_steering_angle_ == -3276) {
@@ -198,7 +198,7 @@ void CarInterface::getMotorSpeedData() {
   const std::string function_name{"getMotorSpeedData:"};
 
   try {
-    motor_speed_ = can1_->get_can(msg_dvjet_sensor_e::MOTPOS) * -0.021545;
+    motor_speed_ = can1_->get_can(dv_can_msg::MOTPOS) * -0.021545;
     sensor_can_.motor_speed = motor_speed_;
 
     // TO DO: Check for sensor malfunction
@@ -217,8 +217,8 @@ void CarInterface::getServiceBrakeData() {
   const std::string function_name{"getServiceBrakeData:"};
 
   try {
-    asb_pressure_front_ = (can1_->get_can(msg_dvjet_sensor_e::FBP));
-    asb_pressure_rear_ = (can1_->get_can(msg_dvjet_sensor_e::RBP));
+    asb_pressure_front_ = (can1_->get_can(dv_can_msg::FBP));
+    asb_pressure_rear_ = (can1_->get_can(dv_can_msg::RBP));
 
     // TO DO: Check for sensor malfunction
     // if () {
@@ -239,10 +239,10 @@ void CarInterface::getEBSPressureData() {
   try {
     // TO DO: Proper CAN message
     // ebs_pressure_1_ =
-    //     (uint16_t)(can1_->get_can(msg_dvjet_sensor_e::TODO));
+    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TO DO: Proper CAN message
     // ebs_pressure_2_ =
-    //     (uint16_t)(can1_->get_can(msg_dvjet_sensor_e::TODO));
+    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
 
     // TO DO: Check for sensor malfunction
     // if () {
@@ -263,16 +263,16 @@ void CarInterface::getWheelspeedSensorData() {
   try {
     // TO DO: Proper CAN message
     // wheelspeed_fl_ =
-    //     (uint16_t)(can1_->get_can(msg_dvjet_sensor_e::TODO));
+    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TO DO: Proper CAN message
     // wheelspeed_fr_ =
-    //     (uint16_t)(can1_->get_can(msg_dvjet_sensor_e::TODO));
+    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TO DO: Proper CAN message
     // wheelspeed_rl_ =
-    //     (uint16_t)(can1_->get_can(msg_dvjet_sensor_e::TODO));
+    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TO DO: Proper CAN message
     // wheelspeed_rr_ =
-    //     (uint16_t)(can1_->get_can(msg_dvjet_sensor_e::TODO));
+    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
 
     // TO DO: Check for sensor malfunction
     // if () {
@@ -295,7 +295,7 @@ void CarInterface::getIMUData() {
   try {
     // TO DO: Proper CAN message
     // imu_ =
-    //     (uint16_t)(can1_->get_can(msg_dvjet_sensor_e::TODO));
+    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
 
     // TO DO: Check for sensor malfunction
     // if () {
@@ -335,8 +335,7 @@ void CarInterface::getSystemStatus() {
     // Read system state CAN messages from car
 
     // DV driving dynamics 1
-    long dv_driving_dynamics_1 =
-        can1_->get_can(msg_dvjet_sensor_e::DVDrivingDynamics1);
+    long dv_driving_dynamics_1 = can1_->get_can(dv_can_msg::DVDrivingDynamics1);
 
     system_status_.speed_actual = (uint8_t)dv_driving_dynamics_1 & 0xFF;
     system_status_.speed_target =
@@ -358,8 +357,7 @@ void CarInterface::getSystemStatus() {
         (uint8_t)((dv_driving_dynamics_1 << (8 * 7)) & 0xFF);
 
     // Dv driving dynamics 2
-    long dv_driving_dynamics_2 =
-        can1_->get_can(msg_dvjet_sensor_e::DVDrivingDynamics2);
+    long dv_driving_dynamics_2 = can1_->get_can(dv_can_msg::DVDrivingDynamics2);
 
     system_status_.acceleration_longitudinal =
         (int16_t)dv_driving_dynamics_2 & 0xFFFF;
@@ -369,7 +367,7 @@ void CarInterface::getSystemStatus() {
         (int16_t)((dv_driving_dynamics_2 << (16 * 2)) & 0xFFFF);
 
     // DV system status
-    long dv_system_status = can1_->get_can(msg_dvjet_sensor_e::DVSystemStatus);
+    long dv_system_status = can1_->get_can(dv_can_msg::DVSystemStatus);
 
     switch (dv_system_status & 0x7) {
     case 1:

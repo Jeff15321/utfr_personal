@@ -16,25 +16,25 @@
 namespace utfr_dv {
 namespace car_interface {
 
-std::map<int, canid_t> msg_array_dvjet_sensor{
-    {(int)msg_dvjet_sensor_e::RBP, 0x008},
-    {(int)msg_dvjet_sensor_e::FBP, 0x010},
-    {(int)msg_dvjet_sensor_e::SPEEDFL, 0x012},
-    {(int)msg_dvjet_sensor_e::SPEEDRL, 0x013},
-    {(int)msg_dvjet_sensor_e::FBPT, 0x01B},
-    {(int)msg_dvjet_sensor_e::ImuY, 0x174},
-    {(int)msg_dvjet_sensor_e::ImuX, 0x178},
-    {(int)msg_dvjet_sensor_e::ImuZ, 0x17C},
-    {(int)msg_dvjet_sensor_e::DV_THR_COMMAND, 0x0C5},
-    {(int)msg_dvjet_sensor_e::STR_RATE_CMD, 0x2B5},
-    {(int)msg_dvjet_sensor_e::BRK_RATE_CMD, 0x3C3},
-    {(int)msg_dvjet_sensor_e::RES, 0x011},
-    {(int)msg_dvjet_sensor_e::ANGSENREC, 0x2B0},
-    {(int)msg_dvjet_sensor_e::ANGSENTRA, 0x7C0},
-    {(int)msg_dvjet_sensor_e::ANGSENTRA, 0x0A5},
-    {(int)msg_dvjet_sensor_e::DVDrivingDynamics1, 0x500},
-    {(int)msg_dvjet_sensor_e::DVDrivingDynamics2, 0x501},
-    {(int)msg_dvjet_sensor_e::DVSystemStatus, 0x502}};
+std::map<int, canid_t> dv_can_msg_map{
+    {(int)dv_can_msg::RBP, 0x008},
+    {(int)dv_can_msg::FBP, 0x010},
+    {(int)dv_can_msg::SPEEDFL, 0x012},
+    {(int)dv_can_msg::SPEEDRL, 0x013},
+    {(int)dv_can_msg::FBPT, 0x01B},
+    {(int)dv_can_msg::ImuY, 0x174},
+    {(int)dv_can_msg::ImuX, 0x178},
+    {(int)dv_can_msg::ImuZ, 0x17C},
+    {(int)dv_can_msg::DV_THR_COMMAND, 0x0C5},
+    {(int)dv_can_msg::STR_RATE_CMD, 0x2B5},
+    {(int)dv_can_msg::BRK_RATE_CMD, 0x3C3},
+    {(int)dv_can_msg::RES, 0x011},
+    {(int)dv_can_msg::ANGSENREC, 0x2B0},
+    {(int)dv_can_msg::ANGSENTRA, 0x7C0},
+    {(int)dv_can_msg::ANGSENTRA, 0x0A5},
+    {(int)dv_can_msg::DVDrivingDynamics1, 0x500},
+    {(int)dv_can_msg::DVDrivingDynamics2, 0x501},
+    {(int)dv_can_msg::DVSystemStatus, 0x502}};
 
 bool CanInterface::connect(const char *canline) {
 
@@ -71,21 +71,19 @@ bool CanInterface::connect(const char *canline) {
   return true;
 }
 
-int CanInterface::get_can(msg_dvjet_sensor_e msgName) {
+int CanInterface::get_can(dv_can_msg msgName) {
   // while(pthread_mutex_trylock(&readlock)){;}
   int result;
-  if (msgName == msg_dvjet_sensor_e::ANGSENREC) {
-    result = (int)((messages[msg_array_dvjet_sensor[(int)msgName]].data[2]) |
-                   (((messages[msg_array_dvjet_sensor[(int)msgName]].data[3])
-                     << 8)));
-  } else if (msgName == msg_dvjet_sensor_e::MOTPOS) {
-    result = (int)((messages[msg_array_dvjet_sensor[(int)msgName]].data[0]) |
-                   (((messages[msg_array_dvjet_sensor[(int)msgName]].data[1])
-                     << 8)));
+  if (msgName == dv_can_msg::ANGSENREC) {
+    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[2]) |
+                   (((messages[dv_can_msg_map[(int)msgName]].data[3]) << 8)));
+  } else if (msgName == dv_can_msg::MOTPOS) {
+    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[0]) |
+                   (((messages[dv_can_msg_map[(int)msgName]].data[1]) << 8)));
   } else {
     result = ARRAY_TO_INT64(
-        messages[msg_array_dvjet_sensor[(int)msgName]]
-            .data); // messages[msg_array_dvjet_sensor[(int)msgName]].data;
+        messages[dv_can_msg_map[(int)msgName]]
+            .data); // messages[dv_can_msg_map[(int)msgName]].data;
   }
 
   // pthread_mutex_unlock(&readlock);
@@ -120,10 +118,10 @@ int CanInterface::read_can() {
   return 1;
 }
 
-void CanInterface::write_can(msg_dvjet_sensor_e msgName, long long data) {
+void CanInterface::write_can(dv_can_msg msgName, long long data) {
   // can_frame to_write;
   struct canfd_frame to_write;
-  to_write.can_id = msg_array_dvjet_sensor[(int)msgName];
+  to_write.can_id = dv_can_msg_map[(int)msgName];
   to_write.len = 8;
   uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   INT64_TO_ARRAY(data, signalArray); // Convert to array of bytes

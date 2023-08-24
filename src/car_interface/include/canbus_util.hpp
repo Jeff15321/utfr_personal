@@ -33,7 +33,7 @@ namespace car_interface {
 #ifndef _UTFR_CAN_JETSON_
 #define _UTFR_CAN_JETSON_
 
-enum msg_dvjet_sensor_e {
+enum dv_can_msg {
 
   RBP = 0,
   SPEEDFL = 1,
@@ -111,7 +111,7 @@ public:
    *
    *  @return the last read can data frame from can_id
    */
-  int get_can(msg_dvjet_sensor_e msgName);
+  int get_can(dv_can_msg msgName);
 
   /*! Read current CAN Frame
    *
@@ -123,7 +123,7 @@ public:
    *
    *  @param[in] to_write CAN Frame to push into CAN Bus
    */
-  void write_can(msg_dvjet_sensor_e msgName, long long signalData);
+  void write_can(dv_can_msg msgName, long long signalData);
 
   // private:
   sockaddr_can addr;
