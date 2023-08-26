@@ -30,7 +30,7 @@ uint8 AS_STATE_DRIVING=3
 uint8 AS_STATE_EMERGENCY_BRAKE=4
 uint8 AS_STATE_FINISH=5
 
-uint8 ebs_state # 3 bits used for canbus
+uint8 ebs_state # 2 bits used for canbus
 uint8 EBS_STATE_UNAVAILABLE=1
 uint8 EBS_STATE_ARMED=2
 uint8 EBS_STATE_ACTIVATED=3
@@ -43,13 +43,13 @@ uint8 AMI_STATE_BRAKETEST=4
 uint8 AMI_STATE_INSPECTION=5
 uint8 AMI_STATE_AUTOCROSS=6
 
-uint8 service_brake_state # 3 bits used for canbus
+uint8 service_brake_state # 2 bits used for canbus
 uint8 SERVICE_BRAKE_STATE_DISENGAGED=1
 uint8 SERVICE_BRAKE_STATE_ENGAGED=2
 uint8 SERVICE_BRAKE_STATE_AVAILABLE=3
 
 uint8 steering_state # bool, 1 bit used for canbus
 
-uint8 lap_counter # 3 bits used for canbus
-uint8 cones_count_actual # 3 bits used for canbus
-uint8 cones_count_all # 3 bits used for canbus
+uint8 lap_counter # 4 bits used for canbus
+uint8 cones_count_actual # 8 bits used for canbus
+uint32 cones_count_all # 17 bits used for canbus

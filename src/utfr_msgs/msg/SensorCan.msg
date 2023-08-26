@@ -11,15 +11,15 @@ float64 motor_speed
 
 # Service brake data 
 std_msgs/Header asb_header
-uint16 asb_pressure_1
-uint16 asb_pressure_2
+uint16 asb_pressure_front
+uint16 asb_pressure_rear
 
 # EBS pressure data 
 std_msgs/Header ebs_header
 uint16 ebs_pressure_1
 uint16 ebs_pressure_2
 
-# Wheelspeed sensor data 
+# Wheel speed sensor data 
 std_msgs/Header sensor_header
 float64 wheelspeed_fl
 float64 wheelspeed_fr

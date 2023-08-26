@@ -8,7 +8,7 @@
 
 *
 * file: topics.hpp
-* auth: Kelvin Cui
+* auth: Kelvin Cui, Daniel Asadi
 * desc: ros2 topics list
 */
 #pragma once
@@ -19,40 +19,33 @@
 namespace utfr_dv {
 namespace topics {
 
+// Example
 const std::string kExample{"example/topic"};
 
 // Drivers
-const std::string kGPS{"sgb/gps"};
-const std::string kLidarRaw{"velodyne_points"};
+// TODO
 
 // Perception
 const std::string kConeDetections{"perception/cone_detections"};
 const std::string kPerceptionHeartbeat{"perception/heartbeat"};
 
-// ConeDetection
-const std::string kLidarDebug{"cone_det/lidar_debug"};
-
-// StateEstimation
-const std::string kEgoState{"state_estimation/ego_state"};
-const std::string kStateEstimationHeartbeat{"state_estimation/heartbeat"};
-const std::string kDatumLLA{"state_estimation/datum_lla"};
-const std::string kGPSData{"state_estimation/gps"};
+// EKF
+const std::string kEgoState{"ekf/ego_state"};
+const std::string kEKFHeartbeat{"ekf/heartbeat"};
 
 // Mapping
 const std::string kConeMap{"mapping/cone_map"};
-const std::string kMapOccupancy{"mapping/occupancy_grid"};
 const std::string kMappingHeartbeat{"mapping/heartbeat"};
 
-// Navigation
-const std::string kTargetState{"navigation/target_state"};
-const std::string kWaypointPath{"navigation/waypoint_path"};
-const std::string kNavDebug{"navigation/debug"};
-const std::string kNavigationHeartbeat{"navigation/heartbeat"};
+// Planning
+const std::string kTargetState{"planning/target_state"};
+const std::string kWaypointPath{"planning/waypoint_path"};
+const std::string kPlanningDebug{"planning/debug"};
+const std::string kPlanningHeartbeat{"planning/heartbeat"};
 
-// Control Systems
-const std::string kControlCmd{"control_systems/control_cmd"};
-const std::string kThrottleCmd{"drive_by_wire/thr_cmd"};
-const std::string kControlSystemsHeartbeat{"control_systems/heartbeat"};
+// Controls
+const std::string kControlCmd{"controls/control_cmd"};
+const std::string kControlsHeartbeat{"controls/heartbeat"};
 
 // Sim
 const std::string kEUFSControlCmd{"cmd"};
@@ -60,9 +53,9 @@ const std::string kEUFSMissionServer{"/ros_can/set_mission"};
 const std::string kEUFSEgoState{"ground_truth/state"};
 const std::string kEUFSConeDetection{"ground_truth/cones"};
 
-// Misc
-const std::string kSystemStatus("mission_manager/system_status");
-const std::string kJetson{"interface/jetson"};
+// Car interface
+const std::string kSystemStatus("car_interface/system_status");
+const std::string kSensorCan{"interface/sensor_can"};
 
 } // namespace topics
 } // namespace utfr_dv
