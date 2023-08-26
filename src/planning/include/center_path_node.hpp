@@ -7,8 +7,8 @@
 ██████    ████   ███████      ██
 
 *
-* file: center_path.hpp
-* auth: Justin
+* file: center_path_node.hpp
+* auth: Justin Lim
 * desc: center path node header
 */
 #pragma once

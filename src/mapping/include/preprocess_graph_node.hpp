@@ -7,9 +7,9 @@
 ██████    ████   ███████      ██
 
 *
-* file: controller_node.hpp
-* auth: Justin Lim
-* desc: controller node header
+* file: preprocess_graph_node.hpp
+* auth: Arthur Xu
+* desc: preprocess graph node header
 */
 #pragma once
 
@@ -31,8 +31,6 @@
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
-#include <utfr_msgs/msg/target_state.hpp>
-#include <utfr_msgs/msg/trajectory_point.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -43,13 +41,13 @@
 using std::placeholders::_1; // for std::bind
 
 namespace utfr_dv {
-namespace controller {
+namespace preprocess_graph {
 
-class ControllerNode : public rclcpp::Node {
+class PreprocessGraphNode : public rclcpp::Node {
 public:
   /*! Constructor, calls loadParams, initPublishers and initTimers.
    */
-  ControllerNode();
+  PreprocessGraphNode();
 
 private:
   /*! Initialize and load params from config.yaml:
@@ -72,5 +70,5 @@ private:
    */
   void initHeartbeat();
 };
-} // namespace controller
+} // namespace preprocess_graph
 } // namespace utfr_dv

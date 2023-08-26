@@ -7,17 +7,17 @@
 ██████    ████   ███████      ██
 
 *
-* file: path_optimization_node.cpp
-* auth: Justin Lim
-* desc: path optimization node class
+* file: knn_node.cpp
+* auth: Arthur Xu
+* desc: knn node class
 */
 
-#include <path_optimization_node.hpp>
+#include <knn_node.hpp>
 
 namespace utfr_dv {
-namespace path_optimization {
+namespace knn {
 
-PathOptimizationNode::PathOptimizationNode() : Node("path_optimization_node") {
+KnnNode::KnnNode() : Node("controller_node") {
   this->initParams();
   this->initSubscribers();
   this->initPublishers();
@@ -25,23 +25,22 @@ PathOptimizationNode::PathOptimizationNode() : Node("path_optimization_node") {
   this->initHeartbeat();
 }
 
-void PathOptimizationNode::initParams() {}
+void KnnNode::initParams() {}
 
-void PathOptimizationNode::initSubscribers() {}
+void KnnNode::initSubscribers() {}
 
-void PathOptimizationNode::initPublishers() {}
+void KnnNode::initPublishers() {}
 
-void PathOptimizationNode::initTimers() {}
+void KnnNode::initTimers() {}
 
-void PathOptimizationNode::initHeartbeat() {}
+void KnnNode::initHeartbeat() {}
 
-} // namespace path_optimization
+} // namespace knn
 } // namespace utfr_dv
 
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(
-      std::make_shared<utfr_dv::path_optimization::PathOptimizationNode>());
+  rclcpp::spin(std::make_shared<utfr_dv::knn::KnnNode>());
   rclcpp::shutdown();
   return 0;
 }

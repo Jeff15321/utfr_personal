@@ -7,7 +7,7 @@
 ██████    ████   ███████      ██
 
 *
-* file: center_path.hpp
+* file: path_optimization_node.hpp
 * auth: Justin
 * desc: path optimization node header
 */
