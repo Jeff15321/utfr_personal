@@ -1,10 +1,10 @@
 perception_node: # Name of Node
   ros__parameters:
-    left_camera_topic : '/left_camera_node/images' # TODO - Replace and sync with util::Topics
+    left_camera_topic : '/left_camera_node/images' 
+    right_camera_topic : '/right_camera_node/images' 
     cone_detections_topic : 'perception/cone_detections'
     baseline : 10.0
     update_rate : 33.0 #[ms]
-    detection_method : "deep"
     distortion_left : [-0.26170828446607286, 0.109830602711457, -0.0009754103281966483, 0.0015736897048436397, -0.027459437237028456]
     distortion_right : [-0.26170828446607286, 0.109830602711457, -0.0009754103281966483, 0.0015736897048436397, -0.027459437237028456]
     intrinsics_left : [1713.4816, 0.0, 712.7942, 0.0, 1710.5325, 517.4372, 0.0, 0.0, 1.0]

@@ -123,8 +123,6 @@ class PerceptionNode(Node):
     self.declare_parameter(\
         'heartbeat_topic', "/perception/heartbeat")
     self.declare_parameter(\
-        'detection_method', "")
-    self.declare_parameter(\
         'update_rate', 33.33)
     self.declare_parameter(\
         'distortion_left', [0.0])
@@ -159,8 +157,6 @@ class PerceptionNode(Node):
         'cone_detections_topic').get_parameter_value().string_value
     self.heartbeat_topic_ = self.get_parameter(
         'heartbeat_topic').get_parameter_value().string_value
-    self.detection_method_ = self.get_parameter(
-        'detection_method').get_parameter_value().string_value
     self.update_rate_ = self.get_parameter(
         'update_rate').get_parameter_value().double_value
     self.distortion_left = self.get_parameter(
@@ -197,7 +193,6 @@ class PerceptionNode(Node):
     self.distortion_right = np.array(self.distortion_right)
     self.translation = np.array(self.translation) 
 
-    print(self.detection_method_)
 
 
   def initVariables(self):
@@ -448,7 +443,7 @@ class PerceptionNode(Node):
     """
     self.right_ready_ = msg.data
 
-  def process(self, left_img_, right_img_, detection_method_): 
+  def process(self, left_img_, right_img_): 
     """
     main detection function for perception node
 
@@ -539,7 +534,7 @@ class PerceptionNode(Node):
     '''
 
     #get the detections
-    results_left, results_right, cone_detections = self.process(frame_left, frame_right, self.detection_method_)
+    results_left, results_right, cone_detections = self.process(frame_left, frame_right)
     #self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
 
 
