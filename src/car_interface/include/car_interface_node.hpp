@@ -144,6 +144,8 @@ private:
 
   void getSystemStatus();
 
+  void setSystemStatusAS();
+
   /*! Callback function for timer
    */
   void timerCB();

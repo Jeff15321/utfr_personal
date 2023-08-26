@@ -469,11 +469,53 @@ void CarInterface::getSystemStatus() {
     system_status_.cones_count_actual =
         (uint)(dv_system_status << 23) & 0x1FFFF;
 
-    system_status_.header.stamp = this->get_clock()->now();
-    system_status_publisher_->publish(system_status_);
   } catch (int e) {
     RCLCPP_INFO(this->get_logger(), "getSystemStatus: Error occured, error #%d",
                 e);
+  }
+}
+
+void CarInterface::setSystemStatusAS() {
+  bool heartbeat_status =
+      heartbeat_monitor_->verifyHeartbeats(this->get_clock()->now());
+
+  switch (system_status_.as_state) {
+  case utfr_msgs::msg::SystemStatus::AS_STATE_OFF: {
+    gonogo_ = false; // debounce gonogo
+    if (heartbeat_status) {
+      // All critical modules loaded
+      system_status_.as_state = utfr_msgs::msg::SystemStatus::AS_STATE_READY;
+    }
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AS_STATE_READY: {
+    if (!heartbeat_status) { // Heartbeats failed after loading correctly
+      system_status_.as_state =
+          utfr_msgs::msg::SystemStatus::AS_STATE_EMERGENCY_BRAKE;
+    }
+
+    if (gonogo_) { // RES Go recieved
+      // TODO - launch mission
+      system_status_.as_state = utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING;
+    }
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING: {
+    if (!heartbeat_status) { // Heartbeats failed after loading correctly
+      system_status_.as_state =
+          utfr_msgs::msg::SystemStatus::AS_STATE_EMERGENCY_BRAKE;
+    }
+    // TODO - switch to finished case when mission complete
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AS_STATE_EMERGENCY_BRAKE: {
+    // TODO - shutdown system appropriately
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AS_STATE_FINISH: {
+    // TODO - shutdown system appropriately
+    break;
+  }
   }
 }
 
@@ -481,9 +523,14 @@ void CarInterface::timerCB() {
   const std::string function_name{"timerCB:"};
 
   try {
-    // Publish sensor and state data
+    // Publish sensor and state data read from CANbus
     getSensorCan();
     getSystemStatus();
+
+    // after reading AS state from car, and updating from the DV software side,
+    // publish
+    system_status_.header.stamp = this->get_clock()->now();
+    system_status_publisher_->publish(system_status_);
 
   } catch (int e) {
     RCLCPP_INFO(this->get_logger(), "timerCB: Error occured, error #%d", e);
