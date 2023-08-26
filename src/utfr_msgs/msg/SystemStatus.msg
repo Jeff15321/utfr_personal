@@ -35,7 +35,7 @@ uint8 EBS_STATE_UNAVAILABLE=1
 uint8 EBS_STATE_ARMED=2
 uint8 EBS_STATE_ACTIVATED=3
 
-uint8 ami_state #  bits used for canbus
+uint8 ami_state # 3 bits used for canbus
 uint8 AMI_STATE_ACCELERATION=1
 uint8 AMI_STATE_SKIDPAD=2
 uint8 AMI_STATE_TRACKDRIVE=3
