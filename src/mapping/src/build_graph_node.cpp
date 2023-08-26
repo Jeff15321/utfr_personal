@@ -7,17 +7,17 @@
 ██████    ████   ███████      ██
 
 *
-* file: path_optimization_node.cpp
-* auth: Justin Lim
-* desc: path optimization node class
+* file: build_graph_node.cpp
+* auth: Arthur Xu
+* desc: build graph node class
 */
 
-#include <path_optimization_node.hpp>
+#include <build_graph_node.hpp>
 
 namespace utfr_dv {
-namespace path_optimization {
+namespace build_graph {
 
-PathOptimizationNode::PathOptimizationNode() : Node("path_optimization_node") {
+BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
   this->initParams();
   this->initSubscribers();
   this->initPublishers();
@@ -25,23 +25,22 @@ PathOptimizationNode::PathOptimizationNode() : Node("path_optimization_node") {
   this->initHeartbeat();
 }
 
-void PathOptimizationNode::initParams() {}
+void BuildGraphNode::initParams() {}
 
-void PathOptimizationNode::initSubscribers() {}
+void BuildGraphNode::initSubscribers() {}
 
-void PathOptimizationNode::initPublishers() {}
+void BuildGraphNode::initPublishers() {}
 
-void PathOptimizationNode::initTimers() {}
+void BuildGraphNode::initTimers() {}
 
-void PathOptimizationNode::initHeartbeat() {}
+void BuildGraphNode::initHeartbeat() {}
 
-} // namespace path_optimization
+} // namespace build_graph
 } // namespace utfr_dv
 
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(
-      std::make_shared<utfr_dv::path_optimization::PathOptimizationNode>());
+  rclcpp::spin(std::make_shared<utfr_dv::build_graph::BuildGraphNode>());
   rclcpp::shutdown();
   return 0;
 }

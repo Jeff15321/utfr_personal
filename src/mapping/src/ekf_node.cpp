@@ -7,17 +7,17 @@
 ██████    ████   ███████      ██
 
 *
-* file: path_optimization_node.cpp
+* file: ekf_node.cpp
 * auth: Justin Lim
-* desc: path optimization node class
+* desc: ekf node class
 */
 
-#include <path_optimization_node.hpp>
+#include <ekf_node.hpp>
 
 namespace utfr_dv {
-namespace path_optimization {
+namespace ekf {
 
-PathOptimizationNode::PathOptimizationNode() : Node("path_optimization_node") {
+EkfNode::EkfNode() : Node("ekf_node") {
   this->initParams();
   this->initSubscribers();
   this->initPublishers();
@@ -25,23 +25,22 @@ PathOptimizationNode::PathOptimizationNode() : Node("path_optimization_node") {
   this->initHeartbeat();
 }
 
-void PathOptimizationNode::initParams() {}
+void EkfNode::initParams() {}
 
-void PathOptimizationNode::initSubscribers() {}
+void EkfNode::initSubscribers() {}
 
-void PathOptimizationNode::initPublishers() {}
+void EkfNode::initPublishers() {}
 
-void PathOptimizationNode::initTimers() {}
+void EkfNode::initTimers() {}
 
-void PathOptimizationNode::initHeartbeat() {}
+void EkfNode::initHeartbeat() {}
 
-} // namespace path_optimization
+} // namespace ekf
 } // namespace utfr_dv
 
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(
-      std::make_shared<utfr_dv::path_optimization::PathOptimizationNode>());
+  rclcpp::spin(std::make_shared<utfr_dv::ekf::EkfNode>());
   rclcpp::shutdown();
   return 0;
 }
