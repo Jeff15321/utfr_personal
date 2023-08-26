@@ -128,23 +128,25 @@ private:
    */
   void controlCmdCB(const utfr_msgs::msg::ControlCmd &msg);
 
-  void getSteeringAngleSensorData();
+  void getSteeringAngleSensorData(); // TODO: function desc.
 
-  void getMotorSpeedData();
+  void getMotorSpeedData(); // TODO: function desc.
 
-  void getServiceBrakeData();
+  void getServiceBrakeData(); // TODO: function desc.
 
-  void getEBSPressureData();
+  void getEBSPressureData(); // TODO: function desc.
 
-  void getWheelspeedSensorData();
+  void getWheelspeedSensorData(); // TODO: function desc.
 
-  void getIMUData();
+  void getIMUData(); // TODO: function desc.
 
-  void getSensorCan();
+  void getSensorCan(); // TODO: function desc.
 
-  void getSystemStatus();
+  void getSystemStatus(); // TODO: function desc.
 
-  void setSystemStatusAS();
+  void setSystemStatusAS(); // TODO: function desc.
+
+  void launchMission(); // TODO: function desc.
 
   /*! Callback function for timer
    */
@@ -203,7 +205,7 @@ private:
   // TODO: GNSS/INS
 
   // AS STATE:
-  int res;
+  bool gonogo_ = false;
 
   // CAN objects
   CanInterfaceUPtr can1_{nullptr};

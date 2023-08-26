@@ -476,14 +476,16 @@ void CarInterface::getSystemStatus() {
 }
 
 void CarInterface::setSystemStatusAS() {
+  // TODO: Reading RES go/stop signal CAN msg
+  // TODO: Review logic/edge cases
   bool heartbeat_status =
       heartbeat_monitor_->verifyHeartbeats(this->get_clock()->now());
 
-  switch (system_status_.as_state) {
+  switch (system_status_.ami_state) {
   case utfr_msgs::msg::SystemStatus::AS_STATE_OFF: {
     gonogo_ = false; // debounce gonogo
-    if (heartbeat_status) {
-      // All critical modules loaded
+
+    if (heartbeat_status) { // All critical modules loaded
       system_status_.as_state = utfr_msgs::msg::SystemStatus::AS_STATE_READY;
     }
     break;
@@ -495,7 +497,7 @@ void CarInterface::setSystemStatusAS() {
     }
 
     if (gonogo_) { // RES Go recieved
-      // TODO - launch mission
+      launchMission();
       system_status_.as_state = utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING;
     }
     break;
@@ -514,6 +516,38 @@ void CarInterface::setSystemStatusAS() {
   }
   case utfr_msgs::msg::SystemStatus::AS_STATE_FINISH: {
     // TODO - shutdown system appropriately
+    break;
+  }
+  default: {
+    // TODO
+  }
+  }
+}
+
+void CarInterface::launchMission() {
+  switch (system_status_.as_state) {
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION: {
+    // TODO: roslaunch mission
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_SKIDPAD: {
+    // TODO: roslaunch mission
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_TRACKDRIVE: {
+    // TODO: roslaunch mission
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_BRAKETEST: {
+    // TODO: roslaunch mission
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION: {
+    // TODO: roslaunch mission
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS: {
+    // TODO: roslaunch mission
     break;
   }
   }
