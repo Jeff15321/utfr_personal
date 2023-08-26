@@ -557,12 +557,11 @@ void CarInterface::timerCB() {
   const std::string function_name{"timerCB:"};
 
   try {
-    // Publish sensor and state data read from CANbus
+    // Publish sensor and state data that is read from CANbus
     getSensorCan();
     getSystemStatus();
-
-    // after reading AS state from car, and updating from the DV software side,
-    // publish
+    // Update status from DV software side
+    setSystemStatusAS();
     system_status_.header.stamp = this->get_clock()->now();
     system_status_publisher_->publish(system_status_);
 
