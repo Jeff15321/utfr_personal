@@ -1,0 +1,39 @@
+#!/bin/bash
+set -e # will stop script on any error
+
+# One-time script for first time repo setup
+# In dv24/ run 'bash scripts/utfr_init'
+# Make sure 'source /opt/ros/humble/setup.bash' is in ~/.bashrc
+# If not, add it with 'source /opt/ros/humble/setup.bash >> ~/.bashrc'
+
+# Init all submodules
+git submodule update --init --recursive
+
+# Update existing Packages:
+echo "==========================================="
+echo "=            Updating Ubuntu              ="
+echo "==========================================="
+sudo apt-get update -y
+sudo apt-get upgrade -y
+
+echo "==========================================="
+echo "=            Install Rosdeps              ="
+echo "==========================================="
+rosdep update
+rosdep install --from-paths src --ignore-src --rosdistro -y
+
+
+echo "==========================================="
+echo "=            Install pip deps             ="
+echo "==========================================="
+pip install xgboost
+pip install scikit-learn
+pip install imutils
+pip install xacro
+
+echo "==========================================="
+echo "=               Config sim                ="
+echo "==========================================="
+DIR="$(pwd)/src/utfr_sim"
+echo 'export EUFS_MASTER=/path/to/the/directory' >> ~/.bashrc
+source ~/.bashrc
