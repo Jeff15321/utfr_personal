@@ -110,7 +110,7 @@ private:
    *
    *  main_timer_:
    *  Calls callback every update_rate_ seconds
-   *  callback: ControlSystemsNode::timerCB
+   *  callback: ControlsNode::timerCB
    *
    */
   void initTimers();

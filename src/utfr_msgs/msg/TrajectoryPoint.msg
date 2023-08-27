@@ -1,7 +1,7 @@
 # Header for timestamp
 std_msgs/Header header
 
-geometry_msgs/Vector3 pos #x, y, yaw [m, m, deg]
+geometry_msgs/Point pos #x, y, yaw [m, m, deg]
 
 float64 velocity #[m/s]
 
