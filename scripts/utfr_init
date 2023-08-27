@@ -35,5 +35,9 @@ echo "==========================================="
 echo "=               Config sim                ="
 echo "==========================================="
 DIR="$(pwd)/src/utfr_sim"
-echo 'export EUFS_MASTER=/path/to/the/directory' >> ~/.bashrc
+echo 'export EUFS_MASTER=$DIR' >> ~/.bashrc
 source ~/.bashrc
+
+echo "You are now ready to build via 'colcon build --<options>'"
+echo "After a sucessful build, run 'source source install/setup.bash'"
+echo "Finally you can launch with 'ros2 launch <node name> <launch file name>'"
