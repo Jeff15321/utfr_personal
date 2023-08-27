@@ -35,6 +35,8 @@ const std::string kEKFHeartbeat{"ekf/heartbeat"};
 
 // Mapping
 const std::string kConeMap{"mapping/cone_map"};
+const std::string kSLAMFrontHeartbeat{"mapping/front_heartbeat"};
+const std::string kPoseGraph{"mapping/pose_graph"};
 const std::string kMappingHeartbeat{"mapping/heartbeat"};
 
 // Planning
