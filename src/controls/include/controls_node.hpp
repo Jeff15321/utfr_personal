@@ -8,12 +8,11 @@
 
 * file: controls_node.hpp
 * auth: Youssef Elhadad
-* desc: controllers publisher and subscribers node header (ros 2)
+* desc: controls node header
 */
 #pragma once
 
 #include <controller/pid_controller.hpp>
-#include <controller/pure_pursuit_controller.hpp>
 
 // System Requirements
 #include <chrono>
@@ -34,7 +33,7 @@
 #include <utfr_msgs/msg/control_cmd.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
-#include <utfr_msgs/msg/jetson.hpp>
+#include <utfr_msgs/msg/sensor_can.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 
 // Misc Requirements
@@ -111,7 +110,7 @@ private:
    */
   void initTimers();
 
-  /*! Initialize Pure Pursuit Controller by sending wheelbase and ld_sf params.
+  /*! Initialize PID Controllers
    */
   void initController();
 
@@ -137,11 +136,11 @@ private:
    */
   void egoStateCB(const utfr_msgs::msg::EgoState &msg);
 
-  /*! Jetson callback function for jetson_subscriber_
+  /*! Sensor can callback function for sensor_can_subscriber_
    *
-   *  @param[in] msg utfr_msgs::Jetson incoming message
+   *  @param[in] msg utfr_msgs::SensorCan incoming message
    */
-  void jetsonCB(const utfr_msgs::msg::Jetson &msg);
+  void sensorCanCB(const utfr_msgs::msg::SensorCan &msg);
 
   /*! Primary callback loop for Controllers.
    *  Calculates steering angle command through pure pursuit controller class.
@@ -156,7 +155,6 @@ private:
 
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
 
-  PurePursuitControllerUPtr pure_pursuit_{nullptr};
   PIDControllerUPTr steering_pid_{nullptr};
   PIDControllerUPTr throttle_pid_{nullptr};
   PIDControllerUPTr braking_pid_{nullptr};
@@ -166,28 +164,24 @@ private:
       target_state_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
-  rclcpp::Subscription<utfr_msgs::msg::Jetson>::SharedPtr jetson_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::SensorCan>::SharedPtr
+      sensor_can_subscriber_;
 
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
 
   // Params
   double update_rate_;
-  double wheelbase_;
-  double lookahead_distance_;
-  double target_radius_;
-  int hil_;
-  int test_;
-  int target_steer_test_;
   std::vector<double> str_ctrl_params_;
   std::vector<double> thr_ctrl_params_;
   std::vector<double> brk_ctrl_params_;
 
   // Callback
+  // TODO choose either ptr or not for all CB vars
   utfr_msgs::msg::TargetState::SharedPtr target_state_{nullptr};
-  utfr_msgs::msg::EgoState::SharedPtr ego_state{nullptr};
+  utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ControlCmd control_cmd_;
-  utfr_msgs::msg::Jetson jetson_msg_;
+  utfr_msgs::msg::SensorCan sensor_can_;
   utfr_msgs::msg::Heartbeat heartbeat_;
 };
 

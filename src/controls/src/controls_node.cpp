@@ -8,7 +8,7 @@
 
 * file: controls_node.cpp
 * auth: Youssef Elhadad
-* desc: controller publisher node class for ros2 template
+* desc: controls node class
 */
 #include <controls_node.hpp>
 
@@ -25,57 +25,25 @@ ControlsNode::ControlsNode() : Node("controls_node") {
 }
 
 void ControlsNode::initParams() {
-  // wheelbase
-  // Initialize Params with default values
-  this->declare_parameter("wheelbase", 1.58);
-
-  // Load params from parameter server
-  wheelbase_ = this->get_parameter("wheelbase").as_double();
-
-  // lookahead_distance_scaling_factor
-  this->declare_parameter("lookahead_distance_scalling_factor", 0.5);
-
-  lookahead_distance_ =
-      this->get_parameter("lookahead_distance_scalling_factor").as_double();
-
   // steering_controller_params
   std::vector<double> default_pid;
   this->declare_parameter("steering_controller_params", default_pid);
-
   str_ctrl_params_ =
       this->get_parameter("steering_controller_params").as_double_array();
 
   // throttle_controller_params
   this->declare_parameter("throttle_controller_params", default_pid);
-
   thr_ctrl_params_ =
       this->get_parameter("throttle_controller_params").as_double_array();
 
   // braking_controller_params
   this->declare_parameter("braking_controller_params", default_pid);
-
   brk_ctrl_params_ =
       this->get_parameter("braking_controller_params").as_double_array();
 
   // update_rate_
   this->declare_parameter("update_rate", 1000.0);
-
   update_rate_ = this->get_parameter("update_rate").as_double();
-
-  // hil_
-  this->declare_parameter("hil", 0);
-
-  hil_ = this->get_parameter("hil").as_int();
-
-  // target_steer_test_
-  this->declare_parameter("target_steer_test", 0);
-
-  target_steer_test_ = this->get_parameter("target_steer_test").as_int();
-
-  // test_
-  this->declare_parameter("test", 1);
-
-  test_ = this->get_parameter("test").as_int();
 
   ros_time_ = this->now();
 }
@@ -84,7 +52,7 @@ void ControlsNode::initPublishers() {
   control_cmd_publisher_ = this->create_publisher<utfr_msgs::msg::ControlCmd>(
       topics::kControlCmd, 1);
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-      topics::kControlSystemsHeartbeat, 1);
+      topics::kControlsHeartbeat, 1);
 }
 
 void ControlsNode::initSubscribers() {
@@ -96,8 +64,8 @@ void ControlsNode::initSubscribers() {
   ego_state_subscriber_ = this->create_subscription<utfr_msgs::msg::EgoState>(
       topics::kEgoState, 1, std::bind(&ControlsNode::egoStateCB, this, _1));
 
-  jetson_subscriber_ = this->create_subscription<utfr_msgs::msg::Jetson>(
-      topics::kJetson, 1, std::bind(&ControlsNode::jetsonCB, this, _1));
+  sensor_can_subscriber_ = this->create_subscription<utfr_msgs::msg::SensorCan>(
+      topics::kSensorCan, 1, std::bind(&ControlsNode::sensorCanCB, this, _1));
 }
 
 void ControlsNode::initTimers() {
@@ -107,11 +75,9 @@ void ControlsNode::initTimers() {
 }
 
 void ControlsNode::initController() {
-  pure_pursuit_ = std::make_unique<PurePursuitController>();
   steering_pid_ = std::make_unique<PIDController>();
   throttle_pid_ = std::make_unique<PIDController>();
   braking_pid_ = std::make_unique<PIDController>();
-  pure_pursuit_->initController(wheelbase_, lookahead_distance_);
 
   steering_pid_->initController(str_ctrl_params_, "steering controller");
   throttle_pid_->initController(thr_ctrl_params_, "throttle controller");
@@ -129,64 +95,55 @@ void ControlsNode::publishHeartbeat(const int status) {
   heartbeat_publisher_->publish(heartbeat_);
 }
 
+void ControlsNode::targetStateCB(const utfr_msgs::msg::TargetState &msg) {
+  target_state_ = std::make_shared<utfr_msgs::msg::TargetState>(msg);
+}
+
+void ControlsNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
+  ego_state_ = std::make_shared<utfr_msgs::msg::EgoState>(msg);
+}
+
+void ControlsNode::sensorCanCB(const utfr_msgs::msg::SensorCan &msg) {
+  sensor_can_ = msg;
+}
+
 void ControlsNode::timerCB() {
   int status = utfr_msgs::msg::Heartbeat::ACTIVE;
 
   // Check if other nodes are sending correct messages
-  if (!test_ && (ego_state == nullptr || target_state_ == nullptr)) {
-
-    status = utfr_msgs::msg::Heartbeat::UNINITIALIZED;
+  if (ego_state_ == nullptr || target_state_ == nullptr) {
+    status = utfr_msgs::msg::Heartbeat::NOT_READY;
     this->publishHeartbeat(status);
-    if (!test_)
-      return;
   }
 
   try {
     double target_velocity;
-    double ego_velocity;
-    int16_t target_angle;
-    int16_t current_steering_angle_;
+    double current_velocity;
+    int16_t target_sa;
+    int16_t current_sa;
 
     double dt = (this->now() - ros_time_).seconds();
     ros_time_ = this->now();
 
-    // get target states
-    if (test_) {
-      target_angle = target_steer_test_;
-      target_velocity = 1.0;
-      ego_velocity = jetson_msg_.velocity;
-    } else if (target_state_->type == utfr_msgs::msg::TargetState::GLOBAL) {
-      target_angle =
-          RadToDeg(pure_pursuit_->getSteeringAngle(target_state_, ego_state));
-      target_velocity = target_state_->trajectory.velocity;
-    } else if (target_state_->type == utfr_msgs::msg::TargetState::ROLLOUT) {
-      target_angle = -RadToDeg(target_state_->steering_angle);
-      RCLCPP_INFO(this->get_logger(), "Target angle: %d", target_angle);
-      target_velocity = target_state_->velocity;
-    }
-
     //*****   Steering   *****
-    current_steering_angle_ = (jetson_msg_.steering_angle) / 4.5;
-    RCLCPP_INFO(this->get_logger(), "Current Steering angle: %d",
-                current_steering_angle_);
+    current_sa = (ego_state_->steering_angle) / 4.5; // TODO: review
+    target_sa = target_state_->steering_angle;       // TODO: review
 
-    control_cmd_.str_cmd = (int16_t)steering_pid_->getCommand(
-        target_angle, current_steering_angle_, dt);
+    control_cmd_.str_cmd =
+        (int16_t)steering_pid_->getCommand(target_sa, current_sa, dt);
 
-    RCLCPP_INFO(this->get_logger(), "Sending str_cmd: %d",
-                control_cmd_.str_cmd);
-
-    //*****   Throttle & Brakes  *****
-    ego_velocity = utfr_dv::util::vectorMagnitude(ego_state->vel);
-    RCLCPP_INFO(this->get_logger(), "Current speed: %f", ego_velocity);
+    //*****   Throttle & Brake  *****
+    current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
+    target_velocity = target_state_->velocity;         // TODO: review
+    RCLCPP_INFO(this->get_logger(), "Current speed: %f", current_velocity);
 
     control_cmd_.thr_cmd =
-        throttle_pid_->getCommand(target_velocity, ego_velocity, dt);
+        throttle_pid_->getCommand(target_velocity, current_velocity, dt);
 
-    control_cmd_.brk_cmd =
-        (uint8_t)braking_pid_->getCommand(target_velocity, ego_velocity, dt);
+    control_cmd_.brk_cmd = (uint8_t)braking_pid_->getCommand(
+        target_velocity, current_velocity, dt);
 
-    if (ego_velocity < target_velocity) {
+    if (current_velocity < target_velocity) {
       RCLCPP_INFO(this->get_logger(), "Accelerating to: %f", target_velocity);
       control_cmd_.brk_cmd = 0;
     } else {
@@ -194,21 +151,6 @@ void ControlsNode::timerCB() {
       control_cmd_.thr_cmd = 0;
     }
 
-    //*****   End of Event   *****
-    if (target_state_->trajectory.type ==
-        utfr_msgs::msg::TrajectoryPoint::FINISH) {
-      control_cmd_.thr_cmd = 0;
-      control_cmd_.str_cmd = 0;
-      control_cmd_.brk_cmd = 0;
-
-      if (ego_velocity != 0.0) {
-        control_cmd_.brk_cmd = 255;
-      }
-    }
-
-    // Log params to monitor
-    control_cmd_.str_angle = current_steering_angle_;
-    control_cmd_.str_tar = target_angle;
     control_cmd_.header.stamp = this->get_clock()->now();
 
     // Publish message
@@ -216,22 +158,10 @@ void ControlsNode::timerCB() {
 
   } catch (int e) {
     RCLCPP_INFO(this->get_logger(), "timerCB: Error occured, error #%d", e);
-    status = utfr_msgs::msg::Heartbeat::FATAL;
+    status = utfr_msgs::msg::Heartbeat::ERROR;
   }
 
   this->publishHeartbeat(status);
-}
-
-void ControlsNode::targetStateCB(const utfr_msgs::msg::TargetState &msg) {
-  target_state_ = std::make_shared<utfr_msgs::msg::TargetState>(msg);
-}
-
-void ControlsNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
-  ego_state = std::make_shared<utfr_msgs::msg::EgoState>(msg);
-}
-
-void ControlsNode::jetsonCB(const utfr_msgs::msg::Jetson &msg) {
-  jetson_msg_ = msg;
 }
 
 } // namespace controls

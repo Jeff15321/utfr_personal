@@ -8,7 +8,7 @@
 
 * file: pid_controller.hpp
 * auth: Youssef Elhadad
-* desc: pid controller base class
+* desc: pid controller header
 */
 #pragma once
 
@@ -20,7 +20,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <utfr_msgs/msg/ego_state.hpp>
-#include <utfr_msgs/msg/jetson.hpp>
+#include <utfr_msgs/msg/sensor_can.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 
 namespace utfr_dv {

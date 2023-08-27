@@ -8,7 +8,7 @@
 
 * file: pid_controller.cpp
 * auth: Youssef Elhadad
-* desc: pid controller base class
+* desc: pid controller class
 *
 */
 

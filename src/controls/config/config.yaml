@@ -2,10 +2,6 @@ controls: # Name of Module
   ros__parameters:
     update_rate: 33.333 #[ms]
 
-    #pure_pursuit_parameters:
-    wheelbase: 1.58 #[m] //TODO - Change
-    lookahead_distance_scalling_factor: 1.05 #large -> slower turn
-
     #pid_parameters:
     steering_controller_params: [
         100000.0, #p_gain
@@ -33,7 +29,3 @@ controls: # Name of Module
         0.0, # output_lim_lower, absolute value limit of output
         255.0, # output_lim_upper, absolute value limit of output
       ]
-
-    hil: 1 #1 - HIL is active, 0 - Normal
-    test: 1 #1 - Testing
-    target_steer_test: 10

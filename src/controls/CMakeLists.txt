@@ -47,7 +47,6 @@ target_include_directories(controls
 ## Add Libaries
 add_library(controls_library
    src/controls_node.cpp
-   src/controller/pure_pursuit_controller.cpp
    src/controller/pid_controller.cpp)
 # Set Target Dependencies  
 ament_target_dependencies(controls_library ${THIS_PACKAGE_INCLUDE_DEPENDS})
@@ -108,9 +107,6 @@ if(BUILD_TESTING)
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
-
-  ## Link required files for testing:
-  target_sources(controls_unit_tests PRIVATE src/controller/pure_pursuit_controller.cpp)
 
   ## Install testing files
   install(TARGETS controls_unit_tests
