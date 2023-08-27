@@ -26,6 +26,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ControlCmd.msg"
   "msg/EgoState.msg"
   "msg/Heartbeat.msg"
+  "msg/ParametricSpline.msg"
   "msg/PerceptionDebug.msg"
   "msg/PlanningDebug.msg"
   "msg/PoseGraph.msg"
