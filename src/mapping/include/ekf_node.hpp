@@ -31,6 +31,7 @@
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
+#include <utfr_msgs/msg/sensor_can.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -72,18 +73,18 @@ private:
 
   /*! CAN sensor callback function
   */
-  void sensorCB();
+  void sensorCB(const utfr_msgs::msg::SensorCan msg);
 
   /*! Implement a dynamic vehicle model
   *  Use the throttle, brake, and steering angle to update the vehicle model state
-  *  @param[in] throttle geometry_msgs::msg::float&, throttle data
-  *  @param[in] brake geometry_msgs::msg::float&, braking data
-  *  @param[in] steering_angle geometry_msgs::msg::float&, steering angle, in radians
+  *  @param[in] throttle float&, throttle data
+  *  @param[in] brake float&, braking data
+  *  @param[in] steering_angle float&, steering angle, in radians
   *  @param[out] state geometry_msgs::msg::EgoState&, estimated state via the vehicle model
   */
-  void vehicleModel(const geometry_msgs::msg::float& throttle, 
-                    const geometry_msgs::msg::float& brake, 
-                    const geometry_msgs::msg::float& steering_angle, 
+  void vehicleModel(const float& throttle, 
+                    const float& brake, 
+                    const float& steering_angle 
                     );
 
   /*! Main EKF function.

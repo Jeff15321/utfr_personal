@@ -29,9 +29,9 @@ void BuildGraphNode::initParams() {}
 
 void BuildGraphNode::initSubscribers() {
   cone_detection_subscriber_ =     
-      this->create_subscription<utfr_msgs::msg::ConeDetecions>(
+      this->create_subscription<utfr_msgs::msg::ConeDetections>(
           topics::kConeDetections, 1, 
-          std::bind(&StateEstimationNode::coneDetectionCB, this, 
+          std::bind(&BuildGraphNode::coneDetectionCB, this, 
               std::placeholders::_1));
 
   state_estimation_subscriber_ =     
@@ -53,11 +53,11 @@ void BuildGraphNode::initHeartbeat() {
     this->create_publisher<utfr_msgs::msg::Heartbeat>(topics::kSLAMFrontHeartbeat, 10);
 }
 
-void BuildGraphNode::coneDetectionCB() {}
+void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {}
 
-void BuildGraphNode::stateEstimationCB() {}
+void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {}
 
-void BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetecions& cones) {}
+void BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections& cones) {}
 
 void BuildGraphNode::buildGraph() {}
 

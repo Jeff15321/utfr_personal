@@ -31,6 +31,7 @@
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
+#include <utfr_msgs/msg/pose_graph.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -72,7 +73,7 @@ private:
 
   /*! Pose Graph callback function
   */
-  void poseGraphCB();
+  void poseGraphCB(const utfr_msgs::msg::PoseGraph msg);
 
   /*! Graph SLAM function
   *   @param[in] pose_graph utfr_msgs::msg::PoseGraph Pose graph message
@@ -90,6 +91,7 @@ private:
       pose_graph_subscriber_;
 
   utfr_msgs::msg::PoseGraph pose_graph_;
+  double slam_rate_;
 };
 } // namespace preprocess_graph
 } // namespace utfr_dv

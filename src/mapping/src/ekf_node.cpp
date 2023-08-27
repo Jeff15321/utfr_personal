@@ -49,9 +49,11 @@ void EkfNode::initHeartbeat() {
     this->create_publisher<utfr_msgs::msg::Heartbeat>(topics::kEKFHeartbeat, 10);
 }
 
-void EkfNode::sensorCB() {};
+void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {};
 
-void EkfNode::vehicleModel() {};
+void EkfNode::vehicleModel(const float& throttle, 
+                          const float& brake, 
+                          const float& steering_angle) {};
 
 void EkfNode::EKF() {};
 

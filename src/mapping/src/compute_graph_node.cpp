@@ -28,7 +28,7 @@ ComputeGraphNode::ComputeGraphNode() : Node("compute_graph_node") {
 void ComputeGraphNode::initParams() {
   this->declare_parameter("slam_timer_", 100);
 
-  slam_timer_ = 
+  slam_rate_ = 
       this->get_parameter("slam_timer").get_parameter_value().get<double>(); 
 }
 
@@ -56,7 +56,7 @@ void ComputeGraphNode::initHeartbeat() {
     this->create_publisher<utfr_msgs::msg::Heartbeat>(topics::kMappingHeartbeat, 10);
 }
 
-void ComputeGraphNode::poseGraphCB() {}
+void ComputeGraphNode::poseGraphCB(const utfr_msgs::msg::PoseGraph msg) {}
 
 void ComputeGraphNode::graphSLAM() {}
 
@@ -66,7 +66,7 @@ void ComputeGraphNode::graphSLAM() {}
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
   rclcpp::spin(
-      std::make_shared<utfr_dv::preprocess_graph::ComputeGraphNode>());
+      std::make_shared<utfr_dv::compute_graph::ComputeGraphNode>());
   rclcpp::shutdown();
   return 0;
 }

@@ -43,7 +43,7 @@ function(add_node NODE_NAME)
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
   add_executable(${NODE_NAME} src/${NODE_NAME}_node.cpp)
-  target_link_libraries(${NODE_NAME} ${NODE_NAME}_library)
+  target_link_libraries(${NODE_NAME} ${NODE_NAME}_library ${CMAKE_SOURCE_DIR}/external/g2o/build/lib/libg2o_core.so)
   ament_target_dependencies(${NODE_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})
   target_include_directories(${NODE_NAME}
       PUBLIC
@@ -61,10 +61,9 @@ function(add_node NODE_NAME)
 endfunction()
 
 # Add nodes
-add_node(preprocess_graph)
+add_node(compute_graph)
 add_node(build_graph)
 add_node(ekf)
-add_node(knn)
 
 ## Install Headers
 install(
