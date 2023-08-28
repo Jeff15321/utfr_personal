@@ -175,6 +175,7 @@ private:
   utfr_msgs::msg::SensorCan sensor_can_;
   utfr_msgs::msg::SystemStatus system_status_;
 
+  // TODO: Change global to local vars
   // Commands to rest of car
   int16_t steering_rate_cmd_;
   uint8_t braking_cmd_;
@@ -199,7 +200,7 @@ private:
   double wheelspeed_rl_;
   double wheelspeed_rr_;
 
-  // IMU
+  // TODO: remove IMU var
   double imu_;
 
   // TODO: GNSS/INS

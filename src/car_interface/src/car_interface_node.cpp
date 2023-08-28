@@ -164,7 +164,7 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
 
   //*******   Throttle   *******
   // TO DO: ADD THR CHECKS
-  RCLCPP_INFO(this->get_logger(), "Sending Throttle: %f",
+  RCLCPP_INFO(this->get_logger(), "Throttle: %f",
               (double)(int)((throttle_cmd_)));
 
   can1_->write_can(dv_can_msg::DV_THR_COMMAND,
@@ -180,14 +180,16 @@ void CarInterface::getSteeringAngleSensorData() {
         -((int16_t)(can1_->get_can(dv_can_msg::ANGSENREC)) / 10);
 
     // Check for sensor malfunction
-    if (current_steering_angle_ == -3276) {
+    if (current_steering_angle_ == -3276 | abs(current_steering_angle_) > 750) {
       RCLCPP_ERROR(this->get_logger(), "Steering angle sensor error");
+      // TODO: Error handling function, change control cmds to 0 and trigger EBS
     } else {
       sensor_can_.steering_angle = current_steering_angle_;
     }
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "%s: Error occured, error #%d",
-                function_name.c_str(), e);
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+                 function_name.c_str(), e);
+    // TODO: Error handling function, change control cmds to 0 and trigger EBS
   }
 }
 
@@ -205,8 +207,8 @@ void CarInterface::getMotorSpeedData() {
     //
     // }
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "%s: Error occured, error #%d",
-                function_name.c_str(), e);
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+                 function_name.c_str(), e);
   }
 }
 
@@ -225,8 +227,8 @@ void CarInterface::getServiceBrakeData() {
     // sensor_can_.asb_pressure_rear = asb_pressure_rear_;
     // }
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "%s: Error occured, error #%d",
-                function_name.c_str(), e);
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+                 function_name.c_str(), e);
   }
 }
 
@@ -249,8 +251,8 @@ void CarInterface::getEBSPressureData() {
     //   sensor_can_.ebs_pressure_2 = ebs_pressure_2_;
     // }
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "%s: Error occured, error #%d",
-                function_name.c_str(), e);
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+                 function_name.c_str(), e);
   }
 }
 
@@ -281,8 +283,8 @@ void CarInterface::getWheelspeedSensorData() {
     //   sensor_can_.wheelspeed_rr = wheelspeed_rr_;
     // }
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "%s: Error occured, error #%d",
-                function_name.c_str(), e);
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+                 function_name.c_str(), e);
   }
 }
 
@@ -300,8 +302,8 @@ void CarInterface::getIMUData() {
     //   sensor_can_.imu_data = imu_;
     // }
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "%s: Error occured, error #%d",
-                function_name.c_str(), e);
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+                 function_name.c_str(), e);
   }
 }
 
@@ -320,8 +322,8 @@ void CarInterface::getSensorCan() {
     sensor_can_.header.stamp = this->get_clock()->now();
     sensor_can_publisher_->publish(sensor_can_);
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "%s: Error occured, error #%d",
-                function_name.c_str(), e);
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+                 function_name.c_str(), e);
   }
 }
 
@@ -467,8 +469,8 @@ void CarInterface::getSystemStatus() {
         (uint)(dv_system_status << 23) & 0x1FFFF;
 
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "%s: Error occured, error #%d",
-                function_name.c_str(), e);
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+                 function_name.c_str(), e);
   }
 }
 
@@ -524,8 +526,8 @@ void CarInterface::setSystemStatusAS() {
     }
     }
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "%s: Error occured, error #%d",
-                function_name.c_str(), e);
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+                 function_name.c_str(), e);
   }
 }
 
@@ -560,8 +562,8 @@ void CarInterface::launchMission() {
     }
     }
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "%s: Error occured, error #%d",
-                function_name.c_str(), e);
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+                 function_name.c_str(), e);
   }
 }
 
@@ -578,8 +580,8 @@ void CarInterface::timerCB() {
     system_status_publisher_->publish(system_status_);
 
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "%s: Error occured, error #%d",
-                function_name.c_str(), e);
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+                 function_name.c_str(), e);
   }
 }
 
