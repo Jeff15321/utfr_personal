@@ -5,6 +5,7 @@ set -e # will stop script on any error
 # In dv24/ run 'bash scripts/utfr_init'
 # Make sure 'source /opt/ros/humble/setup.bash' is in ~/.bashrc
 # If not, add it with 'source /opt/ros/humble/setup.bash >> ~/.bashrc'
+# and restart the terminal
 
 # Init all submodules
 git submodule update --init --recursive
