@@ -84,5 +84,5 @@ echo "$YAML_CONTENT" > $COLCON_CONFIG_DIR/defaults.yaml
 
 echo "FYI: to use nodes under drivers/, use the Jetson Orin to avoid additional setup"
 echo "You are now ready to build via 'colcon build --<options>'"
-echo "After a sucessful build, run 'source source install/setup.bash'"
+echo "After a sucessful build, run 'source install/setup.bash'"
 echo "Finally you can launch with 'ros2 launch <node name> <launch file name>'"
