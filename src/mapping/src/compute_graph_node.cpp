@@ -1,0 +1,70 @@
+/*
+
+██████  ██    ██ ██████  ██   ██
+██   ██ ██    ██      ██ ██   ██
+██   ██ ██    ██  █████  ███████
+██   ██  ██  ██  ██           ██
+██████    ████   ███████      ██
+
+*
+* file: compute_graph_node.cpp
+* auth: Arthur Xu
+* desc: compute graph node class
+*/
+
+#include <compute_graph_node.hpp>
+
+namespace utfr_dv {
+namespace compute_graph {
+
+ComputeGraphNode::ComputeGraphNode() : Node("compute_graph_node") {
+  this->initParams();
+  this->initSubscribers();
+  this->initPublishers();
+  this->initTimers();
+  this->initHeartbeat();
+}
+
+void ComputeGraphNode::initParams() {
+  this->declare_parameter("slam_timer_", 100);
+
+  slam_rate_ =
+      this->get_parameter("slam_timer").get_parameter_value().get<double>();
+}
+
+void ComputeGraphNode::initSubscribers() {
+  pose_graph_subscriber_ = this->create_subscription<utfr_msgs::msg::PoseGraph>(
+      topics::kPoseGraph, 1,
+      std::bind(&ComputeGraphNode::poseGraphCB, this, std::placeholders::_1));
+}
+
+void ComputeGraphNode::initPublishers() {
+  cone_map_publisher_ =
+      this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
+}
+
+void ComputeGraphNode::initTimers() {
+  slam_timer_ = this->create_wall_timer(
+      std::chrono::duration<double, std::milli>(slam_rate_),
+      std::bind(&ComputeGraphNode::graphSLAM, this));
+}
+
+void ComputeGraphNode::initHeartbeat() {
+  heartbeat_publisher_ = 
+    this->create_publisher<utfr_msgs::msg::Heartbeat>(
+      topics::kMappingComputeHeartbeat, 10);
+}
+
+void ComputeGraphNode::poseGraphCB(const utfr_msgs::msg::PoseGraph msg) {}
+
+void ComputeGraphNode::graphSLAM() {}
+
+} // namespace compute_graph
+} // namespace utfr_dv
+
+int main(int argc, char **argv) {
+  rclcpp::init(argc, argv);
+  rclcpp::spin(std::make_shared<utfr_dv::compute_graph::ComputeGraphNode>());
+  rclcpp::shutdown();
+  return 0;
+}

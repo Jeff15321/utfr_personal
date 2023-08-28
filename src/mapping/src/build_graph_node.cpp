@@ -27,13 +27,41 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
 
 void BuildGraphNode::initParams() {}
 
-void BuildGraphNode::initSubscribers() {}
+void BuildGraphNode::initSubscribers() {
+  cone_detection_subscriber_ =
+      this->create_subscription<utfr_msgs::msg::ConeDetections>(
+          topics::kConeDetections, 1,
+          std::bind(&BuildGraphNode::coneDetectionCB, this,
+                    std::placeholders::_1));
 
-void BuildGraphNode::initPublishers() {}
+  state_estimation_subscriber_ =
+      this->create_subscription<utfr_msgs::msg::EgoState>(
+          topics::kEgoState, 1,
+          std::bind(&BuildGraphNode::stateEstimationCB, this,
+                    std::placeholders::_1));
+}
+
+void BuildGraphNode::initPublishers() {
+  pose_graph_publisher_ =
+      this->create_publisher<utfr_msgs::msg::PoseGraph>(topics::kPoseGraph, 10);
+}
 
 void BuildGraphNode::initTimers() {}
 
-void BuildGraphNode::initHeartbeat() {}
+void BuildGraphNode::initHeartbeat() {
+  heartbeat_publisher_ = 
+    this->create_publisher<utfr_msgs::msg::Heartbeat>(
+      topics::kMappingBuildHeartbeat, 10);
+}
+
+void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
+}
+
+void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {}
+
+void BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {}
+
+void BuildGraphNode::buildGraph() {}
 
 } // namespace build_graph
 } // namespace utfr_dv

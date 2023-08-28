@@ -10,10 +10,10 @@ def generate_launch_description():
         get_package_share_directory("mapping"), "config", "config.yaml"
     )
 
-    preprocess_graph_node = Node(
+    compute_graph_node = Node(
         package="mapping",
-        executable="preprocess_graph",
-        name="preprocess_graph_node",
+        executable="compute_graph",
+        name="compute_graph_node",
         output="screen",
         emulate_tty=True,
         parameters=[config_path],
@@ -37,17 +37,7 @@ def generate_launch_description():
         parameters=[config_path],
     )
 
-    knn_node = Node(
-        package="mapping",
-        executable="knn",
-        name="knn_node",
-        output="screen",
-        emulate_tty=True,
-        parameters=[config_path],
-    )
-
-    ld.add_action(preprocess_graph_node)
+    ld.add_action(compute_graph_node)
     ld.add_action(build_graph_node)
     ld.add_action(ekf_node)
-    ld.add_action(knn_node)
     return ld

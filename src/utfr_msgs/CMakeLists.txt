@@ -29,6 +29,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ParametricSpline.msg"
   "msg/PerceptionDebug.msg"
   "msg/PlanningDebug.msg"
+  "msg/PoseGraph.msg"
   "msg/SensorCan.msg"
   "msg/SystemStatus.msg"
   "msg/TargetState.msg"
