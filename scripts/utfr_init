@@ -18,7 +18,7 @@ sudo apt-get update -y
 sudo apt-get upgrade -y
 
 echo "==========================================="
-echo "=            Install Rosdeps              ="
+echo "=            Install rosdeps              ="
 echo "==========================================="
 rosdep update
 rosdep install --from-paths src --ignore-src --rosdistro -y
@@ -41,7 +41,6 @@ source ~/.bashrc
 echo "==========================================="
 echo "=     Config colcon to ignore drivers     ="
 echo "==========================================="
-
 YAML_CONTENT=$(cat <<EOF
 {
   "build":
