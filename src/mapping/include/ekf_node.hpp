@@ -89,9 +89,9 @@ private:
 
   /*! Main EKF function.
    *  The main EKF loop. Takes in measurement data for the EKF and performes a
-   * single update step.
+   *  single update step.
    *  @param[in] imu_data sensor_msgs::msg::Imu&, IMU data.
-   *  @param[in] gps_data ?, GPS data.
+   *  @param[in] gps_data ?, GPS data. TODO: Figure out GPS return type
    *  @param[in] vehicle_model_data utfr_msgs::msg::EgoState&, vehicle model
    * data.
    */

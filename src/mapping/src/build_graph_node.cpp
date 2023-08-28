@@ -49,8 +49,9 @@ void BuildGraphNode::initPublishers() {
 void BuildGraphNode::initTimers() {}
 
 void BuildGraphNode::initHeartbeat() {
-  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-      topics::kSLAMFrontHeartbeat, 10);
+  heartbeat_publisher_ = 
+    this->create_publisher<utfr_msgs::msg::Heartbeat>(
+      topics::kMappingBuildHeartbeat, 10);
 }
 
 void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {

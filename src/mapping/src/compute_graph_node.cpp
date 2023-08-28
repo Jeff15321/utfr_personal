@@ -50,8 +50,9 @@ void ComputeGraphNode::initTimers() {
 }
 
 void ComputeGraphNode::initHeartbeat() {
-  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-      topics::kMappingHeartbeat, 10);
+  heartbeat_publisher_ = 
+    this->create_publisher<utfr_msgs::msg::Heartbeat>(
+      topics::kMappingComputeHeartbeat, 10);
 }
 
 void ComputeGraphNode::poseGraphCB(const utfr_msgs::msg::PoseGraph msg) {}
