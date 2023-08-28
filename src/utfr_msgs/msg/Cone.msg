@@ -5,7 +5,7 @@ std_msgs/Header header
 
 geometry_msgs/Point pos # x, y, null [m, m, n/a]
 uint8 type # cone type based on enum below
-double[3] covariance # 2D covariences for x, y, theta
+float64[2] covariance # 2D covariences for x, y
 
 # cone types:
 uint8 UNKNOWN=0
