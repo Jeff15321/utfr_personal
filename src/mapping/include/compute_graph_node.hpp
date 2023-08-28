@@ -30,8 +30,8 @@
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
-#include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/pose_graph.hpp>
+#include <utfr_msgs/msg/system_status.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -72,13 +72,13 @@ private:
   void initHeartbeat();
 
   /*! Pose Graph callback function
-  */
+   */
   void poseGraphCB(const utfr_msgs::msg::PoseGraph msg);
 
   /*! Graph SLAM function
-  *   @param[in] pose_graph utfr_msgs::msg::PoseGraph Pose graph message
-  *   @param[out] cone_map utfr_msgs::msg::ConeMap Cone map message
-  */
+   *   @param[in] pose_graph utfr_msgs::msg::PoseGraph Pose graph message
+   *   @param[out] cone_map utfr_msgs::msg::ConeMap Cone map message
+   */
   void graphSLAM();
 
   // Publisher
@@ -87,11 +87,11 @@ private:
   rclcpp::TimerBase::SharedPtr slam_timer_;
 
   // Subscribers
-  rclcpp::Subscription<utfr_msgs::msg::PoseGraph>::SharedPtr 
+  rclcpp::Subscription<utfr_msgs::msg::PoseGraph>::SharedPtr
       pose_graph_subscriber_;
 
   utfr_msgs::msg::PoseGraph pose_graph_;
   double slam_rate_;
 };
-} // namespace preprocess_graph
+} // namespace compute_graph
 } // namespace utfr_dv
