@@ -5,6 +5,7 @@ set -e # will stop script on any error
 # In dv24/ run 'bash scripts/utfr_init'
 # Make sure 'source /opt/ros/humble/setup.bash' is in ~/.bashrc
 # If not, add it with 'source /opt/ros/humble/setup.bash >> ~/.bashrc'
+# and restart the terminal
 
 # Init all submodules
 git submodule update --init --recursive
@@ -17,7 +18,7 @@ sudo apt-get update -y
 sudo apt-get upgrade -y
 
 echo "==========================================="
-echo "=            Install Rosdeps              ="
+echo "=            Install rosdeps              ="
 echo "==========================================="
 rosdep update
 rosdep install --from-paths src --ignore-src --rosdistro -y
@@ -40,7 +41,6 @@ source ~/.bashrc
 echo "==========================================="
 echo "=     Config colcon to ignore drivers     ="
 echo "==========================================="
-
 YAML_CONTENT=$(cat <<EOF
 {
   "build":
@@ -83,5 +83,5 @@ echo "$YAML_CONTENT" > $COLCON_CONFIG_DIR/defaults.yaml
 
 echo "FYI: to use nodes under drivers/, use the Jetson Orin to avoid additional setup"
 echo "You are now ready to build via 'colcon build --<options>'"
-echo "After a sucessful build, run 'source source install/setup.bash'"
+echo "After a sucessful build, run 'source install/setup.bash'"
 echo "Finally you can launch with 'ros2 launch <node name> <launch file name>'"
