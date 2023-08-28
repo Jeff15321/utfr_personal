@@ -1,0 +1,87 @@
+#!/bin/bash
+set -e # will stop script on any error
+
+# One-time script for first time repo setup
+# In dv24/ run 'bash scripts/utfr_init'
+# Make sure 'source /opt/ros/humble/setup.bash' is in ~/.bashrc
+# If not, add it with 'source /opt/ros/humble/setup.bash >> ~/.bashrc'
+
+# Init all submodules
+git submodule update --init --recursive
+
+# Update existing Packages:
+echo "==========================================="
+echo "=            Updating Ubuntu              ="
+echo "==========================================="
+sudo apt-get update -y
+sudo apt-get upgrade -y
+
+echo "==========================================="
+echo "=            Install Rosdeps              ="
+echo "==========================================="
+rosdep update
+rosdep install --from-paths src --ignore-src --rosdistro -y
+
+echo "==========================================="
+echo "=            Install pip deps             ="
+echo "==========================================="
+pip install xgboost
+pip install scikit-learn
+pip install imutils
+pip install xacro
+
+echo "==========================================="
+echo "=               Config sim                ="
+echo "==========================================="
+DIR="$(pwd)/src/utfr_sim"
+echo 'export EUFS_MASTER=$DIR' >> ~/.bashrc
+source ~/.bashrc
+
+echo "==========================================="
+echo "=     Config colcon to ignore drivers     ="
+echo "==========================================="
+
+YAML_CONTENT=$(cat <<EOF
+{
+  "build":
+    {
+      "packages-ignore":
+        [
+          "arena_camera_node",
+          "bluespace_ai_xsens_mti_driver",
+          "ouster_msgs",
+          "ros2_ouster",
+          "velodyne",
+          "velodyne_driver",
+          "velodyne_laserscan",
+          "velodyne_msgs",
+          "velodyne_pointcloud",
+        ],
+    },
+  "test":
+    {
+      "packages-ignore":
+        [
+          "arena_camera_node",
+          "bluespace_ai_xsens_mti_driver",
+          "ouster_msgs",
+          "ros2_ouster",
+          "velodyne",
+          "velodyne_driver",
+          "velodyne_laserscan",
+          "velodyne_msgs",
+          "velodyne_pointcloud"
+        ],
+    },
+}
+EOF
+)
+
+COLCON_CONFIG_DIR="$HOME/.colcon"
+mkdir $COLCON_CONFIG_DIR
+echo "$YAML_CONTENT" > $COLCON_CONFIG_DIR/defaults.yaml
+
+echo "FYI: to use nodes under drivers/, use the Jetson Orin to avoid additional setup"
+echo "You are now ready to build via 'colcon build --<options>'"
+echo "After a sucessful build, run 'source source install/setup.bash'"
+echo "Finally you can launch with 'ros2 launch <node name> <launch file name>'"

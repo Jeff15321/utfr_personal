@@ -7,6 +7,9 @@
 [submodule "src/drivers/ros2_ouster_drivers"]
 	path = src/drivers/ros2_ouster_drivers
 	url = https://github.com/ros-drivers/ros2_ouster_drivers.git
+[submodule "src/utfr_sim"]
+	path = src/utfr_sim
+	url = git@github.com:UTFR/utfr_sim.git
 [submodule "src/mapping/external/g2o"]
 	path = src/mapping/external/g2o
 	url = https://github.com/RainerKuemmerle/g2o.git

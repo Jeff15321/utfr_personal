@@ -3,7 +3,7 @@
 # Header for timestamp
 std_msgs/Header header
 
-geometry_msgs/Vector3 pos # x, y, null [m, m, n/a]
+geometry_msgs/Point pos # x, y, null [m, m, n/a]
 uint8 type # cone type based on enum below
 
 # cone types:
