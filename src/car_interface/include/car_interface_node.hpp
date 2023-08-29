@@ -21,11 +21,7 @@
 #include <string>
 
 // Message Requirements
-#include <geometry_msgs/msg/transform_stamped.hpp>
-#include <geometry_msgs/msg/vector3_stamped.hpp>
-#include <sensor_msgs/msg/laser_scan.hpp>
-#include <utfr_msgs/msg/cone_detections.hpp>
-#include <utfr_msgs/msg/cone_map.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <utfr_msgs/msg/control_cmd.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/sensor_can.hpp>
@@ -177,31 +173,9 @@ private:
 
   // TODO: Change global to local vars
   // Commands to rest of car
-  int16_t steering_rate_cmd_;
+  int16_t steering_cmd_;
   uint8_t braking_cmd_;
   int throttle_cmd_;
-
-  // Steering
-  int16_t current_steering_angle_;
-
-  // Motor speed
-  double motor_speed_;
-
-  // Braking
-  uint16_t asb_pressure_front_;
-  uint16_t asb_pressure_rear_;
-
-  uint16_t ebs_pressure_1_;
-  uint16_t ebs_pressure_2_;
-
-  // Wheel speed
-  double wheelspeed_fl_;
-  double wheelspeed_fr_;
-  double wheelspeed_rl_;
-  double wheelspeed_rr_;
-
-  // TODO: remove IMU var
-  double imu_;
 
   // TODO: GNSS/INS
 
@@ -210,13 +184,13 @@ private:
 
   // CAN objects
   CanInterfaceUPtr can1_{nullptr};
-  CanInterfaceUPtr can0_{nullptr};
+  // CanInterfaceUPtr can0_{nullptr};
   rclcpp::TimerBase::SharedPtr can_timer_;
 
   // Heartbeat object
   HeartbeatMonitorUPtr heartbeat_monitor_{nullptr};
 
-  // TO DO: Add drivers and other nodes
+  // TODO: Add drivers and other nodes
   // Heartbeat map
   std::unordered_map<std::string, std::string> heartbeat_topics_map_{
       {"perception", topics::kPerceptionHeartbeat},

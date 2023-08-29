@@ -41,16 +41,9 @@ void CarInterface::initParams() {
   heartbeat_modules_ =
       this->get_parameter("heartbeat_modules").as_string_array();
 
-  steering_rate_cmd_ = 0;
+  steering_cmd_ = 0;
   braking_cmd_ = 0;
   throttle_cmd_ = 0;
-
-  motor_speed_ = 0.0;
-  // imu_accel_.x = 0.0;
-  // imu_accel_.y = 0.0;
-  // imu_accel_.z = 0.0;
-
-  current_steering_angle_ = 0;
 }
 
 void CarInterface::initSubscribers() {
@@ -98,7 +91,7 @@ void CarInterface::initTimers() {
 
 void CarInterface::initCAN() {
   can1_ = std::make_unique<CanInterface>();
-  can0_ = std::make_unique<CanInterface>();
+  // can0_ = std::make_unique<CanInterface>();
 
   if (can1_->connect("can1")) {
     RCLCPP_INFO(this->get_logger(), "Finished Initializing CAN");
@@ -108,13 +101,13 @@ void CarInterface::initCAN() {
   while (can1_->read_can())
     ;
 
-  if (can0_->connect("can0")) {
-    RCLCPP_INFO(this->get_logger(), "Finished Initializing CAN");
-  } else
-    RCLCPP_ERROR(this->get_logger(), "Failed To Initialize CAN");
+  // if (can0_->connect("can0")) {
+  //   RCLCPP_INFO(this->get_logger(), "Finished Initializing CAN");
+  // } else
+  //   RCLCPP_ERROR(this->get_logger(), "Failed To Initialize CAN");
 
-  while (can0_->read_can())
-    ;
+  // while (can0_->read_can())
+  //   ;
 
   return;
 }
@@ -135,18 +128,18 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
 
   // Get latest commands
   braking_cmd_ = msg.brk_cmd;
-  steering_rate_cmd_ = msg.str_cmd;
+  steering_cmd_ = msg.str_cmd;
   throttle_cmd_ = msg.thr_cmd;
 
   //*******   Steering   *******
 
   // Contruct command to send
-  uint16_t steeringRateToSC = abs(steering_rate_cmd_) & 0x0FFF;
+  uint16_t steeringRateToSC = abs(steering_cmd_) & 0x0FFF;
   bool directionBit;
 
   RCLCPP_INFO(this->get_logger(), "Steering Rate CMD: %d", steeringRateToSC);
 
-  if (steering_rate_cmd_ < 0) {
+  if (steering_cmd_ < 0) {
     directionBit = 0;
   } else {
     directionBit = 1;
@@ -173,18 +166,18 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
 
 void CarInterface::getSteeringAngleSensorData() {
   const std::string function_name{"getSteeringAngleSensorData"};
-  //  if (!(abs(current_steering_angle_) > 750))
+  int16_t steering_angle;
 
   try {
-    current_steering_angle_ =
-        -((int16_t)(can1_->get_can(dv_can_msg::ANGSENREC)) / 10);
+    // TO DO: Check value format
+    steering_angle = -((int16_t)(can1_->get_can(dv_can_msg::ANGSENREC)) / 10);
 
     // Check for sensor malfunction
-    if (current_steering_angle_ == -3276 | abs(current_steering_angle_) > 750) {
+    if ((steering_angle == -3276) | (abs(steering_angle) > 750)) {
       RCLCPP_ERROR(this->get_logger(), "Steering angle sensor error");
       // TODO: Error handling function, change control cmds to 0 and trigger EBS
     } else {
-      sensor_can_.steering_angle = current_steering_angle_;
+      sensor_can_.steering_angle = steering_angle;
     }
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
@@ -195,16 +188,17 @@ void CarInterface::getSteeringAngleSensorData() {
 
 void CarInterface::getMotorSpeedData() {
   const std::string function_name{"getMotorSpeedData"};
+  double motor_speed;
 
   try {
-    motor_speed_ = can1_->get_can(dv_can_msg::MOTPOS) * -0.021545;
-    sensor_can_.motor_speed = motor_speed_;
+    // TO DO: Check value format
+    motor_speed = can1_->get_can(dv_can_msg::MOTPOS) * -0.021545;
 
     // TO DO: Check for sensor malfunction
     // if () {
     //   RCLCPP_ERROR(this->get_logger(), "Motor speed value error");
     // } else {
-    //
+    //    sensor_can_.motor_speed = motor_speed;
     // }
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
@@ -214,17 +208,20 @@ void CarInterface::getMotorSpeedData() {
 
 void CarInterface::getServiceBrakeData() {
   const std::string function_name{"getServiceBrakeData"};
+  uint16_t asb_pressure_front; // TODO: Check proper var type
+  uint16_t asb_pressure_rear;  // TODO: Check proper var type
 
   try {
-    asb_pressure_front_ = (can1_->get_can(dv_can_msg::FBP));
-    asb_pressure_rear_ = (can1_->get_can(dv_can_msg::RBP));
+    // TO DO: Check value format
+    asb_pressure_front = (can1_->get_can(dv_can_msg::FBP));
+    asb_pressure_rear = (can1_->get_can(dv_can_msg::RBP));
 
     // TO DO: Check for sensor malfunction
     // if () {
     //   RCLCPP_ERROR(this->get_logger(), "Service brake pressure value error");
     // } else {
-    // sensor_can_.asb_pressure_front = asb_pressure_front_;
-    // sensor_can_.asb_pressure_rear = asb_pressure_rear_;
+    // sensor_can_.asb_pressure_front = asb_pressure_front;
+    // sensor_can_.asb_pressure_rear = asb_pressure_rear;
     // }
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
@@ -234,21 +231,23 @@ void CarInterface::getServiceBrakeData() {
 
 void CarInterface::getEBSPressureData() {
   const std::string function_name{"getEBSPressureData"};
+  uint16_t ebs_pressure_1; // TODO: Check proper var type
+  uint16_t ebs_pressure_2; // TODO: Check proper var type
 
   try {
     // TO DO: Proper CAN message
-    // ebs_pressure_1_ =
+    // ebs_pressure_1 =
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TO DO: Proper CAN message
-    // ebs_pressure_2_ =
+    // ebs_pressure_2 =
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
 
     // TO DO: Check for sensor malfunction
     // if () {
     //   RCLCPP_ERROR(this->get_logger(), "EBS pressure value error");
     // } else {
-    //   sensor_can_.ebs_pressure_1 = ebs_pressure_1_;
-    //   sensor_can_.ebs_pressure_2 = ebs_pressure_2_;
+    //   sensor_can_.ebs_pressure_1 = ebs_pressure_1;
+    //   sensor_can_.ebs_pressure_2 = ebs_pressure_2;
     // }
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
@@ -258,29 +257,33 @@ void CarInterface::getEBSPressureData() {
 
 void CarInterface::getWheelspeedSensorData() {
   const std::string function_name{"getWheelspeedSensorData"};
+  double wheelspeed_fl; // TODO: Check proper var type
+  double wheelspeed_fr; // TODO: Check proper var type
+  double wheelspeed_rl; // TODO: Check proper var type
+  double wheelspeed_rr; // TODO: Check proper var type
 
   try {
     // TO DO: Proper CAN message
-    // wheelspeed_fl_ =
+    // wheelspeed_fl =
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TO DO: Proper CAN message
-    // wheelspeed_fr_ =
+    // wheelspeed_fr =
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TO DO: Proper CAN message
-    // wheelspeed_rl_ =
+    // wheelspeed_rl =
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TO DO: Proper CAN message
-    // wheelspeed_rr_ =
+    // wheelspeed_rr =
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
 
     // TO DO: Check for sensor malfunction
     // if () {
     //   RCLCPP_ERROR(this->get_logger(), "Wheel speed value error");
     // } else {
-    //   sensor_can_.wheelspeed_fl = wheelspeed_fl_;
-    //   sensor_can_.wheelspeed_fr = wheelspeed_fr_;
-    //   sensor_can_.wheelspeed_rl = wheelspeed_rl_;
-    //   sensor_can_.wheelspeed_rr = wheelspeed_rr_;
+    //   sensor_can_.wheelspeed_fl = wheelspeed_fl;
+    //   sensor_can_.wheelspeed_fr = wheelspeed_fr;
+    //   sensor_can_.wheelspeed_rl = wheelspeed_rl;
+    //   sensor_can_.wheelspeed_rr = wheelspeed_rr;
     // }
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
@@ -292,14 +295,24 @@ void CarInterface::getIMUData() {
   const std::string function_name{"getIMUData"};
 
   try {
-    // TO DO: Proper CAN message
-    imu_ = (uint16_t)(can1_->get_can(dv_can_msg::TODO));
+    // TO DO: Check reference frames, double check value format
+    sensor_msgs::msg::Imu imu;
+    imu.linear_acceleration.x =
+        (double)((can1_->get_can(dv_can_msg::ImuX) >> 32) & 255) / 100;
+    imu.linear_acceleration.y =
+        -(double)((can1_->get_can(dv_can_msg::ImuY) >> 32) & 255) / 100;
+    imu.linear_acceleration.z =
+        (double)((can1_->get_can(dv_can_msg::ImuZ) >> 32) & 255) / 100;
+    imu.angular_velocity.x =
+        (double)(can1_->get_can(dv_can_msg::ImuX) & 255) / 10;
+    imu.angular_velocity.y =
+        (double)(can1_->get_can(dv_can_msg::ImuY) & 255) / 10;
 
     // TO DO: Check for sensor malfunction
     // if () {
     //   RCLCPP_ERROR(this->get_logger(), "IMU value error");
     // } else {
-    //   sensor_can_.imu_data = imu_;
+    //   sensor_can_.imu_data = imu;
     // }
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
