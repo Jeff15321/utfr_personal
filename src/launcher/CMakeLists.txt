@@ -14,7 +14,7 @@ endif()
 set(THIS_PACKAGE_INCLUDE_DEPENDS
     ament_cmake
     arena_camera_node
-    bluespace_ai_xsens_mit_driver
+    bluespace_ai_xsens_mti_driver
     ros2_ouster
     velodyne
     perception
