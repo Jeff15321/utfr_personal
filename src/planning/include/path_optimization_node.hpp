@@ -33,6 +33,7 @@
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
+#include <utfr_msgs/msg/parametric_spline.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -71,6 +72,16 @@ private:
   /*! Initialize Heartbeat:
    */
   void initHeartbeat();
+
+  /*! Calculate Curvature:
+  * This function calculates the curvature for a given parametric spline for n 
+    equidistant points within L distance.
+  * @param spline the spline
+  * @param L the look ahead distance
+  * @param n the number of points to calculate curvature for (n > 1)
+  */
+  std::vector<double> calculateCurvatures(
+                      utfr_msgs::msg::ParametricSpline &spline, double L, int n);
 };
 } // namespace path_optimization
 } // namespace utfr_dv
