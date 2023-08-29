@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>launcher</name>
+  <version>1.0.0</version>
+  <description>All global launcher for dv24</description>
+
+  <maintainer email="daniel.asadi91@gmail.com">Daniel Asadi</maintainer>
+
+  <license>MIT</license>
+
+  <depend>arena_camera_node</depend>
+  <depend>bluespace_ai_xsens_mit_driver</depend>
+  <depend>ros2_ouster</depend>
+  <depend>velodyne</depend>
+
+  <depend>perception</depend>
+  <depend>mapping</depend>
+  <depend>planning</depend>
+  <depend>controls</depend>
+
+  <depend>eufs_launcher</depend>
+
+  <depend>car_interface</depend>
+
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
