@@ -196,7 +196,7 @@ private:
       {"perception", topics::kPerceptionHeartbeat},
       {"mapping", topics::kMappingHeartbeat},
       {"ekf", topics::kEKFHeartbeat},
-      {"navigation", topics::kPlanningHeartbeat},
+      {"planning", topics::kPlanningHeartbeat},
       {"controls", topics::kControlsHeartbeat},
   };
 };

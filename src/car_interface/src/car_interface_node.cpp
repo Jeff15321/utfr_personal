@@ -298,11 +298,11 @@ void CarInterface::getIMUData() {
     // TO DO: Check reference frames, double check value format
     sensor_msgs::msg::Imu imu;
     imu.linear_acceleration.x =
-        (double)((can1_->get_can(dv_can_msg::ImuX) >> 32) & 255) / 100;
+        (double)((can1_->get_can(dv_can_msg::ImuX) >> (8 * 4)) & 255) / 100;
     imu.linear_acceleration.y =
-        -(double)((can1_->get_can(dv_can_msg::ImuY) >> 32) & 255) / 100;
+        -(double)((can1_->get_can(dv_can_msg::ImuY) >> (8 * 4)) & 255) / 100;
     imu.linear_acceleration.z =
-        (double)((can1_->get_can(dv_can_msg::ImuZ) >> 32) & 255) / 100;
+        (double)((can1_->get_can(dv_can_msg::ImuZ) >> (8 * 4)) & 255) / 100;
     imu.angular_velocity.x =
         (double)(can1_->get_can(dv_can_msg::ImuX) & 255) / 10;
     imu.angular_velocity.y =
