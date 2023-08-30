@@ -37,10 +37,3 @@ void ControllerNode::initHeartbeat() {}
 
 } // namespace controller
 } // namespace utfr_dv
-
-int main(int argc, char **argv) {
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<utfr_dv::controller::ControllerNode>());
-  rclcpp::shutdown();
-  return 0;
-}

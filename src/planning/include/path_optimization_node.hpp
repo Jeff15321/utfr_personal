@@ -52,6 +52,18 @@ public:
    */
   PathOptimizationNode();
 
+  /*! Calculate Velocities:
+  * This function calculates the max velocity for a parametric spline at n 
+    equidistant points for a lateral acceleration.
+  * @param spline the spline
+  * @param L the look ahead distance
+  * @param n the number of points to calculate curvature for (n > 1)
+  * @param a_lateral the lateral acceleration
+  */
+  std::vector<double> calculateVelocities(
+                      utfr_msgs::msg::ParametricSpline &spline,
+                      double L, int n, double a_lateral);
+
 private:
   /*! Initialize and load params from config.yaml:
    */
@@ -72,16 +84,6 @@ private:
   /*! Initialize Heartbeat:
    */
   void initHeartbeat();
-
-  /*! Calculate Curvature:
-  * This function calculates the curvature for a given parametric spline for n 
-    equidistant points within L distance.
-  * @param spline the spline
-  * @param L the look ahead distance
-  * @param n the number of points to calculate curvature for (n > 1)
-  */
-  std::vector<double> calculateCurvatures(
-                      utfr_msgs::msg::ParametricSpline &spline, double L, int n);
 };
 } // namespace path_optimization
 } // namespace utfr_dv

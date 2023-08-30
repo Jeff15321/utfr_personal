@@ -18,6 +18,7 @@ namespace utfr_dv {
 namespace path_optimization {
 
 PathOptimizationNode::PathOptimizationNode() : Node("path_optimization_node") {
+  RCLCPP_INFO(this->get_logger(), "Path Optimization Node Launched");
   this->initParams();
   this->initSubscribers();
   this->initPublishers();
@@ -35,45 +36,39 @@ void PathOptimizationNode::initTimers() {}
 
 void PathOptimizationNode::initHeartbeat() {}
 
-std::vector<double> PathOptimizationNode::calculateCurvatures(
-                    utfr_msgs::msg::ParametricSpline &spline, double L, int n){
+std::vector<double> PathOptimizationNode::calculateVelocities(
+                    utfr_msgs::msg::ParametricSpline &spline,
+                    double L, int n, double a_lateral){
   if(n <= 1) return {};
+  auto first_derivative = [](std::vector<double> &c, double t, double t2, 
+                              double t3, double t4){
+    return 5*c[0]*t4 + 4*c[1]*t3 + 3*c[2]*t2 + 2*c[3]*t + c[4];
+  };
+  auto second_derivative = [](std::vector<double> &c, double t, double t2, 
+                              double t3){
+    return 20*c[0]*t3 + 12*c[1]*t2 + 6*c[2]*t + 2*c[3];
+  };
   std::vector<double> &x = spline.x_params;
   std::vector<double> &y = spline.y_params;
-  auto x_first_derivative = [&x](double t){
-    return 5*x[0]*pow(t,4) + 4*x[1]*pow(t,3) + 3*x[2]*pow(t,2) + 2*x[3]*t + x[4];
+  auto k = [&x, &y, &first_derivative, &second_derivative](double t){
+    double t2 = t*t, t3 = t2*t, t4 = t3*t;
+    double x_first_derivative = first_derivative(x,t,t2,t3,t4);
+    double x_second_derivative = second_derivative(x,t,t2,t3);
+    double y_first_derivative = first_derivative(y,t,t2,t3,t4);
+    double y_second_derivative = second_derivative(y,t,t2,t3);
+    double numerator = x_first_derivative * y_second_derivative -
+                       x_second_derivative * y_first_derivative;
+    double val = x_first_derivative * x_first_derivative +
+                 y_first_derivative * y_first_derivative;
+    double denominator = val * sqrt(val);
+    return abs(numerator/denominator);
   };
-  auto x_second_derivative = [&x](double t){
-    return 20*x[0]*pow(t,3) + 12*x[1]*pow(t,2) + 6*x[2]*t + 2*x[3];
-  };
-  auto y_first_derivative = [&y](double t){
-    return 5*y[0]*pow(t,4) + 4*y[1]*pow(t,3) + 3*y[2]*pow(t,2) + 2*y[3]*t + y[4];
-  };
-  auto y_second_derivative = [&y](double t){
-    return 20*y[0]*pow(t,3) + 12*y[1]*pow(t,2) + 6*y[2]*t + 2*y[3];
-  };
-  auto k = [&](double t){
-    double numerator = x_first_derivative(t) * y_second_derivative(t) -
-                       x_second_derivative(t) * y_first_derivative(t);
-    double denominator = pow(x_first_derivative(t) * x_first_derivative(t) +
-                             y_first_derivative(t) * y_first_derivative(t) ,
-                             1.5);
-    return numerator/denominator;
-  };
-  std::vector<double> curvatures;
+  std::vector<double> velocities;
   for(double t = 0; t <= L; t+=L/(n-1)){
-    curvatures.push_back(k(t));
+    velocities.push_back(sqrt(a_lateral/k(t)));
   }
-  return curvatures;
+  return velocities;
 }
 
 } // namespace path_optimization
 } // namespace utfr_dv
-
-int main(int argc, char **argv) {
-  rclcpp::init(argc, argv);
-  rclcpp::spin(
-      std::make_shared<utfr_dv::path_optimization::PathOptimizationNode>());
-  rclcpp::shutdown();
-  return 0;
-}
