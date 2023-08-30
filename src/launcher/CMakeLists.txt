@@ -5,23 +5,22 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-## Default to C++14, copied from example
+## Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-## List all Dependencies:, copied from example
+## List all Dependencies:
+## Note: no perception and eufs_launcher cause it's in Python
 set(THIS_PACKAGE_INCLUDE_DEPENDS
     ament_cmake
     arena_camera_node
     bluespace_ai_xsens_mti_driver
     ros2_ouster
     velodyne
-    perception
     mapping
     planning
     controls
-    eufs_launcher
     car_interface
 )
 

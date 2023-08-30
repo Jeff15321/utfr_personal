@@ -9,6 +9,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     ld = LaunchDescription()
 
+    # DV stack
     mapping_dir = get_package_share_directory("mapping")
     mapping_launch = IncludeLaunchDescription(
         launch_description_sources.PythonLaunchDescriptionSource(
@@ -30,6 +31,7 @@ def generate_launch_description():
         )
     )
 
+    # Sim
     bridge_dir = get_package_share_directory("utfr_sim_bridge")
     bridge_launch = IncludeLaunchDescription(
         launch_description_sources.PythonLaunchDescriptionSource(
@@ -40,7 +42,7 @@ def generate_launch_description():
     sim_dir = get_package_share_directory("eufs_launcher")
     sim_launch = IncludeLaunchDescription(
         launch_description_sources.PythonLaunchDescriptionSource(
-            sim_dir + "/launch/eufs_launcher.launch.py"
+            sim_dir + "/eufs_launcher.launch.py"
         )
     )
 
