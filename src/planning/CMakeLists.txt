@@ -89,6 +89,36 @@ install(
 #############
 ## Testing ##
 #############
-# Add your testing code here...
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  # Define Test Executables
+  ament_add_gtest(center_path_test
+    test/center_path_test.cpp
+  )
+  ament_target_dependencies(center_path_test ${THIS_PACKAGE_INCLUDE_DEPENDS})
+  target_include_directories(center_path_test
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>)
+
+  ament_add_gtest(controller_test
+    test/controller_test.cpp
+  )
+  ament_target_dependencies(controller_test ${THIS_PACKAGE_INCLUDE_DEPENDS})
+  target_include_directories(controller_test
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>)
+
+  ament_add_gtest(path_optimization_test
+    test/path_optimization_test.cpp
+  )
+  ament_target_dependencies(path_optimization_test ${THIS_PACKAGE_INCLUDE_DEPENDS})
+  target_include_directories(path_optimization_test
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>)
+endif()
 
 ament_package()
