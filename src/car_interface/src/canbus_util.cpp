@@ -34,7 +34,9 @@ std::map<int, canid_t> dv_can_msg_map{
     {(int)dv_can_msg::ANGSENTRA, 0x0A5},
     {(int)dv_can_msg::DVDrivingDynamics1, 0x500},
     {(int)dv_can_msg::DVDrivingDynamics2, 0x501},
-    {(int)dv_can_msg::DVSystemStatus, 0x502}};
+    {(int)dv_can_msg::DVSystemStatus, 0x502},
+    {(int)dv_can_msg::DVState, 0x100},
+    {(int)dv_can_msg::DVPCState, 0x200}};
 
 bool CanInterface::connect(const char *canline) {
 

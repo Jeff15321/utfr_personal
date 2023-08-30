@@ -7,9 +7,10 @@ geometry_msgs/PoseWithCovariance pose # World frame
 geometry_msgs/AccelWithCovariance accel # Body frame
 geometry_msgs/TwistWithCovariance vel # Body frame
 
-# rotation about z axis relative to north, clockwise in [rad]
-float64 yaw
-# rotational rate about z axis relative to north, clockwise to [rad]
-float64 yaw_rate
+# Frame:
+# x axis: +ve north, +ve cw roll axis
+# y axis: +ve east, +ve cw pitch axis
+# z axis: +ve up, +ve cw yaw axis
+# Units: m, °, m/s, m/s^2, °/s, 
 
-float64 steering_angle
+float64 steering_angle # +ve cw about north

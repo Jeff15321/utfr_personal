@@ -23,9 +23,11 @@
 // Message Requirements
 #include <sensor_msgs/msg/imu.hpp>
 #include <utfr_msgs/msg/control_cmd.hpp>
+#include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/sensor_can.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
+#include <utfr_msgs/msg/target_state.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -119,10 +121,21 @@ private:
 
   /*! Callback function for control_cmd_subscriber_
    *
-   *  @param[in] msg utfr_msgs::msg::ControlCmd latest message from control
-   * systems
+   *  @param[in] msg utfr_msgs::msg::ControlCmd latest message from controls
    */
   void controlCmdCB(const utfr_msgs::msg::ControlCmd &msg);
+
+  /*! Callback function for ego_state_subscriber_
+   *
+   *  @param[in] msg utfr_msgs::msg::EgoState latest message from mapping
+   */
+  void EgoStateCB(const utfr_msgs::msg::EgoState &msg);
+
+  /*! Callback function for target_state_subscriber_
+   *
+   *  @param[in] msg utfr_msgs::msg::TargetState latest message from planning
+   */
+  void TargetStateCB(const utfr_msgs::msg::TargetState &msg);
 
   void getSteeringAngleSensorData(); // TODO: function desc.
 
@@ -138,9 +151,11 @@ private:
 
   void getSensorCan(); // TODO: function desc.
 
-  void getSystemStatus(); // TODO: function desc.
+  void getDVState(); // TODO: function desc.
 
-  void setSystemStatusAS(); // TODO: function desc.
+  void setDVLogs(); // TODO: function desc.
+
+  void setDVPCState(); // TODO: function desc.
 
   void launchMission(); // TODO: function desc.
 
@@ -151,6 +166,11 @@ private:
   // Publishers, Subscribers and Timers
   rclcpp::Subscription<utfr_msgs::msg::ControlCmd>::SharedPtr
       control_cmd_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
+      ego_state_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::TargetState>::SharedPtr
+      target_state_subscriber_;
+
   rclcpp::Publisher<utfr_msgs::msg::SensorCan>::SharedPtr sensor_can_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::SystemStatus>::SharedPtr
       system_status_publisher_;
@@ -166,6 +186,8 @@ private:
 
   // Callback Variables
   utfr_msgs::msg::ControlCmd control_cmd_;
+  utfr_msgs::msg::EgoState ego_state_;
+  utfr_msgs::msg::TargetState target_state_;
 
   // Published messages
   utfr_msgs::msg::SensorCan sensor_can_;

@@ -55,8 +55,10 @@ enum dv_can_msg {
   DVDrivingDynamics1 = 15,
   DVDrivingDynamics2 = 16,
   DVSystemStatus = 17,
+  DVState = 18,
+  DVPCState = 19,
 
-  COUNT = 18
+  COUNT = 20
 };
 
 typedef struct CAN_message_t {

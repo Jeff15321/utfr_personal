@@ -53,6 +53,14 @@ void CarInterface::initSubscribers() {
           topics::kControlCmd, 10,
           std::bind(&CarInterface::controlCmdCB, this, _1));
 
+  ego_state_subscriber_ = this->create_subscription<utfr_msgs::msg::EgoState>(
+      topics::kEgoState, 10, std::bind(&CarInterface::EgoStateCB, this, _1));
+
+  target_state_subscriber_ =
+      this->create_subscription<utfr_msgs::msg::TargetState>(
+          topics::kTargetState, 10,
+          std::bind(&CarInterface::TargetStateCB, this, _1));
+
   for (const auto &module_name : heartbeat_modules_) {
 
     auto search = heartbeat_topics_map_.find(module_name);
@@ -131,6 +139,11 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   steering_cmd_ = msg.str_cmd;
   throttle_cmd_ = msg.thr_cmd;
 
+  // Write system status msg
+  // front is 57% less, rear scale is 0-1600
+  system_status_.brake_hydr_target = msg.brk_cmd;   // TODO: convert to %
+  system_status_.motor_moment_target = msg.thr_cmd; // TODO: convert to %
+
   //*******   Steering   *******
 
   // Contruct command to send
@@ -162,6 +175,22 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
 
   can1_->write_can(dv_can_msg::DV_THR_COMMAND,
                    (double)(((throttle_cmd_ << 1) | 0x1)));
+}
+
+void CarInterface::EgoStateCB(const utfr_msgs::msg::EgoState &msg) {
+  system_status_.speed_actual = msg.vel.twist.linear.x * 3.6;
+  system_status_.steering_angle_actual = -sensor_can_.steering_angle;
+  system_status_.brake_hydr_actual =
+      sensor_can_.asb_pressure_front; // TODO: weighted avg of front/rear
+  system_status_.motor_moment_actual = sensor_can_.motor_speed; // TODO: change
+  system_status_.acceleration_longitudinal = msg.accel.accel.linear.x;
+  system_status_.acceleration_lateral = -msg.accel.accel.linear.y;
+  system_status_.yaw_rate = -msg.vel.twist.angular.z;
+}
+
+void CarInterface::TargetStateCB(const utfr_msgs::msg::TargetState &msg) {
+  system_status_.speed_target = msg.velocity * 3.6;
+  system_status_.steering_angle_target = -msg.steering_angle;
 }
 
 void CarInterface::getSteeringAngleSensorData() {
@@ -340,14 +369,30 @@ void CarInterface::getSensorCan() {
   }
 }
 
-void CarInterface::getSystemStatus() {
-  const std::string function_name{"getSystemStatus"};
+void CarInterface::getDVState() {
+  // Get DV state from car
+  long dv_state = can1_->get_can(dv_can_msg::DVState);
+
+  system_status_.as_state = dv_state & 0x7;
+
+  system_status_.ebs_state = (dv_state << 3) & 0x3;
+
+  system_status_.ami_state = (dv_state << 5) & 0x7;
+
+  system_status_.steering_state = (dv_state << 8) & 0x1;
+
+  system_status_.service_brake_state = (dv_state << 9) & 0x3;
+}
+
+void CarInterface::setDVLogs() {
+  const std::string function_name{"setDVLogs"};
 
   try {
     // Read system state CAN messages from car
 
     // DV driving dynamics 1
-    long dv_driving_dynamics_1 = can1_->get_can(dv_can_msg::DVDrivingDynamics1);
+    // CHANGE TO WRITING TO CAN
+    long dv_driving_dynamics_1;
 
     system_status_.speed_actual = (uint8_t)dv_driving_dynamics_1 & 0xFF;
     system_status_.speed_target =
@@ -379,99 +424,7 @@ void CarInterface::getSystemStatus() {
         (int16_t)((dv_driving_dynamics_2 << (16 * 2)) & 0xFFFF);
 
     // DV system status
-    long dv_system_status = can1_->get_can(dv_can_msg::DVSystemStatus);
-
-    switch (dv_system_status & 0x7) {
-    case 1:
-      system_status_.as_state = utfr_msgs::msg::SystemStatus::AS_STATE_OFF;
-      break;
-    case 2:
-      system_status_.as_state = utfr_msgs::msg::SystemStatus::AS_STATE_READY;
-      break;
-    case 3:
-      system_status_.as_state = utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING;
-      break;
-    case 4:
-      system_status_.as_state =
-          utfr_msgs::msg::SystemStatus::AS_STATE_EMERGENCY_BRAKE;
-      break;
-    case 5:
-      system_status_.as_state = utfr_msgs::msg::SystemStatus::AS_STATE_FINISH;
-      break;
-    default:
-      system_status_.as_state = utfr_msgs::msg::SystemStatus::AS_STATE_OFF;
-      break;
-    }
-
-    switch ((dv_system_status << 3) & 0x3) {
-    case 1:
-      system_status_.ebs_state =
-          utfr_msgs::msg::SystemStatus::EBS_STATE_UNAVAILABLE;
-      break;
-    case 2:
-      system_status_.ebs_state = utfr_msgs::msg::SystemStatus::EBS_STATE_ARMED;
-      break;
-    case 3:
-      system_status_.ebs_state =
-          utfr_msgs::msg::SystemStatus::EBS_STATE_ACTIVATED;
-      break;
-    default:
-      system_status_.as_state =
-          utfr_msgs::msg::SystemStatus::EBS_STATE_UNAVAILABLE;
-      break;
-    }
-
-    switch ((dv_system_status << 5) & 0x7) {
-    case 1:
-      system_status_.ami_state =
-          utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION;
-      break;
-    case 2:
-      system_status_.ami_state =
-          utfr_msgs::msg::SystemStatus::AMI_STATE_SKIDPAD;
-      break;
-    case 3:
-      system_status_.ami_state =
-          utfr_msgs::msg::SystemStatus::AMI_STATE_TRACKDRIVE;
-      break;
-    case 4:
-      system_status_.ami_state =
-          utfr_msgs::msg::SystemStatus::AMI_STATE_BRAKETEST;
-      break;
-    case 5:
-      system_status_.ami_state =
-          utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION;
-      break;
-    case 6:
-      system_status_.ami_state =
-          utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS;
-      break;
-    default:
-      system_status_.ami_state =
-          utfr_msgs::msg::SystemStatus::AMI_STATE_BRAKETEST;
-      break;
-    }
-
-    system_status_.steering_state = (dv_system_status << 8) & 0x1;
-
-    switch ((dv_system_status << 9) & 0x3) {
-    case 1:
-      system_status_.service_brake_state =
-          utfr_msgs::msg::SystemStatus::SERVICE_BRAKE_STATE_DISENGAGED;
-      break;
-    case 2:
-      system_status_.service_brake_state =
-          utfr_msgs::msg::SystemStatus::SERVICE_BRAKE_STATE_ENGAGED;
-      break;
-    case 3:
-      system_status_.service_brake_state =
-          utfr_msgs::msg::SystemStatus::SERVICE_BRAKE_STATE_AVAILABLE;
-      break;
-    default:
-      system_status_.service_brake_state =
-          utfr_msgs::msg::SystemStatus::SERVICE_BRAKE_STATE_DISENGAGED;
-      break;
-    }
+    // States are already set in getDVState, but still need to write to can msg
 
     system_status_.lap_counter = (uint8_t)(dv_system_status << 11) & 0x15;
 
@@ -481,14 +434,16 @@ void CarInterface::getSystemStatus() {
     system_status_.cones_count_actual =
         (uint)(dv_system_status << 23) & 0x1FFFF;
 
+    can1_->write_can(dv_can_msg::STR_RATE_CMD, (steeringRateToSC));
+
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
                  function_name.c_str(), e);
   }
 }
 
-void CarInterface::setSystemStatusAS() {
-  const std::string function_name{"setSystemStatusAS"};
+void CarInterface::setDVPCState() {
+  const std::string function_name{"setDVPCState"};
 
   try {
     // TODO: Reading RES go/stop signal CAN msg
@@ -496,7 +451,7 @@ void CarInterface::setSystemStatusAS() {
     bool heartbeat_status =
         heartbeat_monitor_->verifyHeartbeats(this->get_clock()->now());
 
-    switch (system_status_.ami_state) {
+    switch (system_status_.as_state) {
     case utfr_msgs::msg::SystemStatus::AS_STATE_OFF: {
       gonogo_ = false; // debounce gonogo
 
