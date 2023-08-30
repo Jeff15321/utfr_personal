@@ -143,8 +143,6 @@ private:
 
   void getServiceBrakeData(); // TODO: function desc.
 
-  void getEBSPressureData(); // TODO: function desc.
-
   void getWheelspeedSensorData(); // TODO: function desc.
 
   void getIMUData(); // TODO: function desc.

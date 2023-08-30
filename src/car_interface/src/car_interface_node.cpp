@@ -179,7 +179,7 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
 
 void CarInterface::EgoStateCB(const utfr_msgs::msg::EgoState &msg) {
   system_status_.speed_actual = msg.vel.twist.linear.x * 3.6;
-  system_status_.steering_angle_actual = -sensor_can_.steering_angle;
+
   system_status_.brake_hydr_actual =
       sensor_can_.asb_pressure_front; // TODO: weighted avg of front/rear
   system_status_.motor_moment_actual = sensor_can_.motor_speed; // TODO: change
@@ -207,6 +207,7 @@ void CarInterface::getSteeringAngleSensorData() {
       // TODO: Error handling function, change control cmds to 0 and trigger EBS
     } else {
       sensor_can_.steering_angle = steering_angle;
+      system_status_.steering_angle_actual = -sensor_can_.steering_angle;
     }
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
@@ -251,32 +252,6 @@ void CarInterface::getServiceBrakeData() {
     // } else {
     // sensor_can_.asb_pressure_front = asb_pressure_front;
     // sensor_can_.asb_pressure_rear = asb_pressure_rear;
-    // }
-  } catch (int e) {
-    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
-                 function_name.c_str(), e);
-  }
-}
-
-void CarInterface::getEBSPressureData() {
-  const std::string function_name{"getEBSPressureData"};
-  uint16_t ebs_pressure_1; // TODO: Check proper var type
-  uint16_t ebs_pressure_2; // TODO: Check proper var type
-
-  try {
-    // TO DO: Proper CAN message
-    // ebs_pressure_1 =
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
-    // TO DO: Proper CAN message
-    // ebs_pressure_2 =
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
-
-    // TO DO: Check for sensor malfunction
-    // if () {
-    //   RCLCPP_ERROR(this->get_logger(), "EBS pressure value error");
-    // } else {
-    //   sensor_can_.ebs_pressure_1 = ebs_pressure_1;
-    //   sensor_can_.ebs_pressure_2 = ebs_pressure_2;
     // }
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
@@ -357,7 +332,6 @@ void CarInterface::getSensorCan() {
     getSteeringAngleSensorData();
     getMotorSpeedData();
     getServiceBrakeData();
-    getEBSPressureData();
     getWheelspeedSensorData();
     getIMUData();
 
