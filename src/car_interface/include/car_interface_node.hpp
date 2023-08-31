@@ -81,16 +81,6 @@ private:
    */
   void initPublishers();
 
-  /*! Setup Heartbeat message with appropriate module name and update rate.
-   */
-  void initHeartbeat();
-
-  /*! Send Heartbeat on every timer loop.
-   *
-   *  @param[in] status current module status, using Heartbeat status enum.
-   */
-  void publishHeartbeat(const int status);
-
   /*! Enable the CAN Bus and connect in this function
    *
    *  Initialize the CAN connection in the Jetson
@@ -100,11 +90,6 @@ private:
   /*! Initialize heartbeat monitor
    */
   void initMonitor();
-
-  /*! Config Sensors
-   *
-   */
-  void initSensors();
 
   /*! Initialize Timers:
    *
@@ -142,6 +127,8 @@ private:
   void getSteeringAngleSensorData(); // TODO: function desc.
 
   void getMotorSpeedData(); // TODO: function desc.
+
+  void getMotorTorqueData(); // TODO: function desc.
 
   void getServiceBrakeData(); // TODO: function desc.
 
@@ -208,6 +195,14 @@ private:
   bool shutdown_ = false;
   bool cmd_ = false;
   bool finished_ = false;
+  enum DV_PC_STATE {
+    OFF = 1,
+    READY = 2,
+    DRIVING = 3,
+    EMERGENCY = 4,
+    FINISH = 5
+  };
+  uint8_t dv_pc_state_;
 
   // CAN objects
   CanInterfaceUPtr can1_{nullptr};
@@ -217,7 +212,7 @@ private:
   // Heartbeat object
   HeartbeatMonitorUPtr heartbeat_monitor_{nullptr};
 
-  // TODO: Add drivers and other nodes
+  // TODO: Add drivers and other nodes and multiple planning nodes
   // Heartbeat map
   std::unordered_map<std::string, std::string> heartbeat_topics_map_{
       {"perception", topics::kPerceptionHeartbeat},

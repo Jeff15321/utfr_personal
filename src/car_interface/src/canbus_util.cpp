@@ -26,7 +26,8 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::ImuZ, 0x17C},
     {(uint8_t)dv_can_msg::ANGSENREC, 0x2B0}, // Steering angle sensor value
     {(uint8_t)dv_can_msg::ANGSENTRA, 0x7C0}, // Setup steering angle sensor
-    {(uint8_t)dv_can_msg::MOTPOS, 0x0A5},    // Position of motor
+    {(uint8_t)dv_can_msg::MOTPOS, 0x0A5},    // Motor speed
+    {(uint8_t)dv_can_msg::APPS, 0x004},      // Motor torque
 
     {(uint8_t)dv_can_msg::DVDrivingDynamics1, 0x500}, // FSG DV logging
     {(uint8_t)dv_can_msg::DVDrivingDynamics2, 0x501}, // FSG DV logging
@@ -78,6 +79,9 @@ int CanInterface::get_can(dv_can_msg msgName) {
     result = (int)((messages[dv_can_msg_map[(int)msgName]].data[2]) |
                    (((messages[dv_can_msg_map[(int)msgName]].data[3]) << 8)));
   } else if (msgName == dv_can_msg::MOTPOS) {
+    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[0]) |
+                   (((messages[dv_can_msg_map[(int)msgName]].data[1]) << 8)));
+  } else if (msgName == dv_can_msg::APPS) { // TODO: set to first 16
     result = (int)((messages[dv_can_msg_map[(int)msgName]].data[0]) |
                    (((messages[dv_can_msg_map[(int)msgName]].data[1]) << 8)));
   } else {

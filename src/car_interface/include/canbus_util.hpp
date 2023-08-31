@@ -44,20 +44,23 @@ enum dv_can_msg {
   ImuZ = 6,
   ANGSENREC = 7,
   ANGSENTRA = 8,
+
+  // Inverter
   MOTPOS = 9,
+  APPS = 10,
 
   // FSG DV Log
-  DVDrivingDynamics1 = 10,
-  DVDrivingDynamics2 = 11,
-  DVSystemStatus = 12,
+  DVDrivingDynamics1 = 11,
+  DVDrivingDynamics2 = 12,
+  DVSystemStatus = 13,
 
   // Dv state sent from car
-  DV_STATE = 13,
+  DV_STATE = 14,
 
   // DV command + state sent from pc
-  DV_COMMAND = 14,
+  DV_COMMAND = 15,
 
-  COUNT = 15
+  COUNT = 16
 };
 
 typedef struct CAN_message_t {
