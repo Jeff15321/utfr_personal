@@ -16,27 +16,25 @@
 namespace utfr_dv {
 namespace car_interface {
 
-std::map<int, canid_t> dv_can_msg_map{
-    {(int)dv_can_msg::RBP, 0x008},
-    {(int)dv_can_msg::FBP, 0x010},
-    {(int)dv_can_msg::SPEEDFL, 0x012},
-    {(int)dv_can_msg::SPEEDRL, 0x013},
-    {(int)dv_can_msg::FBPT, 0x01B},
-    {(int)dv_can_msg::ImuY, 0x174},
-    {(int)dv_can_msg::ImuX, 0x178},
-    {(int)dv_can_msg::ImuZ, 0x17C},
-    {(int)dv_can_msg::DV_THR_COMMAND, 0x0C5},
-    {(int)dv_can_msg::STR_RATE_CMD, 0x2B5},
-    {(int)dv_can_msg::BRK_RATE_CMD, 0x3C3},
-    {(int)dv_can_msg::RES, 0x011},
-    {(int)dv_can_msg::ANGSENREC, 0x2B0},
-    {(int)dv_can_msg::ANGSENTRA, 0x7C0},
-    {(int)dv_can_msg::ANGSENTRA, 0x0A5},
-    {(int)dv_can_msg::DVDrivingDynamics1, 0x500},
-    {(int)dv_can_msg::DVDrivingDynamics2, 0x501},
-    {(int)dv_can_msg::DVSystemStatus, 0x502},
-    {(int)dv_can_msg::DVState, 0x100},
-    {(int)dv_can_msg::DVPCState, 0x200}};
+std::map<uint8_t, canid_t> dv_can_msg_map{
+    {(uint8_t)dv_can_msg::RBP, 0x008}, // Rear brake pressure
+    {(uint8_t)dv_can_msg::FBP, 0x010}, // Front brake pressure
+    {(uint8_t)dv_can_msg::SPEEDFL, 0x012},
+    {(uint8_t)dv_can_msg::SPEEDRL, 0x013}, // Wheel speed
+    {(uint8_t)dv_can_msg::ImuY, 0x174},
+    {(uint8_t)dv_can_msg::ImuX, 0x178},
+    {(uint8_t)dv_can_msg::ImuZ, 0x17C},
+    {(uint8_t)dv_can_msg::ANGSENREC, 0x2B0}, // Steering angle sensor value
+    {(uint8_t)dv_can_msg::ANGSENTRA, 0x7C0}, // Setup steering angle sensor
+    {(uint8_t)dv_can_msg::MOTPOS, 0x0A5},    // Position of motor
+
+    {(uint8_t)dv_can_msg::DVDrivingDynamics1, 0x500}, // FSG DV logging
+    {(uint8_t)dv_can_msg::DVDrivingDynamics2, 0x501}, // FSG DV logging
+    {(uint8_t)dv_can_msg::DVSystemStatus, 0x502},     // FSG DV logging
+
+    {(uint8_t)dv_can_msg::DV_STATE, 0x503}, // DV state from car
+
+    {(uint8_t)dv_can_msg::DV_COMMAND, 0x504}}; // DV PC state + control cmd
 
 bool CanInterface::connect(const char *canline) {
 

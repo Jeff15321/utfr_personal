@@ -38,6 +38,8 @@
 #include <canbus_util.hpp>
 #include <heartbeat_monitor.hpp>
 
+#define MAX_BRK_PRS 1600
+
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
 
@@ -153,9 +155,11 @@ private:
 
   void setDVLogs(); // TODO: function desc.
 
-  void setDVPCState(); // TODO: function desc.
+  void setDVStateAndCommand(); // TODO: function desc.
 
   void launchMission(); // TODO: function desc.
+
+  void shutdownNodes(); // TODO: function desc.
 
   /*! Callback function for timer
    */
@@ -199,8 +203,11 @@ private:
 
   // TODO: GNSS/INS
 
-  // AS STATE:
-  bool gonogo_ = false;
+  // State vars
+  bool launched_ = false;
+  bool shutdown_ = false;
+  bool cmd_ = false;
+  bool finished_ = false;
 
   // CAN objects
   CanInterfaceUPtr can1_{nullptr};
@@ -214,8 +221,9 @@ private:
   // Heartbeat map
   std::unordered_map<std::string, std::string> heartbeat_topics_map_{
       {"perception", topics::kPerceptionHeartbeat},
-      {"mapping", topics::kMappingHeartbeat},
       {"ekf", topics::kEKFHeartbeat},
+      {"mapping_build", topics::kMappingBuildHeartbeat},
+      {"mapping_compute", topics::kMappingComputeHeartbeat},
       {"planning", topics::kPlanningHeartbeat},
       {"controls", topics::kControlsHeartbeat},
   };

@@ -34,31 +34,30 @@ namespace car_interface {
 #define _UTFR_CAN_JETSON_
 
 enum dv_can_msg {
-
+  // Sensors
   RBP = 0,
-  SPEEDFL = 1,
-  SPEEDRL = 2,
-  FBPT = 3,
+  FBP = 1,
+  SPEEDFL = 2,
+  SPEEDRL = 3,
   ImuY = 4,
   ImuX = 5,
   ImuZ = 6,
-  DV_THR_COMMAND = 7,
-  STR_RATE_CMD = 8,
-  BRK_RATE_CMD = 9,
-  RES = 10,
-  ANGSENREC = 11,
-  ANGSENTRA = 12,
-  MOTPOS = 13,
-  FBP = 14,
+  ANGSENREC = 7,
+  ANGSENTRA = 8,
+  MOTPOS = 9,
 
-  // DV Logs
-  DVDrivingDynamics1 = 15,
-  DVDrivingDynamics2 = 16,
-  DVSystemStatus = 17,
-  DVState = 18,
-  DVPCState = 19,
+  // FSG DV Log
+  DVDrivingDynamics1 = 10,
+  DVDrivingDynamics2 = 11,
+  DVSystemStatus = 12,
 
-  COUNT = 20
+  // Dv state sent from car
+  DV_STATE = 13,
+
+  // DV command + state sent from pc
+  DV_COMMAND = 14,
+
+  COUNT = 15
 };
 
 typedef struct CAN_message_t {
