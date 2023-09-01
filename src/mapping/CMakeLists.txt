@@ -43,7 +43,8 @@ function(add_node NODE_NAME)
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
   add_executable(${NODE_NAME} src/${NODE_NAME}_node.cpp)
-  target_link_libraries(${NODE_NAME} ${NODE_NAME}_library ${CMAKE_SOURCE_DIR}/external/g2o/build/lib/libg2o_core.so)
+  # target_link_libraries(${NODE_NAME} ${NODE_NAME}_library ${CMAKE_SOURCE_DIR}/external/g2o/build/lib/libg2o_core.so)
+  target_link_libraries(${NODE_NAME} ${NODE_NAME}_library)
   ament_target_dependencies(${NODE_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})
   target_include_directories(${NODE_NAME}
       PUBLIC

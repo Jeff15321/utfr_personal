@@ -46,12 +46,12 @@ void EkfNode::initHeartbeat() {
       topics::kEKFHeartbeat, 10);
 }
 
-void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg){};
+void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {}
 
 void EkfNode::vehicleModel(const float &throttle, const float &brake,
-                           const float &steering_angle){};
+                           const float &steering_angle) {}
 
-void EkfNode::EKF(){};
+void EkfNode::EKF() {}
 
 } // namespace ekf
 } // namespace utfr_dv

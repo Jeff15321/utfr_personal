@@ -22,7 +22,6 @@ int16 acceleration_lateral # m/s^2, scale: 1/512
 int16 yaw_rate # deg/s, scale: 1/128
 
 # dv system status
-
 uint8 as_state # 3 bits used for canbus
 uint8 AS_STATE_OFF=1
 uint8 AS_STATE_READY=2

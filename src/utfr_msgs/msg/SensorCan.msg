@@ -9,16 +9,6 @@ int16 steering_angle
 std_msgs/Header motor_header
 float64 motor_speed
 
-# Service brake data 
-std_msgs/Header asb_header
-uint16 asb_pressure_front
-uint16 asb_pressure_rear
-
-# EBS pressure data 
-std_msgs/Header ebs_header
-uint16 ebs_pressure_1
-uint16 ebs_pressure_2
-
 # Wheel speed sensor data 
 std_msgs/Header sensor_header
 float64 wheelspeed_fl
@@ -27,4 +17,5 @@ float64 wheelspeed_rl
 float64 wheelspeed_rr
 
 # IMU data
+std_msgs/Header imu_header
 sensor_msgs/Imu imu_data

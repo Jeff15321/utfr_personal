@@ -21,7 +21,7 @@ echo "==========================================="
 echo "=            Install rosdeps              ="
 echo "==========================================="
 rosdep update
-rosdep install --from-paths src --ignore-src --rosdistro -y
+rosdep install --from-paths src --ignore-src --rosdistro=humble -y
 
 echo "==========================================="
 echo "=            Install pip deps             ="
