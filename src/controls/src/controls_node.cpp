@@ -134,7 +134,7 @@ void ControlsNode::timerCB() {
 
     //*****   Throttle & Brake  *****
     current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
-    target_velocity = target_state_->velocity;         // TODO: review
+    target_velocity = target_state_->speed;            // TODO: review
     RCLCPP_INFO(this->get_logger(), "Current speed: %f", current_velocity);
 
     control_cmd_.thr_cmd =
