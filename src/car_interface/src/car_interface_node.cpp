@@ -27,8 +27,8 @@ CarInterface::CarInterface() : Node("car_interface_node") {
 }
 
 void CarInterface::initParams() {
-  std::vector<std::string> default_modules = {"perception", "mapping", "ekf",
-                                              "planning", "controls"};
+  std::vector<std::string> default_modules = {
+      "perception", "mapping", "ekf", "planning", "controls"}; // TODO: update
 
   // Initialize Params with default values
   this->declare_parameter("update_rate", 33.33);
@@ -127,7 +127,7 @@ void CarInterface::heartbeatCB(const utfr_msgs::msg::Heartbeat &msg) {
 void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   const std::string function_name{"controlCmdCB"};
 
-  //*******   Steering   *******
+  // Steering
 
   // Contruct command to send
   uint16_t steeringRateToSC = abs(msg.str_cmd) & 0x0FFF;
@@ -144,16 +144,6 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
 
   steeringRateToSC |= (uint16_t)(directionBit << 12);
 
-  // Send command
-
-  //*******   Braking   *******
-  RCLCPP_INFO(this->get_logger(), "Braking PWM: %d", braking_cmd_);
-
-  //*******   Throttle   *******
-  // TODO: ADD THR CHECKS
-  RCLCPP_INFO(this->get_logger(), "Throttle: %f",
-              (double)(int)((throttle_cmd_)));
-
   // Finalize commands
   if (cmd_) {
     braking_cmd_ = msg.brk_cmd;
@@ -165,9 +155,10 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
     throttle_cmd_ = 0;
   }
 
-  // TODO: These are probably not correct unit/format, brake is still PWM
-  system_status_.brake_hydr_target = braking_cmd_;    // TODO: Convert to %
-  system_status_.motor_moment_target = throttle_cmd_; // TODO: Convert to %
+  // TODO: Map brake PWM to pressure?
+  system_status_.brake_hydr_target = braking_cmd_; // TODO: Convert to %
+  system_status_.motor_moment_target =
+      (int)(100 * throttle_cmd_ / 200); // Converting to %
 }
 
 void CarInterface::EgoStateCB(const utfr_msgs::msg::EgoState &msg) {
@@ -194,8 +185,9 @@ void CarInterface::getSteeringAngleSensorData() {
     steering_angle = -((int16_t)(can1_->get_can(dv_can_msg::ANGSENREC)) / 10);
 
     // Check for sensor malfunction
-    if ((steering_angle == -3276) | (abs(steering_angle) > 750)) {
-      RCLCPP_ERROR(this->get_logger(), "Steering angle sensor error");
+    if ((abs(steering_angle) > 750)) {
+      RCLCPP_ERROR(this->get_logger(), "%s: Value error",
+                   function_name.c_str());
       // TODO: Error handling function, change control cmds to 0 and trigger EBS
     } else {
       // TODO: Check frame
@@ -216,11 +208,8 @@ void CarInterface::getMotorSpeedData() {
   try {
     // TODO: Check value format
     motor_speed = can1_->get_can(dv_can_msg::MOTPOS) * -0.021545;
-    if (abs(motor_speed) > 32767) {
-      RCLCPP_ERROR(this->get_logger(), "Motor speed value error");
-    } else {
-      sensor_can_.motor_speed = motor_speed;
-    }
+
+    sensor_can_.motor_speed = motor_speed;
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
                  function_name.c_str(), e);
@@ -234,11 +223,9 @@ void CarInterface::getMotorTorqueData() {
   try {
     // TODO: Check value format
     motor_torque = can1_->get_can(dv_can_msg::APPS);
-    if (abs(motor_torque) > 3276.7) {
-      RCLCPP_ERROR(this->get_logger(), "Motor torque value error");
-    } else {
-      system_status_.motor_moment_actual = motor_torque; // TODO: Convert to %
-    }
+
+    system_status_.motor_moment_actual =
+        (int)(100 * motor_torque / MAX_THROTTLE); // Converting to %
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
                  function_name.c_str(), e);
@@ -255,13 +242,9 @@ void CarInterface::getServiceBrakeData() {
     // asb_pressure_front = (can1_->get_can(dv_can_msg::FBP));
     asb_pressure_rear = (can1_->get_can(dv_can_msg::RBP));
 
-    // TODO: Check for sensor malfunction
-    if (false) {
-      RCLCPP_ERROR(this->get_logger(), "Service brake pressure value error");
-    } else {
-      system_status_.brake_hydr_actual =
-          (int)(100 * asb_pressure_rear / MAX_BRK_PRS); // Converting to %
-    }
+    system_status_.brake_hydr_actual =
+        (int)(100 * asb_pressure_rear / MAX_BRK_PRS); // Converting to %
+
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
                  function_name.c_str(), e);
@@ -289,15 +272,10 @@ void CarInterface::getWheelspeedSensorData() {
     // wheelspeed_rr =
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
 
-    // TODO: Check for sensor malfunction
-    // if () {
-    //   RCLCPP_ERROR(this->get_logger(), "Wheel speed value error");
-    // } else {
-    //   sensor_can_.wheelspeed_fl = wheelspeed_fl;
-    //   sensor_can_.wheelspeed_fr = wheelspeed_fr;
-    //   sensor_can_.wheelspeed_rl = wheelspeed_rl;
-    //   sensor_can_.wheelspeed_rr = wheelspeed_rr;
-    // }
+    sensor_can_.wheelspeed_fl = wheelspeed_fl;
+    sensor_can_.wheelspeed_fr = wheelspeed_fr;
+    sensor_can_.wheelspeed_rl = wheelspeed_rl;
+    sensor_can_.wheelspeed_rr = wheelspeed_rr;
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
                  function_name.c_str(), e);
@@ -321,12 +299,7 @@ void CarInterface::getIMUData() {
     imu.angular_velocity.y =
         (double)(can1_->get_can(dv_can_msg::ImuY) & 255) / 10;
 
-    // TODO: Check for sensor malfunction
-    // if () {
-    //   RCLCPP_ERROR(this->get_logger(), "IMU value error");
-    // } else {
-    //   sensor_can_.imu_data = imu;
-    // }
+    sensor_can_.imu_data = imu;
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
                  function_name.c_str(), e);
