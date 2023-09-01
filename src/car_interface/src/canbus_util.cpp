@@ -79,9 +79,9 @@ int CanInterface::get_can(dv_can_msg msgName) {
     result = (int)((messages[dv_can_msg_map[(int)msgName]].data[2]) |
                    (((messages[dv_can_msg_map[(int)msgName]].data[3]) << 8)));
   } else if (msgName == dv_can_msg::MOTPOS) {
-    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[0]) |
-                   (((messages[dv_can_msg_map[(int)msgName]].data[1]) << 8)));
-  } else if (msgName == dv_can_msg::APPS) { // TODO: set to first 16
+    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[2]) |
+                   (((messages[dv_can_msg_map[(int)msgName]].data[3]) << 8)));
+  } else if (msgName == dv_can_msg::APPS) {
     result = (int)((messages[dv_can_msg_map[(int)msgName]].data[0]) |
                    (((messages[dv_can_msg_map[(int)msgName]].data[1]) << 8)));
   } else {

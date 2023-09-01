@@ -215,8 +215,7 @@ void CarInterface::getMotorSpeedData() {
 
   try {
     // TODO: Check value format
-    motor_speed = can1_->get_can(dv_can_msg::MOTPOS) *
-                  -0.021545; // TODO: Where is this factor from?
+    motor_speed = can1_->get_can(dv_can_msg::MOTPOS) * -0.021545;
     if (abs(motor_speed) > 32767) {
       RCLCPP_ERROR(this->get_logger(), "Motor speed value error");
     } else {
