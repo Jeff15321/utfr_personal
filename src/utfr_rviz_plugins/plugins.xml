@@ -1,0 +1,18 @@
+<library path="utfr_rviz_plugins">
+    <class name="utfr_rviz_plugins/TargetState" type="utfr_rviz_plugins::displays::TargetStateDisplay" base_class_type="rviz_common::Display">
+        <description>
+            Displays a trajectory point based on a trajectory point stamped message.
+        </description>
+    </class>
+    <class name="utfr_rviz_plugins/PlanningPath" type="utfr_rviz_plugins::displays::PlanningPathDisplay" base_class_type="rviz_common::Display">
+        <description>
+            Displays a waypoint path given a waypoint path stamped message.
+        </description>
+    </class>
+    <class name="utfr_rviz_plugins/ConeDetections" type="utfr_rviz_plugins::displays::ConeDetectionsDisplay" base_class_type="rviz_common::Display">
+        <description>
+            Displays cone detections from perception.
+        </description>
+    </class>
+
+</library>
