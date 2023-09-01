@@ -38,7 +38,8 @@
 #include <canbus_util.hpp>
 #include <heartbeat_monitor.hpp>
 
-#define MAX_BRK_PRS 1600
+#define MAX_BRK_PRS 1600 // PSI
+#define MAX_THROTTLE 200 // Nm, from kProcessedTHrottleMax variable in FC code
 
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
