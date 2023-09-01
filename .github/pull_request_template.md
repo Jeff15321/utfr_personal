@@ -18,6 +18,8 @@
 - [ ] Tabs/indents are 2 spaces
 - [ ] Line length is at most 80 characters
 - [ ] Use doubles, not floats
+- [ ] Functions should not be unnecessarily long (Use helper functions to mitigate)
+- [ ] Pull request should not be over 500 lines
 
 ## Screenshots (if appropriate):
 
