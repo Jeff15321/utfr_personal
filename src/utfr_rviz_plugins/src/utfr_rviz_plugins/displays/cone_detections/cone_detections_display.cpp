@@ -1,3 +1,15 @@
+/*
+
+██████  ██    ██ ██████  ██   ██
+██   ██ ██    ██      ██ ██   ██
+██   ██ ██    ██  █████  ███████
+██   ██  ██  ██  ██           ██
+██████    ████   ███████      ██
+
+* file: cone_detections_display.cpp
+* auth: Kelvin Cui
+* desc: Cone detection rviz plugin display class
+*/
 #include "utfr_rviz_plugins/displays/cone_detections/cone_detections_display.hpp"
 
 #include <Eigen/Eigen>

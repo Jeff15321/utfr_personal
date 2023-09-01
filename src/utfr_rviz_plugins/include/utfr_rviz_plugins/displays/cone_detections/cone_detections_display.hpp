@@ -1,3 +1,15 @@
+/*
+
+██████  ██    ██ ██████  ██   ██
+██   ██ ██    ██      ██ ██   ██
+██   ██ ██    ██  █████  ███████
+██   ██  ██  ██  ██           ██
+██████    ████   ███████      ██
+
+* file: cone_detections_display.hpp
+* auth: Kelvin Cui
+* desc: Cone detection rviz plugin display header
+*/
 #include <memory>
 #include <rviz_common/properties/bool_property.hpp>
 #include <rviz_common/properties/color_property.hpp>
