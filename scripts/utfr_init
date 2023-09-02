@@ -11,11 +11,11 @@ set -e # will stop script on any error
 git submodule update --init --recursive
 
 # Update existing Packages:
-echo "==========================================="
-echo "=            Updating Ubuntu              ="
-echo "==========================================="
-sudo apt-get update -y
-sudo apt-get upgrade -y
+# echo "==========================================="
+# echo "=            Updating Ubuntu              ="
+# echo "==========================================="
+# sudo apt-get update -y
+# sudo apt-get upgrade -y
 
 echo "==========================================="
 echo "=            Install rosdeps              ="

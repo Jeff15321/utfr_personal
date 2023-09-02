@@ -22,6 +22,15 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     utfr_common
 )
 
+## Set G2O build flags
+option(G2O_BUILD_EXAMPLES "No need for examples" OFF)
+option(BUILD_UNITTESTS "No need for unit tests" OFF)
+option(G2O_BUILD_APPS "No need for apps" OFF)
+option(G2O_BUILD_SLAM3D_TYPES "No need for 3D SLAM" OFF)
+option(G2O_USE_LOGGING "No need for logging" OFF)
+
+add_subdirectory(external/g2o external/g2o/build)
+
 ## Find Dependencies
 foreach(DEPENDENCY IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${DEPENDENCY} REQUIRED)
@@ -42,8 +51,11 @@ function(add_node NODE_NAME)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
+  get_filename_component(PARENT_DIR "${CMAKE_SOURCE_DIR}" DIRECTORY)
+  set(OUTPUT_DIR ${PARENT_DIR}/build/mapping/external/g2o/build)
+
   add_executable(${NODE_NAME} src/${NODE_NAME}_node.cpp)
-  # target_link_libraries(${NODE_NAME} ${NODE_NAME}_library ${CMAKE_SOURCE_DIR}/external/g2o/build/lib/libg2o_core.so)
+  target_link_libraries(${NODE_NAME} ${NODE_NAME}_library ${OUTPUT_DIR}/lib/libg2o_core.so)
   target_link_libraries(${NODE_NAME} ${NODE_NAME}_library)
   ament_target_dependencies(${NODE_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})
   target_include_directories(${NODE_NAME}
