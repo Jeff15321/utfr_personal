@@ -10,7 +10,7 @@ set -e # will stop script on any error
 # Init all submodules
 git submodule update --init --recursive
 
-Update existing Packages:
+# Update existing Packages:
 echo "==========================================="
 echo "=            Updating Ubuntu              ="
 echo "==========================================="
