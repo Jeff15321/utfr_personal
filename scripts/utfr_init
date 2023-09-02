@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e # will stop script on any error
 
 # One-time script for first time repo setup
 # In dv24/ run 'bash scripts/utfr_init'
