@@ -10,11 +10,6 @@ jobs:
   build-and-test:
     runs-on: ubuntu-22.04
     steps:
-      # - name: Clone repo & submodules
-      #   uses: actions/checkout@v3
-      #   with:
-      #     submodules: recursive
-      #     token: ${{ secrets.ACCESS_TOKEN }}
       - name: Setup ROS2 environment
         uses: ros-tooling/setup-ros@0.7.0
         with:
@@ -31,5 +26,3 @@ jobs:
       #     name: colcon-logs
       #     path: log/
       # if: always()
-      # - name: Bash cmd
-      #   run: echo "${PWD}"
