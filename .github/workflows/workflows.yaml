@@ -10,14 +10,15 @@ jobs:
   build-and-test:
     runs-on: ubuntu-22.04
     steps:
-      - name: Setup ssh key
-        uses: webfactory/ssh-agent@v0.8.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      # - name: Setup ssh key
+      #   uses: webfactory/ssh-agent@v0.8.0
+      #   with:
+      #     ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
       - name: Setup repo
         uses: actions/checkout@v3
         with:
           submodules: recursive
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       # - name: Setup ROS2
       #   uses: ros-tooling/setup-ros@0.7.0
       #   with:
