@@ -10,12 +10,12 @@ jobs:
   build-and-test:
     runs-on: ubuntu-22.04
     steps:
-      - name: Clone repo & submodules
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          token: ${{ secrets.ACCESS_TOKEN }}
-      - name: Setup ROS2
+      # - name: Clone repo & submodules
+      #   uses: actions/checkout@v3
+      #   with:
+      #     submodules: recursive
+      #     token: ${{ secrets.ACCESS_TOKEN }}
+      - name: Setup ROS2 environment
         uses: ros-tooling/setup-ros@0.7.0
         with:
           required-ros-distributions: humble
@@ -24,6 +24,7 @@ jobs:
         with:
           package-name: example
           target-ros2-distro: humble
+          import-token: ${{ secrets.ACCESS_TOKEN }}
       # - name: Upload Logs
       #   uses: actions/upload-artifact@v1
       #   with:
