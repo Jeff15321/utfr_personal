@@ -10,6 +10,14 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
+      - name: Setup ssh key
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Setup repo
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - name: Setup ROS2
         uses: ros-tooling/setup-ros@0.7.0
         with:
@@ -24,7 +32,6 @@ jobs:
         #   with:
         #     name: colcon-logs
         #     path: log/
-        if: always()
+        # if: always()
       - name: Bash cmd
-        run: pwd
-        shell: bash
+        run: echo "${PWD}"
