@@ -19,7 +19,6 @@ jobs:
         with:
           target-ros2-distro: humble
           import-token: ${{ secrets.ACCESS_TOKEN }}
-          package-name: arena_camera_node
           colcon-defaults: |
             {
               "build":
