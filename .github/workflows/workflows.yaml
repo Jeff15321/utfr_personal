@@ -1,0 +1,56 @@
+name: UTFR DV24 Pipeline
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Setup ROS2 environment
+        uses: ros-tooling/setup-ros@0.7.0
+        with:
+          required-ros-distributions: humble
+      - name: Build and run tests
+        uses: ros-tooling/action-ros-ci@0.3.3
+        with:
+          target-ros2-distro: humble
+          import-token: ${{ secrets.ACCESS_TOKEN }}
+          colcon-defaults: |
+            {
+              "build":
+                {
+                  "packages-ignore":
+                    [
+                      "arena_camera_node",
+                      "bluespace_ai_xsens_mti_driver",
+                      "ouster_msgs",
+                      "ros2_ouster",
+                      "velodyne",
+                      "velodyne_driver",
+                      "velodyne_laserscan",
+                      "velodyne_msgs",
+                      "velodyne_pointcloud",
+                      "launcher"
+                    ]
+                },
+              "test":
+                {
+                  "packages-ignore":
+                    [
+                      "arena_camera_node",
+                      "bluespace_ai_xsens_mti_driver",
+                      "ouster_msgs",
+                      "ros2_ouster",
+                      "velodyne",
+                      "velodyne_driver",
+                      "velodyne_laserscan",
+                      "velodyne_msgs",
+                      "velodyne_pointcloud",
+                      "launcher"
+                    ]
+                }
+            }

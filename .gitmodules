@@ -1,12 +1,20 @@
 [submodule "src/drivers/bluespace_ai_xsens_ros_mti_driver"]
 	path = src/drivers/bluespace_ai_xsens_ros_mti_driver
 	url = git@github.com:bluespace-ai/bluespace_ai_xsens_ros_mti_driver.git
+	branch = ros2_0_foxy
 [submodule "src/drivers/velodyne"]
 	path = src/drivers/velodyne
 	url = git@github.com:ros-drivers/velodyne.git
+	branch = ros2
 [submodule "src/drivers/ros2_ouster_drivers"]
 	path = src/drivers/ros2_ouster_drivers
 	url = https://github.com/ros-drivers/ros2_ouster_drivers.git
+	branch = ros2
 [submodule "src/utfr_sim"]
 	path = src/utfr_sim
 	url = git@github.com:UTFR/utfr_sim.git
+	branch = main
+[submodule "src/mapping/external/g2o"]
+	path = src/mapping/external/g2o
+	url = https://github.com/RainerKuemmerle/g2o.git
+	branch = master
