@@ -573,5 +573,8 @@
         "hash_map": "cpp",
         "hash_set": "cpp",
         "*.ipp": "cpp"
+    },
+    "yaml.schemas": {
+        "https://json.schemastore.org/github-workflow.json": "file:///home/utfr-dv/dv24/.github/workflows/workflows.yaml"
     }
 }

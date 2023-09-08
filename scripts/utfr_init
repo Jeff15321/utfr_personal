@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e # will stop script on any error
 
 # One-time script for first time repo setup
 # In dv24/ run 'bash scripts/utfr_init'
@@ -20,8 +19,9 @@ sudo apt-get upgrade -y
 echo "==========================================="
 echo "=            Install rosdeps              ="
 echo "==========================================="
+sudo rosdep init
 rosdep update
-rosdep install --from-paths src --ignore-src --rosdistro -y
+rosdep install --from-paths src --ignore-src --rosdistro=humble -y
 
 echo "==========================================="
 echo "=            Install pip deps             ="
@@ -56,6 +56,7 @@ YAML_CONTENT=$(cat <<EOF
           "velodyne_laserscan",
           "velodyne_msgs",
           "velodyne_pointcloud",
+          "launcher"
         ],
     },
   "test":
@@ -70,7 +71,8 @@ YAML_CONTENT=$(cat <<EOF
           "velodyne_driver",
           "velodyne_laserscan",
           "velodyne_msgs",
-          "velodyne_pointcloud"
+          "velodyne_pointcloud",
+          "launcher"
         ],
     },
 }

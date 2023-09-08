@@ -44,6 +44,7 @@ const std::string kTargetState{"planning/target_state"};
 const std::string kWaypointPath{"planning/waypoint_path"};
 const std::string kPlanningDebug{"planning/debug"};
 const std::string kPlanningHeartbeat{"planning/heartbeat"};
+// TODO: add heartbeat for each planning node
 
 // Controls
 const std::string kControlCmd{"controls/control_cmd"};
