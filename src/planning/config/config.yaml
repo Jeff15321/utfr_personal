@@ -1,3 +1,5 @@
 planning: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
+    event: 'accel' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    skip_path_opt: True #Skip if you don't want to do path optimization

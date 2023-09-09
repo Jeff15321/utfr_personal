@@ -1,10 +1,24 @@
 #!/bin/bash
 
-# One-time script for first time repo setup
-# In dv24/ run 'bash scripts/utfr_init'
-# Make sure 'source /opt/ros/humble/setup.bash' is in ~/.bashrc
-# If not, add it with 'source /opt/ros/humble/setup.bash >> ~/.bashrc'
-# and restart the terminal
+# Prerequisite: ROS 2 Humble installed on Ubuntu 22.04
+# Installation guide: https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html
+# Author: Daniel Asadi
+# Description: One-time script for first time repo setup
+# Instructions: In dv24/ run 'bash scripts/utfr_init'
+
+# Check if ROS 2 Humble is installed
+if ! [ -d "/opt/ros/humble" ]; then
+    echo "ROS 2 Humble is not installed. Please install ROS 2 Humble first."
+    echo "Installation guide: https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html"
+    exit 1
+fi
+
+# Check if ROS 2 Humble is sourced in ~/.bashrc
+if ! grep -Fxq "source /opt/ros/humble/setup.bash" ~/.bashrc; then
+    echo "Adding 'source /opt/ros/humble/setup.bash' to ~/.bashrc"
+    echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+    source ~/.bashrc
+fi
 
 # Init all submodules
 git submodule update --init --recursive
@@ -35,7 +49,7 @@ echo "==========================================="
 echo "=               Config sim                ="
 echo "==========================================="
 DIR="$(pwd)/src/utfr_sim"
-echo 'export EUFS_MASTER=$DIR' >> ~/.bashrc
+echo "export EUFS_MASTER=$DIR" >> ~/.bashrc
 source ~/.bashrc
 
 echo "==========================================="
