@@ -1,7 +1,7 @@
 {
     "python.autoComplete.extraPaths": [
-        "/home/utfr-dv/utfr-dv/install/velodyne_msgs/lib/python3.8/site-packages",
-        "/home/utfr-dv/utfr-dv/install/utfr_msgs/lib/python3.8/site-packages",
+        "/home/$USER/dv24/install/velodyne_msgs/lib/python3.8/site-packages",
+        "/home/$USER/dv24/install/utfr_msgs/lib/python3.8/site-packages",
         "/opt/ros/humble/build/rqt_bag_plugins/src",
         "/opt/ros/humble/install/rqt_bag_plugins/lib/python3.8/site-packages",
         "/opt/ros/humble/build/rqt_bag/src",
@@ -244,8 +244,8 @@
         "/opt/ros/humble/install/ament_clang_format/lib/python3.8/site-packages"
     ],
     "python.analysis.extraPaths": [
-        "/home/utfr-dv/utfr-dv/install/velodyne_msgs/lib/python3.8/site-packages",
-        "/home/utfr-dv/utfr-dv/install/utfr_msgs/lib/python3.8/site-packages",
+        "/home/$USER/dv24/install/velodyne_msgs/lib/python3.8/site-packages",
+        "/home/$USER/dv24/install/utfr_msgs/lib/python3.8/site-packages",
         "/opt/ros/humble/build/rqt_bag_plugins/src",
         "/opt/ros/humble/install/rqt_bag_plugins/lib/python3.8/site-packages",
         "/opt/ros/humble/build/rqt_bag/src",
@@ -587,6 +587,7 @@
         "syncstream": "cpp"
     },
     "yaml.schemas": {
-        "https://json.schemastore.org/github-workflow.json": "file:///home/utfr-dv/dv24/.github/workflows/workflows.yaml"
-    }
+        "https://json.schemastore.org/github-workflow.json": "file:///home/$USER/dv24/.github/workflows/workflows.yaml"
+    },
+    "ros.distro": "humble"
 }
