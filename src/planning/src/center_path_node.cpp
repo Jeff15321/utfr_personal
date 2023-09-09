@@ -53,20 +53,20 @@ void CenterPathNode::initPublishers() {
 void CenterPathNode::initTimers() {
   if (event_ == "accel") {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(update_rate_),
-      std::bind(&CenterPathNode::timerCBAccel, this));
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&CenterPathNode::timerCBAccel, this));
   } else if (event_ == "skidpad") {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(update_rate_),
-      std::bind(&CenterPathNode::timerCBSkidpad, this));
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&CenterPathNode::timerCBSkidpad, this));
   } else if (event_ == "autocross") {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(update_rate_),
-      std::bind(&CenterPathNode::timerCBAutocross, this));
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&CenterPathNode::timerCBAutocross, this));
   } else if (event_ == "trackdrive") {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(update_rate_),
-      std::bind(&CenterPathNode::timerCBTrackdrive, this));
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&CenterPathNode::timerCBTrackdrive, this));
   }
 }
 

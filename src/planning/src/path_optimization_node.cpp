@@ -59,7 +59,7 @@ void PathOptimizationNode::initPublishers() {
       this->create_publisher<utfr_msgs::msg::ParametricSpline>(
           topics::kOptimizedCenterPath, 10);
 
-  velocity_profile_publisher_ = 
+  velocity_profile_publisher_ =
       this->create_publisher<utfr_msgs::msg::VelocityProfile>(
           topics::kVelocityProfile, 10);
 }
@@ -67,20 +67,20 @@ void PathOptimizationNode::initPublishers() {
 void PathOptimizationNode::initTimers() {
   if (event_ == "accel") {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(update_rate_),
-      std::bind(&PathOptimizationNode::timerCBAccel, this));
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&PathOptimizationNode::timerCBAccel, this));
   } else if (event_ == "skidpad") {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(update_rate_),
-      std::bind(&PathOptimizationNode::timerCBSkidpad, this));
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&PathOptimizationNode::timerCBSkidpad, this));
   } else if (event_ == "autocross") {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(update_rate_),
-      std::bind(&PathOptimizationNode::timerCBAutocross, this));
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&PathOptimizationNode::timerCBAutocross, this));
   } else if (event_ == "trackdrive") {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(update_rate_),
-      std::bind(&PathOptimizationNode::timerCBTrackdrive, this));
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&PathOptimizationNode::timerCBTrackdrive, this));
   }
 }
 
@@ -177,7 +177,7 @@ void PathOptimizationNode::timerCBSkidpad() {
     this->publishHeartbeat(2);
     return;
   }
-  
+
   // CODE GOES HERE
 }
 
@@ -198,7 +198,7 @@ void PathOptimizationNode::timerCBAutocross() {
     this->publishHeartbeat(2);
     return;
   }
-  
+
   // CODE GOES HERE
 }
 
@@ -224,35 +224,36 @@ void PathOptimizationNode::timerCBTrackdrive() {
 }
 
 std::vector<double> PathOptimizationNode::calculateVelocities(
-                    utfr_msgs::msg::ParametricSpline &spline,
-                    double L, int n, double a_lateral){
-  if(n <= 1) return {};
-  auto first_derivative = [](std::vector<double> &c, double t, double t2, 
-                              double t3, double t4){
-    return 5*c[0]*t4 + 4*c[1]*t3 + 3*c[2]*t2 + 2*c[3]*t + c[4];
+    utfr_msgs::msg::ParametricSpline &spline, double L, int n,
+    double a_lateral) {
+  if (n <= 1)
+    return {};
+  auto first_derivative = [](std::vector<double> &c, double t, double t2,
+                             double t3, double t4) {
+    return 5 * c[0] * t4 + 4 * c[1] * t3 + 3 * c[2] * t2 + 2 * c[3] * t + c[4];
   };
-  auto second_derivative = [](std::vector<double> &c, double t, double t2, 
-                              double t3){
-    return 20*c[0]*t3 + 12*c[1]*t2 + 6*c[2]*t + 2*c[3];
+  auto second_derivative = [](std::vector<double> &c, double t, double t2,
+                              double t3) {
+    return 20 * c[0] * t3 + 12 * c[1] * t2 + 6 * c[2] * t + 2 * c[3];
   };
   std::vector<double> &x = spline.x_params;
   std::vector<double> &y = spline.y_params;
-  auto k = [&x, &y, &first_derivative, &second_derivative](double t){
-    double t2 = t*t, t3 = t2*t, t4 = t3*t;
-    double x_first_derivative = first_derivative(x,t,t2,t3,t4);
-    double x_second_derivative = second_derivative(x,t,t2,t3);
-    double y_first_derivative = first_derivative(y,t,t2,t3,t4);
-    double y_second_derivative = second_derivative(y,t,t2,t3);
+  auto k = [&x, &y, &first_derivative, &second_derivative](double t) {
+    double t2 = t * t, t3 = t2 * t, t4 = t3 * t;
+    double x_first_derivative = first_derivative(x, t, t2, t3, t4);
+    double x_second_derivative = second_derivative(x, t, t2, t3);
+    double y_first_derivative = first_derivative(y, t, t2, t3, t4);
+    double y_second_derivative = second_derivative(y, t, t2, t3);
     double numerator = x_first_derivative * y_second_derivative -
                        x_second_derivative * y_first_derivative;
     double val = x_first_derivative * x_first_derivative +
                  y_first_derivative * y_first_derivative;
     double denominator = val * sqrt(val);
-    return abs(numerator/denominator);
+    return abs(numerator / denominator);
   };
   std::vector<double> velocities;
-  for(double t = 0; t <= L; t+=L/(n-1)){
-    velocities.push_back(sqrt(a_lateral/k(t)));
+  for (double t = 0; t <= L; t += L / (n - 1)) {
+    velocities.push_back(sqrt(a_lateral / k(t)));
   }
   return velocities;
 }
