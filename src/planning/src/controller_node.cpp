@@ -25,7 +25,13 @@ ControllerNode::ControllerNode() : Node("controller_node") {
   this->initHeartbeat();
 }
 
-void ControllerNode::initParams() {}
+void ControllerNode::initParams() {
+  this->declare_parameter("update_rate", 33.33);
+  this->declare_parameter("event", "accel");
+
+  update_rate_ = this->get_parameter("update_rate").as_double();
+  event_ = this->get_parameter("event").as_string();
+}
 
 void ControllerNode::initSubscribers() {}
 

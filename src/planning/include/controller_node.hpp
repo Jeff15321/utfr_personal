@@ -71,6 +71,11 @@ private:
   /*! Initialize Heartbeat:
    */
   void initHeartbeat();
+
+  /*! Initialize global variables:
+   */
+  double update_rate_;
+  std::string event_;
 };
 } // namespace controller
 } // namespace utfr_dv

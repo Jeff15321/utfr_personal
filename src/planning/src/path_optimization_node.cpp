@@ -25,7 +25,13 @@ PathOptimizationNode::PathOptimizationNode() : Node("path_optimization_node") {
   this->initHeartbeat();
 }
 
-void PathOptimizationNode::initParams() {}
+void PathOptimizationNode::initParams() {
+  this->declare_parameter("update_rate", 33.33);
+  this->declare_parameter("event", "accel");
+
+  update_rate_ = this->get_parameter("update_rate").as_double();
+  event_ = this->get_parameter("event").as_string();
+}
 
 void PathOptimizationNode::initSubscribers() {}
 
