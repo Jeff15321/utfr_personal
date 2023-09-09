@@ -62,20 +62,20 @@ void ControllerNode::initPublishers() {
 void ControllerNode::initTimers() {
   if (event_ == "accel") {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(update_rate_),
-      std::bind(&ControllerNode::timerCBAccel, this));
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&ControllerNode::timerCBAccel, this));
   } else if (event_ == "skidpad") {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(update_rate_),
-      std::bind(&ControllerNode::timerCBSkidpad, this));
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&ControllerNode::timerCBSkidpad, this));
   } else if (event_ == "autocross") {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(update_rate_),
-      std::bind(&ControllerNode::timerCBAutocross, this));
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&ControllerNode::timerCBAutocross, this));
   } else if (event_ == "trackdrive") {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(update_rate_),
-      std::bind(&ControllerNode::timerCBTrackdrive, this));
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&ControllerNode::timerCBTrackdrive, this));
   }
 }
 

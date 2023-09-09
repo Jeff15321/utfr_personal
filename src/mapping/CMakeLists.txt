@@ -42,7 +42,7 @@ function(add_node NODE_NAME)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
-  add_executable(${NODE_NAME} src/${NODE_NAME}_node.cpp)
+  add_executable(${NODE_NAME} src/${NODE_NAME}.cpp)
   if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
     message("x86_64 (64-bit) architecture detected")
     target_link_libraries(${NODE_NAME} ${NODE_NAME}_library ${CMAKE_CURRENT_SOURCE_DIR}/external/x86_lib/libg2o_core.so)

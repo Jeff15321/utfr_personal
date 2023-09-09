@@ -55,10 +55,3 @@ void EkfNode::EKF() {}
 
 } // namespace ekf
 } // namespace utfr_dv
-
-int main(int argc, char **argv) {
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<utfr_dv::ekf::EkfNode>());
-  rclcpp::shutdown();
-  return 0;
-}

@@ -7,18 +7,17 @@
 ██████    ████   ███████      ██
 
 *
-* file: path_optimization.cpp
-* auth: Justin Lim
-* desc: path optimization main executable
+* file: compute_graph.cpp
+* auth: Arthur Xu
+* desc: compute graph main executable
 */
 
-#include <path_optimization_node.hpp>
+#include <compute_graph_node.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(
-      std::make_shared<utfr_dv::path_optimization::PathOptimizationNode>());
+  rclcpp::spin(std::make_shared<utfr_dv::compute_graph::ComputeGraphNode>());
   rclcpp::shutdown();
   return 0;
 }

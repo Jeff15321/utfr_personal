@@ -50,8 +50,7 @@ void ComputeGraphNode::initTimers() {
 }
 
 void ComputeGraphNode::initHeartbeat() {
-  heartbeat_publisher_ = 
-    this->create_publisher<utfr_msgs::msg::Heartbeat>(
+  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kMappingComputeHeartbeat, 10);
 }
 
@@ -61,10 +60,3 @@ void ComputeGraphNode::graphSLAM() {}
 
 } // namespace compute_graph
 } // namespace utfr_dv
-
-int main(int argc, char **argv) {
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<utfr_dv::compute_graph::ComputeGraphNode>());
-  rclcpp::shutdown();
-  return 0;
-}

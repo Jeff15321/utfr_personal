@@ -1,5 +1,19 @@
-#include <rclcpp/rclcpp.hpp>
+/*
+
+██████  ██    ██ ██████  ██   ██
+██   ██ ██    ██      ██ ██   ██
+██   ██ ██    ██  █████  ███████
+██   ██  ██  ██  ██           ██
+██████    ████   ███████      ██
+
+*
+* file: controller.cpp
+* auth: Justin Lim
+* desc: controller main executable
+*/
+
 #include <controller_node.hpp>
+#include <rclcpp/rclcpp.hpp>
 
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
