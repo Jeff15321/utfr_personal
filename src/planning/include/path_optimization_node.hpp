@@ -33,6 +33,7 @@
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
+#include <utfr_msgs/msg/parametric_spline.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -50,6 +51,18 @@ public:
   /*! Constructor, calls loadParams, initPublishers and initTimers.
    */
   PathOptimizationNode();
+
+  /*! Calculate Velocities:
+  * This function calculates the max velocity for a parametric spline at n 
+    equidistant points for a lateral acceleration.
+  * @param spline the spline
+  * @param L the look ahead distance
+  * @param n the number of points to calculate curvature for (n > 1)
+  * @param a_lateral the lateral acceleration
+  */
+  std::vector<double> calculateVelocities(
+                      utfr_msgs::msg::ParametricSpline &spline,
+                      double L, int n, double a_lateral);
 
 private:
   /*! Initialize and load params from config.yaml:
