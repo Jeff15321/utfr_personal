@@ -30,6 +30,13 @@ endforeach()
 ## Export Dependencies for downstream packages
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
+## Setup G2O
+set(SETUP "${CMAKE_CURRENT_SOURCE_DIR}/external/g2o_config.sh")
+execute_process(
+    COMMAND sh ${SETUP}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/external
+)
+
 ## Add Libaries and Executables
 function(add_node NODE_NAME)
   add_library(${NODE_NAME}_library
