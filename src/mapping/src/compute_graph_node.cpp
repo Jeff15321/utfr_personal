@@ -13,6 +13,10 @@
 */
 
 #include <compute_graph_node.hpp>
+#include "g2o/core/factory.h"
+#include "g2o/core/optimization_algorithm_factory.h"
+#include "g2o/core/sparse_optimizer.h"
+#include "g2o/stuff/command_args.h"
 
 namespace utfr_dv {
 namespace compute_graph {
