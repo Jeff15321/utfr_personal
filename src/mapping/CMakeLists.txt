@@ -30,6 +30,13 @@ endforeach()
 ## Export Dependencies for downstream packages
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
+## Setup G2O
+set(SETUP "${CMAKE_CURRENT_SOURCE_DIR}/external/g2o_config.sh")
+execute_process(
+    COMMAND sh ${SETUP}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/external
+)
+
 ## Add Libaries and Executables
 function(add_node NODE_NAME)
   add_library(${NODE_NAME}_library
@@ -42,7 +49,12 @@ function(add_node NODE_NAME)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
+  set(G2O_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/g2o")
+  target_include_directories(${NODE_NAME}_library PUBLIC /usr/include/eigen3/)
+  target_include_directories(${NODE_NAME}_library PUBLIC ${G2O_INCLUDE_DIR})
+  
   add_executable(${NODE_NAME} src/${NODE_NAME}.cpp)
+  
   if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
     message("x86_64 (64-bit) architecture detected")
     target_link_libraries(${NODE_NAME} ${NODE_NAME}_library ${CMAKE_CURRENT_SOURCE_DIR}/external/x86_lib/libg2o_core.so)
