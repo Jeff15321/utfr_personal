@@ -389,5 +389,21 @@ ransacCircleLSF(const std::vector<utfr_msgs::msg::Cone> &cones, double radius) {
   return circle;
 }
 
+geometry_msgs::msg::Quaternion yawToQuaternion(double yaw) {
+  geometry_msgs::msg::Quaternion q;
+  q.w = cos(yaw * 0.5);
+  q.x = 0;
+  q.y = 0;
+  q.z = sin(yaw * 0.5);
+  return q;
+}
+
+double quaternionToYaw(const geometry_msgs::msg::Quaternion &q) {
+  double yaw;
+  yaw =
+      atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z));
+  return yaw;
+}
+
 } // namespace util
 } // namespace utfr_dv
