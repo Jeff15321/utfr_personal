@@ -109,5 +109,31 @@ install(
 ## Testing ##
 #############
 # Add your testing code here...
+find_package(ament_cmake_gtest REQUIRED)
+
+## Define Test Executables
+ament_add_gtest(mapping_test
+  test/mapping_test.cpp
+)
+ament_target_dependencies(mapping_test ${THIS_PACKAGE_INCLUDE_DEPENDS})
+
+## Find Headers for Testing files
+target_include_directories(mapping_test
+PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+set(G2O_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/g2o")
+target_include_directories(mapping_test PUBLIC /usr/include/eigen3/)
+target_include_directories(mapping_test PUBLIC ${G2O_INCLUDE_DIR})
+
+## Link required files for testing:
+target_sources(mapping_test PRIVATE src/build_graph_node.cpp)
+target_sources(mapping_test PRIVATE src/compute_graph_node.cpp)
+target_sources(mapping_test PRIVATE src/ekf_node.cpp)
+
+## Install testing files
+install(TARGETS mapping_test
+    DESTINATION test/${PROJECT_NAME})
 
 ament_package()
