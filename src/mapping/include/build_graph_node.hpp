@@ -82,10 +82,16 @@ private:
 
   /*! Implement a KNN algorithm to match cones to previous detections
    *  @param[in] cones utfr_msgs::msg::ConeDetecions&, cone detections
-   *  @param[in] cone_map utfr_msgs::msg::ConeMap&, current cone map estimate
-   *  @param[out] cone_map utfr_msgs::msg::ConeMap&, updated cone map
+   *  @param[in] past_detections_ std::vector<std::pair<float, utfr_msgs::msg::Cone>>&, current cone id mapping
+   *  @param[out] past_detections_ std::vector<std::pair<float, utfr_msgs::msg::Cone>>&, updated cone id mapping
    */
   void KNN(const utfr_msgs::msg::ConeDetections &cones);
+
+  /*! Implement functionalty to detect loop closures
+   *  @param[in] cones utfr_msgs::msg::ConeDetecions&, cone detections
+   *  @param[out] loop_closed boolean&, true if loop is closed
+   */
+  void loopClosure(const utfr_msgs::msg::ConeDetections &cones);
 
   /*! Compose a graph for G2O to optimize.
    *  @param[in] states std::vector<utfr_msgs::msg::EgoState>&, past states
@@ -111,6 +117,7 @@ private:
   std::vector<std::pair<float, utfr_msgs::msg::Cone>>
       past_detections_;                      // Previous cone detections
   utfr_msgs::msg::ConeMap current_cone_map_; // Current cone map estimate
+  bool loop_closed;                  // True if loop is closed
 };
 } // namespace build_graph
 } // namespace utfr_dv
