@@ -51,7 +51,6 @@ public:
    */
   BuildGraphNode();
 
-private:
   /*! Initialize and load params from config.yaml:
    */
   void initParams();
@@ -84,14 +83,15 @@ private:
    *  @param[in] cones utfr_msgs::msg::ConeDetecions&, cone detections
    *  @param[in] past_detections_ std::vector<std::pair<float, utfr_msgs::msg::Cone>>&, current cone id mapping
    *  @param[out] past_detections_ std::vector<std::pair<float, utfr_msgs::msg::Cone>>&, updated cone id mapping
+   *  @param[out] detected_cone_ids std::vector<int>&, ids of cones detected
    */
-  void KNN(const utfr_msgs::msg::ConeDetections &cones);
+  std::vector<int> KNN(const utfr_msgs::msg::ConeDetections &cones);
 
   /*! Implement functionalty to detect loop closures
-   *  @param[in] cones utfr_msgs::msg::ConeDetecions&, cone detections
+   *  @param[in] cones std::vector<int>&, ids of detected cones
    *  @param[out] loop_closed boolean&, true if loop is closed
    */
-  void loopClosure(const utfr_msgs::msg::ConeDetections &cones);
+  void loopClosure(const std::vector<int> &cones);
 
   /*! Compose a graph for G2O to optimize.
    *  @param[in] states std::vector<utfr_msgs::msg::EgoState>&, past states

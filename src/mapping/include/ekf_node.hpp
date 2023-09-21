@@ -50,7 +50,6 @@ public:
    */
   EkfNode();
 
-private:
   /*! Initialize and load params from config.yaml:
    */
   void initParams();
@@ -86,6 +85,19 @@ private:
    */
   void vehicleModel(const float &throttle, const float &brake,
                     const float &steering_angle);
+
+  /*! Given the vehicle's current state, and a collection of inputs like
+    * throttle and steering angle, calculate the state of the vehicle after a
+    * given time.
+    * 2023 old bicycle model
+    *  @param[in] EgoState ego: Current ego state of car, utfr_msgs::msg::EgoState msg
+    *  @param[in] double velocity_cmd: Acceleration input to car, in m/s^2
+    *  @param[in] double steering_cmd: Steering angle of car, in radians
+    *  @param[in] double dt: Change in time to calcuate new position, in seconds
+    *  @returns utfr_msgs::msg::EgoState of vehicle's estimated state
+  */
+  utfr_msgs::msg::EgoState forwardPropagate(const utfr_msgs::msg::EgoState& ego, 
+    const double velocity_cmd, const double steering_cmd, const double dt);
 
   /*! Main EKF function.
    *  The main EKF loop. Takes in measurement data for the EKF and performes a
