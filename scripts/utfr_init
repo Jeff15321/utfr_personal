@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Prerequisite: Ubuntu 22.04 environment
 # Author: Daniel Asadi
 # Description: One-time script for first time repo setup + ROS 2 Humble installation
 # Instructions: In dv24/ run 'bash scripts/utfr_init'
