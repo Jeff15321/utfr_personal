@@ -34,9 +34,6 @@ install_ros2_humble(){
 
 # Check if ROS 2 Humble is installed
 if ! [ -d "/opt/ros/humble" ]; then
-  #echo "ROS 2 Humble is not installed. Please install ROS 2 Humble first."
-  #echo "Installation guide: https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html"
-  #exit 1
   install_ros2_humble
   #get error code
   if [ $? -ne 0 ]; then
