@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
 project(planning)
 
+# Set default build type to Release
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -20,6 +25,8 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     nav_msgs
     geometry_msgs
     utfr_common
+    CGAL
+    Boost
 )
 
 ## Find Dependencies
@@ -30,7 +37,7 @@ endforeach()
 ## Export Dependencies for downstream packages
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
-## Add Libaries and Executables
+## Add Libraries and Executables
 function(add_node NODE_NAME)
   add_library(${NODE_NAME}_library
     src/${NODE_NAME}_node.cpp

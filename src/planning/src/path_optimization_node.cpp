@@ -30,10 +30,16 @@ void PathOptimizationNode::initParams() {
   this->declare_parameter("update_rate", 33.33);
   this->declare_parameter("event", "accel");
   this->declare_parameter("skip_path_opt", false);
+  this->declare_parameter("lookahead_distance", 5.0);
+  this->declare_parameter("num_points", 100);
+  this->declare_parameter("a_lateral", 1.0);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   event_ = this->get_parameter("event").as_string();
   skip_path_opt_ = this->get_parameter("skip_path_opt").as_bool();
+  lookahead_distance_ = this->get_parameter("lookahead_distance").as_double();
+  num_points_ = this->get_parameter("num_points").as_int();
+  a_lateral_max_ = this->get_parameter("a_lateral").as_double();
 }
 
 void PathOptimizationNode::initSubscribers() {
@@ -153,11 +159,17 @@ void PathOptimizationNode::timerCBAccel() {
       RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
                   function_name.c_str());
     }
-    this->publishHeartbeat(2);
-    return;
+  } else {
+    // CODE GOES HERE TO OPTIMIZE PATH
   }
+  std::vector<double> velocities = calculateVelocities(
+      *center_path_, lookahead_distance_, num_points_, a_lateral_max_);
+  utfr_msgs::msg::VelocityProfile velocity_profile_msg;
+  velocity_profile_msg.velocities = velocities;
+  velocity_profile_publisher_->publish(velocity_profile_msg);
 
-  // CODE GOES HERE
+  this->publishHeartbeat(2);
+  return;
 }
 
 void PathOptimizationNode::timerCBSkidpad() {
@@ -174,11 +186,17 @@ void PathOptimizationNode::timerCBSkidpad() {
       RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
                   function_name.c_str());
     }
-    this->publishHeartbeat(2);
-    return;
+  } else {
+    // CODE GOES HERE TO OPTIMIZE PATH
   }
+  std::vector<double> velocities = calculateVelocities(
+      *center_path_, lookahead_distance_, num_points_, a_lateral_max_);
+  utfr_msgs::msg::VelocityProfile velocity_profile_msg;
+  velocity_profile_msg.velocities = velocities;
+  velocity_profile_publisher_->publish(velocity_profile_msg);
 
-  // CODE GOES HERE
+  this->publishHeartbeat(2);
+  return;
 }
 
 void PathOptimizationNode::timerCBAutocross() {
@@ -195,11 +213,17 @@ void PathOptimizationNode::timerCBAutocross() {
       RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
                   function_name.c_str());
     }
-    this->publishHeartbeat(2);
-    return;
+  } else {
+    // CODE GOES HERE TO OPTIMIZE PATH
   }
+  std::vector<double> velocities = calculateVelocities(
+      *center_path_, lookahead_distance_, num_points_, a_lateral_max_);
+  utfr_msgs::msg::VelocityProfile velocity_profile_msg;
+  velocity_profile_msg.velocities = velocities;
+  velocity_profile_publisher_->publish(velocity_profile_msg);
 
-  // CODE GOES HERE
+  this->publishHeartbeat(2);
+  return;
 }
 
 void PathOptimizationNode::timerCBTrackdrive() {
@@ -216,11 +240,17 @@ void PathOptimizationNode::timerCBTrackdrive() {
       RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
                   function_name.c_str());
     }
-    this->publishHeartbeat(2);
-    return;
+  } else {
+    // CODE GOES HERE TO OPTIMIZE PATH
   }
+  std::vector<double> velocities = calculateVelocities(
+      *center_path_, lookahead_distance_, num_points_, a_lateral_max_);
+  utfr_msgs::msg::VelocityProfile velocity_profile_msg;
+  velocity_profile_msg.velocities = velocities;
+  velocity_profile_publisher_->publish(velocity_profile_msg);
 
-  // CODE GOES HERE
+  this->publishHeartbeat(2);
+  return;
 }
 
 std::vector<double> PathOptimizationNode::calculateVelocities(

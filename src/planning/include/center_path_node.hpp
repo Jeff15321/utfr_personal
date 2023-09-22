@@ -40,6 +40,17 @@
 #include <utfr_common/math.hpp>
 #include <utfr_common/topics.hpp>
 
+// Delaunay Requirements:
+#ifdef EPS
+#undef EPS
+#endif
+#include <CGAL/Delaunay_triangulation_2.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+
+typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+typedef CGAL::Delaunay_triangulation_2<K> Delaunay;
+typedef K::Point_2 Point;
+
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
 
@@ -100,6 +111,10 @@ private:
   /*! Trackdrive Timer Callback:
    */
   void timerCBTrackdrive();
+
+  /*! Delaunay Triangulation:
+   */
+  void delaunayTriangulation();
 
   /*! Initialize global variables:
    */
