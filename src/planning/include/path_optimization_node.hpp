@@ -69,7 +69,7 @@ public:
     accelerations are possible, and that the velocities are under the max 
     allowed velocity.
   * @param velocities the velocities on the current path (velocities.size()>1)
-  * @param time the time the velocities span
+  * @param distance the distance the velocities span
   * @param max_velocity the max velocity that the car can travel
   * @param max_acceleration the max forward acceleration
   * @param min_acceleration the max backward acceleration (negative)
