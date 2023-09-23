@@ -123,6 +123,9 @@ private:
   double update_rate_;
   std::string event_;
   bool skip_path_opt_;
+  double lookahead_distance_;
+  double num_points_;
+  double a_lateral_max_;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
