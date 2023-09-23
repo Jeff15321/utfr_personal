@@ -142,6 +142,15 @@ private:
       double cur_s, double ds, utfr_msgs::msg::VelocityProfile velocity_profile,
       double baselink_location, utfr_msgs::msg::EgoState ego_state);
 
+  /*! Pure Pursuit Controller
+   */
+  utfr_msgs::msg::TargetState purePursuitController(
+      double max_speed, double max_steering_angle,
+      utfr_msgs::msg::ParametricSpline spline_params, double cur_s, double ds,
+      utfr_msgs::msg::VelocityProfile velocity_profile,
+      double baselink_location, utfr_msgs::msg::EgoState ego_state,
+      double lookahead_distance);
+
   /*! Initialize global variables:
    */
   double update_rate_;
@@ -162,6 +171,7 @@ private:
   double baselink_location_;
   double wheel_base_;
   int num_points_;
+  double lookahead_distance_;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
