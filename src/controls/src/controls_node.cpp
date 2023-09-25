@@ -114,6 +114,7 @@ void ControlsNode::timerCB() {
   if (ego_state_ == nullptr || target_state_ == nullptr) {
     status = utfr_msgs::msg::Heartbeat::NOT_READY;
     this->publishHeartbeat(status);
+    return;
   }
 
   try {
