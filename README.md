@@ -21,7 +21,7 @@ source install/setup.bash
 ```
 > [Colcon build options](https://colcon.readthedocs.io/en/released/reference/package-selection-arguments.html)
 
-> If build crashes, use the `--parallel-workers <# of nodes>` option to limit the number of nodes being build in parallel
+> If build crashes, use the `--parallel-workers <# of nodes>` option to limit the number of nodes being built in parallel
 
 ```
 ros2 launch <node name> <launch file name>
