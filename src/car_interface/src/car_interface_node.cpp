@@ -477,6 +477,7 @@ void CarInterface::setDVStateAndCommand() {
 
     // Write to can
     long dv_command = 0;
+<<<<<<< HEAD
     dv_command |= (long)(dv_pc_state_)&7;
     
     RCLCPP_DEBUG(this->get_logger(), "PC: %d", dv_pc_state_);
@@ -488,6 +489,15 @@ void CarInterface::setDVStateAndCommand() {
       dv_command |= (long)(throttle_cmd_ & 0xFFFF) << 3;
       dv_command |= (long)(steering_cmd_ & 0x1FFF) << 19;
       dv_command |= (long)(braking_cmd_ & 0xFF) << 32;
+=======
+    dv_command |= dv_pc_state_;
+    RCLCPP_INFO(this->get_logger(), "PWM: %d", braking_cmd_);
+  
+    if (cmd_||testing_) {
+      dv_command |= (throttle_cmd_ & 0xFFFF) << 3;
+      dv_command |= (steering_cmd_ & 0x1FFF) << 19;
+      dv_command |= (braking_cmd_ & 0xFF) << 32;
+>>>>>>> bfe35d3 (Testing simple brake commands sending over CAN)
     }
 
     RCLCPP_DEBUG(this->get_logger(), "Command: %lx", dv_command);
