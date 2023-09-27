@@ -33,12 +33,14 @@ void CarInterface::initParams() {
   // Initialize Params with default values
   this->declare_parameter("update_rate", 33.33);
   this->declare_parameter("heartbeat_tolerance", 1.5);
-  this->declare_parameter("heartbeat_modules", default_modules);
+ // this->declare_parameter("heartbeat_modules", default_modules);
+  this->declare_parameter("testing", 0);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   heartbeat_tolerance_ = this->get_parameter("heartbeat_tolerance").as_double();
-  heartbeat_modules_ =
-      this->get_parameter("heartbeat_modules").as_string_array();
+  heartbeat_modules_ =default_modules;
+      //this->get_parameter("heartbeat_modules").as_string_array();
+  testing_ = this->get_parameter("testing").as_int();
 }
 
 void CarInterface::initSubscribers() {
@@ -104,14 +106,6 @@ void CarInterface::initCAN() {
   while (can1_->read_can())
     ;
 
-  // if (can0_->connect("can0")) {
-  //   RCLCPP_INFO(this->get_logger(), "Finished Initializing CAN");
-  // } else
-  //   RCLCPP_ERROR(this->get_logger(), "Failed To Initialize CAN");
-
-  // while (can0_->read_can())
-  //   ;
-
   return;
 }
 
@@ -145,7 +139,9 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   steeringRateToSC |= (uint16_t)(directionBit << 12);
 
   // Finalize commands
-  if (cmd_) {
+  if (cmd_||testing_) {
+  RCLCPP_INFO(this->get_logger(), "Got message:");
+
     braking_cmd_ = msg.brk_cmd;
     steering_cmd_ = steeringRateToSC;
     throttle_cmd_ = msg.thr_cmd;
@@ -484,7 +480,9 @@ void CarInterface::setDVStateAndCommand() {
     // Write to can
     long dv_command = 0;
     dv_command |= dv_pc_state_;
-    if (cmd_) {
+    RCLCPP_INFO(this->get_logger(), "PWM: %d", braking_cmd_);
+  
+    if (cmd_||testing_) {
       dv_command |= (throttle_cmd_ & 0xFFFF) << 3;
       dv_command |= (steering_cmd_ & 0x1FFF) << 19;
       dv_command |= (braking_cmd_ & 0xFF) << 32;
