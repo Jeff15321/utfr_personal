@@ -297,15 +297,10 @@ std::vector<double> PathOptimizationNode::filterVelocities(
                         double min_acceleration){
   // make sure all velocities are reasonable
   for(double &v : max_velocities){
-    if(std::isnan(v)){
+    if(std::isnan(v)){ // straight line
       v = max_velocity;
     }
-    else if(v < 0){
-      v = 0;
-    }
-    else if(v > max_velocity){
-      v = max_velocity;
-    }
+    v = std::min(abs(v), max_velocity);
   }
 
   int n = max_velocities.size();
@@ -323,42 +318,24 @@ std::vector<double> PathOptimizationNode::filterVelocities(
     return sqrt(vi*vi + 2*a*d);
   };
 
-  std::vector<double> velocities(n);
+  std::vector<double> velocities = max_velocities;
   double ds = distance/(n-1);
   
-  // Forward pass (Reach highest velocity even if it exceeds)
-  velocities[0] = current_velocity;
-  for(int i = 1; i < n; i++){
-    double a = accel(max_velocities[i], velocities[i-1], ds);
-    if(a < min_acceleration){ // Deceleration
-      a = min_acceleration;
+  // Backward pass (make min_acceleration isn't exceeded)
+  for(int i = n-1; i > 0; i--){
+    double a = accel(velocities[i], velocities[i-1], ds);
+    if(a < min_acceleration){ // limit deceleration
+      velocities[i-1] = velo(velocities[i], -min_acceleration, ds);
     }
-    else if(a > max_acceleration){ // Acceleration
-      a = max_acceleration;
-    }
-    velocities[i] = velo(velocities[i-1], a, ds);
   }
 
-  // Backward pass (make sure no velocity exceeds their max)
-  velocities[n-1] = std::min(velocities[n-1], max_velocities[n-1]);
-  for(int i = n-2; i >= 0; i--){
-    double a = accel(velocities[i+1], velocities[i], ds);
-    if(a < min_acceleration){
-      velocities[i] = velo(velocities[i+1], a, ds); 
-    }
-  }
-  
-  // check if it is impossible to not exceed any of the max velocities
-  if(velocities[0] != current_velocity){
-    // make it so that the velocities are as low as possible now
-    velocities[0] = current_velocity;
-    for(int i = 1; i < n; i++){
-      double a = accel(velocities[i], velocities[i-1], ds);
-      if(a < min_acceleration){
-        a = min_acceleration;
-      }
-      velocities[i] = velo(velocities[i-1], a, ds);
-    }
+  // Forward Pass (find the max possible velocities starting at current)
+  velocities[0] = current_velocity;
+  for(int i = 1; i < n; i++){
+    double a = accel(velocities[i], velocities[i-1], ds);
+    a = std::max(a, min_acceleration); // limit deceleration
+    a = std::min(a, max_acceleration); // limit acceleration
+    velocities[i] = velo(velocities[i-1], a, ds);
   }
   return velocities;
 }

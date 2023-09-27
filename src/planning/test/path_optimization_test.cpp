@@ -58,23 +58,13 @@ TEST(PathOptimizationNode, calculateVelocities) {
 
 TEST(PathOptimizationNode, filterVelocities) {
   PathOptimizationNode node;
-  utfr_msgs::msg::ParametricSpline spline;
-
+  std::vector<double> v;
   std::ofstream out("test_output.txt");
 
-  auto test = [&out, &spline, &node](double cur_vel, double time, double max_vel,
+  out << std::setprecision(17);
+
+  auto test = [&v, &out, &node](double cur_vel, double time, double max_vel,
                                double max_accel, double max_decel){
-    out << "x:{";
-    for(int i = 0; i < 6; i++){
-      out << spline.x_params[i] << (i==5? "" : ",");
-    }
-    out << "}, ";
-    out << "y:{";
-    for(int i = 0; i < 6; i++){
-      out << spline.y_params[i] << (i==5? "" : ",");
-    }
-    out << "}" << std::endl;
-    auto v = node.calculateVelocities(spline, 4, 5, 3);
     out << "Max velocities:" << std::endl;
     for(auto i : v) out << i << std::endl;
     out << "New velocities (current_velocity=" << cur_vel << ", max_velocity="
@@ -82,57 +72,42 @@ TEST(PathOptimizationNode, filterVelocities) {
               << "):" << std::endl; 
     auto a = node.filterVelocities(v, cur_vel, time, max_vel, max_accel, max_decel);
     for(auto i : a) out << i << std::endl;
-    return node.filterVelocities(v, cur_vel, time, max_vel, max_accel, max_decel);
+    return a;
   };
   
   std::vector<double> ret, ans;
 
-  spline.x_params = {1,2,3,4,5,6};
-  spline.y_params = {6,5,4,3,2,1};
-
-  ans = {
-    0,
-    5.4772255750516611882972028979565948247909545898438,
-    7.7459666924148340427791481488384306430816650390625,
-    9.486832980505138124271979904733598232269287109375,
-    10.954451150103322376594405795913189649581909179688
-  };
-  ret = test(0, 4, 1000, 15, -15); // normal case
+  // starts at 0 and is increasing
+  v = {1, 2, 5, 9};
+  ans = {0, 2, 5, 8.06225774829855};
+  ret = test(0, 4, 1000, 15, -15);
   ASSERT_EQ(ret, ans);
 
-  ans = {
-    100,
-    99.8498873309329297853764728643000125885009765625,
-    100,
-    100.1498876684342604903577012009918689727783203125,
-    100.299551344958672416396439075469970703125
-
-  };
-  ret = test(100, 4, 1000, 15, -15); // current velocity exceeds
+  // current velocity exceeds and drops
+  v = {10, 12, 30, 51};
+  ans = {15, 13.601470508735444, 15.000000000000002, 16.27882059609971};
+  ret = test(15, 4, 1000, 15, -15);
   ASSERT_EQ(ret, ans);
-
-  spline.x_params = {1,2,-3,-4,-5,6};
-  spline.y_params = {6,5,-44,-43,2,1};
   
-  ans = {
-    0,
-    14.1421356237309510106570087373256683349609375,
-    7.361880547095847049376970971934497356414794921875,
-    15.943565636008409924784245959017425775527954101562,
-    21.3119047761974655941230594180524349212646484375
-  };
-  ret = test(0, 4, 1000, 100, -100); // velocity drops in the middle
+  // velocity drops multiple times
+  v = {10, 6, 10, 3};
+  ans = {0, 6, 10, 3};
+  ret = test(0, 4, 1000, 100, -100);
   ASSERT_EQ(ret, ans);
 
-  ans = {
-    100,
-    98.9949493661166570745990611612796783447265625,
-    97.979589711327122358852648176252841949462890625,
-    98.9949493661166570745990611612796783447265625,
-    100
-  };
-  ret = test(100, 4, 1000, 100, -100); // current velocity exceeds & velocity drops
+  // doesn't change
+  v = {10, 10, 10, 10};
+  ans = {10, 10, 10, 10};
+  ret = test(10, 4, 1000, 100, -100);
   ASSERT_EQ(ret, ans);
+
+  // invalid
+  v = {-1.0/0.0, sqrt(-1), 231434, 1.0/0.0};
+  ans = {1000, 1000, 1000, 1000};
+  ret = test(1000, 4, 1000, 100, -100);
+  ASSERT_EQ(ret, ans);
+  out << "Adjusted Max Velocities" << std::endl;
+  for(double d : v) out << d << std::endl;
 }
 
 int main(int argc, char **argv) {
