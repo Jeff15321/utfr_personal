@@ -68,7 +68,7 @@ echo "=            Install rosdeps              ="
 echo "==========================================="
 sudo rosdep init
 rosdep update
-rosdep install --from-paths src --ignore-src --rosdistro=humble -y
+rosdep install --from-paths src --ignore-src -r -y
 
 echo "==========================================="
 echo "=            Install pip deps             ="

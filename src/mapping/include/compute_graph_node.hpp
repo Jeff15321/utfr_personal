@@ -50,7 +50,6 @@ public:
    */
   ComputeGraphNode();
 
-private:
   /*! Initialize and load params from config.yaml:
    */
   void initParams();
