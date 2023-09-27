@@ -64,15 +64,16 @@ public:
   std::vector<double>
   calculateVelocities(utfr_msgs::msg::ParametricSpline &spline, double L, int n,
                       double a_lateral);
-  /*! Calculate Velocities:
+  /*! Filter Velocities:
   * This function passes through all the velocities and makes sure that all
     accelerations are possible, and that the velocities are under the max 
-    allowed velocity.
-  * @param velocities the velocities on the current path (velocities.size()>1)
+    allowed velocity. If possible, all velocities will be under the maxes,
+    otherwise they will be minimized until they fall below the maxes.
+  * @param max_velocities the max velocities on the current path (size>1)
   * @param distance the distance the velocities span
   * @param max_velocity the max velocity that the car can travel
-  * @param max_acceleration the max forward acceleration
-  * @param min_acceleration the max backward acceleration (negative)
+  * @param max_acceleration the max acceleration (positive)
+  * @param min_acceleration the max deceleration (negative)
   */
   std::vector<double> filterVelocities(
                         std::vector<double>& max_velocities,
