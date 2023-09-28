@@ -120,7 +120,7 @@ void ControlsNode::brakeTesting() {
     brake_inc_ = 0;
   }
   
-  RCLCPP_INFO(cthis->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
+  RCLCPP_INFO(this->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
 
 }
 

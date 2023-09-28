@@ -27,8 +27,7 @@ CarInterface::CarInterface() : Node("car_interface_node") {
 }
 
 void CarInterface::initParams() {
-  std::vector<std::string> default_modules = {
-      "perception", "mapping", "ekf", "planning", "controls"}; // TODO: update
+  std::vector<std::string> default_modules = {"controls"}; // TODO: update
 
   // Initialize Params with default values
   this->declare_parameter("update_rate", 33.33);
@@ -479,14 +478,21 @@ void CarInterface::setDVStateAndCommand() {
 
     // Write to can
     long dv_command = 0;
-    dv_command |= dv_pc_state_;
-    RCLCPP_INFO(this->get_logger(), "PWM: %d", braking_cmd_);
+    dv_command |= (long)(dv_pc_state_)&7;
+    
+    RCLCPP_DEBUG(this->get_logger(), "PC: %d", dv_pc_state_);
+    RCLCPP_DEBUG(this->get_logger(), "Steer: %d", steering_cmd_);
+    RCLCPP_DEBUG(this->get_logger(), "Throttle: %d", throttle_cmd_);
+    RCLCPP_DEBUG(this->get_logger(), "PWM: %d", braking_cmd_);
   
     if (cmd_||testing_) {
-      dv_command |= (throttle_cmd_ & 0xFFFF) << 3;
-      dv_command |= (steering_cmd_ & 0x1FFF) << 19;
-      dv_command |= (braking_cmd_ & 0xFF) << 32;
+      dv_command |= (long)(throttle_cmd_ & 0xFFFF) << 3;
+      dv_command |= (long)(steering_cmd_ & 0x1FFF) << 19;
+      dv_command |= (long)(braking_cmd_ & 0xFF) << 32;
     }
+
+    RCLCPP_DEBUG(this->get_logger(), "Command: %lx", dv_command);
+
     can1_->write_can(dv_can_msg::DV_COMMAND, dv_command);
 
   } catch (int e) {
