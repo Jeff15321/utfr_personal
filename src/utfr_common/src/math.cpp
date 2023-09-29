@@ -405,5 +405,12 @@ double quaternionToYaw(const geometry_msgs::msg::Quaternion &q) {
   return yaw;
 }
 
+bool isLargeOrangeCone(uint8 coneID) {
+    if (coneID == 4) {
+        return true;
+    }
+    return false;
+}
+
 } // namespace util
 } // namespace utfr_dv
