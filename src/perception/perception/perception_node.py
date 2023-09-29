@@ -620,6 +620,19 @@ class PerceptionNode(Node):
 
     # Helper functions:
 
+    def find_depth_mono_tri(
+        self, vertical_mm, height_bound_box, focal_length, height_cone, image_height_px
+    ):
+        """
+        function to find the monocular depth using similar triangles
+        focal_length / height_box_mm = depth / height_cone
+        get height_cone from fsg rules
+        TODO - make array in parameters for cone heights based on class
+        """
+        height_box_mm = (height_bound_box / image_height_px) * vertical_mm
+        depth = height_cone * (focal_length / height_box_mm)
+        return depth
+
     def save_image(self, left_img_, right_img_, rosbag_name):
         left_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"
         cv2.imwrite(
