@@ -8,7 +8,7 @@
 
 *
 * file: path_optimization_test.cpp
-* auth: Justin Lim
+* auth: Justin Lim, Richard Li
 * desc: tests for path optimization node
 */
 

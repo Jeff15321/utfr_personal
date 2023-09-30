@@ -8,7 +8,7 @@
 
 *
 * file: path_optimization_node.cpp
-* auth: Justin Lim
+* auth: Justin Lim, Richard Li
 * desc: path optimization node class
 */
 
@@ -295,6 +295,9 @@ std::vector<double> PathOptimizationNode::filterVelocities(
                         double max_velocity,
                         double max_acceleration, 
                         double min_acceleration){
+  if(max_velocities.empty()){ // Not possible to filter
+    return {};
+  }
   // make sure all velocities are reasonable
   for(double &v : max_velocities){
     if(std::isnan(v)){ // straight line

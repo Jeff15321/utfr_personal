@@ -8,7 +8,7 @@
 
 *
 * file: path_optimization_node.hpp
-* auth: Justin
+* auth: Justin, Richard
 * desc: path optimization node header
 */
 #pragma once
