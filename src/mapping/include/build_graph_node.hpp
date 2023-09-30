@@ -81,12 +81,14 @@ public:
 
   /*! Implement a KNN algorithm to match cones to previous detections
    *  @param[in] cones utfr_msgs::msg::ConeDetecions&, cone detections
-   *  @param[in] past_detections_ std::vector<std::pair<float, utfr_msgs::msg::Cone>>&, current cone id mapping
-   *  @param[out] past_detections_ std::vector<std::pair<float, utfr_msgs::msg::Cone>>&, updated cone id mapping
+   *  @param[in] past_detections_ std::vector<std::pair<float,
+   * utfr_msgs::msg::Cone>>&, current cone id mapping
+   *  @param[out] past_detections_ std::vector<std::pair<float,
+   * utfr_msgs::msg::Cone>>&, updated cone id mapping
    *  @param[out] detected_cone_ids std::vector<int>&, ids of cones detected
    */
 
-  bool isLargeOrangeCone(const uint8 coneID);
+  bool isLargeOrangeCone(const uint coneID);
 
   std::vector<int> KNN(const utfr_msgs::msg::ConeDetections &cones);
 
@@ -120,9 +122,10 @@ public:
   std::vector<std::pair<float, utfr_msgs::msg::Cone>>
       past_detections_;                      // Previous cone detections
   utfr_msgs::msg::ConeMap current_cone_map_; // Current cone map estimate
-  bool loop_closed = false;  // True if loop is closed
+  bool loop_closed = false;                  // True if loop is closed
   bool landmarked = false;
-  int landmarkedID = -1;              
+  int landmarkedID = -1;
+  bool out_of_frame = false;
 };
 } // namespace build_graph
 } // namespace utfr_dv

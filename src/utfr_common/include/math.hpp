@@ -211,5 +211,7 @@ geometry_msgs::msg::Quaternion yawToQuaternion(double yaw);
  */
 double quaternionToYaw(const geometry_msgs::msg::Quaternion &q);
 
+bool isLargeOrangeCone(const uint coneID);
+
 } // namespace util
 } // namespace utfr_dv
