@@ -126,21 +126,17 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   uint16_t steeringRateToSC = (abs((int) (msg.str_cmd * 1000)) & 0x0FFF)/1000;
   bool directionBit;
 
-  RCLCPP_INFO(this->get_logger(), "Steering Rate CMD: %d", steeringRateToSC);
 
   if (steering_cmd_ < 0) {
     directionBit = 0;
   } else {
     directionBit = 1;
   }
-  RCLCPP_INFO(this->get_logger(), "Steering Direction CCW: %d", directionBit);
 
   steeringRateToSC |= (uint16_t)(directionBit << 12);
 
   // Finalize commands
   if (cmd_||testing_) {
-  RCLCPP_INFO(this->get_logger(), "Got message:");
-
     braking_cmd_ = msg.brk_cmd;
     steering_cmd_ = steeringRateToSC;
     throttle_cmd_ = msg.thr_cmd;
@@ -230,15 +226,16 @@ void CarInterface::getMotorTorqueData() {
 void CarInterface::getServiceBrakeData() {
   const std::string function_name{"getServiceBrakeData"};
   // uint16_t asb_pressure_front; // TODO: Check proper var type
-  uint16_t asb_pressure_rear; // TODO: Check proper var type
+  uint16_t rear_pressure; // TODO: Check proper var type
 
   try {
     // TODO: Check value format
     // asb_pressure_front = (can1_->get_can(dv_can_msg::FBP));
-    asb_pressure_rear = (can1_->get_can(dv_can_msg::RBP));
+    rear_pressure = (can1_->get_can(dv_can_msg::RBP))&0xFFFF;
+    RCLCPP_DEBUG(this->get_logger(), "rear brake pressure: %d",rear_pressure);
 
     system_status_.brake_hydr_actual =
-        (int)(100 * asb_pressure_rear / MAX_BRK_PRS); // Converting to %
+        (int)(100 * rear_pressure / MAX_BRK_PRS); // Converting to %
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
