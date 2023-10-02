@@ -136,8 +136,6 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
 
   // Finalize commands
   if (cmd_||testing_) {
-  RCLCPP_INFO(this->get_logger(), "Got message:");
-
     braking_cmd_ = msg.brk_cmd;
     steering_cmd_ = steeringRateToSC;
     throttle_cmd_ = msg.thr_cmd;
