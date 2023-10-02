@@ -97,7 +97,7 @@ void CarInterface::initCAN() {
   can1_ = std::make_unique<CanInterface>();
   // can0_ = std::make_unique<CanInterface>();
 
-  if (can1_->connect("can1")) {
+  if (can1_->connect("can0")) {
     RCLCPP_INFO(this->get_logger(), "Finished Initializing CAN");
   } else
     RCLCPP_ERROR(this->get_logger(), "Failed To Initialize CAN");
