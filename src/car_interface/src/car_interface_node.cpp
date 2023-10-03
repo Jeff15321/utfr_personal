@@ -234,6 +234,8 @@ void CarInterface::getServiceBrakeData() {
     rear_pressure = (can1_->get_can(dv_can_msg::RBP))&0xFFFF;
     RCLCPP_DEBUG(this->get_logger(), "rear brake pressure: %d",rear_pressure);
 
+    sensor_can_.rear_pressure = rear_pressure; 
+
     system_status_.brake_hydr_actual =
         (int)(100 * rear_pressure / MAX_BRK_PRS); // Converting to %
 
