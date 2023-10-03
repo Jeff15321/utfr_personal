@@ -61,19 +61,17 @@ void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {}
 std::vector<int>
 BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {}
 
-bool BuildGraphNode::isLargeOrangeCone(const uint coneID) {
-  if (coneID == 4) {
-    return true;
-  }
-  return false;
-}
+bool loop_closed = false;
+bool landmarked = false;
+int landmarkedID = -1;
+bool out_of_frame = false;
 
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
 
   while (loop_closed == false) {
     for (int coneID : cones) {
       // Go through cone list
-      if (isLargeOrangeCone(coneID) && !landmarked) {
+      if (utfr_dv::util::isLargeOrangeCone(coneID) && !landmarked) {
         // No landmark cone yet
         landmarkedID = coneID;
         // Set first large orange cone listed to be landmark cone

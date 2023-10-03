@@ -213,5 +213,11 @@ double quaternionToYaw(const geometry_msgs::msg::Quaternion &q);
 
 bool isLargeOrangeCone(const uint coneID);
 
+/*! Determine if a cone is a large orange cone or not
+ *
+ * @param[in] coneID ID of cone
+ * @returns bool true if cone is large orange cone, false if not
+ */
+
 } // namespace util
 } // namespace utfr_dv

@@ -88,8 +88,6 @@ public:
    *  @param[out] detected_cone_ids std::vector<int>&, ids of cones detected
    */
 
-  bool isLargeOrangeCone(const uint coneID);
-
   std::vector<int> KNN(const utfr_msgs::msg::ConeDetections &cones);
 
   /*! Implement functionalty to detect loop closures
@@ -122,10 +120,10 @@ public:
   std::vector<std::pair<float, utfr_msgs::msg::Cone>>
       past_detections_;                      // Previous cone detections
   utfr_msgs::msg::ConeMap current_cone_map_; // Current cone map estimate
-  bool loop_closed = false;                  // True if loop is closed
-  bool landmarked = false;
-  int landmarkedID = -1;
-  bool out_of_frame = false;
+  bool loop_closed;                          // True if loop is closed
+  bool landmarked;
+  int landmarkedID;
+  bool out_of_frame;
 };
 } // namespace build_graph
 } // namespace utfr_dv
