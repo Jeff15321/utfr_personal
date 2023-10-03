@@ -120,10 +120,10 @@ public:
   std::vector<std::pair<float, utfr_msgs::msg::Cone>>
       past_detections_;                      // Previous cone detections
   utfr_msgs::msg::ConeMap current_cone_map_; // Current cone map estimate
-  bool loop_closed;                          // True if loop is closed
-  bool landmarked;
-  int landmarkedID;
-  bool out_of_frame;
+  bool loop_closed_;                         // True if loop is closed
+  bool landmarked_;
+  int landmarkedID_;
+  bool out_of_frame_;
 };
 } // namespace build_graph
 } // namespace utfr_dv

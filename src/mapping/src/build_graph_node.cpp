@@ -61,42 +61,42 @@ void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {}
 std::vector<int>
 BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {}
 
-bool loop_closed = false;
-bool landmarked = false;
-int landmarkedID = -1;
-bool out_of_frame = false;
+bool loop_closed_ = false;
+bool landmarked_ = false;
+int landmarkedID_ = -1;
+bool out_of_frame_ = false;
 
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
 
-  while (loop_closed == false) {
+  while (loop_closed_ == false) {
     for (int coneID : cones) {
       // Go through cone list
-      if (utfr_dv::util::isLargeOrangeCone(coneID) && !landmarked) {
+      if (utfr_dv::util::isLargeOrangeCone(coneID) && !landmarked_) {
         // No landmark cone yet
-        landmarkedID = coneID;
+        landmarkedID_ = coneID;
         // Set first large orange cone listed to be landmark cone
-        landmarked = true;
+        landmarked_ = true;
       }
 
-      if (landmarked == true && out_of_frame == false) {
+      if (landmarked_ == true && out_of_frame_ == false) {
         // Cone has been landmarked and still in frame for the first time
-        auto seen_status = std::find(cones.begin(), cones.end(), landmarkedID);
+        auto seen_status = std::find(cones.begin(), cones.end(), landmarkedID_);
 
         if (seen_status == cones.end()) {
           // If cone not in frame anymore
-          out_of_frame = true;
+          out_of_frame_ = true;
           // Set out of frame to be true
         }
       }
 
-      if (landmarked == true && out_of_frame == true) {
+      if (landmarked_ == true && out_of_frame_ == true) {
         // Cone has been landmarked and is no longer in frame
-        auto seen_status = std::find(cones.begin(), cones.end(), landmarkedID);
+        auto seen_status = std::find(cones.begin(), cones.end(), landmarkedID_);
         // Check if cone appears in frame again
 
         if (seen_status != cones.end()) {
           // If cone in frame again
-          loop_closed = true;
+          loop_closed_ = true;
           // Car has returned back to landmark cone position, made full loop
         }
       }
