@@ -105,6 +105,10 @@ class PerceptionNode(Node):
           perception_debug_topic : string:
             name of perception debug topic (cone bounding boxes)
 
+        cone_heights: array:
+          array of cone heights in mm [0, blue, yellow, small orange, large
+          orange]
+
 
         """
         self.declare_parameter("baseline", 10.0)
@@ -124,6 +128,7 @@ class PerceptionNode(Node):
         self.declare_parameter("save_pic", "False")
         self.declare_parameter("confidence", 0.70)
         self.declare_parameter("perception_debug_topic", "/perception/debug")
+        self.declare_parameter("cone_heights", [0.0])
 
         self.baseline_ = (
             self.get_parameter("baseline").get_parameter_value().double_value
@@ -189,6 +194,10 @@ class PerceptionNode(Node):
             self.get_parameter("confidence").get_parameter_value().double_value
         )
 
+        self.cone_heights = (
+            self.get_parameter("cone_heights").get_parameter_value().double_array_value
+        )
+
         # reshape the arrays into numpy matrix form
 
         self.intrinsics_left = np.array(self.intrinsics_left).reshape(3, 3)
@@ -199,6 +208,7 @@ class PerceptionNode(Node):
         self.distortion_left = np.array(self.distortion_left)
         self.distortion_right = np.array(self.distortion_right)
         self.translation = np.array(self.translation)
+        self.cone_heights = np.array(self.cone_heights)
 
     def initVariables(self):
         # Initialize callback variables:
@@ -602,9 +612,9 @@ class PerceptionNode(Node):
             self.cone_template.pos.x = float(cone_detections[i][2])  # front
             self.cone_template.type = int(cone_detections[i][3])
 
-            if self.cone_template.type == 1:
+            if self.cone_template.type == 1:  # blue
                 self.detections_msg.left_cones.append(self.cone_template)
-            elif self.cone_template.type == 2:
+            elif self.cone_template.type == 2:  # yellow
                 self.detections_msg.right_cones.append(self.cone_template)
             elif self.cone_template.type == 3:
                 self.detections_msg.small_orange_cones.append(self.cone_template)
@@ -627,9 +637,12 @@ class PerceptionNode(Node):
         function to find the monocular depth using similar triangles
         focal_length / height_box_mm = depth / height_cone
         get height_cone from fsg rules
-        TODO - make array in parameters for cone heights based on class
         """
+        # find the height of the bounding box first using ratio of height
+        # of bounding box in px and total image height in px multiplied by
+        # the total vertical height of the sensor in mm
         height_box_mm = (height_bound_box / image_height_px) * vertical_mm
+        # calculate depth in mm using similar triangles
         depth = height_cone * (focal_length / height_box_mm)
         return depth
 
