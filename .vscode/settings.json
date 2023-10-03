@@ -590,5 +590,4 @@
         "https://json.schemastore.org/github-workflow.json": "file:///home/$USER/dv24/.github/workflows/workflows.yaml"
     },
     "ros.distro": "humble",
-    "cmake.sourceDirectory": "/home/ubuntu/Desktop/dv24/src/drivers/ros2_ouster_drivers/ros2_ouster"
 }
