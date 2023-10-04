@@ -66,7 +66,7 @@ public:
                       double a_lateral);
   /*! Filter Velocities:
   * This function passes through all the velocities and makes sure that all
-    accelerations are possible, and that the velocities are under the max 
+    accelerations are possible, and that the velocities are under the max
     allowed velocity. If possible, all velocities will be under the maxes,
     otherwise they will be minimized until they fall below the maxes.
   * @param max_velocities the max velocities on the current path (size>1)
@@ -75,13 +75,11 @@ public:
   * @param max_acceleration the max acceleration (positive)
   * @param min_acceleration the max deceleration (negative)
   */
-  std::vector<double> filterVelocities(
-                        std::vector<double>& max_velocities,
-                        double current_velocity,
-                        double distance,
-                        double max_velocity,
-                        double max_acceleration, 
-                        double min_acceleration);
+  std::vector<double> filterVelocities(std::vector<double> &max_velocities,
+                                       double current_velocity, double distance,
+                                       double max_velocity,
+                                       double max_acceleration,
+                                       double min_acceleration);
 
 private:
   /*! Initialize and load params from config.yaml:
