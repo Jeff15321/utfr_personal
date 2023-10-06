@@ -64,6 +64,14 @@ perception_node: # Name of Node
       ]
     save_pic: "False"
     confidence: 0.40
+    cone_heights: 
+      [
+        0,
+        325,
+        325,
+        325,
+        505
+      ]
 
     # shopping cart
     # intrinsics_left:
