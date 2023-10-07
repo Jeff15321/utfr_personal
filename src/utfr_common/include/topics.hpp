@@ -62,6 +62,7 @@ const std::string kEUFSControlCmd{"cmd"};
 const std::string kEUFSMissionServer{"/ros_can/set_mission"};
 const std::string kEUFSEgoState{"ground_truth/state"};
 const std::string kEUFSConeDetection{"ground_truth/cones"};
+const std::string kEUFSConeMap{"ground_truth/cones_map"};
 
 // Car interface
 const std::string kSystemStatus("car_interface/system_status");
