@@ -40,7 +40,6 @@
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
 #include <utfr_msgs/msg/cone_detections.hpp>
-#include <eufs_msgs/msg/cone_array_with_covariance.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
