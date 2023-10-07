@@ -48,8 +48,8 @@ void CenterPathNode::initSubscribers() {
   ego_state_subscriber_ = this->create_subscription<utfr_msgs::msg::EgoState>(
       topics::kEgoState, 10, std::bind(&CenterPathNode::egoStateCB, this, _1));
 
-  cone_map_subscriber_ = this->create_subscription<utfr_msgs::msg::ConeMap>(
-      topics::kConeMap, 10, std::bind(&CenterPathNode::coneMapCB, this, _1));
+  // cone_map_subscriber_ = this->create_subscription<utfr_msgs::msg::ConeMap>(
+  //     topics::kConeMap, 10, std::bind(&CenterPathNode::coneMapCB, this, _1));
 
   cone_detection_subscriber_ =
       this->create_subscription<utfr_msgs::msg::ConeDetections>(
@@ -190,26 +190,18 @@ void CenterPathNode::coneDetectionsCB(
 
 void CenterPathNode::gtConeDetectionsCB(
     const eufs_msgs::msg::ConeArrayWithCovariance &msg) {
-  // print that we initialize the function
-  RCLCPP_INFO(this->get_logger(), "gtConeDetectionsCB");
   if (gt_cone_detections_ == nullptr) {
     // first initialization:
     utfr_msgs::msg::ConeMap template_cone_map;
     gt_cone_detections_ =
         std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
   }
-
   gt_cone_detections_->header = msg.header;
-
-  // print that we start converting
-  RCLCPP_INFO(this->get_logger(), "converting");
   gt_cone_detections_->left_cones = convertToUTFRMsg(msg.blue_cones);
   gt_cone_detections_->right_cones = convertToUTFRMsg(msg.yellow_cones);
   gt_cone_detections_->large_orange_cones =
       convertToUTFRMsg(msg.big_orange_cones);
   gt_cone_detections_->small_orange_cones = convertToUTFRMsg(msg.orange_cones);
-  // print that we finish converting
-  RCLCPP_INFO(this->get_logger(), "finished converting");
 }
 
 std::vector<utfr_msgs::msg::Cone> CenterPathNode::convertToUTFRMsg(

@@ -210,18 +210,33 @@ void ControllerNode::timerCBAccel() {
   }
   double cur_s_ = 0;
 
-  // Controller
-  utfr_msgs::msg::TargetState target = purePursuitController(
-      max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
-      baselink_location_, *ego_state_, base_lookahead_distance_,
-      lookahead_distance_scaling_factor_);
+  // if (controller_ == "stanley") {
+  //   utfr_msgs::msg::TargetState target =
+  //       stanleyController(stanley_gain_, max_velocity_, max_steering_angle_,
+  //                         max_steering_rate_, *path_, cur_s_, ds_,
+  //                         *velocity_profile_, baselink_location_, *ego_state_);
+  //   target_ = target;
+  // } else if (controller_ == "pure_pursuit") {
+  //   utfr_msgs::msg::TargetState target = purePursuitController(
+  //       max_velocity_, max_steering_angle_, *path_, cur_s_, ds_,
+  //       *velocity_profile_, baselink_location_, *ego_state_,
+  //       lookahead_distance_);
+  //   target_ = target;
+  // }
+
+  utfr_msgs::msg::TargetState target;
+  target.speed = 20.0;
+  target.steering_angle = 0.0;
+
+  if (ego_state_->vel.twist.linear.x > 4.0) {
+    max_vel = true;
+  }
+
+  if (max_vel) {
+    target.speed = -10.0;
+  }
 
   target_ = target;
-
-  // print target state
-  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-              "Target steering: %f \n Target velocity: %f",
-              target.steering_angle, target.speed);
 
   // publish target state
   target_state_publisher_->publish(target_);
