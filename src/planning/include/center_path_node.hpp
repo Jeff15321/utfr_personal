@@ -198,7 +198,7 @@ private:
 
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
-  rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr cone_map_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
       cone_detection_subscriber_;
 
