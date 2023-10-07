@@ -39,6 +39,8 @@
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
+#include <utfr_msgs/msg/cone_detections.hpp>
+#include <eufs_msgs/msg/cone_array_with_covariance.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -114,6 +116,15 @@ private:
   /*! ConeDetections Subscriber Callback:
    */
   void coneDetectionsCB(const utfr_msgs::msg::ConeDetections &msg);
+
+  /*! GT ConeDetections Subscriber Callback:
+   */
+  void gtConeDetectionsCB(const eufs_msgs::msg::ConeArrayWithCovariance &msg);
+
+  /*! GT ConeDetections Helper Function:
+   */
+  std::vector<utfr_msgs::msg::Cone> convertToUTFRMsg(
+      const std::vector<eufs_msgs::msg::ConeWithCovariance> &input_cones);
 
   /*! Accel Timer Callback:
    */
@@ -194,13 +205,15 @@ private:
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
   utfr_msgs::msg::ConeDetections::SharedPtr cone_detections_{nullptr};
-  geometry_msgs::msg::Point reference_point_;
+  utfr_msgs::msg::ConeMap::SharedPtr gt_cone_detections_{nullptr};
 
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
       cone_detection_subscriber_;
+  rclcpp::Subscription<eufs_msgs::msg::ConeArrayWithCovariance>::SharedPtr
+      gt_cone_detection_subscriber_;
 
   rclcpp::Publisher<utfr_msgs::msg::ParametricSpline>::SharedPtr
       center_path_publisher_;

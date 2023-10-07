@@ -56,10 +56,10 @@ void CenterPathNode::initSubscribers() {
           topics::kConeDetections, 10,
           std::bind(&CenterPathNode::coneDetectionsCB, this, _1));
 
-  cone_detection_subscriber_ =
-      this->create_subscription<utfr_msgs::msg::ConeDetections>(
-          topics::kConeDetections, 10,
-          std::bind(&CenterPathNode::coneDetectionsCB, this, _1));
+  gt_cone_detection_subscriber_ =
+      this->create_subscription<eufs_msgs::msg::ConeArrayWithCovariance>(
+          topics::kEUFSConeMap, 10,
+          std::bind(&CenterPathNode::gtConeDetectionsCB, this, _1));
 }
 
 void CenterPathNode::initPublishers() {
@@ -186,6 +186,43 @@ void CenterPathNode::coneDetectionsCB(
   cone_detections_->right_cones = msg.right_cones;
   cone_detections_->large_orange_cones = msg.large_orange_cones;
   cone_detections_->small_orange_cones = msg.small_orange_cones;
+}
+
+void CenterPathNode::gtConeDetectionsCB(
+    const eufs_msgs::msg::ConeArrayWithCovariance &msg) {
+  // print that we initialize the function
+  RCLCPP_INFO(this->get_logger(), "gtConeDetectionsCB");
+  if (gt_cone_detections_ == nullptr) {
+    // first initialization:
+    utfr_msgs::msg::ConeMap template_cone_map;
+    gt_cone_detections_ =
+        std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
+  }
+
+  gt_cone_detections_->header = msg.header;
+
+  // print that we start converting
+  RCLCPP_INFO(this->get_logger(), "converting");
+  gt_cone_detections_->left_cones = convertToUTFRMsg(msg.blue_cones);
+  gt_cone_detections_->right_cones = convertToUTFRMsg(msg.yellow_cones);
+  gt_cone_detections_->large_orange_cones =
+      convertToUTFRMsg(msg.big_orange_cones);
+  gt_cone_detections_->small_orange_cones = convertToUTFRMsg(msg.orange_cones);
+  // print that we finish converting
+  RCLCPP_INFO(this->get_logger(), "finished converting");
+}
+
+std::vector<utfr_msgs::msg::Cone> CenterPathNode::convertToUTFRMsg(
+    const std::vector<eufs_msgs::msg::ConeWithCovariance> &input_cones) {
+  std::vector<utfr_msgs::msg::Cone> output;
+  for (const auto &cone : input_cones) {
+    utfr_msgs::msg::Cone utfr_cone;
+    utfr_cone.pos = cone.point;
+    utfr_cone.covariance[0] = cone.covariance[0];
+    utfr_cone.covariance[1] = cone.covariance[1];
+    output.push_back(utfr_cone);
+  }
+  return output;
 }
 
 void CenterPathNode::timerCBAccel() {
