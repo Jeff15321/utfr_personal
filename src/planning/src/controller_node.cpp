@@ -57,12 +57,10 @@ void ControllerNode::initParams() {
   baselink_location_ = this->get_parameter("baselink_location").as_double();
   wheel_base_ = this->get_parameter("wheel_base").as_double();
   num_points_ = this->get_parameter("num_points").as_int();
-  base_lookahead_distance_ =
-      this->get_parameter("base_lookahead_distance").as_double();
-  lookahead_distance_scaling_factor_ =
-      this->get_parameter("lookahead_scaling_factor").as_double();
+  lookahead_distance_ =
+      this->get_parameter("lookahead_distance_pp").as_double();
 
-  start_time_ = this->get_clock()->now();
+  RCLCPP_INFO(this->get_logger(), "Finished Initializing Params");
 }
 
 void ControllerNode::initSubscribers() {
@@ -86,6 +84,8 @@ void ControllerNode::initSubscribers() {
       this->create_subscription<utfr_msgs::msg::Heartbeat>(
           topics::kCenterPathHeartbeat, 10,
           std::bind(&ControllerNode::lapCounterCB, this, _1));
+  
+  RCLCPP_INFO(this->get_logger(), "Finished Initializing Subscribers");
 }
 
 void ControllerNode::initPublishers() {
@@ -101,6 +101,8 @@ void ControllerNode::initPublishers() {
   pure_pursuit_point_publisher_ =
       this->create_publisher<visualization_msgs::msg::Marker>(
           topics::kPurePursuitPoint, 10);
+      
+  RCLCPP_INFO(this->get_logger(), "Finished Initializing Publishers");
 }
 
 void ControllerNode::initTimers() {
