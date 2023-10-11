@@ -26,10 +26,11 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
 }
 
 void BuildGraphNode::initParams() {
-  bool loop_closed_ = false;
-  bool landmarked_ = false;
-  int landmarkedID_ = -1;
-  bool out_of_frame_ = false;
+  loop_closed_ = false;
+  landmarked_ = false;
+  landmarkedID_ = -1;
+  out_of_frame_ = false;
+  past_detections_ = {};
 }
 
 void BuildGraphNode::initSubscribers() {
@@ -69,15 +70,27 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {}
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
 
   // Loop hasn't been completed yet
-  while (loop_closed_ == false) {
+  if (loop_closed_ == false) {
     // Go through cone list
     for (int coneID : cones) {
       // No landmark cone yet
-      if (utfr_dv::util::isLargeOrangeCone(coneID) && !landmarked_) {
-        // Set first large orange cone listed to be landmark cone
-        landmarkedID_ = coneID;
-        landmarked_ = true;
+
+      // We gotta fix this later when Mark finishes his thing.
+      // IDK why I chose past_detections_ to be a vector of pairs
+      // but it should probably be a map :(
+      for (auto cone : past_detections_) {
+        if (cone.first == coneID && utfr_dv::util::isLargeOrangeCone(cone.second.type) && !landmarked_) {
+          // Set first large orange cone listed to be landmark cone
+          landmarkedID_ = coneID;
+          landmarked_ = true;
+        }
       }
+
+      // if (utfr_dv::util::isLargeOrangeCone(coneID) && !landmarked_) {
+      //   // Set first large orange cone listed to be landmark cone
+      //   landmarkedID_ = coneID;
+      //   landmarked_ = true;
+      // }
       // Cone has been landmarked and still in frame for the first time
       if (landmarked_ == true && out_of_frame_ == false) {
         auto seen_status = std::find(cones.begin(), cones.end(), landmarkedID_);
