@@ -8,7 +8,7 @@
 
 *
 * file: path_optimization_node.cpp
-* auth: Justin Lim
+* auth: Justin Lim, Richard Li
 * desc: path optimization node class
 */
 
@@ -258,22 +258,22 @@ std::vector<double> PathOptimizationNode::calculateVelocities(
     double a_lateral) {
   if (n <= 1)
     return {};
-  auto first_derivative = [](std::vector<double> &c, double t, double t2,
-                             double t3, double t4) {
-    return 5 * c[0] * t4 + 4 * c[1] * t3 + 3 * c[2] * t2 + 2 * c[3] * t + c[4];
+  auto first_derivative = [](std::vector<double> &c, double s, double s2,
+                             double s3, double s4) {
+    return 5 * c[0] * s4 + 4 * c[1] * s3 + 3 * c[2] * s2 + 2 * c[3] * s + c[4];
   };
-  auto second_derivative = [](std::vector<double> &c, double t, double t2,
-                              double t3) {
-    return 20 * c[0] * t3 + 12 * c[1] * t2 + 6 * c[2] * t + 2 * c[3];
+  auto second_derivative = [](std::vector<double> &c, double s, double s2,
+                              double s3) {
+    return 20 * c[0] * s3 + 12 * c[1] * s2 + 6 * c[2] * s + 2 * c[3];
   };
   std::vector<double> &x = spline.x_params;
   std::vector<double> &y = spline.y_params;
-  auto k = [&x, &y, &first_derivative, &second_derivative](double t) {
-    double t2 = t * t, t3 = t2 * t, t4 = t3 * t;
-    double x_first_derivative = first_derivative(x, t, t2, t3, t4);
-    double x_second_derivative = second_derivative(x, t, t2, t3);
-    double y_first_derivative = first_derivative(y, t, t2, t3, t4);
-    double y_second_derivative = second_derivative(y, t, t2, t3);
+  auto k = [&x, &y, &first_derivative, &second_derivative](double s) {
+    double s2 = s * s, s3 = s2 * s, s4 = s3 * s;
+    double x_first_derivative = first_derivative(x, s, s2, s3, s4);
+    double x_second_derivative = second_derivative(x, s, s2, s3);
+    double y_first_derivative = first_derivative(y, s, s2, s3, s4);
+    double y_second_derivative = second_derivative(y, s, s2, s3);
     double numerator = x_first_derivative * y_second_derivative -
                        x_second_derivative * y_first_derivative;
     double val = x_first_derivative * x_first_derivative +
@@ -282,8 +282,60 @@ std::vector<double> PathOptimizationNode::calculateVelocities(
     return abs(numerator / denominator);
   };
   std::vector<double> velocities;
-  for (double t = 0; t <= L; t += L / (n - 1)) {
-    velocities.push_back(sqrt(a_lateral / k(t)));
+  for (double s = 0; s <= L; s += L / (n - 1)) {
+    velocities.push_back(sqrt(a_lateral / k(s)));
+  }
+  return velocities;
+}
+
+std::vector<double> PathOptimizationNode::filterVelocities(
+    std::vector<double> &max_velocities, double current_velocity,
+    double distance, double max_velocity, double max_acceleration,
+    double min_acceleration) {
+  if (max_velocities.empty()) { // Not possible to filter
+    return {};
+  }
+  // make sure all velocities are reasonable
+  for (double &v : max_velocities) {
+    if (std::isnan(v)) { // straight line
+      v = max_velocity;
+    }
+    v = std::min(abs(v), max_velocity);
+  }
+
+  int n = max_velocities.size();
+
+  if (n < 2) { // Can't filter this
+    return {current_velocity};
+  }
+
+  auto accel = [](double vf, double vi, double d) {
+    // vf^2 = vi^2 + 2ad
+    return (vf * vf - vi * vi) / (2 * d);
+  };
+  auto velo = [](double vi, double a, double d) {
+    // vf^2 = vi^2 + 2ad
+    return sqrt(vi * vi + 2 * a * d);
+  };
+
+  std::vector<double> velocities = max_velocities;
+  double ds = distance / (n - 1);
+
+  // Backward pass (make min_acceleration isn't exceeded)
+  for (int i = n - 1; i > 0; i--) {
+    double a = accel(velocities[i], velocities[i - 1], ds);
+    if (a < min_acceleration) { // limit deceleration
+      velocities[i - 1] = velo(velocities[i], -min_acceleration, ds);
+    }
+  }
+
+  // Forward Pass (find the max possible velocities starting at current)
+  velocities[0] = current_velocity;
+  for (int i = 1; i < n; i++) {
+    double a = accel(velocities[i], velocities[i - 1], ds);
+    a = std::max(a, min_acceleration); // limit deceleration
+    a = std::min(a, max_acceleration); // limit acceleration
+    velocities[i] = velo(velocities[i - 1], a, ds);
   }
   return velocities;
 }

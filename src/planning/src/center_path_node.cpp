@@ -39,6 +39,11 @@ void CenterPathNode::initSubscribers() {
 
   cone_map_subscriber_ = this->create_subscription<utfr_msgs::msg::ConeMap>(
       topics::kConeMap, 10, std::bind(&CenterPathNode::coneMapCB, this, _1));
+
+  cone_detection_subscriber_ =
+      this->create_subscription<utfr_msgs::msg::ConeDetections>(
+          topics::kConeDetections, 10,
+          std::bind(&CenterPathNode::coneDetectionsCB, this, _1));
 }
 
 void CenterPathNode::initPublishers() {
@@ -109,6 +114,22 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
   cone_map_->right_cones = msg.right_cones;
   cone_map_->large_orange_cones = msg.large_orange_cones;
   cone_map_->small_orange_cones = msg.small_orange_cones;
+}
+
+void CenterPathNode::coneDetectionsCB(
+    const utfr_msgs::msg::ConeDetections &msg) {
+  if (cone_detections_ == nullptr) {
+    // first initialization:
+    utfr_msgs::msg::ConeDetections template_cone_detections;
+    cone_detections_ = std::make_shared<utfr_msgs::msg::ConeDetections>(
+        template_cone_detections);
+  }
+
+  cone_detections_->header = msg.header;
+  cone_detections_->left_cones = msg.left_cones;
+  cone_detections_->right_cones = msg.right_cones;
+  cone_detections_->large_orange_cones = msg.large_orange_cones;
+  cone_detections_->small_orange_cones = msg.small_orange_cones;
 }
 
 void CenterPathNode::timerCBAccel() {

@@ -34,6 +34,7 @@
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
+#include <utfr_msgs/msg/cone_detections.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -96,6 +97,10 @@ private:
    */
   void coneMapCB(const utfr_msgs::msg::ConeMap &msg);
 
+  /*! ConeDetections Subscriber Callback:
+   */
+  void coneDetectionsCB(const utfr_msgs::msg::ConeDetections &msg);
+
   /*! Accel Timer Callback:
    */
   void timerCBAccel();
@@ -123,10 +128,13 @@ private:
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
+  utfr_msgs::msg::ConeDetections::SharedPtr cone_detections_{nullptr};
 
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
+      cone_detection_subscriber_;
 
   rclcpp::Publisher<utfr_msgs::msg::ParametricSpline>::SharedPtr
       center_path_publisher_;

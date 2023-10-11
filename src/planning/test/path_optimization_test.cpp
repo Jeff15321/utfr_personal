@@ -8,7 +8,7 @@
 
 *
 * file: path_optimization_test.cpp
-* auth: Justin Lim
+* auth: Justin Lim, Richard Li
 * desc: tests for path optimization node
 */
 
@@ -54,6 +54,64 @@ TEST(PathOptimizationNode, calculateVelocities) {
     double calculated_velocity = sqrt(a_lateral / curvatures[i]);
     ASSERT_DOUBLE_EQ(calculated_velocity, velocities[i]);
   }
+}
+
+TEST(PathOptimizationNode, filterVelocities) {
+  PathOptimizationNode node;
+  std::vector<double> v;
+  std::ofstream out("test_output.txt");
+
+  out << std::setprecision(17);
+
+  auto test = [&v, &out, &node](double cur_vel, double time, double max_vel,
+                                double max_accel, double max_decel) {
+    out << "Max velocities:" << std::endl;
+    for (auto i : v)
+      out << i << std::endl;
+    out << "New velocities (current_velocity=" << cur_vel
+        << ", max_velocity=" << max_vel << ", max_accel=" << max_accel
+        << ", max_decel=" << max_decel << "):" << std::endl;
+    auto a =
+        node.filterVelocities(v, cur_vel, time, max_vel, max_accel, max_decel);
+    for (auto i : a)
+      out << i << std::endl;
+    return a;
+  };
+
+  std::vector<double> ret, ans;
+
+  // starts at 0 and is increasing
+  v = {1, 2, 5, 9};
+  ans = {0, 2, 5, 8.06225774829855};
+  ret = test(0, 4, 1000, 15, -15);
+  ASSERT_EQ(ret, ans);
+
+  // current velocity exceeds and drops
+  v = {10, 12, 30, 51};
+  ans = {15, 13.601470508735444, 15.000000000000002, 16.27882059609971};
+  ret = test(15, 4, 1000, 15, -15);
+  ASSERT_EQ(ret, ans);
+
+  // velocity drops multiple times
+  v = {10, 6, 10, 3};
+  ans = {0, 6, 10, 3};
+  ret = test(0, 4, 1000, 100, -100);
+  ASSERT_EQ(ret, ans);
+
+  // doesn't change
+  v = {10, 10, 10, 10};
+  ans = {10, 10, 10, 10};
+  ret = test(10, 4, 1000, 100, -100);
+  ASSERT_EQ(ret, ans);
+
+  // invalid
+  v = {-1.0 / 0.0, sqrt(-1), 231434, 1.0 / 0.0};
+  ans = {1000, 1000, 1000, 1000};
+  ret = test(1000, 4, 1000, 100, -100);
+  ASSERT_EQ(ret, ans);
+  out << "Adjusted Max Velocities" << std::endl;
+  for (double d : v)
+    out << d << std::endl;
 }
 
 int main(int argc, char **argv) {
