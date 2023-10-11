@@ -44,6 +44,7 @@ void ControllerNode::initParams() {
   this->declare_parameter("baselink_location", 0.79);
   this->declare_parameter("wheel_base", 1.58);
   this->declare_parameter("num_points", 1000);
+  this->declare_parameter("lookahead_distance_pp", 1.0);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   event_ = this->get_parameter("event").as_string();
@@ -63,6 +64,8 @@ void ControllerNode::initParams() {
   baselink_location_ = this->get_parameter("baselink_location").as_double();
   wheel_base_ = this->get_parameter("wheel_base").as_double();
   num_points_ = this->get_parameter("num_points").as_int();
+  lookahead_distance_ =
+      this->get_parameter("lookahead_distance_pp").as_double();
 }
 
 void ControllerNode::initSubscribers() {
@@ -189,6 +192,12 @@ void ControllerNode::timerCBAccel() {
         stanleyController(stanley_gain_, max_velocity_, max_steering_angle_,
                           max_steering_rate_, *path_, cur_s_, ds_,
                           *velocity_profile_, baselink_location_, *ego_state_);
+    target_ = target;
+  } else if (controller_ == "pure_pursuit") {
+    utfr_msgs::msg::TargetState target = purePursuitController(
+        max_velocity_, max_steering_angle_, *path_, cur_s_, ds_,
+        *velocity_profile_, baselink_location_, *ego_state_,
+        lookahead_distance_);
     target_ = target;
   }
 
@@ -420,6 +429,62 @@ utfr_msgs::msg::TargetState ControllerNode::stanleyController(
   RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
               "Target steering: %f \n Target velocity: %f", delta,
               desired_velocity);
+
+  utfr_msgs::msg::TargetState target;
+  target.speed = desired_velocity;
+  target.steering_angle = delta;
+
+  return target;
+}
+
+utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
+    double max_speed, double max_steering_angle,
+    utfr_msgs::msg::ParametricSpline spline_params, double cur_s, double ds,
+    utfr_msgs::msg::VelocityProfile velocity_profile, double baselink_location,
+    utfr_msgs::msg::EgoState ego_state, double lookahead_distance) {
+  double vehicle_theta = ego_state.pose.pose.position.z;
+  double vehicle_x =
+      ego_state.pose.pose.position.x + baselink_location * cos(vehicle_theta);
+  double vehicle_y =
+      ego_state.pose.pose.position.y + baselink_location * sin(vehicle_theta);
+
+  std::vector<geometry_msgs::msg::Pose> discretized_points =
+      discretizeParametric(spline_params, cur_s, ds, num_points_);
+
+  geometry_msgs::msg::Pose lookahead_point;
+  bool found_lookahead = false;
+  for (const auto &wp : discretized_points) {
+    double dx = wp.position.x - vehicle_x;
+    double dy = wp.position.y - vehicle_y;
+    double distance = sqrt(dx * dx + dy * dy);
+    if (distance > lookahead_distance) {
+      lookahead_point = wp;
+      found_lookahead = true;
+      break;
+    }
+  }
+
+  if (!found_lookahead) {
+    // Handle scenario where lookahead point isn't found
+    // Return some default state or do some error handling
+    // Figure out later when testing / if neccesary
+    // Can do things such as return the last point in the discretized path
+  }
+
+  // Compute the angle between the current vehicle orientation and the direction
+  // towards the lookahead point
+  double alpha = atan2(lookahead_point.position.y - vehicle_y,
+                       lookahead_point.position.x - vehicle_x) -
+                 vehicle_theta;
+
+  // Steering law for Pure Pursuit controller
+  double delta = atan2(2.0 * wheel_base_ * sin(alpha), lookahead_distance);
+
+  // Clamp steering angle to its limits
+  delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
+
+  // Get desired velocity from the velocity profile
+  double desired_velocity = velocity_profile.velocities[0];
 
   utfr_msgs::msg::TargetState target;
   target.speed = desired_velocity;

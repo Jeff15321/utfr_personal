@@ -121,6 +121,47 @@ TEST(BuildGraphNodeTest, kNNTest2)
     ASSERT_EQ(4, node.past_detections_.size());
 }
 
+TEST(BuildGraphNodeTest, loopClosureTest1)
+{
+    // Setup
+    utfr_dv::build_graph::BuildGraphNode node;
+
+    ASSERT_EQ(0, node.current_state_.pose.pose.position.x);
+
+    // First round of cone detections
+    utfr_msgs::msg::ConeDetections cones;
+
+    utfr_msgs::msg::Cone blue_cone;
+    blue_cone.pos.x = 1;
+    blue_cone.pos.y = 1;
+    blue_cone.pos.z = 0;
+    blue_cone.type = 1;
+
+    utfr_msgs::msg::Cone yellow_cone;
+    yellow_cone.pos.x = -1;
+    yellow_cone.pos.y = -1;
+    yellow_cone.pos.z = 0;
+    yellow_cone.type = 2;
+
+    cones.left_cones.push_back(blue_cone);
+    cones.right_cones.push_back(yellow_cone);
+    node.KNN(cones);
+    ASSERT_EQ(2, node.past_detections_.size());
+
+    // Now we move positions
+    // We should now have new cone detections
+
+    ego.pose.pose.position.x = 10;
+    ego.pose.pose.position.y = 10;
+    ego.pose.pose.position.z = 0;
+    ego.pose.pose.orientation = utfr_dv::util::yawToQuaternion(0);
+
+    node.current_state_ = ego;
+
+    node.KNN(cones);
+    ASSERT_EQ(4, node.past_detections_.size());
+}
+
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);

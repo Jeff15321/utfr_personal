@@ -58,7 +58,9 @@ void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
 
 void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {}
 
-void BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {}
+std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {}
+
+void BuildGraphNode::loopClosure(const std::vector<int> &cones) {}
 
 void BuildGraphNode::buildGraph() {}
 

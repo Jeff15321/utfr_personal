@@ -1,9 +1,31 @@
-planning: # Name of Module
+center_path_node: # Name of Module
+  ros__parameters:
+    update_rate: 33.33 #[ms]
+    event: 'accel' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    baselink_location: 0.79 # [m]
+    wheel_base: 1.58 # [m]
+
+    ds: 0.01 # [m] discretization step
+    max_velocity: 10.0 # [m/s]
+    num_points: 1000 # number of points to discretize the path
+
+path_optimization_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
     event: 'accel' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
     skip_path_opt: True #Skip if you don't want to do path optimization
-    controller: 'stanley' #['stanley', 'pure_pursuit', 'mpc']
+    baselink_location: 0.79 # [m]
+    wheel_base: 1.58 # [m]
+
+    ds: 0.01 # [m] discretization step
+    max_velocity: 10.0 # [m/s]
+    num_points: 1000 # number of points to discretize the path
+
+controller_node: # Name of Module
+  ros__parameters:
+    update_rate: 33.33 #[ms]
+    event: 'accel' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    controller: 'pure_pursuit' #['stanley', 'pure_pursuit', 'mpc']
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
 
@@ -22,3 +44,6 @@ planning: # Name of Module
     max_steering_rate: 0.2
     max_tire: 1.5
     max_steering_angle: 0.34
+
+    # Pure Pursuit Controller Parameters
+    lookahead_distance: 1.0 # [m]
