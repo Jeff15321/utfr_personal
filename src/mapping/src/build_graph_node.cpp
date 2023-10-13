@@ -30,6 +30,7 @@ void BuildGraphNode::initParams() {
   bool landmarked_ = false;
   int landmarkedID_ = -1;
   bool out_of_frame_ = false;
+  int cones_found_ = 0;
 }
 
 void BuildGraphNode::initSubscribers() {
@@ -63,8 +64,35 @@ void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
 
 void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {}
 
-std::vector<int>
-BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {}
+std::vector<int> KNN(const utfr_msgs::msg::ConeDetections &cones, std::vector<std::pair<float, utfr_msgs::msg::Cone>> &past_detections_){
+    std::vector<int> cones_id_list_;  
+    std::vector<utfr_msgs::msg::Cone> all_cones;
+
+    all_cones.insert(all_cones.end(), cones.left_cones.begin(), cones.left_cones.end());
+    all_cones.insert(all_cones.end(), cones.right_cones.begin(), cones.right_cones.end());
+    all_cones.insert(all_cones.end(), cones.large_orange_cones.begin(), cones.large_orange_cones.end());
+    all_cones.insert(all_cones.end(), cones.small_orange_cones.begin(), cones.small_orange_cones.end());
+
+    for (const auto& pastCone : all_cones){
+      utfr_msgs::msg::Cone newCone = pastCone;
+      newCone.pos.x += EgoState.pos.x;
+      newCone.pos.y += EgoState.pos.y;
+      bool adding_to_past= true;      
+      for (size_t i=0; i <past_detections_.size(); ++i){
+        const utfr_msgs::msg::Cone&pastDetectionsCone=past_detections_[i].second;        
+        double displacement= euclidianDistance2D(newCone.pos.x, pastDetectionsCone.pos.x, newCone.pos.y, pastDetectionsCone.pos.y);        
+        if (displacement <= 0.3){
+          adding_to_past=false;
+          break;
+        }
+      }
+      if (adding_to_past){
+        cones_id_list_.push_back(cones_found_);
+        past_detections_.emplace_back(cones_found_,newCone);
+        cones_found_+=1;
+      }
+    }
+    return cones_id_list_;  }
 
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
 
