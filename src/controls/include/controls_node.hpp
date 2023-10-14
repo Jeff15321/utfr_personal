@@ -187,6 +187,8 @@ private:
   int status_;
   uint8_t testing_;
   int brake_inc_;
+  int steer_inc_;
+  int throttle_inc_;
   std::vector<double> str_ctrl_params_;
   std::vector<double> thr_ctrl_params_;
   std::vector<double> brk_ctrl_params_;

@@ -52,6 +52,10 @@ void ControlsNode::initParams() {
   ros_time_ = this->now();
 
   brake_inc_ = 0;
+
+  steer_inc_ = 0;
+
+  throttle_inc_ = 0;
 }
 
 void ControlsNode::initPublishers() {
@@ -114,41 +118,51 @@ void ControlsNode::sensorCanCB(const utfr_msgs::msg::SensorCan &msg) {
 }
 
 void ControlsNode::brakeTesting() {
-  control_cmd_.brk_cmd = 255 - (brake_inc_/10)*15;
+  control_cmd_.brk_cmd = 255 - (brake_inc_ / 10) * 15;
   brake_inc_++;
-  if(brake_inc_ >= 179) {
+  if (brake_inc_ >= 179) {
     brake_inc_ = 0;
   }
-  
-  RCLCPP_INFO(this->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
 
+  RCLCPP_INFO(this->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
 }
 
-void ControlsNode::steerTesting() {}
+void ControlsNode::steerTesting() {
+  control_cmd_.str_cmd = -4095 + (steer_inc_)*10;
+  steer_inc_++;
+  if (steer_inc_ >= 820) {
+    steer_inc_ = 0;
+  }
+}
 
-void ControlsNode::throttleTesting() {}
-
+void ControlsNode::throttleTesting() {
+  control_cmd_.thr_cmd = (throttle_inc_)*5;
+  throttle_inc_++;
+  if (throttle_inc_ >= 21) {
+    throttle_inc_ = 0;
+  }
+}
 
 void ControlsNode::timerCB() {
   status_ = utfr_msgs::msg::Heartbeat::ACTIVE;
 
-  //Check if testing is in place
-  if(testing_) {
-    //Init all params to zero
+  // Check if testing is in place
+  if (testing_) {
+    // Init all params to zero
     control_cmd_.brk_cmd = 0;
     control_cmd_.thr_cmd = 0;
     control_cmd_.str_cmd = 0;
 
-    if(testing_ & 0x1){
+    if (testing_ & 0x1) {
       this->brakeTesting();
     }
-    if(testing_ & 0x2){
+    if (testing_ & 0x2) {
       this->steerTesting();
     }
-    if(testing_ & 0x4){
+    if (testing_ & 0x4) {
       this->throttleTesting();
     }
-    
+
     control_cmd_.header.stamp = this->get_clock()->now();
 
     // Publish messages
