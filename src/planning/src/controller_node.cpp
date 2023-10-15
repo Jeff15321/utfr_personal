@@ -111,7 +111,8 @@ void ControllerNode::initTimers() {
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBAccel, this));
-  } else if (event_ == "skidpad") {
+  } 
+  /*else if (event_ == "skidpad") {
     last_lap_count_ = 17;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
@@ -126,7 +127,7 @@ void ControllerNode::initTimers() {
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBTrackdrive, this));
-  }
+  }*/
 }
 
 void ControllerNode::initHeartbeat() {
@@ -210,6 +211,10 @@ void ControllerNode::timerCBAccel() {
                 "Data not published or initialized yet. Using defaults.");
     return;
   }
+  if(ego_state_ == nullptr){
+    return;
+  }
+  // CODE GOES HERE
   double cur_s_ = 0;
 
   // if (controller_ == "stanley") {
@@ -227,15 +232,18 @@ void ControllerNode::timerCBAccel() {
   // }
 
   utfr_msgs::msg::TargetState target;
-  target.speed = 20.0;
+  target.speed = 5.0;
   target.steering_angle = 0.0;
 
-  if (ego_state_->vel.twist.linear.x > 4.0) {
+  if (!max_vel && (ego_state_->vel.twist.linear.x > target.speed)) {
     max_vel = true;
   }
 
   if (max_vel) {
-    target.speed = -10.0;
+    target.speed = 0.0;
+    if (ego_state_->vel.twist.linear.x == target.speed) {
+      max_vel = false;
+    }
   }
 
   target_ = target;
