@@ -26,6 +26,9 @@
 #include <vector>
 
 // Message Requirements
+#include <geometry_msgs/msg/point.hpp>
+#include <geometry_msgs/msg/polygon.hpp>
+#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
@@ -63,6 +66,12 @@ public:
   /*! Constructor, calls loadParams, initPublishers and initTimers.
    */
   CenterPathNode();
+
+  void getTransform();
+
+  std::tuple<double,double,double,double> skidpadCircleCentres();
+
+  std::pair<double,double> circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count);
 
 private:
   /*! Initialize and load params from config.yaml:
