@@ -78,8 +78,8 @@ std::vector<int> KNN(const utfr_msgs::msg::ConeDetections &cones, std::vector<st
       //updating detected position to global frame
       double ego_x = ego_state_.pose.x;
       double ego_y = ego_state_.pose.y;
-      newCone.pose.x += ego_x;
-      newCone.pose.y += ego_y;
+      newCone.pos.x += ego_x;
+      newCone.pos.y += ego_y;
       bool adding_to_past = true;      
       //iterating through old cones
       for (size_t i=0; i <past_detections_.size(); ++i){
