@@ -26,11 +26,11 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
 }
 
 void BuildGraphNode::initParams() {
-  bool loop_closed_ = false;
-  bool landmarked_ = false;
-  int landmarkedID_ = -1;
-  bool out_of_frame_ = false;
-  int cones_found_ = 0;
+  loop_closed_ = false;
+  landmarked_ = false;
+  landmarkedID_ = -1;
+  out_of_frame_ = false;
+  cones_found_ = 0;
 }
 
 void BuildGraphNode::initSubscribers() {
@@ -64,7 +64,7 @@ void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
 
 void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {}
 
-std::vector<int> KNN(const utfr_msgs::msg::ConeDetections &cones, std::vector<std::pair<float, utfr_msgs::msg::Cone>> &past_detections_, int cones_found_,const utfr_msgs::msg::EgoState &ego_state_){
+std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones){
     std::vector<int> cones_id_list_;  
     std::vector<utfr_msgs::msg::Cone> all_cones;
     //adding all cones to one vector
@@ -76,8 +76,8 @@ std::vector<int> KNN(const utfr_msgs::msg::ConeDetections &cones, std::vector<st
     for (const auto& pastCone : all_cones){
       utfr_msgs::msg::Cone newCone = pastCone;
       //updating detected position to global frame
-      double ego_x = ego_state_.pose.pose.position.x;
-      double ego_y = ego_state_.pose.pose.position.y;
+      double ego_x = current_state_.pose.pose.position.x;
+      double ego_y = current_state_.pose.pose.position.y;
       newCone.pos.x += ego_x;
       newCone.pos.y += ego_y;
       bool adding_to_past = true;      
@@ -104,15 +104,27 @@ std::vector<int> KNN(const utfr_msgs::msg::ConeDetections &cones, std::vector<st
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
 
   // Loop hasn't been completed yet
-  while (loop_closed_ == false) {
+  if (loop_closed_ == false) {
     // Go through cone list
     for (int coneID : cones) {
       // No landmark cone yet
-      if (utfr_dv::util::isLargeOrangeCone(coneID) && !landmarked_) {
-        // Set first large orange cone listed to be landmark cone
-        landmarkedID_ = coneID;
-        landmarked_ = true;
+
+      // We gotta fix this later when Mark finishes his thing.
+      // IDK why I chose past_detections_ to be a vector of pairs
+      // but it should probably be a map :(
+      for (auto cone : past_detections_) {
+        if (cone.first == coneID && utfr_dv::util::isLargeOrangeCone(cone.second.type) && !landmarked_) {
+          // Set first large orange cone listed to be landmark cone
+          landmarkedID_ = coneID;
+          landmarked_ = true;
+        }
       }
+
+      // if (utfr_dv::util::isLargeOrangeCone(coneID) && !landmarked_) {
+      //   // Set first large orange cone listed to be landmark cone
+      //   landmarkedID_ = coneID;
+      //   landmarked_ = true;
+      // }
       // Cone has been landmarked and still in frame for the first time
       if (landmarked_ == true && out_of_frame_ == false) {
         auto seen_status = std::find(cones.begin(), cones.end(), landmarkedID_);
