@@ -34,6 +34,12 @@
 #include <utfr_msgs/msg/pose_graph.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
 
+// Import G2O 2D Slam types
+// #include <g2o/types/slam2d/se2.h>
+#include <g2o/types/slam2d/vertex_se2.h>
+#include <g2o/types/slam2d/types_slam2d.h>
+// #include <g2o/types/slam2d/vertex_point_xy.h>
+
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
 #include <utfr_common/math.hpp>
@@ -95,6 +101,23 @@ public:
    *  @param[out] loop_closed boolean&, true if loop is closed
    */
   void loopClosure(const std::vector<int> &cones);
+
+  /*! Create a pose node for G2O
+    * @param[in] id int, id of the pose node
+    * @param[in] x double, x position of the pose node
+    * @param[in] y double, y position of the pose node
+    * @param[in] theta double, rotation of the pose node (radians)
+    * @param[out] vertex g2o::VertexSE2*, pose node pointer
+   */
+  g2o::VertexSE2* createPoseNode(int id, double x, double y, double theta);
+
+  /*! Create a cone node for G2O
+    * @param[in] id int, id of the cone node
+    * @param[in] x double, x position of the cone node
+    * @param[in] y double, y position of the cone node
+    * @param[out] vertex g2o::VertexSE2, cone node pointer
+   */
+  g2o::VertexPointXY* createConeVertex(int id, double x, double y);
 
   /*! Compose a graph for G2O to optimize.
    *  @param[in] states std::vector<utfr_msgs::msg::EgoState>&, past states

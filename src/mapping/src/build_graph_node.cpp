@@ -148,6 +148,28 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
   }
 }
 
+g2o::VertexSE2* BuildGraphNode::createPoseNode(int id, double x, double y,
+                                              double theta) {
+  g2o::VertexSE2* poseVertex = new g2o::VertexSE2();
+  poseVertex->setId(0);
+
+  g2o::SE2 poseEstimate;
+  poseEstimate.fromVector(Eigen::Vector3d(x, y, theta));
+  poseVertex->setEstimate(poseEstimate);
+
+  return poseVertex;
+}
+
+g2o::VertexPointXY* BuildGraphNode::createConeVertex(int id, double x, double y) {
+
+  g2o::VertexPointXY* coneVertex;
+  coneVertex->setId(id);
+
+  Eigen::Vector2d position(x, y);
+  coneVertex->setEstimate(position);
+  return coneVertex;
+}
+
 void BuildGraphNode::buildGraph() {}
 
 } // namespace build_graph
