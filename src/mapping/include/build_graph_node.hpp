@@ -35,10 +35,8 @@
 #include <utfr_msgs/msg/system_status.hpp>
 
 // Import G2O 2D Slam types
-// #include <g2o/types/slam2d/se2.h>
 #include <g2o/types/slam2d/vertex_se2.h>
 #include <g2o/types/slam2d/types_slam2d.h>
-// #include <g2o/types/slam2d/vertex_point_xy.h>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
