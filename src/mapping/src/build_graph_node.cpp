@@ -31,6 +31,11 @@ void BuildGraphNode::initParams() {
   landmarkedID_ = -1;
   out_of_frame_ = false;
   cones_found_ = 0;
+
+  // Will have to tune these later depending on the accuracy of our sensors
+  P2PInformationMatrix_ = Eigen::Matrix3d::Identity();
+  P2CInformationMatrix_ = Eigen::Matrix2d::Identity();
+  LoopClosureInformationMatrix_ = Eigen::Matrix3d::Identity();
 }
 
 void BuildGraphNode::initSubscribers() {
@@ -146,6 +151,62 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
       }
     }
   }
+}
+
+g2o::VertexSE2* BuildGraphNode::createPoseNode(int id, double x, double y,
+                                              double theta) {
+  g2o::VertexSE2* poseVertex = new g2o::VertexSE2();
+  poseVertex->setId(0);
+
+  g2o::SE2 poseEstimate;
+  poseEstimate.fromVector(Eigen::Vector3d(x, y, theta));
+  poseVertex->setEstimate(poseEstimate);
+
+  return poseVertex;
+}
+
+g2o::VertexPointXY* BuildGraphNode::createConeVertex(int id, double x, double y) {
+
+  g2o::VertexPointXY* coneVertex;
+  coneVertex->setId(id);
+
+  Eigen::Vector2d position(x, y);
+  coneVertex->setEstimate(position);
+  return coneVertex;
+}
+
+g2o::EdgeSE2* BuildGraphNode::addPoseToPoseEdge(g2o::VertexSE2* pose1, g2o::VertexSE2* pose2,
+                                               double dx, double dy,
+                                               double dtheta, bool loop_closure) {
+  g2o::EdgeSE2* edge = new g2o::EdgeSE2();
+
+  g2o::SE2 measurement(dx, dy, dtheta);
+  edge->setMeasurement(measurement);
+  if (loop_closure) {
+    edge->setInformation(LoopClosureInformationMatrix_);
+  } else {
+    edge->setInformation(P2PInformationMatrix_);
+  }
+
+  edge->setVertex(0, pose1);
+  edge->setVertex(1, pose2);
+  
+  return edge;
+}
+
+g2o::EdgeSE2PointXY* BuildGraphNode::addPoseToConeEdge(g2o::VertexSE2* pose,
+                                                      g2o::VertexPointXY* cone,
+                                                      double dx, double dy) {
+  g2o::EdgeSE2PointXY* edge = new g2o::EdgeSE2PointXY();
+
+  Eigen::Vector2d measurement(dx, dy);
+  edge->setMeasurement(measurement);
+  edge->setInformation(P2CInformationMatrix_);
+
+  edge->setVertex(0, pose);
+  edge->setVertex(1, cone);
+
+  return edge;
 }
 
 void BuildGraphNode::buildGraph() {}

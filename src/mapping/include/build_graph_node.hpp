@@ -34,6 +34,10 @@
 #include <utfr_msgs/msg/pose_graph.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
 
+// Import G2O 2D Slam types
+#include <g2o/types/slam2d/vertex_se2.h>
+#include <g2o/types/slam2d/types_slam2d.h>
+
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
 #include <utfr_common/math.hpp>
@@ -96,6 +100,45 @@ public:
    */
   void loopClosure(const std::vector<int> &cones);
 
+  /*! Create a pose node for G2O
+    * @param[in] id int, id of the pose node
+    * @param[in] x double, x position of the pose node
+    * @param[in] y double, y position of the pose node
+    * @param[in] theta double, rotation of the pose node (radians)
+    * @param[out] vertex g2o::VertexSE2*, pose node pointer
+   */
+  g2o::VertexSE2* createPoseNode(int id, double x, double y, double theta);
+
+  /*! Create a cone node for G2O
+    * @param[in] id int, id of the cone node
+    * @param[in] x double, x position of the cone node
+    * @param[in] y double, y position of the cone node
+    * @param[out] vertex g2o::VertexSE2, cone node pointer
+   */
+  g2o::VertexPointXY* createConeVertex(int id, double x, double y);
+
+  /*! Add a pose to pose edge to G2O
+    * @param[in] pose1 g2o::VertexSE2*, pointer to the first pose node
+    * @param[in] pose2 g2o::VertexSE2*, pointer to the second pose node
+    * @param[in] dx double, x distance between poses
+    * @param[in] dy double, y distance between poses
+    * @param[in] dtheta double, rotation between poses
+    * @param[in] loop_closure bool, true if loop closure
+    * @param[out] edge g2o::EdgeSE2PointXY*, pose to pose edge pointer
+   */
+  g2o::EdgeSE2* addPoseToPoseEdge(g2o::VertexSE2* pose1, g2o::VertexSE2* pose2,
+                         double dx, double dy, double dtheta, bool loop_closure);
+
+  /*! Add a pose to cone edge to G2O
+    * @param[in] pose g2o::VertexSE2*, pointer to the pose node
+    * @param[in] cone g2o::VertexPointXY*, pointer to the cone node
+    * @param[in] dx double, x distance between pose and cone
+    * @param[in] dy double, y distance between pose and cone
+    * @param[out] edge g2o::EdgeSE2PointXY*, pose to cone edge pointer
+   */
+  g2o::EdgeSE2PointXY* addPoseToConeEdge(g2o::VertexSE2* pose, g2o::VertexPointXY* cone,
+                               double dx, double dy);
+
   /*! Compose a graph for G2O to optimize.
    *  @param[in] states std::vector<utfr_msgs::msg::EgoState>&, past states
    *  @param[in] cones std::vector<std::pair<float, utfr_msgs::msg:Cone>>&, list
@@ -126,6 +169,17 @@ public:
   int landmarkedID_;
   bool out_of_frame_;
   int cones_found_;
+
+  // Lists for poses, cones, and edges
+  std::vector<g2o::VertexSE2*> pose_nodes_;
+  std::vector<g2o::VertexPointXY*> cone_nodes_;
+  std::vector<g2o::EdgeSE2*> pose_to_pose_edges_;
+  std::vector<g2o::EdgeSE2PointXY*> pose_to_cone_edges_;
+
+  // G2O Information matricies
+  Eigen::Matrix3d P2PInformationMatrix_;
+  Eigen::Matrix2d P2CInformationMatrix_;
+  Eigen::Matrix3d LoopClosureInformationMatrix_;
 };
 } // namespace build_graph
 } // namespace utfr_dv
