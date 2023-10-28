@@ -120,12 +120,11 @@ void CarInterface::heartbeatCB(const utfr_msgs::msg::Heartbeat &msg) {
 void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   const std::string function_name{"controlCmdCB"};
 
-  // Steering
+  /***** Steering *****/
 
   // Contruct command to send
   uint16_t steeringRateToSC = (abs((int) (msg.str_cmd * 1000)) & 0x0FFF)/1000;
   bool directionBit;
-
 
   if (steering_cmd_ < 0) {
     directionBit = 0;
