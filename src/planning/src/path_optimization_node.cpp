@@ -148,13 +148,14 @@ void PathOptimizationNode::centerPathCB(
 void PathOptimizationNode::timerCBAccel() {
   const std::string function_name{"path_opt_timerCB:"};
 
+  if (!center_path_) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"), "No center path");
+    return;
+  }
+
   if (skip_path_opt_) {
-    RCLCPP_WARN(this->get_logger(), "%s skipping path optimization",
-                function_name.c_str());
     if (center_path_ != nullptr) {
       center_path_publisher_->publish(*center_path_);
-      RCLCPP_INFO(this->get_logger(), "%s published original center path",
-                  function_name.c_str());
     } else {
       RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
                   function_name.c_str());
@@ -175,13 +176,14 @@ void PathOptimizationNode::timerCBAccel() {
 void PathOptimizationNode::timerCBSkidpad() {
   const std::string function_name{"path_opt_timerCB:"};
 
+  if (!center_path_) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"), "No center path");
+    return;
+  }
+
   if (skip_path_opt_) {
-    RCLCPP_WARN(this->get_logger(), "%s skipping path optimization",
-                function_name.c_str());
     if (center_path_ != nullptr) {
       center_path_publisher_->publish(*center_path_);
-      RCLCPP_INFO(this->get_logger(), "%s published original center path",
-                  function_name.c_str());
     } else {
       RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
                   function_name.c_str());
@@ -202,13 +204,14 @@ void PathOptimizationNode::timerCBSkidpad() {
 void PathOptimizationNode::timerCBAutocross() {
   const std::string function_name{"path_opt_timerCB:"};
 
+  if (!center_path_) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"), "No center path");
+    return;
+  }
+
   if (skip_path_opt_) {
-    RCLCPP_WARN(this->get_logger(), "%s skipping path optimization",
-                function_name.c_str());
     if (center_path_ != nullptr) {
       center_path_publisher_->publish(*center_path_);
-      RCLCPP_INFO(this->get_logger(), "%s published original center path",
-                  function_name.c_str());
     } else {
       RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
                   function_name.c_str());
@@ -229,13 +232,14 @@ void PathOptimizationNode::timerCBAutocross() {
 void PathOptimizationNode::timerCBTrackdrive() {
   const std::string function_name{"path_opt_timerCB:"};
 
+  if (!center_path_) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"), "No center path");
+    return;
+  }
+
   if (skip_path_opt_) {
-    RCLCPP_WARN(this->get_logger(), "%s skipping path optimization",
-                function_name.c_str());
     if (center_path_ != nullptr) {
       center_path_publisher_->publish(*center_path_);
-      RCLCPP_INFO(this->get_logger(), "%s published original center path",
-                  function_name.c_str());
     } else {
       RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
                   function_name.c_str());

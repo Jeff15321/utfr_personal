@@ -53,6 +53,10 @@ void CenterPathNode::initPublishers() {
 
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kCenterPathHeartbeat, 10);
+
+  accel_path_publisher_ =
+      this->create_publisher<geometry_msgs::msg::PolygonStamped>(
+          topics::kAccelPath, 10);
 }
 
 void CenterPathNode::initTimers() {
@@ -135,6 +139,21 @@ void CenterPathNode::coneDetectionsCB(
 void CenterPathNode::timerCBAccel() {
   const std::string function_name{"center_path_timerCB:"};
 
+  std::vector<double> accel_path = getAccelPath();
+
+  utfr_msgs::msg::ParametricSpline center_path_msg;
+
+  double m = accel_path[0];
+  double c = accel_path[1];
+
+  std::vector<double> x = {0,0,0,0,1,0};
+  std::vector<double> y = {0,0,0,0,m,c};
+
+  center_path_msg.x_params = x;
+  center_path_msg.y_params = y;
+
+  center_path_publisher_->publish(center_path_msg);
+
   // CODE GOES HERE
 }
 
@@ -156,5 +175,179 @@ void CenterPathNode::timerCBTrackdrive() {
   // CODE GOES HERE
 }
 
+bool CenterPathNode::coneDistComparitor(const utfr_msgs::msg::Cone& a,
+                                       const utfr_msgs::msg::Cone& b) {
+  double dist_a = util::euclidianDistance2D(a.pos.x, 0.0, a.pos.y, 0.0);
+  double dist_b = util::euclidianDistance2D(b.pos.x, 0.0, b.pos.y, 0.0);
+
+  return dist_a < dist_b;
+}
+
+std::vector<double> CenterPathNode::getAccelPath() {
+  std::vector<utfr_msgs::msg::Cone> all_cones;
+  all_cones.insert(all_cones.end(), cone_detections_->left_cones.begin(), 
+      cone_detections_->left_cones.end());
+  all_cones.insert(all_cones.end(), cone_detections_->right_cones.begin(), 
+      cone_detections_->right_cones.end());
+  all_cones.insert(all_cones.end(), cone_detections_->large_orange_cones.begin(),
+      cone_detections_->large_orange_cones.end());
+  all_cones.insert(all_cones.end(), cone_detections_->small_orange_cones.begin(),
+      cone_detections_->small_orange_cones.end());
+
+  std::sort(all_cones.begin(), all_cones.end(), [this](const utfr_msgs::msg::Cone& 
+      a, const utfr_msgs::msg::Cone& b) {
+    return this->coneDistComparitor(a, b);
+  });
+
+
+  bool found_1 = false;
+
+  int ind_1, ind_2;
+  double highest_1 = 0.0, highest_2 = 0.0;
+  double best_m_1, best_m_2, best_c_1, best_c_2;
+
+  for (int i = 0; i < all_cones.size() - 1; i++){
+    for (int j = i + 1; j < all_cones.size(); j++){
+      if (i != j){
+        utfr_msgs::msg::ConeMap test_cones;
+        utfr_msgs::msg::Cone test_cone;
+        test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
+        test_cone.pos.x = all_cones[i].pos.x;
+        test_cone.pos.y = all_cones[i].pos.y;
+        test_cones.left_cones.push_back(test_cone);
+        test_cone.pos.x = all_cones[j].pos.x;
+        test_cone.pos.y = all_cones[j].pos.y;
+        test_cones.left_cones.push_back(test_cone);
+
+        std::tuple<double, double> test_line = util::accelLLS(test_cones.left_cones);
+
+        double m = std::get<0>(test_line);
+        double c = std::get<1>(test_line);
+
+        if (abs(m) < 1.0){
+          int count = 0;
+          int cone_type;
+          if (all_cones[i].type == all_cones[j].type){
+            count += 1;
+            cone_type = all_cones[i].type;
+          }
+          for (int k = 0; k < all_cones.size(); k++){
+            double numerator = std::abs(m * all_cones[k].pos.x - 
+                all_cones[k].pos.y + c);
+            double denominator = std::sqrt(m * m + 1);
+            double dist = numerator / denominator;
+            if (dist < 0.5){
+              count += 1;
+              if (all_cones[k].type == cone_type){
+                count += 1;
+              }
+            }
+          }
+          
+          if (highest_1 <= count){
+            highest_1 = count;
+            best_m_1 = m;
+            best_c_1 = c;
+          }
+          ind_1 = i;
+          ind_2 = j;
+          found_1 = true;
+        }
+      }
+    }
+  }
+  bool found_2 = false;
+  for (int i = 0; i < all_cones.size() - 1; i++){
+    for (int j = i + 1; j < all_cones.size(); j++){
+      if (i != j && i != ind_1 && j != ind_1 && i != ind_2 && j != ind_2){
+        utfr_msgs::msg::ConeMap test_cones;
+        utfr_msgs::msg::Cone test_cone;
+        test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
+        test_cone.pos.x = all_cones[i].pos.x;
+        test_cone.pos.y = all_cones[i].pos.y;
+        test_cones.left_cones.push_back(test_cone);
+        test_cone.pos.x = all_cones[j].pos.x;
+        test_cone.pos.y = all_cones[j].pos.y;
+        test_cones.left_cones.push_back(test_cone);
+
+        std::tuple<double, double> test_line = util::accelLLS(test_cones.left_cones);
+
+        double m = std::get<0>(test_line);
+        double c = std::get<1>(test_line);
+
+        if (abs(m - best_m_1) < 0.2 && abs(c - best_c_1) > 2.5){
+          int count = 0;
+          int cone_type;
+          if (all_cones[i].type == all_cones[j].type){
+            count += 1;
+            cone_type = all_cones[i].type;
+          }
+          for (int k = 0; k < all_cones.size(); k++){
+            double numerator = std::abs(m * all_cones[k].pos.x - 
+                all_cones[k].pos.y + c);
+            double denominator = std::sqrt(m * m + 1);
+            double dist = numerator / denominator;
+            if (dist < 0.5){
+              count += 1;
+              if (all_cones[k].type == cone_type){
+                count += 0.2;
+              }
+            }
+          }
+          if (highest_2 <= count){
+            highest_2 = count;
+            best_m_2 = m;
+            best_c_2 = c;
+          }
+          found_2 = true;
+        }
+      }
+    }
+  }
+
+  double final_m, final_c;
+
+  if (found_1 == true && found_2 == true){
+    final_m = (best_m_1 + best_m_2) / 2;
+    final_c = (best_c_1 + best_c_2) / 2;
+  }
+  else{
+    if (found_1 == true){
+      final_m = best_m_1;
+      if (best_c_1 > 0) final_c = best_c_1 - 1.5;
+      else final_c = best_c_1 + 1.5;
+    }
+    else if (found_2 == true){
+      final_m = best_m_2;
+      if (best_c_2 > 0) final_c = best_c_2 - 1.5;
+      else final_c = best_c_2 + 1.5;
+    }
+    else{
+      final_m = 0;
+      final_c = 0;
+    }
+  }
+
+  geometry_msgs::msg::PolygonStamped accel_path_msg;
+
+  accel_path_msg.header.stamp = this->get_clock()->now();
+  accel_path_msg.header.frame_id = "base_footprint";
+  geometry_msgs::msg::Point32 point;
+  point.x = 0;
+  point.y = -final_c;
+  point.z = 0;
+  accel_path_msg.polygon.points.push_back(point);
+  point.x = 15;
+  point.y = - (final_m * 15 + final_c);
+  point.z = 0;
+  accel_path_msg.polygon.points.push_back(point);
+
+  accel_path_publisher_->publish(accel_path_msg);
+
+  std::vector<double> accel_path;
+  accel_path.push_back(final_m);
+  accel_path.push_back(final_c);
+  return accel_path;
+}
 } // namespace center_path
 } // namespace utfr_dv

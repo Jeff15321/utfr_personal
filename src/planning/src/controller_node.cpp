@@ -184,6 +184,12 @@ void ControllerNode::velocityProfileCB(
 void ControllerNode::timerCBAccel() {
   const std::string function_name{"controller_timerCB:"};
 
+  if (!path_ || !velocity_profile_) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                "Data not published or initialized yet. Using defaults.");
+    return;
+  }
+
   // CODE GOES HERE
   double cur_s_ = 0;
 
@@ -208,6 +214,12 @@ void ControllerNode::timerCBAccel() {
 void ControllerNode::timerCBSkidpad() {
   const std::string function_name{"controller_timerCB:"};
 
+  if (!path_ || !velocity_profile_) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                "Data not published or initialized yet. Using defaults.");
+    return;
+  }
+
   // CODE GOES HERE
 
   // publish target state
@@ -217,6 +229,12 @@ void ControllerNode::timerCBSkidpad() {
 void ControllerNode::timerCBAutocross() {
   const std::string function_name{"controller_timerCB:"};
 
+  if (!path_ || !velocity_profile_) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                "Data not published or initialized yet. Using defaults.");
+    return;
+  }
+
   // CODE GOES HERE
 
   // publish target state
@@ -225,6 +243,12 @@ void ControllerNode::timerCBAutocross() {
 
 void ControllerNode::timerCBTrackdrive() {
   const std::string function_name{"controller_timerCB:"};
+
+  if (!path_ || !velocity_profile_) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                "Data not published or initialized yet. Using defaults.");
+    return;
+  }
 
   // CODE GOES HERE
 

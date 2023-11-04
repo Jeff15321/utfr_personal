@@ -35,6 +35,7 @@
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
 #include <utfr_msgs/msg/cone_detections.hpp>
+#include <geometry_msgs/msg/polygon_stamped.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -117,6 +118,17 @@ private:
    */
   void timerCBTrackdrive();
 
+  /*! Function for sorting cones
+   */
+  bool coneDistComparitor(const utfr_msgs::msg::Cone& a, 
+      const utfr_msgs::msg::Cone& b);
+  
+  /*! Accel line fitting
+   * This function returns m and c for the line y=mx+c using cone detections 
+     completely colorblind
+   */
+  std::vector<double> getAccelPath();
+
   /*! Delaunay Triangulation:
    */
   void delaunayTriangulation();
@@ -138,6 +150,8 @@ private:
 
   rclcpp::Publisher<utfr_msgs::msg::ParametricSpline>::SharedPtr
       center_path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      accel_path_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
