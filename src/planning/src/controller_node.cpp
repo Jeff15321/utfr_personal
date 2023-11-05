@@ -44,7 +44,8 @@ void ControllerNode::initParams() {
   this->declare_parameter("baselink_location", 0.79);
   this->declare_parameter("wheel_base", 1.58);
   this->declare_parameter("num_points", 1000);
-  this->declare_parameter("lookahead_distance_pp", 1.0);
+  this->declare_parameter("base_lookahead_distance", 1.0);
+  this->declare_parameter("lookahead_scaling_factor", 0.15);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   event_ = this->get_parameter("event").as_string();
@@ -64,8 +65,10 @@ void ControllerNode::initParams() {
   baselink_location_ = this->get_parameter("baselink_location").as_double();
   wheel_base_ = this->get_parameter("wheel_base").as_double();
   num_points_ = this->get_parameter("num_points").as_int();
-  lookahead_distance_ =
-      this->get_parameter("lookahead_distance_pp").as_double();
+  base_lookahead_distance_ =
+      this->get_parameter("base_lookahead_distance").as_double();
+  lookahead_distance_scaling_factor_ =
+      this->get_parameter("lookahead_scaling_factor").as_double();
 }
 
 void ControllerNode::initSubscribers() {
@@ -92,6 +95,13 @@ void ControllerNode::initPublishers() {
 
   target_state_publisher_ = this->create_publisher<utfr_msgs::msg::TargetState>(
       topics::kTargetState, 10);
+
+  path_publisher_ = this->create_publisher<geometry_msgs::msg::PolygonStamped>(
+      topics::kControllerPath, 10);
+
+  pure_pursuit_point_publisher_ =
+      this->create_publisher<visualization_msgs::msg::Marker>(
+          topics::kPurePursuitPoint, 10);
 }
 
 void ControllerNode::initTimers() {
@@ -184,28 +194,26 @@ void ControllerNode::velocityProfileCB(
 void ControllerNode::timerCBAccel() {
   const std::string function_name{"controller_timerCB:"};
 
+  // CODE GOES HERE
+
   if (!path_ || !velocity_profile_) {
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                 "Data not published or initialized yet. Using defaults.");
     return;
   }
-
-  // CODE GOES HERE
   double cur_s_ = 0;
 
-  if (controller_ == "stanley") {
-    utfr_msgs::msg::TargetState target =
-        stanleyController(stanley_gain_, max_velocity_, max_steering_angle_,
-                          max_steering_rate_, *path_, cur_s_, ds_,
-                          *velocity_profile_, baselink_location_, *ego_state_);
-    target_ = target;
-  } else if (controller_ == "pure_pursuit") {
-    utfr_msgs::msg::TargetState target = purePursuitController(
-        max_velocity_, max_steering_angle_, *path_, cur_s_, ds_,
-        *velocity_profile_, baselink_location_, *ego_state_,
-        lookahead_distance_);
-    target_ = target;
-  }
+  // Controller
+  utfr_msgs::msg::TargetState target = purePursuitController(
+      max_velocity_, max_steering_angle_, *path_, cur_s_, ds_,
+      *velocity_profile_, baselink_location_, *ego_state_, base_lookahead_distance_, lookahead_distance_scaling_factor_);
+  
+  target_ = target;
+
+  // print target state
+  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+              "Target steering: %f \n Target velocity: %f",
+              target.steering_angle, target.speed);
 
   // publish target state
   target_state_publisher_->publish(target_);
@@ -214,13 +222,26 @@ void ControllerNode::timerCBAccel() {
 void ControllerNode::timerCBSkidpad() {
   const std::string function_name{"controller_timerCB:"};
 
+  // CODE GOES HERE
+
   if (!path_ || !velocity_profile_) {
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                 "Data not published or initialized yet. Using defaults.");
     return;
   }
+  double cur_s_ = 0;
 
-  // CODE GOES HERE
+  // Controller
+  utfr_msgs::msg::TargetState target = purePursuitController(
+      max_velocity_, max_steering_angle_, *path_, cur_s_, ds_,
+      *velocity_profile_, baselink_location_, *ego_state_, base_lookahead_distance_, lookahead_distance_scaling_factor_);
+  
+  target_ = target;
+
+  // print target state
+  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+              "Target steering: %f \n Target velocity: %f",
+              target.steering_angle, target.speed);
 
   // publish target state
   target_state_publisher_->publish(target_);
@@ -229,13 +250,26 @@ void ControllerNode::timerCBSkidpad() {
 void ControllerNode::timerCBAutocross() {
   const std::string function_name{"controller_timerCB:"};
 
+  // CODE GOES HERE
+
   if (!path_ || !velocity_profile_) {
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                 "Data not published or initialized yet. Using defaults.");
     return;
   }
+  double cur_s_ = 0;
 
-  // CODE GOES HERE
+  // Controller
+  utfr_msgs::msg::TargetState target = purePursuitController(
+      max_velocity_, max_steering_angle_, *path_, cur_s_, ds_,
+      *velocity_profile_, baselink_location_, *ego_state_, base_lookahead_distance_, lookahead_distance_scaling_factor_);
+  
+  target_ = target;
+
+  // print target state
+  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+              "Target steering: %f \n Target velocity: %f",
+              target.steering_angle, target.speed);
 
   // publish target state
   target_state_publisher_->publish(target_);
@@ -244,13 +278,26 @@ void ControllerNode::timerCBAutocross() {
 void ControllerNode::timerCBTrackdrive() {
   const std::string function_name{"controller_timerCB:"};
 
+  // CODE GOES HERE
+
   if (!path_ || !velocity_profile_) {
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                 "Data not published or initialized yet. Using defaults.");
     return;
   }
+  double cur_s_ = 0;
 
-  // CODE GOES HERE
+  // Controller
+  utfr_msgs::msg::TargetState target = purePursuitController(
+      max_velocity_, max_steering_angle_, *path_, cur_s_, ds_,
+      *velocity_profile_, baselink_location_, *ego_state_, base_lookahead_distance_, lookahead_distance_scaling_factor_);
+  
+  target_ = target;
+
+  // print target state
+  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+              "Target steering: %f \n Target velocity: %f",
+              target.steering_angle, target.speed);
 
   // publish target state
   target_state_publisher_->publish(target_);
@@ -351,8 +398,8 @@ utfr_msgs::msg::TargetState ControllerNode::stanleyController(
   double prev_steering = ego_state.steering_angle;
 
   double vehicle_x =
-      ego_state.pose.pose.position.x + baselink_location * cos(vehicle_theta);
-  double vehicle_y = ego_state.pose.pose.position.y +
+      ego_state.pose.pose.position.x - baselink_location * cos(vehicle_theta);
+  double vehicle_y = ego_state.pose.pose.position.y -
                      baselink_location * sin(vehicle_theta); // FIX LATER
 
   std::vector<geometry_msgs::msg::Pose> discretized_points =
@@ -465,21 +512,45 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
     double max_speed, double max_steering_angle,
     utfr_msgs::msg::ParametricSpline spline_params, double cur_s, double ds,
     utfr_msgs::msg::VelocityProfile velocity_profile, double baselink_location,
-    utfr_msgs::msg::EgoState ego_state, double lookahead_distance) {
+    utfr_msgs::msg::EgoState ego_state, double base_lookahead_distance, double lookahead_distance_scaling_factor) {
   double vehicle_theta = ego_state.pose.pose.position.z;
   double vehicle_x =
-      ego_state.pose.pose.position.x + baselink_location * cos(vehicle_theta);
+      ego_state.pose.pose.position.x - baselink_location * cos(vehicle_theta);
   double vehicle_y =
-      ego_state.pose.pose.position.y + baselink_location * sin(vehicle_theta);
+      ego_state.pose.pose.position.y - baselink_location * sin(vehicle_theta);
 
   std::vector<geometry_msgs::msg::Pose> discretized_points =
       discretizeParametric(spline_params, cur_s, ds, num_points_);
 
+  geometry_msgs::msg::PolygonStamped path_stamped;
+
+  path_stamped.header.frame_id = "base_footprint";
+
+  path_stamped.header.stamp = this->get_clock()->now();
+
+  for (int i = 0; i < discretized_points.size(); i++) {
+    geometry_msgs::msg::Point32 point;
+    point.x = discretized_points[i].position.x;
+    point.y = -discretized_points[i].position.y;
+    point.z = 0.0;
+    path_stamped.polygon.points.push_back(point);
+  }
+
+  path_publisher_->publish(path_stamped);
+
+  double lookahead_distance;
   geometry_msgs::msg::Pose lookahead_point;
   bool found_lookahead = false;
+  // Get desired velocity from the velocity profile
+  double desired_velocity = velocity_profile.velocities[1];
+
+  // Get dynamic lookahead distance
   for (const auto &wp : discretized_points) {
-    double dx = wp.position.x - vehicle_x;
-    double dy = wp.position.y - vehicle_y;
+    double dx = wp.position.x - baselink_location;
+    double dy = wp.position.y;
+
+    lookahead_distance = std::min(base_lookahead_distance + 
+        lookahead_distance_scaling_factor * velocity_profile.velocities[1], 5.0);
     double distance = sqrt(dx * dx + dy * dy);
     if (distance > lookahead_distance) {
       lookahead_point = wp;
@@ -489,17 +560,34 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   }
 
   if (!found_lookahead) {
-    // Handle scenario where lookahead point isn't found
-    // Return some default state or do some error handling
-    // Figure out later when testing / if neccesary
-    // Can do things such as return the last point in the discretized path
+    lookahead_point = discretized_points[discretized_points.size() - 1];
   }
 
-  // Compute the angle between the current vehicle orientation and the direction
-  // towards the lookahead point
-  double alpha = atan2(lookahead_point.position.y - vehicle_y,
-                       lookahead_point.position.x - vehicle_x) -
-                 vehicle_theta;
+  // Plotting pure pursuit lookahead point
+  visualization_msgs::msg::Marker marker;
+  marker.header.frame_id = "base_footprint"; 
+  marker.header.stamp = this->get_clock()->now();
+  marker.ns = "lookahead";
+  marker.id = 0;
+  marker.type = visualization_msgs::msg::Marker::SPHERE;
+  marker.action = visualization_msgs::msg::Marker::ADD;
+
+  marker.pose.position.x = lookahead_point.position.x;
+  marker.pose.position.y = -lookahead_point.position.y;
+  marker.pose.position.z = 0.0;
+
+  marker.scale.x = 0.25;  
+  marker.scale.y = 0.25;
+  marker.scale.z = 0.25;
+
+  marker.color.a = 1.0;  
+  marker.color.r = 1.0;
+  marker.color.g = 0.0;
+  marker.color.b = 0.0;
+
+  pure_pursuit_point_publisher_->publish(marker);
+
+  double alpha = atan2(lookahead_point.position.y, lookahead_point.position.x);
 
   // Steering law for Pure Pursuit controller
   double delta = atan2(2.0 * wheel_base_ * sin(alpha), lookahead_distance);
@@ -507,12 +595,14 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   // Clamp steering angle to its limits
   delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
 
-  // Get desired velocity from the velocity profile
-  double desired_velocity = velocity_profile.velocities[0];
+  // If we're at the maximum steering angle, slow down
+  if (abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 || abs(delta) > max_steering_angle) {
+    desired_velocity = 1.0;
+  }
 
   utfr_msgs::msg::TargetState target;
   target.speed = desired_velocity;
-  target.steering_angle = delta;
+  target.steering_angle = -delta;
 
   return target;
 }

@@ -52,6 +52,8 @@ const std::string kPathOptimizationHeartbeat{
     "planning/path_optimization/heartbeat"};
 const std::string kControllerHeartbeat{"planning/controller/heartbeat"};
 const std::string kAccelPath{"planning/accel_path"};
+const std::string kControllerPath{"planning/controller/path"};
+const std::string kPurePursuitPoint{"planning/pure_pursuit_point"};
 // TODO: add heartbeat for each planning node
 
 // Controls

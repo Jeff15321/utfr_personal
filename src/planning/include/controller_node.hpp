@@ -26,7 +26,9 @@
 #include <vector>
 
 // Message Requirements
+#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <geometry_msgs/msg/pose.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
@@ -149,7 +151,7 @@ private:
       utfr_msgs::msg::ParametricSpline spline_params, double cur_s, double ds,
       utfr_msgs::msg::VelocityProfile velocity_profile,
       double baselink_location, utfr_msgs::msg::EgoState ego_state,
-      double lookahead_distance);
+      double base_lookahead_distance, double lookahead_distance_scaling_factor);
 
   /*! Initialize global variables:
    */
@@ -171,7 +173,8 @@ private:
   double baselink_location_;
   double wheel_base_;
   int num_points_;
-  double lookahead_distance_;
+  double base_lookahead_distance_;
+  double lookahead_distance_scaling_factor_;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
@@ -188,9 +191,16 @@ private:
 
   rclcpp::Publisher<utfr_msgs::msg::TargetState>::SharedPtr
       target_state_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr
+      ego_state_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr
+      pure_pursuit_point_publisher_;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
+
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      path_publisher_;
 
   utfr_msgs::msg::TargetState target_;
   utfr_msgs::msg::SystemStatus::SharedPtr status_{nullptr};
