@@ -1,29 +1,26 @@
 #include "../include/clusterer.h"
 
-using namespace std;
-
 PointCloud Clusterer::remove_ground(PointCloud points, Grid min_points_grid) {
+
+  // Fill the PCL point cloud with data from the input vector of min_points_grid
+  PointCloud min_points;
+  for (int i = 0; i < min_points_grid.size(); i++) {
+    for (int j = 0; j < min_points_grid[i].size(); j++) {
+      if (min_points_grid[i][j][2] < 99) {
+        min_points.push_back(min_points_grid[i][j]);
+      }
+    }
+  }
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
   // Resize the PCL point cloud
-  cloud->width = points.size();
+  cloud->width = min_points.size();
   cloud->height = 1; // This makes the point cloud unorganized
   cloud->points.resize(cloud->width * cloud->height);
-
-  // Fill the PCL point cloud with data from the input vector of min_points_grid
-  // PointCloud min_points;
-  // for (int i = 0; i < min_points_grid.size(); i++)
-  // {
-  //   for (int j = 0; j < min_points_grid[i].size(); j++){
-  //     if (min_points_grid[i][j][2] < 99){
-  //       min_points.push_back(min_points_grid[i][j]);
-  //     }
-  //   }
-  // }
-  for (size_t i = 0; i < points.size(); ++i) {
-    cloud->points[i].x = points[i][0];
-    cloud->points[i].y = points[i][1];
-    cloud->points[i].z = points[i][2];
+  for (size_t i = 0; i < min_points.size(); ++i) {
+    cloud->points[i].x = min_points[i][0];
+    cloud->points[i].y = min_points[i][1];
+    cloud->points[i].z = min_points[i][2];
   }
 
   // Create a shared pointer for the RANSAC plane model
@@ -39,23 +36,18 @@ PointCloud Clusterer::remove_ground(PointCloud points, Grid min_points_grid) {
   Eigen::VectorXf coefficients;
   ransac.getModelCoefficients(coefficients);
 
-  // For debugging: printing the coefficients of the plane equation ax + by + cz
-  // + d = 0 std::cout << "The coefficients of the fitted plane are: "
-  //           << coefficients[0] << "x + "
-  //           << coefficients[1] << "y + "
-  //           << coefficients[2] << "z + "
-  //           << coefficients[3] << " = 0" << std::endl;
-
-  float a = coefficients[0], b = coefficients[1], c = coefficients[2], d = coefficients[3];
+  float a = coefficients[0], b = coefficients[1], c = coefficients[2],
+        d = coefficients[3];
 
   // Remove ground points (inliers of the plane)
   PointCloud filtered_points;
-  for (int i = 0; i < cloud->points.size(); ++i) {
-    float x = cloud->points[i].x, y = cloud->points[i].y, z = cloud->points[i].z;
+  for (int i = 0; i < points.size(); ++i) {
+    float x = points[i][0], y = points[i][1], z = points[i][2];
 
     // Calculate the distance of each point to the plane
-    float distance = std::abs(a*x + b*y + c*z + d) / std::sqrt(a*a + b*b + c*c);
-    
+    float distance =
+        std::abs(a * x + b * y + c * z + d) / std::sqrt(a * a + b * b + c * c);
+
     // Only include points that are farther than the threshold
     if (distance > this->ransac_params.distanceThreshold) {
       filtered_points.push_back({x, y, z});
@@ -156,17 +148,8 @@ Clusterer::clean_and_cluster(PointCloud points, Grid min_points_grid) {
   // Remove ground points
   PointCloud filtered_points = remove_ground(points, min_points_grid);
 
-  // For debugging
-  // cout << "Num filtered points: " << filtered_points.size() << endl;
-
   // Cluster the remaining points
   std::vector<Point> cluster_centers = cluster(filtered_points);
-
-  // For debugging
-  // for(int i = 0; i < cluster_centers.size(); i++){
-  //     cout << cluster_centers[i][0] << " " << cluster_centers[i][1] << " " <<
-  //     cluster_centers[i][2] << endl;
-  // }
 
   // Reconstruct the clusters
   std::vector<PointCloud> clusters = reconstruct(points, cluster_centers);
