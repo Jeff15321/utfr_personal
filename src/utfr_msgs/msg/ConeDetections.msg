@@ -7,3 +7,4 @@ Cone[] left_cones
 Cone[] right_cones
 Cone[] large_orange_cones
 Cone[] small_orange_cones
+Cone[] unknown_cones
