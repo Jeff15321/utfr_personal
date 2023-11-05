@@ -102,6 +102,84 @@ void CenterPathNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
   ego_state_->finished = msg.finished;
 }
 
+std::tuple<double,double,double> CenterPathNode::circle(std::vector<utfr_msgs::msg::Cone> &cones){
+  if(cones.size() != 3) return {NAN,NAN,NAN};
+  MatrixXd A(2,2); // A -> [X Y]
+  VectorXd B(2);
+  auto x = [&](int i){return cones[i].pos.x;};
+  auto y = [&](int i){return cones[i].pos.y;};
+  // Solve 3 circle equations (x-a)^2 + (y-b)^2 = r^2
+  // equation 1 - equation 2
+  A(0,0) = 2*(x(0)-x(1));
+  A(0,1) = 2*(y(0)-y(1));
+  B(0) = (x(0)*x(0) + y(0)*y(0)) - (x(1)*x(1) + y(1)*y(1));
+  // equation 1 - equation 3
+  A(1,0) = 2*(x(0)-x(2));
+  A(1,1) = 2*(y(0)-y(2));
+  B(1) = (x(0)*x(0) + y(0)*y(0)) - (x(2)*x(2) + y(2)*y(2));
+  // Solve for X & Y
+  VectorXd ans = A.fullPivLu().solve(B);
+  double xc = ans(0), yc = ans(1);
+  double r = sqrt(pow(x(0)-xc, 2) + pow(y(0)-yc, 2));
+  // std::cout << "Xc=" << xc << ",Yc=" << yc << ",r=" << r << std::endl; 
+  return {xc, yc, r};
+}
+
+void CenterPathNode::transform(std::vector<std::pair<double,double>> &points, 
+  double xleftRef, double yleftRef, double xrightRef, double yrightRef){
+  auto [xleftNew,yleftNew,xrightNew,yrightNew] = this->skidpadCircleCentres();
+
+  auto getThirdPoint = [&](double x0, double y0, double x1, double y1, int sign){
+    double d = util::euclidianDistance2D(x0, x1, y0, y1);
+    double a = d/2;
+    double h = sqrt((15.25/2+3)*(15.25/2+3)-a*a);
+    double xt = x0+a*(x1-x0)/d;
+    double yt = y0+a*(y1-y0)/d;
+    double x = xt+h*(y1-y0)/d;
+    double y = yt-h*(x1-x0)/d;
+    // return the coordinates with positive cross product
+    double cross = (x1-x) * (y0-y) - (x0-x) * (y1-y);
+    if(cross * sign < 0){
+      x = xt-h*(y1-y0)/d;
+      y = yt+h*(x1-x0)/d;
+    }
+    return std::make_pair(x, y);
+  };
+  auto [xinterRef, yinterRef] = getThirdPoint(xleftRef, yleftRef, xrightRef, yrightRef, 1);
+  auto [xinterNew, yinterNew] = getThirdPoint(xleftNew, yleftNew, xrightNew, yrightNew, -1);
+  MatrixXd X(3,3); // a b tx
+  X << xleftRef, yleftRef, 1,
+       xrightRef, yrightRef, 1,
+       xinterRef, yinterRef, 1;
+  VectorXd Xb(3);
+  Xb << xleftNew, xrightNew, xinterNew;
+  VectorXd Xres = X.fullPivLu().solve(Xb);
+  MatrixXd Y(3,3); // c d ty
+  Y << xleftRef, yleftRef, 1,
+       xrightRef, yrightRef, 1,
+       xinterRef, yinterRef, 1;
+  VectorXd Yb(3);
+  Yb << yleftNew, yrightNew, yinterNew;
+  VectorXd Yres = Y.fullPivLu().solve(Yb);
+  MatrixXd T(3,3);
+  T << Xres(0), Xres(1), Xres(2), Yres(0), Yres(1), Yres(2), 0, 0, 1;
+
+  using namespace std;
+  cout << "Reference: X_intersect = " << xinterRef << ", Y_intersect = " << yinterRef << endl;
+  cout << "New: X_intersect = " << xinterNew << ", Y_intersect = " << yinterNew << endl;
+  cout << "T:" << endl << T << endl;
+
+  for(auto &p: points){
+    double &x = p.first, &y = p.second;
+    VectorXd v(3);
+    v << x, y, 1;
+
+    VectorXd out = T*v;
+    x = out(0);
+    y = out(1);
+  }
+}
+
 void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
   if (cone_map_ == nullptr) {
     // first initialization:
@@ -114,7 +192,48 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
   cone_map_->right_cones = msg.right_cones;
   cone_map_->large_orange_cones = msg.large_orange_cones;
   cone_map_->small_orange_cones = msg.small_orange_cones;
-  this->skidpadCircleCentres();
+
+  std::ofstream out("cones.txt");
+  for(auto &c : msg.left_cones){
+    out << "(" << c.pos.x << "," << c.pos.y << ")" << std::endl;
+  }
+  out << std::endl;
+  for(auto &c : msg.right_cones){
+    out << "(" << c.pos.x << "," << c.pos.y << ")" << std::endl;
+  }
+
+  std::ifstream in("src/planning/config/waypoints.csv");
+  double x1,y1,x2,y2;
+  in >> x1 >> y1 >> x2 >> y2;
+  
+  std::vector<std::pair<double,double>> v;
+  while(!in.eof()){
+    double x,y;
+    in >> x >> y;
+    v.push_back({x,y});
+  }
+  std::cout << "Old:" << std::endl;
+  for(auto [x,y] : v) std::cout << x << "," << y << std::endl;
+  this->transform(v,x1,y1,x2,y2);
+  std::cout << "New:" << std::endl;
+  for(auto [x,y] : v) std::cout << x << "," << y << std::endl;
+
+  using geometry_msgs::msg::PolygonStamped;
+  static rclcpp::Publisher<PolygonStamped>::SharedPtr waypoints_pub =
+    this->create_publisher<PolygonStamped>("Waypoints", 1);
+
+  PolygonStamped points_stamped;
+  points_stamped.header.frame_id = "base_footprint";
+  points_stamped.header.stamp = this->get_clock()->now();
+
+  for(auto [x,y] : v) {
+    geometry_msgs::msg::Point32 point;
+    point.x = x;
+    point.y = -y;
+    point.z = 0;
+    points_stamped.polygon.points.push_back(point);
+  }
+  waypoints_pub->publish(points_stamped);
 }
 
 void CenterPathNode::coneDetectionsCB(
@@ -157,11 +276,6 @@ void CenterPathNode::timerCBTrackdrive() {
   // CODE GOES HERE
 }
 
-void CenterPathNode::getTransform(){
-  auto[leftX,leftY,rightX,rightY] = this->skidpadCircleCentres();
-  MatrixXd A(2, 3);
-}
-
 std::tuple<double,double,double,double> CenterPathNode::skidpadCircleCentres(){
   using geometry_msgs::msg::PolygonStamped;
   static rclcpp::Publisher<PolygonStamped>::SharedPtr small_blue_pub =
@@ -175,33 +289,32 @@ std::tuple<double,double,double,double> CenterPathNode::skidpadCircleCentres(){
   
   std::vector<utfr_msgs::msg::Cone> blue = cone_map_->left_cones;
   std::vector<utfr_msgs::msg::Cone> yellow = cone_map_->right_cones;
-  /*ONLY FOR TESTING*/ blue.pop_back(); yellow.pop_back(); // pop the extra cone
 
-  std::cout << "Size: " << blue.size() << "," << yellow.size() << std::endl;
+  double smallRadius = 15.25/2;
+  double largeRadius = 15.25/2+3;
+  int smallCircleCones = 16;
+  int largeCircleCones = 13;
 
-  auto smallBlue = this->circleCentre(blue, 15.25/2, 16-3);
+  auto smallBlue = this->circleCentre(blue, smallRadius, smallCircleCones-3);
+  auto smallYellow = this->circleCentre(yellow, smallRadius, smallCircleCones-3);
+  auto largeBlue = this->circleCentre(blue, largeRadius, largeCircleCones-3);
+  auto largeYellow = this->circleCentre(yellow, largeRadius, largeCircleCones-3);
   printf("Small Blue Circle: Xc = %lf, Yc = %lf\n", smallBlue.first, smallBlue.second);
-
-  auto smallYellow = this->circleCentre(yellow, 15.25/2, 16-3);
   printf("Small Yellow Circle: Xc = %lf, Yc = %lf\n", smallYellow.first, smallYellow.second);
-
-  auto largeBlue = this->circleCentre(blue, 15.25/2+3, 13-3);
   printf("Large Blue Circle: Xc = %lf, Yc = %lf\n", largeBlue.first, largeBlue.second);
-  
-  auto largeYellow = this->circleCentre(yellow, 15.25/2+3, 13-3);
   printf("Large Yellow Circle: Xc = %lf, Yc = %lf\n", largeYellow.first, largeYellow.second);
   
   auto drawCircle = [this](auto publisher, auto cord, double radius){
     auto [xc, yc] = cord;
     PolygonStamped circle_stamped;
-    circle_stamped.header.frame_id = "base_link";
+    circle_stamped.header.frame_id = "base_footprint";
     circle_stamped.header.stamp = this->get_clock()->now();
 
     for(int i = 0; i < 360; i++) {
       geometry_msgs::msg::Point32 point;  
       double angle = 2.0 * M_PI * i / 360;
       point.x = xc + radius * cos(angle);
-      point.y = yc + radius * sin(angle);
+      point.y = -yc + radius * sin(angle);
       point.z = 0;
       circle_stamped.polygon.points.push_back(point);
     }
@@ -224,7 +337,7 @@ std::tuple<double,double,double,double> CenterPathNode::skidpadCircleCentres(){
 std::pair<double,double> CenterPathNode::circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count){
   int n = cones.size();
 
-  auto get_threshold = [&](double xc, double yc){
+  auto get_threshold = [&](double xc, double yc, double radius){
     // get the distances from the circle's centre
     std::vector<double> distances(n);
     for(int i = 0; i < n; i++){
@@ -247,20 +360,24 @@ std::pair<double,double> CenterPathNode::circleCentre(std::vector<utfr_msgs::msg
   double lowest_threshold = DBL_MAX;
   std::pair<double,double> centre = {NAN,NAN};
   std::vector<utfr_msgs::msg::Cone> ransacCones(3);
-  double radf;
+  double closest_radius = DBL_MAX;
   for(int i = 0; i < n; i++){
     ransacCones[0] = cones[i];
     for(int j = i+1; j < n; j++){
       ransacCones[1] = cones[j];
       for(int k = j+1; k < n; k++){
         ransacCones[2] = cones[k];
-        auto [xc, yc, _, __] = util::ransacCircleLSF(ransacCones, radius);
-        std:: cout << _ << " vs " << __ << std::endl;
-        double threshold = get_threshold(xc, yc);
-        if(threshold < lowest_threshold){
+        // auto [xc, yc, _, radiusf] = util::ransacCircleLSF(ransacCones, radius);
+        auto [xc,yc,radiusf] = this->circle(ransacCones);
+        double threshold = get_threshold(xc, yc, radiusf);
+        if(abs(radiusf-radius) < closest_radius){
           lowest_threshold = threshold;
           centre = {xc,yc};
-          radf = t;
+          closest_radius = abs(radiusf-radius);
+        }
+        else if(abs(radiusf-radius) == closest_radius && threshold < lowest_threshold){
+          lowest_threshold = threshold;
+          centre = {xc,yc};
         }
       }
     }

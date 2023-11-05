@@ -67,7 +67,27 @@ public:
    */
   CenterPathNode();
 
-  void getTransform();
+  std::tuple<double,double,double> circle(std::vector<utfr_msgs::msg::Cone> &cones);
+
+  void test(){
+    std::vector<utfr_msgs::msg::Cone> cones;
+    utfr_msgs::msg::Cone cone; 
+    
+    cone.pos.x = 2; cone.pos.y = 1;
+    cones.push_back(cone);
+    cone.pos.x = 1; cone.pos.y = 2;
+    cones.push_back(cone);
+    cone.pos.x = 1; cone.pos.y = 0;
+    cones.push_back(cone);
+    // cone.pos.x = 0; cone.pos.y = 1;
+    // cones.push_back(cone);
+    // auto [xc, yc, radius, radiusf] = util::ransacCircleLSF(cones, 1);
+    // std::cout << xc << "," << yc << "," << radius << "," << radiusf << std::endl;
+    // this->circleCentre(cones, 1, 4);
+  }
+
+  void transform(std::vector<std::pair<double,double>> &points, 
+    double xleftRef, double yleftRef, double xrightRef, double yrightRef);
 
   std::tuple<double,double,double,double> skidpadCircleCentres();
 
