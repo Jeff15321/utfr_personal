@@ -28,7 +28,6 @@
 // Message Requirements
 #include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <geometry_msgs/msg/pose.hpp>
-#include <visualization_msgs/msg/marker.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
@@ -39,6 +38,7 @@
 #include <utfr_msgs/msg/trajectory_point.hpp>
 #include <utfr_msgs/msg/velocity_profile.hpp>
 #include <utfr_msgs/msg/waypoint_path.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -126,30 +126,11 @@ private:
   discretizeParametric(const utfr_msgs::msg::ParametricSpline &spline_params,
                        double cur_s, double ds, int num_points);
 
-  /*! Return Closest Point
-   */
-  geometry_msgs::msg::Pose
-  closestPoint(utfr_msgs::msg::EgoState ego_state,
-               std::vector<geometry_msgs::msg::Pose> waypoints);
-
-  /*! Sign
-   */
-  double sign(double x);
-
-  /*! Stanley Controller
-   */
-  utfr_msgs::msg::TargetState stanleyController(
-      double k, double max_speed, double max_steering_angle,
-      double max_steering_rate, utfr_msgs::msg::ParametricSpline spline_params,
-      double cur_s, double ds, utfr_msgs::msg::VelocityProfile velocity_profile,
-      double baselink_location, utfr_msgs::msg::EgoState ego_state);
-
   /*! Pure Pursuit Controller
    */
   utfr_msgs::msg::TargetState purePursuitController(
-      double max_speed, double max_steering_angle,
-      utfr_msgs::msg::ParametricSpline spline_params, double cur_s, double ds,
-      utfr_msgs::msg::VelocityProfile velocity_profile,
+      double max_steering_angle, utfr_msgs::msg::ParametricSpline spline_params,
+      double cur_s, double ds, utfr_msgs::msg::VelocityProfile velocity_profile,
       double baselink_location, utfr_msgs::msg::EgoState ego_state,
       double base_lookahead_distance, double lookahead_distance_scaling_factor);
 
@@ -158,10 +139,6 @@ private:
   double update_rate_;
   std::string event_;
   std::string controller_;
-  double stanley_gain_;
-  double softening_constant_;
-  double k_yaw_rate_;
-  double k_damp_steer_;
   int discretized_points_;
   double cte_error_;
   double cte_angle_error_;
@@ -191,8 +168,7 @@ private:
 
   rclcpp::Publisher<utfr_msgs::msg::TargetState>::SharedPtr
       target_state_publisher_;
-  rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr
-      ego_state_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr ego_state_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr
       pure_pursuit_point_publisher_;
