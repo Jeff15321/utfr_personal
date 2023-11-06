@@ -194,8 +194,6 @@ void ControllerNode::velocityProfileCB(
 void ControllerNode::timerCBAccel() {
   const std::string function_name{"controller_timerCB:"};
 
-  // CODE GOES HERE
-
   if (!path_ || !velocity_profile_) {
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                 "Data not published or initialized yet. Using defaults.");
@@ -206,8 +204,9 @@ void ControllerNode::timerCBAccel() {
   // Controller
   utfr_msgs::msg::TargetState target = purePursuitController(
       max_velocity_, max_steering_angle_, *path_, cur_s_, ds_,
-      *velocity_profile_, baselink_location_, *ego_state_, base_lookahead_distance_, lookahead_distance_scaling_factor_);
-  
+      *velocity_profile_, baselink_location_, *ego_state_,
+      base_lookahead_distance_, lookahead_distance_scaling_factor_);
+
   target_ = target;
 
   // print target state
@@ -222,8 +221,6 @@ void ControllerNode::timerCBAccel() {
 void ControllerNode::timerCBSkidpad() {
   const std::string function_name{"controller_timerCB:"};
 
-  // CODE GOES HERE
-
   if (!path_ || !velocity_profile_) {
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                 "Data not published or initialized yet. Using defaults.");
@@ -234,8 +231,9 @@ void ControllerNode::timerCBSkidpad() {
   // Controller
   utfr_msgs::msg::TargetState target = purePursuitController(
       max_velocity_, max_steering_angle_, *path_, cur_s_, ds_,
-      *velocity_profile_, baselink_location_, *ego_state_, base_lookahead_distance_, lookahead_distance_scaling_factor_);
-  
+      *velocity_profile_, baselink_location_, *ego_state_,
+      base_lookahead_distance_, lookahead_distance_scaling_factor_);
+
   target_ = target;
 
   // print target state
@@ -250,8 +248,6 @@ void ControllerNode::timerCBSkidpad() {
 void ControllerNode::timerCBAutocross() {
   const std::string function_name{"controller_timerCB:"};
 
-  // CODE GOES HERE
-
   if (!path_ || !velocity_profile_) {
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                 "Data not published or initialized yet. Using defaults.");
@@ -262,8 +258,9 @@ void ControllerNode::timerCBAutocross() {
   // Controller
   utfr_msgs::msg::TargetState target = purePursuitController(
       max_velocity_, max_steering_angle_, *path_, cur_s_, ds_,
-      *velocity_profile_, baselink_location_, *ego_state_, base_lookahead_distance_, lookahead_distance_scaling_factor_);
-  
+      *velocity_profile_, baselink_location_, *ego_state_,
+      base_lookahead_distance_, lookahead_distance_scaling_factor_);
+
   target_ = target;
 
   // print target state
@@ -278,8 +275,6 @@ void ControllerNode::timerCBAutocross() {
 void ControllerNode::timerCBTrackdrive() {
   const std::string function_name{"controller_timerCB:"};
 
-  // CODE GOES HERE
-
   if (!path_ || !velocity_profile_) {
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                 "Data not published or initialized yet. Using defaults.");
@@ -290,8 +285,9 @@ void ControllerNode::timerCBTrackdrive() {
   // Controller
   utfr_msgs::msg::TargetState target = purePursuitController(
       max_velocity_, max_steering_angle_, *path_, cur_s_, ds_,
-      *velocity_profile_, baselink_location_, *ego_state_, base_lookahead_distance_, lookahead_distance_scaling_factor_);
-  
+      *velocity_profile_, baselink_location_, *ego_state_,
+      base_lookahead_distance_, lookahead_distance_scaling_factor_);
+
   target_ = target;
 
   // print target state
@@ -512,7 +508,8 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
     double max_speed, double max_steering_angle,
     utfr_msgs::msg::ParametricSpline spline_params, double cur_s, double ds,
     utfr_msgs::msg::VelocityProfile velocity_profile, double baselink_location,
-    utfr_msgs::msg::EgoState ego_state, double base_lookahead_distance, double lookahead_distance_scaling_factor) {
+    utfr_msgs::msg::EgoState ego_state, double base_lookahead_distance,
+    double lookahead_distance_scaling_factor) {
   double vehicle_theta = ego_state.pose.pose.position.z;
   double vehicle_x =
       ego_state.pose.pose.position.x - baselink_location * cos(vehicle_theta);
@@ -549,8 +546,10 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
     double dx = wp.position.x - baselink_location;
     double dy = wp.position.y;
 
-    lookahead_distance = std::min(base_lookahead_distance + 
-        lookahead_distance_scaling_factor * velocity_profile.velocities[1], 5.0);
+    lookahead_distance =
+        std::min(base_lookahead_distance + lookahead_distance_scaling_factor *
+                                               velocity_profile.velocities[1],
+                 5.0);
     double distance = sqrt(dx * dx + dy * dy);
     if (distance > lookahead_distance) {
       lookahead_point = wp;
@@ -565,7 +564,7 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
 
   // Plotting pure pursuit lookahead point
   visualization_msgs::msg::Marker marker;
-  marker.header.frame_id = "base_footprint"; 
+  marker.header.frame_id = "base_footprint";
   marker.header.stamp = this->get_clock()->now();
   marker.ns = "lookahead";
   marker.id = 0;
@@ -576,35 +575,38 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   marker.pose.position.y = -lookahead_point.position.y;
   marker.pose.position.z = 0.0;
 
-  marker.scale.x = 0.25;  
+  marker.scale.x = 0.25;
   marker.scale.y = 0.25;
   marker.scale.z = 0.25;
 
-  marker.color.a = 1.0;  
+  marker.color.a = 1.0;
   marker.color.r = 1.0;
   marker.color.g = 0.0;
   marker.color.b = 0.0;
 
   pure_pursuit_point_publisher_->publish(marker);
 
+  // Calculate angle to the lookahead point.
   double alpha = atan2(lookahead_point.position.y, lookahead_point.position.x);
 
-  // Steering law for Pure Pursuit controller
+  // Compute steering angle using Pure Pursuit.
   double delta = atan2(2.0 * wheel_base_ * sin(alpha), lookahead_distance);
 
-  // Clamp steering angle to its limits
+  // Limit steering angle within bounds.
   delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
 
-  // If we're at the maximum steering angle, slow down
-  if (abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 || abs(delta) > max_steering_angle) {
+  // Reduce speed if turning sharply or near max steering.
+  if (abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
+      abs(delta) > max_steering_angle) {
     desired_velocity = 1.0;
   }
 
+  // Set target state values.
   utfr_msgs::msg::TargetState target;
   target.speed = desired_velocity;
   target.steering_angle = -delta;
 
-  return target;
+  return target; // Return the target state.
 }
 
 } // namespace controller
