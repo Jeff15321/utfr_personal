@@ -31,6 +31,7 @@ void BuildGraphNode::initParams() {
   landmarkedID_ = -1;
   out_of_frame_ = false;
   cones_found_ = 0;
+  current_pose_id_ = 0;
 
   // Will have to tune these later depending on the accuracy of our sensors
   P2PInformationMatrix_ = Eigen::Matrix3d::Identity();
