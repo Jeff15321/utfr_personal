@@ -95,6 +95,13 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         //not adding if already detected (within error)
         if (displacement <= 0.3){
           adding_to_past=false;
+
+          // Maps the cone detection to the cone id
+          utfr_msgs::msg::Cone detection = newCone;
+          detection.pos.x -= current_state_.pose.pose.position.x;
+          detection.pos.y -= current_state_.pose.pose.position.y;
+          id_to_cone_map_[past_detections_[i].first] = detection;
+
           break;
         }
       }
@@ -102,6 +109,13 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         // adding to id_list_ and past_detections_ if past error for all previously detected cones
         cones_id_list_.push_back(cones_found_);
         past_detections_.emplace_back(cones_found_,newCone);
+
+        // Maps the cone detection to the cone id
+        utfr_msgs::msg::Cone detection = newCone;
+        detection.pos.x -= current_state_.pose.pose.position.x;
+        detection.pos.y -= current_state_.pose.pose.position.y;
+        id_to_cone_map_[cones_found_] = detection;
+
         cones_found_+=1;
       }
     }

@@ -164,6 +164,7 @@ public:
       past_detections_;                      // Previous cone detections
   utfr_msgs::msg::ConeMap current_cone_map_; // Current cone map estimate
   utfr_msgs::msg::EgoState current_state_;   // Current state estimate
+  std::map<int, utfr_msgs::msg::Cone> id_to_cone_map_; // Maps cone detection to id
   bool loop_closed_;                         // True if loop is closed
   bool landmarked_;
   int landmarkedID_;
