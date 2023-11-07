@@ -223,7 +223,7 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     this->create_publisher<PolygonStamped>("Waypoints", 1);
 
   PolygonStamped points_stamped;
-  points_stamped.header.frame_id = "base_footprint";
+  points_stamped.header.frame_id = "map";
   points_stamped.header.stamp = this->get_clock()->now();
 
   for(auto [x,y] : v) {
@@ -307,7 +307,7 @@ std::tuple<double,double,double,double> CenterPathNode::skidpadCircleCentres(){
   auto drawCircle = [this](auto publisher, auto cord, double radius){
     auto [xc, yc] = cord;
     PolygonStamped circle_stamped;
-    circle_stamped.header.frame_id = "base_footprint";
+    circle_stamped.header.frame_id = "map";
     circle_stamped.header.stamp = this->get_clock()->now();
 
     for(int i = 0; i < 360; i++) {
