@@ -4,17 +4,20 @@
 #include "rclcpp/rclcpp.hpp"
 #include "utfr_msgs/msg/heartbeat.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <utfr_common/topics.hpp> 
 
 class LidarProcessingNode : public rclcpp::Node {
 public:
   LidarProcessingNode() : Node("lidar_processing_node") {
     // declare parameters
     this->declare_parameter("topics.input", rclcpp::PARAMETER_STRING);
+    /*
     this->declare_parameter("topics.filtered", rclcpp::PARAMETER_STRING);
     this->declare_parameter("topics.no_ground", rclcpp::PARAMETER_STRING);
     this->declare_parameter("topics.clustered", rclcpp::PARAMETER_STRING);
     this->declare_parameter("topics.detected", rclcpp::PARAMETER_STRING);
     this->declare_parameter("topics.heartbeat", rclcpp::PARAMETER_STRING);
+    */
     this->declare_parameter("view_filter.outer_box.xmin",
                             rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("view_filter.outer_box.xmax",
@@ -60,6 +63,7 @@ public:
 
     // Initialize ROS node, publisher, and subscriber
     std::string input_topic = this->get_parameter("topics.input").as_string();
+    /*
     std::string filtered_topic =
         this->get_parameter("topics.filtered").as_string();
     std::string no_ground_topic =
@@ -70,22 +74,24 @@ public:
         this->get_parameter("topics.detected").as_string();
     std::string heartbeat_topic =
         this->get_parameter("topics.heartbeat").as_string();
+    */
 
     sub = this->create_subscription<sensor_msgs::msg::PointCloud2>(
         input_topic, 10,
         std::bind(&LidarProcessingNode::pointCloudCallback, this,
                   std::placeholders::_1));
     pub_filtered = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-        filtered_topic, 10);
+        topics::kFiltered, 10);
     pub_no_ground = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-        no_ground_topic, 10);
+        topics::kNoGround, 10);
     pub_clustered = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-        clustered_topic, 10);
+        topics::kClustered, 10);
     pub_clustered_center =
-        this->create_publisher<sensor_msgs::msg::PointCloud2>(detected_topic,
-                                                              10);
+        this->create_publisher<sensor_msgs::msg::PointCloud2>(
+          topics::kClustered, 10);
     pub_heartbeat =
-        this->create_publisher<utfr_msgs::msg::Heartbeat>(heartbeat_topic, 10);
+        this->create_publisher<utfr_msgs::msg::Heartbeat>(
+          topics::kLidarHeartbeat, 10);
 
     // Initialize Filter and Clusterer instances
 

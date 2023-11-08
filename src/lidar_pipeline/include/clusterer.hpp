@@ -1,3 +1,17 @@
+/*
+
+██████  ██    ██ ██████  ██   ██
+██   ██ ██    ██      ██ ██   ██
+██   ██ ██    ██  █████  ███████
+██   ██  ██  ██  ██           ██
+██████    ████   ███████      ██
+
+*
+* file: clusterer.hpp
+* auth: Kareem Elsawah
+* desc: clusterer header
+*/
+
 #pragma once
 
 #include "filter.hpp"
@@ -13,6 +27,8 @@
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/sample_consensus/sac_model_plane.h>
 #include <pcl/segmentation/extract_clusters.h>
+
+#include <utfr_common/topics.hpp>
 
 struct RansacParams {
   int maxIterations;

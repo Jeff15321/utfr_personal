@@ -1,3 +1,17 @@
+/*
+
+██████  ██    ██ ██████  ██   ██
+██   ██ ██    ██      ██ ██   ██
+██   ██ ██    ██  █████  ███████
+██   ██  ██  ██  ██           ██
+██████    ████   ███████      ██
+
+*
+* file: cone_filter.hpp
+* auth: Kareem Elsawah
+* desc: cone filter header
+*/
+
 #pragma once
 
 #include "filter.hpp"

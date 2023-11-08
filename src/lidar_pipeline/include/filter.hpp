@@ -1,3 +1,17 @@
+/*
+
+██████  ██    ██ ██████  ██   ██
+██   ██ ██    ██      ██ ██   ██
+██   ██ ██    ██  █████  ███████
+██   ██  ██  ██  ██           ██
+██████    ████   ███████      ██
+
+*
+* file: filter.hpp
+* auth: Kareem Elsawah
+* desc: filter header
+*/
+
 #pragma once
 
 #include <array>
