@@ -44,6 +44,11 @@ void CenterPathNode::initSubscribers() {
       this->create_subscription<utfr_msgs::msg::ConeDetections>(
           topics::kConeDetections, 10,
           std::bind(&CenterPathNode::coneDetectionsCB, this, _1));
+
+  cone_detection_subscriber_ =
+      this->create_subscription<utfr_msgs::msg::ConeDetections>(
+          topics::kConeDetections, 10,
+          std::bind(&CenterPathNode::coneDetectionsCB, this, _1));
 }
 
 void CenterPathNode::initPublishers() {
@@ -57,6 +62,14 @@ void CenterPathNode::initPublishers() {
   accel_path_publisher_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kAccelPath, 10);
+
+  delaunay_path_publisher_ =
+      this->create_publisher<geometry_msgs::msg::PolygonStamped>(
+          topics::kDelaunayWaypoints, 10);
+
+  first_midpoint_path_publisher_ = 
+      this->create_publisher<geometry_msgs::msg::PolygonStamped>(
+          topics::kDelaunayWaypoints, 11);
 }
 
 void CenterPathNode::initTimers() {
@@ -153,8 +166,6 @@ void CenterPathNode::timerCBAccel() {
   center_path_msg.y_params = y;
 
   center_path_publisher_->publish(center_path_msg);
-
-  // CODE GOES HERE
 }
 
 void CenterPathNode::timerCBSkidpad() {
@@ -166,13 +177,89 @@ void CenterPathNode::timerCBSkidpad() {
 void CenterPathNode::timerCBAutocross() {
   const std::string function_name{"center_path_timerCB:"};
 
-  // CODE GOES HERE
+  std::vector<Point> midpoints = Midpoints(cone_detections_);
+  std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>> result = BezierPoints(midpoints);
+  std::vector<Point> bezier_curve = std::get<0>(result);
+  std::vector<double> xoft = std::get<1>(result);
+  std::vector<double> yoft = std::get<2>(result);
+
+  // Bezier Curve Drawing
+  geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
+  geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
+
+  delaunay_midpoints_stamped.header.frame_id = "base_footprint";
+  delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
+  first_midpoint_stamped.header.frame_id = "base_footprint";
+  first_midpoint_stamped.header.stamp = this->get_clock()->now();
+  geometry_msgs::msg::Point32 midpoint_pt32;
+
+  for (int i = 0 ; i < static_cast<int>(bezier_curve.size()); i++) {
+    midpoint_pt32.x = bezier_curve[i].x();
+    midpoint_pt32.y = bezier_curve[i].y() * -1;
+    midpoint_pt32.z = 0.0;
+
+    delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
+  }
+
+  for (int i = static_cast<int>(bezier_curve.size()) - 1 ; i > 0; i--) {
+    midpoint_pt32.x = bezier_curve[i].x();
+    midpoint_pt32.y = bezier_curve[i].y() * -1;
+    midpoint_pt32.z = 0.0;
+
+    delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
+  }
+  
+  delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
+
+  utfr_msgs::msg::ParametricSpline center_path;
+  center_path.header.stamp = this->get_clock()->now();
+  center_path.x_params = xoft;
+  center_path.y_params = yoft;
+  center_path_publisher_->publish(center_path);
 }
 
 void CenterPathNode::timerCBTrackdrive() {
   const std::string function_name{"center_path_timerCB:"};
 
-  // CODE GOES HERE
+  std::vector<Point> midpoints = Midpoints(cone_detections_);
+  std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>> result = BezierPoints(midpoints);
+  std::vector<Point> bezier_curve = std::get<0>(result);
+  std::vector<double> xoft = std::get<1>(result);
+  std::vector<double> yoft = std::get<2>(result);
+
+  // Bezier Curve Drawing
+  geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
+  geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
+
+  delaunay_midpoints_stamped.header.frame_id = "base_footprint";
+  delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
+  first_midpoint_stamped.header.frame_id = "base_footprint";
+  first_midpoint_stamped.header.stamp = this->get_clock()->now();
+  geometry_msgs::msg::Point32 midpoint_pt32;
+
+  for (int i = 0 ; i < static_cast<int>(bezier_curve.size()); i++) {
+    midpoint_pt32.x = bezier_curve[i].x();
+    midpoint_pt32.y = bezier_curve[i].y() * -1;
+    midpoint_pt32.z = 0.0;
+
+    delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
+  }
+
+  for (int i = static_cast<int>(bezier_curve.size()) - 1 ; i > 0; i--) {
+    midpoint_pt32.x = bezier_curve[i].x();
+    midpoint_pt32.y = bezier_curve[i].y() * -1;
+    midpoint_pt32.z = 0.0;
+
+    delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
+  }
+  
+  delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
+
+  utfr_msgs::msg::ParametricSpline center_path;
+  center_path.header.stamp = this->get_clock()->now();
+  center_path.x_params = xoft;
+  center_path.y_params = yoft;
+  center_path_publisher_->publish(center_path);
 }
 
 bool CenterPathNode::coneDistComparitor(const utfr_msgs::msg::Cone &a,
@@ -354,5 +441,133 @@ std::vector<double> CenterPathNode::getAccelPath() {
   accel_path.push_back(final_c);
   return accel_path;
 }
+
+bool MidpointCostFunction(float x1, float y1, float x2, float y2) {
+  float d1_sq = pow(x1, 2) + pow(y1, 2);
+  float d2_sq = pow(x2, 2) + pow(y2, 2);
+  return d1_sq < d2_sq;
+}
+
+std::vector<CGAL::Point_2<CGAL::Epick> > CenterPathNode::Midpoints(utfr_msgs::msg::ConeDetections_<std::allocator<void> >::SharedPtr cone_detections_) {
+  if (!cone_detections_) {
+    return std::vector<Point>();
+  }
+  
+  std::vector< std::pair<Point, unsigned int> > points;
+  
+  for (int i = 0; i < cone_detections_->left_cones.size(); i++) {
+    points.push_back( std::make_pair(Point(cone_detections_->left_cones[i].pos.x, cone_detections_->left_cones[i].pos.y), i ));
+  }
+  for (int i = 0; i < cone_detections_->right_cones.size(); i++) {
+    points.push_back( std::make_pair(Point(cone_detections_->right_cones[i].pos.x, cone_detections_->right_cones[i].pos.y), cone_detections_->left_cones.size() + i ));
+  }
+
+  Delaunay T;
+
+  T.insert(points.begin(), points.end());
+  // vertices located in an array with starting pointer T.finite_vertices.begin()
+
+  bool flag = false;
+
+  std::vector<Point> midpoints;
+
+  midpoints.push_back(Point(0, 0));
+  
+  for (Delaunay::Finite_edges_iterator it = T.finite_edges_begin(); it != T.finite_edges_end(); ++it) {
+    Delaunay::Edge edge=*it;
+
+    Delaunay::Vertex_handle vh1 = edge.first->vertex((edge.second + 1) % 3);  // First vertex of the edge
+    Delaunay::Vertex_handle vh2 = edge.first->vertex((edge.second + 2) % 3);  // Second vertex of the edge
+    
+
+    int index1 = vh1->info();
+    int index2 = vh2->info();
+    if ((index1 < cone_detections_->left_cones.size()) == (index2 < cone_detections_->left_cones.size())) {
+      continue;
+    }
+
+    Point p1 = vh1->point();
+    Point p2 = vh2->point();
+
+    Point midpoint = Point((p1.x() + p2.x()) / 2.0, (p1.y() + p2.y()) / 2.0);
+    midpoints.push_back(midpoint);
+
+    if (!flag) {
+      //  RCLCPP_WARN(this->get_logger(), "Edge pair: (%d, %d)", index1, index2);
+       flag = false;
+    }
+  }
+  
+  if (midpoints.empty()) {
+    RCLCPP_WARN(this->get_logger(), "No midpoints found");
+  }
+  
+  // first sort cones based on distance from car
+  std::sort(midpoints.begin(), midpoints.end(), [] (Point a, Point b) { return MidpointCostFunction(a.x(), a.y(), b.x(), b.y()); });
+  // second sort cones based on angle bewteen them
+  for (int i = 0; i < midpoints.size()-1; i++) {
+    float max_angle = M_PI/4;
+    float dx = abs(midpoints[i].x() - midpoints[i+1].x());
+    float dy = abs(midpoints[i].y() - midpoints[i+1].y());
+    if (atan(dy/dx) > max_angle) {
+      midpoints.erase(midpoints.begin() + (i+1));
+    }
+  }
+  return midpoints;
+}
+
+std::tuple<std::vector<CGAL::Point_2<CGAL::Epick> >, std::vector<double>, std::vector<double>> CenterPathNode::BezierPoints(std::vector<CGAL::Point_2<CGAL::Epick> > midpoints) {  // Creating functions x(t) and y(t) given midpoints
+  std::vector<Point> bezier_points;
+
+  unsigned long maxDegree = 5;
+  int degree = std::min(maxDegree, midpoints.size());
+
+  midpoints.push_back(Point(0,0));
+
+  for (int i = 0; i < maxDegree + 1; i++) {
+    bezier_points.push_back(Point(0,0));
+  }
+
+  for (int i = 1; i <= degree; i++) { //std::min(bezier_points.size(), midpoints.size())
+    bezier_points[i + maxDegree - degree] = midpoints[i-1];
+  }
+
+  // std::vector<Point> a, b, c, d, e, f = bezier_points[0],bezier_points[1],bezier_points[2],bezier_points[3],bezier_points[4],bezier_points[5];
+  Point a = bezier_points[0];
+  Point b = bezier_points[1];
+  Point c = bezier_points[2];
+  Point d = bezier_points[3];
+  Point e = bezier_points[4];
+  Point f = bezier_points[5];
+
+  std::vector<double> xoft, yoft;
+
+  xoft.push_back(-a.x()     + 5*b.x()   -10*c.x()   +10*d.x()   -5*e.x()  +f.x());
+  xoft.push_back(5*a.x()    - 20*b.x()  + 30*c.x()  -20*d.x()   +5*e.x());
+  xoft.push_back(-10*a.x()  + 30*b.x()  - 30*c.x()  + 10*d.x());
+  xoft.push_back(10*a.x()   - 20*b.x()  + 10*c.x());
+  xoft.push_back(-5*a.x()   + 5*b.x());
+  xoft.push_back(a.x());
+
+  yoft.push_back(-a.y()     + 5*b.y()   -10*c.y()   +10*d.y()   -5*e.y()  +f.y());
+  yoft.push_back(5*a.y()    - 20*b.y()  + 30*c.y()  -20*d.y()   +5*e.y());
+  yoft.push_back(-10*a.y()  + 30*b.y()  - 30*c.y()  + 10*d.y());
+  yoft.push_back(10*a.y()   - 20*b.y()  + 10*c.y());
+  yoft.push_back(-5*a.y()   + 5*b.y());
+  yoft.push_back(a.y());
+  
+
+  std::vector<Point> bezier_curve;
+
+  for (double t = 0; t < 1; t = t + 0.1) {
+    double xval = xoft[0]*pow(t, 5) +xoft[1]*pow(t, 4) +xoft[2]*pow(t, 3) +xoft[3]*pow(t, 2) +xoft[4]*t + xoft[5];
+    double yval = yoft[0]*pow(t, 5) +yoft[1]*pow(t, 4) +yoft[2]*pow(t, 3) +yoft[3]*pow(t, 2) +yoft[4]*t + yoft[5];
+    Point temp = Point(xval, yval);
+    // RCLCPP_WARN(this->get_logger(), "bezierpt: %f, %f", xval, yval);
+    bezier_curve.push_back(temp);
+  }
+  return std::make_tuple(bezier_curve, xoft, yoft);
+}
+
 } // namespace center_path
 } // namespace utfr_dv

@@ -12,26 +12,28 @@ center_path_node: # Name of Module
 path_optimization_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    event: 'accel' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    event: 'autocross' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
     skip_path_opt: True #Skip if you don't want to do path optimization
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
+    lookahead_distance: 1.0 # [m]
+    a_lateral: 15.0 # [m/s^2]
 
     ds: 0.01 # [m] discretization step
-    max_velocity: 10.0 # [m/s]
-    num_points: 1000 # number of points to discretize the path
+    max_velocity: 5.0 # [m/s]
+    num_points: 300 # number of points to discretize the path
 
 controller_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    event: 'accel' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
-    controller: 'pure_pursuit' #['pure_pursuit']
+    event: 'autocross' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    controller: 'pure_pursuit' #['stanley', 'pure_pursuit', 'mpc']
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
 
     ds: 0.01 # [m] discretization step
-    max_velocity: 10.0 # [m/s]
-    num_points: 1000 # number of points to discretize the path
+    max_velocity: 5.0 # [m/s]
+    num_points: 100 # number of points to discretize the path
 
     # Stanley Controller Parameters
     discretized_points: 5000
@@ -42,4 +44,5 @@ controller_node: # Name of Module
     max_steering_angle: 0.34
 
     # Pure Pursuit Controller Parameters
-    lookahead_distance: 1.0 # [m]
+    base_lookahead_distance: 1.5 # [m]
+    lookahead_scaling_factor: 0.5 # [m]
