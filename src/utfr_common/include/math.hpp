@@ -23,6 +23,7 @@ using Eigen::MatrixXd;
 
 // Message Requirements
 #include <geometry_msgs/msg/point.hpp>
+#include <geometry_msgs/msg/quaternion.hpp>
 #include <geometry_msgs/msg/vector3.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
@@ -195,6 +196,28 @@ accelLLSOccupancy(const std::vector<utfr_msgs::msg::Cone> &cones);
  */
 std::tuple<double, double, double, double>
 ransacCircleLSF(const std::vector<utfr_msgs::msg::Cone> &cones, double radius);
+
+/*! Yaw to Quaternion
+ *
+ * @param[in] yaw double of yaw in radians
+ * @returns geometry_msgs::msg::Quaternion of yaw
+ */
+geometry_msgs::msg::Quaternion yawToQuaternion(double yaw);
+
+/*! Quaternion to Yaw
+ *
+ * @param[in] q geometry_msgs::msg::Quaternion of yaw
+ * @returns double of yaw in radians
+ */
+double quaternionToYaw(const geometry_msgs::msg::Quaternion &q);
+
+bool isLargeOrangeCone(const uint coneID);
+
+/*! Determine if a cone is a large orange cone or not
+ *
+ * @param[in] coneID ID of cone
+ * @returns bool true if cone is large orange cone, false if not
+ */
 
 } // namespace util
 } // namespace utfr_dv

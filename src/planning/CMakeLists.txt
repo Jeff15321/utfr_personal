@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
 project(planning)
 
+# Set default build type to Release
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -20,6 +25,10 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     nav_msgs
     geometry_msgs
     utfr_common
+    CGAL
+    Boost
+    eufs_msgs
+    visualization_msgs
 )
 
 ## Find Dependencies
@@ -30,7 +39,7 @@ endforeach()
 ## Export Dependencies for downstream packages
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
-## Add Libaries and Executables
+## Add Libraries and Executables
 function(add_node NODE_NAME)
   add_library(${NODE_NAME}_library
     src/${NODE_NAME}_node.cpp
@@ -42,7 +51,7 @@ function(add_node NODE_NAME)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
-  add_executable(${NODE_NAME} src/${NODE_NAME}_node.cpp)
+  add_executable(${NODE_NAME} src/${NODE_NAME}.cpp)
   target_link_libraries(${NODE_NAME} ${NODE_NAME}_library)
   ament_target_dependencies(${NODE_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})
   target_include_directories(${NODE_NAME}
@@ -101,7 +110,9 @@ if(BUILD_TESTING)
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
-
+  target_sources(center_path_test PRIVATE src/center_path_node.cpp)
+  install(TARGETS center_path_test DESTINATION test/${PROJECT_NAME})
+  
   ament_add_gtest(controller_test
     test/controller_test.cpp
   )
@@ -110,6 +121,8 @@ if(BUILD_TESTING)
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
+  target_sources(controller_test PRIVATE src/controller_node.cpp)
+  install(TARGETS controller_test DESTINATION test/${PROJECT_NAME})
 
   ament_add_gtest(path_optimization_test
     test/path_optimization_test.cpp
@@ -119,6 +132,9 @@ if(BUILD_TESTING)
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
+  target_sources(path_optimization_test PRIVATE src/path_optimization_node.cpp)
+  install(TARGETS path_optimization_test DESTINATION test/${PROJECT_NAME})
+  
 endif()
 
 ament_package()

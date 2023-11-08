@@ -35,6 +35,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TargetState.msg"
   "msg/TrajectoryPath.msg"
   "msg/TrajectoryPoint.msg"
+  "msg/VelocityProfile.msg"
   "msg/WaypointPath.msg"
   DEPENDENCIES builtin_interfaces std_msgs geometry_msgs nav_msgs sensor_msgs
 )
