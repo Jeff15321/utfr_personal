@@ -1,5 +1,6 @@
 #include "../include/clusterer.hpp"
 #include "../include/filter.hpp"
+#include "../include/cone_filter.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "utfr_msgs/msg/heartbeat.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>

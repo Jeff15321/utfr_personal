@@ -1,4 +1,4 @@
-#include "cone_filter.h"
+#include "cone_filter.hpp"
 
 ConeFilter::ConeFilter(ConeFilterParams params) {
   this->height = params.cone_height;
