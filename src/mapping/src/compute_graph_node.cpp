@@ -13,6 +13,10 @@
 */
 
 #include <compute_graph_node.hpp>
+#include "g2o/core/factory.h"
+#include "g2o/core/optimization_algorithm_factory.h"
+#include "g2o/core/sparse_optimizer.h"
+#include "g2o/stuff/command_args.h"
 
 namespace utfr_dv {
 namespace compute_graph {
@@ -50,8 +54,7 @@ void ComputeGraphNode::initTimers() {
 }
 
 void ComputeGraphNode::initHeartbeat() {
-  heartbeat_publisher_ = 
-    this->create_publisher<utfr_msgs::msg::Heartbeat>(
+  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kMappingComputeHeartbeat, 10);
 }
 
@@ -61,10 +64,3 @@ void ComputeGraphNode::graphSLAM() {}
 
 } // namespace compute_graph
 } // namespace utfr_dv
-
-int main(int argc, char **argv) {
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<utfr_dv::compute_graph::ComputeGraphNode>());
-  rclcpp::shutdown();
-  return 0;
-}

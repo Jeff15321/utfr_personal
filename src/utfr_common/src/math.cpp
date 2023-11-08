@@ -203,9 +203,9 @@ accelLLS(const std::vector<utfr_msgs::msg::Cone> &cones) {
   MatrixXd A(n, 2);
   MatrixXd b(n, 1);
   for (int i = 0; i < n; i++) {
-    A(i, 0) = cones[i].pos.y;
+    A(i, 0) = cones[i].pos.x;
     A(i, 1) = 1;
-    b(i, 0) = cones[i].pos.x;
+    b(i, 0) = cones[i].pos.y;
   }
   MatrixXd At = A.transpose();
   MatrixXd res = (At * A).inverse() * (At * b);
@@ -388,6 +388,24 @@ ransacCircleLSF(const std::vector<utfr_msgs::msg::Cone> &cones, double radius) {
   circle = std::make_tuple(xc, yc, radius, radiusf);
   return circle;
 }
+
+geometry_msgs::msg::Quaternion yawToQuaternion(double yaw) {
+  geometry_msgs::msg::Quaternion q;
+  q.w = cos(yaw * 0.5);
+  q.x = 0;
+  q.y = 0;
+  q.z = sin(yaw * 0.5);
+  return q;
+}
+
+double quaternionToYaw(const geometry_msgs::msg::Quaternion &q) {
+  double yaw;
+  yaw =
+      atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z));
+  return yaw;
+}
+
+bool isLargeOrangeCone(const uint coneID) { return coneID == 4; }
 
 } // namespace util
 } // namespace utfr_dv

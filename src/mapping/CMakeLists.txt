@@ -30,6 +30,14 @@ endforeach()
 ## Export Dependencies for downstream packages
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
+## Setup G2O
+set(SETUP "${CMAKE_CURRENT_SOURCE_DIR}/external/g2o_config.sh")
+execute_process(
+    COMMAND sh ${SETUP}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/external
+)
+link_directories(${CMAKE_SOURCE_DIR}/external/g2o/lib)
+
 ## Add Libaries and Executables
 function(add_node NODE_NAME)
   add_library(${NODE_NAME}_library
@@ -42,8 +50,15 @@ function(add_node NODE_NAME)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
-  add_executable(${NODE_NAME} src/${NODE_NAME}_node.cpp)
-  # target_link_libraries(${NODE_NAME} ${NODE_NAME}_library ${CMAKE_SOURCE_DIR}/external/g2o/build/lib/libg2o_core.so)
+  set(G2O_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/g2o")
+  target_include_directories(${NODE_NAME}_library PUBLIC /usr/include/eigen3/)
+  target_include_directories(${NODE_NAME}_library PUBLIC ${G2O_INCLUDE_DIR})
+  
+  add_executable(${NODE_NAME} src/${NODE_NAME}.cpp)
+  target_link_libraries(${NODE_NAME}_library fmt::fmt)
+  target_link_libraries(${NODE_NAME}_library g2o_core g2o_stuff g2o_types_data g2o_types_slam2d)
+
+  
   target_link_libraries(${NODE_NAME} ${NODE_NAME}_library)
   ament_target_dependencies(${NODE_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})
   target_include_directories(${NODE_NAME}
@@ -86,5 +101,33 @@ install(
 ## Testing ##
 #############
 # Add your testing code here...
+find_package(ament_cmake_gtest REQUIRED)
+
+## Define Test Executables
+ament_add_gtest(mapping_test
+  test/mapping_test.cpp
+)
+ament_target_dependencies(mapping_test ${THIS_PACKAGE_INCLUDE_DEPENDS})
+
+## Find Headers for Testing files
+target_include_directories(mapping_test
+PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+set(G2O_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/g2o")
+target_include_directories(mapping_test PUBLIC /usr/include/eigen3/)
+target_include_directories(mapping_test PUBLIC ${G2O_INCLUDE_DIR})
+
+## Link required files for testing:
+target_link_libraries(mapping_test fmt::fmt)
+target_link_libraries(mapping_test g2o_core g2o_stuff g2o_types_data g2o_types_slam2d)
+target_sources(mapping_test PRIVATE src/build_graph_node.cpp)
+target_sources(mapping_test PRIVATE src/compute_graph_node.cpp)
+target_sources(mapping_test PRIVATE src/ekf_node.cpp)
+
+## Install testing files
+install(TARGETS mapping_test
+    DESTINATION test/${PROJECT_NAME})
 
 ament_package()
