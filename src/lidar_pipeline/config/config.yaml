@@ -1,0 +1,36 @@
+lidar_pipeline_node:
+  ros__parameters:
+    topics:
+      input: "/velodyne_points"
+      filtered: "/lidar_pipeline/filtered"
+      no_ground: "/lidar_pipeline/no_ground"
+      clustered: "/lidar_pipeline/clustered"
+      detected: "/lidar_pipeline/detected"
+      heartbeat: "/lidar_pipeline/heartbeat"
+    view_filter:
+      outer_box:
+        xmin: 0.0
+        xmax: 20.0
+        ymin: -8.0
+        ymax: 8.0
+      inner_box:
+        xmin: -1.0
+        xmax: 1.0
+        ymin: -1.0
+        ymax: 1.0
+      grid_size_x: 40
+      grid_size_y: 40
+    ground_ransac:
+      max_iterations: 100
+      distance_threshold: 0.15
+    clustering:
+      cluster_tolerance: 1.5
+      min_cluster_size: 2
+      max_cluster_size: 1000
+      reconstruct_radius: 0.35
+    cone_filter:
+      cone_height: 0.41
+      cone_radius: 0.155
+      inlier_mse_threshold: 0.1
+      ransac_max_iters: 100
+      min_inlier_ratio: 0.9

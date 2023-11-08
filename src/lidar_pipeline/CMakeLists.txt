@@ -15,20 +15,21 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(utfr_msgs REQUIRED)
 find_package(PCL REQUIRED)
 
 
 include_directories(include)
 
 # Create a library for the clusterer and filter
-add_library(lidar_pipeline SHARED src/clusterer.cpp src/filter.cpp)
+add_library(lidar_pipeline SHARED src/clusterer.cpp src/filter.cpp src/cone_filter.cpp)
 target_link_libraries(lidar_pipeline  ${PCL_LIBRARIES})
-ament_target_dependencies(lidar_pipeline rclcpp std_msgs geometry_msgs sensor_msgs PCL)
+ament_target_dependencies(lidar_pipeline rclcpp std_msgs geometry_msgs sensor_msgs utfr_msgs PCL)
 
 # Create executable for the lidar node and link against the lidar_pipeline library
 add_executable(lidar_node src/lidar_node.cpp)
 target_link_libraries(lidar_node lidar_pipeline)
-ament_target_dependencies(lidar_node rclcpp std_msgs geometry_msgs sensor_msgs PCL)
+ament_target_dependencies(lidar_node rclcpp std_msgs geometry_msgs sensor_msgs utfr_msgs PCL)
 
 install(TARGETS
   lidar_node
@@ -46,6 +47,9 @@ install(DIRECTORY
 install (
     DIRECTORY launch
     DESTINATION share/${PROJECT_NAME})
+install (
+  DIRECTORY config
+  DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

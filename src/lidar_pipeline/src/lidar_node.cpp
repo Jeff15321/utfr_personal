@@ -1,40 +1,162 @@
 #include "../include/clusterer.hpp"
 #include "../include/filter.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "utfr_msgs/msg/heartbeat.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
 class LidarProcessingNode : public rclcpp::Node {
 public:
   LidarProcessingNode() : Node("lidar_processing_node") {
+    // declare parameters
+    this->declare_parameter("topics.input", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("topics.filtered", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("topics.no_ground", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("topics.clustered", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("topics.detected", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("topics.heartbeat", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("view_filter.outer_box.xmin",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("view_filter.outer_box.xmax",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("view_filter.outer_box.ymin",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("view_filter.outer_box.ymax",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("view_filter.inner_box.xmin",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("view_filter.inner_box.xmax",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("view_filter.inner_box.ymin",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("view_filter.inner_box.ymax",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("view_filter.grid_size_x",
+                            rclcpp::PARAMETER_INTEGER);
+    this->declare_parameter("view_filter.grid_size_y",
+                            rclcpp::PARAMETER_INTEGER);
+    this->declare_parameter("ground_ransac.max_iterations",
+                            rclcpp::PARAMETER_INTEGER);
+    this->declare_parameter("ground_ransac.distance_threshold",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("clustering.cluster_tolerance",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("clustering.min_cluster_size",
+                            rclcpp::PARAMETER_INTEGER);
+    this->declare_parameter("clustering.max_cluster_size",
+                            rclcpp::PARAMETER_INTEGER);
+    this->declare_parameter("clustering.reconstruct_radius",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("cone_filter.cone_radius",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("cone_filter.cone_height",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("cone_filter.inlier_mse_threshold",
+                            rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("cone_filter.ransac_max_iters",
+                            rclcpp::PARAMETER_INTEGER);
+    this->declare_parameter("cone_filter.min_inlier_ratio",
+                            rclcpp::PARAMETER_DOUBLE);
+
     // Initialize ROS node, publisher, and subscriber
+    std::string input_topic = this->get_parameter("topics.input").as_string();
+    std::string filtered_topic =
+        this->get_parameter("topics.filtered").as_string();
+    std::string no_ground_topic =
+        this->get_parameter("topics.no_ground").as_string();
+    std::string clustered_topic =
+        this->get_parameter("topics.clustered").as_string();
+    std::string detected_topic =
+        this->get_parameter("topics.detected").as_string();
+    std::string heartbeat_topic =
+        this->get_parameter("topics.heartbeat").as_string();
+
     sub = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-        "/velodyne_points", 10,
+        input_topic, 10,
         std::bind(&LidarProcessingNode::pointCloudCallback, this,
                   std::placeholders::_1));
-
     pub_filtered = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-        "/lidar_pipeline/filtered_point_cloud", 10);
+        filtered_topic, 10);
     pub_no_ground = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-        "/lidar_pipeline/no_ground_point_cloud", 10);
+        no_ground_topic, 10);
     pub_clustered = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-        "/lidar_pipeline/clustered_point_cloud", 10);
+        clustered_topic, 10);
     pub_clustered_center =
-        this->create_publisher<sensor_msgs::msg::PointCloud2>(
-            "/lidar_pipeline/clustered_center_point_cloud", 10);
+        this->create_publisher<sensor_msgs::msg::PointCloud2>(detected_topic,
+                                                              10);
+    pub_heartbeat =
+        this->create_publisher<utfr_msgs::msg::Heartbeat>(heartbeat_topic, 10);
 
     // Initialize Filter and Clusterer instances
-    ViewBounds bounds = {{0, 50, -5, 5}, {-1, 1, -2, 2}};
-    int grid_size_x = 200;
-    int grid_size_y = 200;
+
+    float outer_xmin =
+        this->get_parameter("view_filter.outer_box.xmin").as_double();
+    float outer_xmax =
+        this->get_parameter("view_filter.outer_box.xmax").as_double();
+    float outer_ymin =
+        this->get_parameter("view_filter.outer_box.ymin").as_double();
+    float outer_ymax =
+        this->get_parameter("view_filter.outer_box.ymax").as_double();
+    float inner_xmin =
+        this->get_parameter("view_filter.inner_box.xmin").as_double();
+    float inner_xmax =
+        this->get_parameter("view_filter.inner_box.xmax").as_double();
+    float inner_ymin =
+        this->get_parameter("view_filter.inner_box.ymin").as_double();
+    float inner_ymax =
+        this->get_parameter("view_filter.inner_box.ymax").as_double();
+    ViewBounds bounds = {{outer_xmin, outer_xmax, outer_ymin, outer_ymax},
+                         {inner_xmin, inner_xmax, inner_ymin, inner_ymax}};
+
+    int grid_size_x = this->get_parameter("view_filter.grid_size_x").as_int();
+    int grid_size_y = this->get_parameter("view_filter.grid_size_y").as_int();
     filter = Filter(bounds, grid_size_x, grid_size_y);
 
-    RansacParams ransac_params = {100, 0.2};
-    ClusterParams cluster_params = {0.5, 5, 1000};
-    float reconstruct_radius = 0.5;
+    int groundRansacMaxIterations =
+        this->get_parameter("ground_ransac.max_iterations").as_int();
+    float groundRansacDistanceThreshold =
+        this->get_parameter("ground_ransac.distance_threshold").as_double();
+    RansacParams ransac_params = {groundRansacMaxIterations,
+                                  groundRansacDistanceThreshold};
+
+    float cluster_tolerace =
+        this->get_parameter("clustering.cluster_tolerance").as_double();
+    int min_cluster_size =
+        this->get_parameter("clustering.min_cluster_size").as_int();
+    int max_cluster_size =
+        this->get_parameter("clustering.max_cluster_size").as_int();
+    float reconstruct_radius =
+        this->get_parameter("clustering.reconstruct_radius").as_double();
+
+    ClusterParams cluster_params = {cluster_tolerace, min_cluster_size,
+                                    max_cluster_size};
     clusterer = Clusterer(ransac_params, cluster_params, reconstruct_radius);
+
+    float cone_height =
+        this->get_parameter("cone_filter.cone_height").as_double();
+    float cone_radius =
+        this->get_parameter("cone_filter.cone_radius").as_double();
+    float inlier_mse_threshold =
+        this->get_parameter("cone_filter.inlier_mse_threshold").as_double();
+    int ransac_max_iters =
+        this->get_parameter("cone_filter.ransac_max_iters").as_int();
+    float min_inlier_ratio =
+        this->get_parameter("cone_filter.min_inlier_ratio").as_double();
+    ConeFilterParams cone_filter_params = {cone_height, cone_radius,
+                                           inlier_mse_threshold,
+                                           ransac_max_iters, min_inlier_ratio};
+
+    cone_filter = ConeFilter(cone_filter_params);
+
+    std_msgs::msg::String module_name;
+    module_name.data = "lidar_pipeline";
+    heartbeat.module = module_name;
+    heartbeat.update_rate = 10;
+    heartbeat.status = utfr_msgs::msg::Heartbeat::READY;
+    publishHeartbeat();
   }
 
-  void pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr input) {
+  void
+  pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr input) {
     PointCloud custom_cloud = convertToCustomPointCloud(input);
 
     // Filtering
@@ -54,26 +176,23 @@ public:
     publishPointCloud(no_ground_cloud, pub_no_ground);
 
     // Publishing each reconstructed cluster in a loop
-    for (const auto &cluster : reconstructed_clusters) {
-      publishPointCloud(cluster, pub_clustered);
+
+    PointCloud combined_clusters;
+    for (int i = 0; i < reconstructed_clusters.size(); i++) {
+      for (int j = 0; j < reconstructed_clusters[i].size(); j++) {
+        combined_clusters.push_back(reconstructed_clusters[i][j]);
+      }
     }
+    publishPointCloud(combined_clusters, pub_clustered);
 
     // Gather the cluster centers into a single point cloud
-    PointCloud cluster_centers;
-    for (const auto &cluster : reconstructed_clusters) {
-      // Computer mean of the cluster
-      Point mean = {0, 0, 0};
-      for (const auto &point : cluster) {
-        mean[0] += point[0];
-        mean[1] += point[1];
-        mean[2] += point[2];
-      }
-      mean[0] /= cluster.size();
-      mean[1] /= cluster.size();
-      mean[2] /= cluster.size();
-      cluster_centers.push_back(mean);
+    PointCloud cluster_centers =
+        cone_filter.filter_clusters(reconstructed_clusters);
+    if (cluster_centers.size() > 0) {
+      publishPointCloud(cluster_centers, pub_clustered_center);
     }
-    publishPointCloud(cluster_centers, pub_clustered_center);
+    heartbeat.status = utfr_msgs::msg::Heartbeat::ACTIVE;
+    publishHeartbeat();
   }
 
   sensor_msgs::msg::PointCloud2
@@ -120,12 +239,15 @@ public:
     return cloud;
   }
 
-  void publishPointCloud(const PointCloud &cloud,
-                         const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub) {
+  void publishPointCloud(
+      const PointCloud &cloud,
+      const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub) {
     sensor_msgs::msg::PointCloud2 output =
         convertToPointCloud2(cloud, "velodyne");
     pub->publish(output);
   }
+
+  void publishHeartbeat() { pub_heartbeat->publish(heartbeat); }
 
   PointCloud convertToCustomPointCloud(
       const sensor_msgs::msg::PointCloud2::SharedPtr &input) {
@@ -160,8 +282,11 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_clustered;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr
       pub_clustered_center;
+  rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr pub_heartbeat;
   Filter filter;
   Clusterer clusterer;
+  ConeFilter cone_filter;
+  utfr_msgs::msg::Heartbeat heartbeat;
 };
 
 int main(int argc, char **argv) {
