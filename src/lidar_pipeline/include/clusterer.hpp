@@ -1,6 +1,6 @@
 #pragma once
 
-#include "filter.h"
+#include "filter.hpp"
 #include <algorithm>
 #include <cmath>
 #include <limits>

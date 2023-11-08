@@ -1,4 +1,4 @@
-#include "../include/filter.h"
+#include "../include/filter.hpp"
 
 std::tuple<PointCloud, Grid> Filter::view_filter(PointCloud points) {
   PointCloud filtered_points;

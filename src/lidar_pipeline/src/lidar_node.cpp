@@ -1,5 +1,5 @@
-#include "../include/clusterer.h"
-#include "../include/filter.h"
+#include "../include/clusterer.hpp"
+#include "../include/filter.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
