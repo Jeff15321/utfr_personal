@@ -121,14 +121,13 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
     }
     return cones_id_list_;  }
 
-void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
 
+void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
   // Loop hasn't been completed yet
-  if (loop_closed_ == false) {
+  if (!loop_closed_) {
     // Go through cone list
     for (int coneID : cones) {
       // No landmark cone yet
-
       // We gotta fix this later when Mark finishes his thing.
       // IDK why I chose past_detections_ to be a vector of pairs
       // but it should probably be a map :(
@@ -137,6 +136,8 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           // Set first large orange cone listed to be landmark cone
           landmarkedID_ = coneID;
           landmarked_ = true;
+          current_pose_id_ = coneID;
+          id_to_cone_map_[coneID] = cone.second;
         }
       }
 
@@ -161,7 +162,12 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
         // If cone in frame again
         if (seen_status != cones.end()) {
           // Car has returned back to landmark cone position, made full loop
+          double dx = cone.second.pos.x - id_to_cone_map_[current_pos_id_].pos.x;
+          double dy = cone.second.pos.y - id_to_cone_map_[current_pos_id_].pos.y;
+          double dtheta = current_state_.pose.pose.orientation.z;
           loop_closed_ = true;
+          g2o::EdgeSE2* BuildGraphNode::addPoseToPoseEdge(g2o::VertexSE2* current_pose_id_, g2o::VertexSE2*
+          			    	  		  landmarkedID_, dx, dy, dtheta, loop_closed_);
         }
       }
     }
