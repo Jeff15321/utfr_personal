@@ -27,6 +27,7 @@
 
 // Message Requirements
 #include <nav_msgs/msg/occupancy_grid.hpp>
+#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
@@ -48,10 +49,8 @@
 #endif
 #include <CGAL/Delaunay_triangulation_2.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-
-typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-typedef CGAL::Delaunay_triangulation_2<K> Delaunay;
-typedef K::Point_2 Point;
+#include <CGAL/Triangulation_vertex_base_with_info_2.h>
+// #include <CGAL/draw_triangulation_2.h>
 
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
@@ -64,6 +63,15 @@ public:
   /*! Constructor, calls loadParams, initPublishers and initTimers.
    */
   CenterPathNode();
+  typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+  // typedef CGAL::Delaunay_triangulation_2<K> Delaunay;
+  typedef K::Point_2 Point;
+  
+
+  typedef CGAL::Triangulation_vertex_base_with_info_2<unsigned int, K>   Vb;
+  typedef CGAL::Triangulation_data_structure_2<Vb>                       Tds;
+  typedef CGAL::Delaunay_triangulation_2<K, Tds>                    Delaunay;
+  typedef Delaunay::Vertex_handle Vertex_handle;
 
 private:
   /*! Initialize and load params from config.yaml:
@@ -129,9 +137,14 @@ private:
    */
   std::vector<double> getAccelPath();
 
-  /*! Delaunay Triangulation:
+  /*! Midpoints using Delaunay Triangulation:
    */
-  void delaunayTriangulation();
+  std::vector<CGAL::Point_2<CGAL::Epick> > Midpoints(utfr_msgs::msg::ConeDetections_<std::allocator<void> >::SharedPtr cone_detections_);
+
+  /*! Bezier Points:
+   */
+  std::tuple<std::vector<CGAL::Point_2<CGAL::Epick> >, std::vector<double>, std::vector<double>> BezierPoints(std::vector<CGAL::Point_2<CGAL::Epick> > midpoints);
+
 
   /*! Initialize global variables:
    */
@@ -153,6 +166,10 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       accel_path_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      delaunay_path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      first_midpoint_path_publisher_;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
 
