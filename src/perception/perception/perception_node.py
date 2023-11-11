@@ -594,7 +594,6 @@ class PerceptionNode(Node):
         except TransformException as ex:
             self.get_logger().info(f"{ex}")
             return
-
         # get the detections
 
         results_left, results_right, cone_detections = self.process(
@@ -605,8 +604,14 @@ class PerceptionNode(Node):
         # Syntax: self.tf_leftcam_lidar.transform.translation.y
         #        self.tf_leftcam_lidar.transform.rotation.x, y, z, w (quaternion)
         # or just use doTransform function
-
         # Also, need to rework process function, update with current architecture
+        # need to refactor this: make cone detections separately
+        # use the results_left, results_right to get depth measurements
+        # get 3d estimates
+        # transpose to lidar coordinates
+        # make some logic for the clusters that are received from lidar node
+        # update the cone detections array with new lidar sstuff
+
 
         # self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
 
@@ -630,8 +635,6 @@ class PerceptionNode(Node):
             bounding_box_right.width = int(results_right[i][2])
             bounding_box_right.height = int(results_right[i][3])
             self.perception_debug_msg.right.append(bounding_box_right)
-
-        self.perception_debug_msg.header.stamp = self.get_clock().now().to_msg()
 
         self.perception_debug_publisher_.publish(self.perception_debug_msg)
 
@@ -665,6 +668,8 @@ class PerceptionNode(Node):
                 self.detections_msg.small_orange_cones.append(self.cone_template)
             elif self.cone_template.type == 4:
                 self.detections_msg.large_orange_cones.append(self.cone_template)
+            else:  # unknown cones cone template type == 0
+                self.detections_msg.unknown_cones.append(self.cone_template)
 
         self.detections_msg.header.stamp = self.get_clock().now().to_msg()
 
