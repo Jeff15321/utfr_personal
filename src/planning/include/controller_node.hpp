@@ -98,6 +98,10 @@ private:
    */
   void velocityProfileCB(const utfr_msgs::msg::VelocityProfile &msg);
 
+  /*! Lap counter callback:
+   */
+  void lapCounterCB(const utfr_msgs::msg::Heartbeat &msg);
+
   /*! Accel Timer Callback:
    */
   void timerCBAccel();
@@ -152,6 +156,11 @@ private:
   int num_points_;
   double base_lookahead_distance_;
   double lookahead_distance_scaling_factor_;
+  int lap_count_;
+  bool finished_event_ = false;
+  rclcpp::Time start_time_;
+  bool start_finish_time = true;
+  int last_lap_count_;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
@@ -165,6 +174,8 @@ private:
       path_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::VelocityProfile>::SharedPtr
       velocity_profile_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr
+      lap_counter_subscriber_;
 
   rclcpp::Publisher<utfr_msgs::msg::TargetState>::SharedPtr
       target_state_publisher_;

@@ -23,6 +23,7 @@ CenterPathNode::CenterPathNode() : Node("center_path_node") {
   this->initPublishers();
   this->initTimers();
   this->initHeartbeat();
+  this->initSector();
 }
 
 void CenterPathNode::initParams() {
@@ -67,7 +68,7 @@ void CenterPathNode::initPublishers() {
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kDelaunayWaypoints, 10);
 
-  first_midpoint_path_publisher_ = 
+  first_midpoint_path_publisher_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kDelaunayWaypoints, 11);
 }
@@ -92,6 +93,21 @@ void CenterPathNode::initTimers() {
   }
 }
 
+void CenterPathNode::initSector() {
+  if (event_ == "accel") {
+    curr_sector_ = 1;
+  } else if (event_ == "skidpad") {
+    curr_sector_ = 10;
+  } else if (event_ == "autocross") {
+    curr_sector_ = 20;
+  } else if (event_ == "trackdrive") {
+    curr_sector_ = 30;
+  }
+  last_time = this->get_clock()->now();
+  lock_sector_ = true;
+  found_4_large_orange = false;
+}
+
 void CenterPathNode::initHeartbeat() {
   heartbeat_.module.data = "center_path_node";
   heartbeat_.update_rate = update_rate_;
@@ -100,6 +116,7 @@ void CenterPathNode::initHeartbeat() {
 void CenterPathNode::publishHeartbeat(const int status) {
   heartbeat_.status = status;
   heartbeat_.header.stamp = this->get_clock()->now();
+  heartbeat_.lap_count = curr_sector_;
   heartbeat_publisher_->publish(heartbeat_);
 }
 
@@ -152,6 +169,12 @@ void CenterPathNode::coneDetectionsCB(
 void CenterPathNode::timerCBAccel() {
   const std::string function_name{"center_path_timerCB:"};
 
+  if (!cone_detections_) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                "Data not published or initialized yet. Using defaults.");
+    return;
+  }
+
   std::vector<double> accel_path = getAccelPath();
 
   utfr_msgs::msg::ParametricSpline center_path_msg;
@@ -166,10 +189,34 @@ void CenterPathNode::timerCBAccel() {
   center_path_msg.y_params = y;
 
   center_path_publisher_->publish(center_path_msg);
+
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+
+  int left_size = cone_detections_->left_cones.size();
+  int right_size = cone_detections_->right_cones.size();
+  int large_orange_size = cone_detections_->large_orange_cones.size();
+
+  if (!accel_sector_increase && left_size == 0 && right_size == 0 &&
+      large_orange_size == 0) {
+    accel_sector_increase = true;
+    curr_sector_ += 1;
+  }
 }
 
 void CenterPathNode::timerCBSkidpad() {
   const std::string function_name{"center_path_timerCB:"};
+
+  if (!cone_detections_) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                "Data not published or initialized yet. Using defaults.");
+    return;
+  }
+
+  skidpadLapCounter();
+
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+
+  RCLCPP_WARN(this->get_logger(), "Skidpad lap count: %d", curr_sector_);
 
   // CODE GOES HERE
 }
@@ -177,8 +224,15 @@ void CenterPathNode::timerCBSkidpad() {
 void CenterPathNode::timerCBAutocross() {
   const std::string function_name{"center_path_timerCB:"};
 
+  if (!cone_detections_) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                "Data not published or initialized yet. Using defaults.");
+    return;
+  }
+
   std::vector<Point> midpoints = Midpoints(cone_detections_);
-  std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>> result = BezierPoints(midpoints);
+  std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>>
+      result = BezierPoints(midpoints);
   std::vector<Point> bezier_curve = std::get<0>(result);
   std::vector<double> xoft = std::get<1>(result);
   std::vector<double> yoft = std::get<2>(result);
@@ -193,7 +247,7 @@ void CenterPathNode::timerCBAutocross() {
   first_midpoint_stamped.header.stamp = this->get_clock()->now();
   geometry_msgs::msg::Point32 midpoint_pt32;
 
-  for (int i = 0 ; i < static_cast<int>(bezier_curve.size()); i++) {
+  for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
     midpoint_pt32.x = bezier_curve[i].x();
     midpoint_pt32.y = bezier_curve[i].y() * -1;
     midpoint_pt32.z = 0.0;
@@ -201,14 +255,14 @@ void CenterPathNode::timerCBAutocross() {
     delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
   }
 
-  for (int i = static_cast<int>(bezier_curve.size()) - 1 ; i > 0; i--) {
+  for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
     midpoint_pt32.x = bezier_curve[i].x();
     midpoint_pt32.y = bezier_curve[i].y() * -1;
     midpoint_pt32.z = 0.0;
 
     delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
   }
-  
+
   delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
 
   utfr_msgs::msg::ParametricSpline center_path;
@@ -216,13 +270,24 @@ void CenterPathNode::timerCBAutocross() {
   center_path.x_params = xoft;
   center_path.y_params = yoft;
   center_path_publisher_->publish(center_path);
+
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+
+  trackdriveLapCounter();
 }
 
 void CenterPathNode::timerCBTrackdrive() {
   const std::string function_name{"center_path_timerCB:"};
 
+  if (!cone_detections_) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                "Data not published or initialized yet. Using defaults.");
+    return;
+  }
+
   std::vector<Point> midpoints = Midpoints(cone_detections_);
-  std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>> result = BezierPoints(midpoints);
+  std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>>
+      result = BezierPoints(midpoints);
   std::vector<Point> bezier_curve = std::get<0>(result);
   std::vector<double> xoft = std::get<1>(result);
   std::vector<double> yoft = std::get<2>(result);
@@ -237,7 +302,7 @@ void CenterPathNode::timerCBTrackdrive() {
   first_midpoint_stamped.header.stamp = this->get_clock()->now();
   geometry_msgs::msg::Point32 midpoint_pt32;
 
-  for (int i = 0 ; i < static_cast<int>(bezier_curve.size()); i++) {
+  for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
     midpoint_pt32.x = bezier_curve[i].x();
     midpoint_pt32.y = bezier_curve[i].y() * -1;
     midpoint_pt32.z = 0.0;
@@ -245,14 +310,14 @@ void CenterPathNode::timerCBTrackdrive() {
     delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
   }
 
-  for (int i = static_cast<int>(bezier_curve.size()) - 1 ; i > 0; i--) {
+  for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
     midpoint_pt32.x = bezier_curve[i].x();
     midpoint_pt32.y = bezier_curve[i].y() * -1;
     midpoint_pt32.z = 0.0;
 
     delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
   }
-  
+
   delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
 
   utfr_msgs::msg::ParametricSpline center_path;
@@ -260,6 +325,10 @@ void CenterPathNode::timerCBTrackdrive() {
   center_path.x_params = xoft;
   center_path.y_params = yoft;
   center_path_publisher_->publish(center_path);
+
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+
+  trackdriveLapCounter();
 }
 
 bool CenterPathNode::coneDistComparitor(const utfr_msgs::msg::Cone &a,
@@ -448,41 +517,53 @@ bool MidpointCostFunction(float x1, float y1, float x2, float y2) {
   return d1_sq < d2_sq;
 }
 
-std::vector<CGAL::Point_2<CGAL::Epick> > CenterPathNode::Midpoints(utfr_msgs::msg::ConeDetections_<std::allocator<void> >::SharedPtr cone_detections_) {
+std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::Midpoints(
+    utfr_msgs::msg::ConeDetections_<std::allocator<void>>::SharedPtr
+        cone_detections_) {
   if (!cone_detections_) {
     return std::vector<Point>();
   }
-  
-  std::vector< std::pair<Point, unsigned int> > points;
-  
+
+  std::vector<std::pair<Point, unsigned int>> points;
+
   for (int i = 0; i < cone_detections_->left_cones.size(); i++) {
-    points.push_back( std::make_pair(Point(cone_detections_->left_cones[i].pos.x, cone_detections_->left_cones[i].pos.y), i ));
+    points.push_back(
+        std::make_pair(Point(cone_detections_->left_cones[i].pos.x,
+                             cone_detections_->left_cones[i].pos.y),
+                       i));
   }
   for (int i = 0; i < cone_detections_->right_cones.size(); i++) {
-    points.push_back( std::make_pair(Point(cone_detections_->right_cones[i].pos.x, cone_detections_->right_cones[i].pos.y), cone_detections_->left_cones.size() + i ));
+    points.push_back(
+        std::make_pair(Point(cone_detections_->right_cones[i].pos.x,
+                             cone_detections_->right_cones[i].pos.y),
+                       cone_detections_->left_cones.size() + i));
   }
 
   Delaunay T;
 
   T.insert(points.begin(), points.end());
-  // vertices located in an array with starting pointer T.finite_vertices.begin()
+  // vertices located in an array with starting pointer
+  // T.finite_vertices.begin()
 
   bool flag = false;
 
   std::vector<Point> midpoints;
 
   midpoints.push_back(Point(0, 0));
-  
-  for (Delaunay::Finite_edges_iterator it = T.finite_edges_begin(); it != T.finite_edges_end(); ++it) {
-    Delaunay::Edge edge=*it;
 
-    Delaunay::Vertex_handle vh1 = edge.first->vertex((edge.second + 1) % 3);  // First vertex of the edge
-    Delaunay::Vertex_handle vh2 = edge.first->vertex((edge.second + 2) % 3);  // Second vertex of the edge
-    
+  for (Delaunay::Finite_edges_iterator it = T.finite_edges_begin();
+       it != T.finite_edges_end(); ++it) {
+    Delaunay::Edge edge = *it;
+
+    Delaunay::Vertex_handle vh1 =
+        edge.first->vertex((edge.second + 1) % 3); // First vertex of the edge
+    Delaunay::Vertex_handle vh2 =
+        edge.first->vertex((edge.second + 2) % 3); // Second vertex of the edge
 
     int index1 = vh1->info();
     int index2 = vh2->info();
-    if ((index1 < cone_detections_->left_cones.size()) == (index2 < cone_detections_->left_cones.size())) {
+    if ((index1 < cone_detections_->left_cones.size()) ==
+        (index2 < cone_detections_->left_cones.size())) {
       continue;
     }
 
@@ -493,46 +574,55 @@ std::vector<CGAL::Point_2<CGAL::Epick> > CenterPathNode::Midpoints(utfr_msgs::ms
     midpoints.push_back(midpoint);
 
     if (!flag) {
-      //  RCLCPP_WARN(this->get_logger(), "Edge pair: (%d, %d)", index1, index2);
-       flag = false;
+      //  RCLCPP_WARN(this->get_logger(), "Edge pair: (%d, %d)", index1,
+      //  index2);
+      flag = false;
     }
   }
-  
+
   if (midpoints.empty()) {
     RCLCPP_WARN(this->get_logger(), "No midpoints found");
   }
-  
+
   // first sort cones based on distance from car
-  std::sort(midpoints.begin(), midpoints.end(), [] (Point a, Point b) { return MidpointCostFunction(a.x(), a.y(), b.x(), b.y()); });
+  std::sort(midpoints.begin(), midpoints.end(), [](Point a, Point b) {
+    return MidpointCostFunction(a.x(), a.y(), b.x(), b.y());
+  });
   // second sort cones based on angle bewteen them
-  for (int i = 0; i < midpoints.size()-1; i++) {
-    float max_angle = M_PI/4;
-    float dx = abs(midpoints[i].x() - midpoints[i+1].x());
-    float dy = abs(midpoints[i].y() - midpoints[i+1].y());
-    if (atan(dy/dx) > max_angle) {
-      midpoints.erase(midpoints.begin() + (i+1));
+  for (int i = 0; i < midpoints.size() - 1; i++) {
+    float max_angle = M_PI / 4;
+    float dx = abs(midpoints[i].x() - midpoints[i + 1].x());
+    float dy = abs(midpoints[i].y() - midpoints[i + 1].y());
+    if (atan(dy / dx) > max_angle) {
+      midpoints.erase(midpoints.begin() + (i + 1));
     }
   }
   return midpoints;
 }
 
-std::tuple<std::vector<CGAL::Point_2<CGAL::Epick> >, std::vector<double>, std::vector<double>> CenterPathNode::BezierPoints(std::vector<CGAL::Point_2<CGAL::Epick> > midpoints) {  // Creating functions x(t) and y(t) given midpoints
+std::tuple<std::vector<CGAL::Point_2<CGAL::Epick>>, std::vector<double>,
+           std::vector<double>>
+CenterPathNode::BezierPoints(
+    std::vector<CGAL::Point_2<CGAL::Epick>>
+        midpoints) { // Creating functions x(t) and y(t) given midpoints
   std::vector<Point> bezier_points;
 
   unsigned long maxDegree = 5;
   int degree = std::min(maxDegree, midpoints.size());
 
-  midpoints.push_back(Point(0,0));
+  midpoints.push_back(Point(0, 0));
 
   for (int i = 0; i < maxDegree + 1; i++) {
-    bezier_points.push_back(Point(0,0));
+    bezier_points.push_back(Point(0, 0));
   }
 
-  for (int i = 1; i <= degree; i++) { //std::min(bezier_points.size(), midpoints.size())
-    bezier_points[i + maxDegree - degree] = midpoints[i-1];
+  for (int i = 1; i <= degree;
+       i++) { // std::min(bezier_points.size(), midpoints.size())
+    bezier_points[i + maxDegree - degree] = midpoints[i - 1];
   }
 
-  // std::vector<Point> a, b, c, d, e, f = bezier_points[0],bezier_points[1],bezier_points[2],bezier_points[3],bezier_points[4],bezier_points[5];
+  // std::vector<Point> a, b, c, d, e, f =
+  // bezier_points[0],bezier_points[1],bezier_points[2],bezier_points[3],bezier_points[4],bezier_points[5];
   Point a = bezier_points[0];
   Point b = bezier_points[1];
   Point c = bezier_points[2];
@@ -542,31 +632,132 @@ std::tuple<std::vector<CGAL::Point_2<CGAL::Epick> >, std::vector<double>, std::v
 
   std::vector<double> xoft, yoft;
 
-  xoft.push_back(-a.x()     + 5*b.x()   -10*c.x()   +10*d.x()   -5*e.x()  +f.x());
-  xoft.push_back(5*a.x()    - 20*b.x()  + 30*c.x()  -20*d.x()   +5*e.x());
-  xoft.push_back(-10*a.x()  + 30*b.x()  - 30*c.x()  + 10*d.x());
-  xoft.push_back(10*a.x()   - 20*b.x()  + 10*c.x());
-  xoft.push_back(-5*a.x()   + 5*b.x());
+  xoft.push_back(-a.x() + 5 * b.x() - 10 * c.x() + 10 * d.x() - 5 * e.x() +
+                 f.x());
+  xoft.push_back(5 * a.x() - 20 * b.x() + 30 * c.x() - 20 * d.x() + 5 * e.x());
+  xoft.push_back(-10 * a.x() + 30 * b.x() - 30 * c.x() + 10 * d.x());
+  xoft.push_back(10 * a.x() - 20 * b.x() + 10 * c.x());
+  xoft.push_back(-5 * a.x() + 5 * b.x());
   xoft.push_back(a.x());
 
-  yoft.push_back(-a.y()     + 5*b.y()   -10*c.y()   +10*d.y()   -5*e.y()  +f.y());
-  yoft.push_back(5*a.y()    - 20*b.y()  + 30*c.y()  -20*d.y()   +5*e.y());
-  yoft.push_back(-10*a.y()  + 30*b.y()  - 30*c.y()  + 10*d.y());
-  yoft.push_back(10*a.y()   - 20*b.y()  + 10*c.y());
-  yoft.push_back(-5*a.y()   + 5*b.y());
+  yoft.push_back(-a.y() + 5 * b.y() - 10 * c.y() + 10 * d.y() - 5 * e.y() +
+                 f.y());
+  yoft.push_back(5 * a.y() - 20 * b.y() + 30 * c.y() - 20 * d.y() + 5 * e.y());
+  yoft.push_back(-10 * a.y() + 30 * b.y() - 30 * c.y() + 10 * d.y());
+  yoft.push_back(10 * a.y() - 20 * b.y() + 10 * c.y());
+  yoft.push_back(-5 * a.y() + 5 * b.y());
   yoft.push_back(a.y());
-  
 
   std::vector<Point> bezier_curve;
 
   for (double t = 0; t < 1; t = t + 0.1) {
-    double xval = xoft[0]*pow(t, 5) +xoft[1]*pow(t, 4) +xoft[2]*pow(t, 3) +xoft[3]*pow(t, 2) +xoft[4]*t + xoft[5];
-    double yval = yoft[0]*pow(t, 5) +yoft[1]*pow(t, 4) +yoft[2]*pow(t, 3) +yoft[3]*pow(t, 2) +yoft[4]*t + yoft[5];
+    double xval = xoft[0] * pow(t, 5) + xoft[1] * pow(t, 4) +
+                  xoft[2] * pow(t, 3) + xoft[3] * pow(t, 2) + xoft[4] * t +
+                  xoft[5];
+    double yval = yoft[0] * pow(t, 5) + yoft[1] * pow(t, 4) +
+                  yoft[2] * pow(t, 3) + yoft[3] * pow(t, 2) + yoft[4] * t +
+                  yoft[5];
     Point temp = Point(xval, yval);
     // RCLCPP_WARN(this->get_logger(), "bezierpt: %f, %f", xval, yval);
     bezier_curve.push_back(temp);
   }
   return std::make_tuple(bezier_curve, xoft, yoft);
+}
+
+void CenterPathNode::skidpadLapCounter() {
+  rclcpp::Time curr_time = this->get_clock()->now();
+  double time_diff = (curr_time - last_time).seconds();
+
+  int large_orange_cones_size = cone_detections_->large_orange_cones.size();
+  int small_orange_cones_size = cone_detections_->small_orange_cones.size();
+  int left_size = cone_detections_->left_cones.size();
+  int right_size = cone_detections_->right_cones.size();
+
+  double average_distance_to_cones = 0.0;
+
+  for (int i = 0; i < large_orange_cones_size; i++) {
+    average_distance_to_cones += util::euclidianDistance2D(
+        cone_detections_->large_orange_cones[i].pos.x, 0.0,
+        cone_detections_->large_orange_cones[i].pos.y, 0.0);
+  }
+
+  average_distance_to_cones =
+      average_distance_to_cones / large_orange_cones_size;
+
+  if (large_orange_cones_size == 4) {
+    found_4_large_orange = true;
+  }
+
+  switch (curr_sector_) {
+  case 10:
+    if (large_orange_cones_size > 3 && small_orange_cones_size < 3) {
+      curr_sector_ += 1;
+    }
+    break;
+
+  case 11:
+    if (large_orange_cones_size < 3) {
+      curr_sector_ += 1;
+    }
+    break;
+
+  case 12:
+  case 13:
+  case 14:
+  case 15:
+    if (time_diff > 20.0 && !lock_sector_ && found_4_large_orange &&
+        large_orange_cones_size < 4 && average_distance_to_cones < 5.0) {
+      last_time = curr_time;
+      curr_sector_ += 1;
+      lock_sector_ = true;
+    }
+
+    if (found_4_large_orange && lock_sector_ && large_orange_cones_size == 0 &&
+        time_diff > 5.0) {
+      lock_sector_ = false;
+      found_4_large_orange = false;
+    }
+    break;
+  case 16:
+    if (left_size == 0 && right_size == 0 && large_orange_cones_size == 0) {
+      curr_sector_ += 1;
+    }
+  }
+}
+
+void CenterPathNode::trackdriveLapCounter() {
+  rclcpp::Time curr_time = this->get_clock()->now();
+  double time_diff = (curr_time - last_time).seconds();
+
+  int large_orange_cones_size = cone_detections_->large_orange_cones.size();
+
+  double average_distance_to_cones = 0.0;
+
+  for (int i = 0; i < large_orange_cones_size; i++) {
+    average_distance_to_cones += util::euclidianDistance2D(
+        cone_detections_->large_orange_cones[i].pos.x, 0.0,
+        cone_detections_->large_orange_cones[i].pos.y, 0.0);
+  }
+
+  average_distance_to_cones =
+      average_distance_to_cones / large_orange_cones_size;
+
+  if (large_orange_cones_size == 4) {
+    found_4_large_orange = true;
+  }
+
+  if (time_diff > 20.0 && !lock_sector_ && found_4_large_orange &&
+      large_orange_cones_size < 4 && average_distance_to_cones < 5.0) {
+    last_time = curr_time;
+    curr_sector_ += 1;
+    lock_sector_ = true;
+  }
+
+  if (found_4_large_orange && lock_sector_ && large_orange_cones_size == 0 &&
+      time_diff > 5.0) {
+    lock_sector_ = false;
+    found_4_large_orange = false;
+  }
 }
 
 } // namespace center_path
