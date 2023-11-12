@@ -171,6 +171,7 @@ public:
   bool out_of_frame_;
   int cones_found_;
   int current_pose_id_;
+  int first_detection_pose_id_;
 
   // Lists for poses, cones, and edges
   std::vector<g2o::VertexSE2*> pose_nodes_;

@@ -32,6 +32,7 @@ void BuildGraphNode::initParams() {
   out_of_frame_ = false;
   cones_found_ = 0;
   current_pose_id_ = 0;
+  first_detection_pose_id_ = 0;
 
   // Will have to tune these later depending on the accuracy of our sensors
   P2PInformationMatrix_ = Eigen::Matrix3d::Identity();
@@ -124,6 +125,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
 
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
   // Loop hasn't been completed yet
+ 
   if (!loop_closed_) {
     // Go through cone list
     for (int coneID : cones) {
@@ -136,8 +138,7 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           // Set first large orange cone listed to be landmark cone
           landmarkedID_ = coneID;
           landmarked_ = true;
-          current_pose_id_ = coneID;
-          id_to_cone_map_[coneID] = cone.second;
+          first_detection_pose_id_ = current_pose_id_;
         }
       }
 
@@ -162,12 +163,15 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
         // If cone in frame again
         if (seen_status != cones.end()) {
           // Car has returned back to landmark cone position, made full loop
-          double dx = cone.second.pos.x - id_to_cone_map_[current_pos_id_].pos.x;
-          double dy = cone.second.pos.y - id_to_cone_map_[current_pos_id_].pos.y;
+          double dx = id_to_cone_map_[first_detection_pose_id_].pos.x - 
+          	      id_to_cone_map_[current_pose_id_].pos.x;
+          double dy = id_to_cone_map_[first_detection_pose_id_].pos.y-
+          	      id_to_cone_map_[current_pose_id_].pos.y;
           double dtheta = current_state_.pose.pose.orientation.z;
           loop_closed_ = true;
-          g2o::EdgeSE2* BuildGraphNode::addPoseToPoseEdge(g2o::VertexSE2* current_pose_id_, g2o::VertexSE2*
-          			    	  		  landmarkedID_, dx, dy, dtheta, loop_closed_);
+          // add an edge using the pose ids at initial detection and loop closure detection
+          addPoseToPoseEdge(first_detection_pose_id_, current_pose_id_, dx, dy, dtheta, loop_closed_);
+
         }
       }
     }
