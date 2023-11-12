@@ -1,4 +1,18 @@
-#include "../include/filter.hpp"
+/*
+
+██████  ██    ██ ██████  ██   ██
+██   ██ ██    ██      ██ ██   ██
+██   ██ ██    ██  █████  ███████
+██   ██  ██  ██  ██           ██
+██████    ████   ███████      ██
+
+*
+* file: filter.hpp
+* auth: Kareem Elsawah
+* desc: filter class
+*/
+
+#include <filter.hpp>
 
 std::tuple<PointCloud, Grid> Filter::view_filter(PointCloud points) {
   PointCloud filtered_points;

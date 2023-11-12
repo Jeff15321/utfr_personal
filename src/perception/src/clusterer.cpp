@@ -1,4 +1,18 @@
-#include "../include/clusterer.hpp"
+/*
+
+██████  ██    ██ ██████  ██   ██
+██   ██ ██    ██      ██ ██   ██
+██   ██ ██    ██  █████  ███████
+██   ██  ██  ██  ██           ██
+██████    ████   ███████      ██
+
+*
+* file: clusterer.hpp
+* auth: Kareem Elsawah
+* desc: clusterer class
+*/
+
+#include <clusterer.hpp>
 
 PointCloud Clusterer::remove_ground(PointCloud points, Grid min_points_grid) {
 

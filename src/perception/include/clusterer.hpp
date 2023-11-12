@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "filter.hpp"
 #include <algorithm>
 #include <cmath>
+#include <filter.hpp>
 #include <limits>
 #include <random>
 #include <tuple>

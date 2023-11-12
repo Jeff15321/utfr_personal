@@ -14,12 +14,12 @@
 
 #pragma once
 
-#include "filter.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
+#include <filter.hpp>
 #include <tuple>
 #include <vector>
 

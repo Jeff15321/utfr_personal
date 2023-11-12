@@ -8,9 +8,10 @@
 
 *
 * file: lidar_proc_node.hpp
-* auth: Justin Lim
-* desc: center path node header
+* auth: Kareem Elsawah
+* desc: lidar processing node header
 */
+
 #pragma once
 
 // ROS2 Requirements
@@ -25,9 +26,9 @@
 #include <string>
 #include <vector>
 
-#include "../include/clusterer.hpp"
-#include "../include/cone_filter.hpp"
-#include "../include/filter.hpp"
+#include <clusterer.hpp>
+#include <cone_filter.hpp>
+#include <filter.hpp>
 
 // Message Requirements
 #include <sensor_msgs/msg/point_cloud2.hpp>

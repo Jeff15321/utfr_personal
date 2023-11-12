@@ -1,4 +1,18 @@
-#include "cone_filter.hpp"
+/*
+
+██████  ██    ██ ██████  ██   ██
+██   ██ ██    ██      ██ ██   ██
+██   ██ ██    ██  █████  ███████
+██   ██  ██  ██  ██           ██
+██████    ████   ███████      ██
+
+*
+* file: cone_filter.hpp
+* auth: Kareem Elsawah
+* desc: cone filter class
+*/
+
+#include <cone_filter.hpp>
 
 ConeFilter::ConeFilter(ConeFilterParams params) {
   this->height = params.cone_height;
