@@ -130,7 +130,7 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   // Steering
 
   // Contruct command to send
-  uint16_t steeringRateToSC = abs(msg.str_cmd) & 0x0FFF;
+  uint16_t steeringRateToSC = (abs((int) (msg.str_cmd * 1000)) & 0x0FFF)/1000;
   bool directionBit;
 
   RCLCPP_INFO(this->get_logger(), "Steering Rate CMD: %d", steeringRateToSC);

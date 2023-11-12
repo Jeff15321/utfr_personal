@@ -143,7 +143,7 @@ void ControlsNode::timerCB() {
     control_cmd_.thr_cmd =
         throttle_pid_->getCommand(target_velocity, current_velocity, dt);
 
-    control_cmd_.brk_cmd = (uint8_t)braking_pid_->getCommand(
+    control_cmd_.brk_cmd = braking_pid_->getCommand(
         target_velocity, current_velocity, dt);
 
     if (current_velocity < target_velocity) {

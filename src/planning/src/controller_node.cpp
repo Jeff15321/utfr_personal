@@ -61,6 +61,8 @@ void ControllerNode::initParams() {
       this->get_parameter("base_lookahead_distance").as_double();
   lookahead_distance_scaling_factor_ =
       this->get_parameter("lookahead_scaling_factor").as_double();
+
+  start_time_ = this->get_clock()->now();
 }
 
 void ControllerNode::initSubscribers() {
@@ -79,6 +81,11 @@ void ControllerNode::initSubscribers() {
       this->create_subscription<utfr_msgs::msg::VelocityProfile>(
           topics::kVelocityProfile, 10,
           std::bind(&ControllerNode::velocityProfileCB, this, _1));
+
+  lap_counter_subscriber_ =
+      this->create_subscription<utfr_msgs::msg::Heartbeat>(
+          topics::kCenterPathHeartbeat, 10,
+          std::bind(&ControllerNode::lapCounterCB, this, _1));
 }
 
 void ControllerNode::initPublishers() {
@@ -98,18 +105,22 @@ void ControllerNode::initPublishers() {
 
 void ControllerNode::initTimers() {
   if (event_ == "accel") {
+    last_lap_count_ = 2;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBAccel, this));
   } else if (event_ == "skidpad") {
+    last_lap_count_ = 17;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBSkidpad, this));
   } else if (event_ == "autocross") {
+    last_lap_count_ = 21;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBAutocross, this));
   } else if (event_ == "trackdrive") {
+    last_lap_count_ = 40;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBTrackdrive, this));
@@ -181,6 +192,12 @@ void ControllerNode::velocityProfileCB(
 
   velocity_profile_->header = msg.header;
   velocity_profile_->velocities = msg.velocities;
+}
+
+void ControllerNode::lapCounterCB(const utfr_msgs::msg::Heartbeat &msg) {
+  lap_count_ = msg.lap_count;
+  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+              " Controller Lap count: %d", lap_count_);
 }
 
 void ControllerNode::timerCBAccel() {
@@ -380,7 +397,7 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   geometry_msgs::msg::Pose lookahead_point;
   bool found_lookahead = false;
   // Get desired velocity from the velocity profile
-  double desired_velocity = velocity_profile.velocities[1];
+  double desired_velocity = velocity_profile.velocities[20];
 
   // Get dynamic lookahead distance
   for (const auto &wp : discretized_points) {
@@ -440,6 +457,25 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   if (abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
       abs(delta) > max_steering_angle) {
     desired_velocity = 1.0;
+  }
+
+  rclcpp::Time curr_time = this->get_clock()->now();
+
+  if (lap_count_ == last_lap_count_ || finished_event_) {
+    if (start_finish_time) {
+      start_time_ == curr_time;
+      start_finish_time = false;
+    }
+    finished_event_ = true;
+    desired_velocity = 1.0;
+  }
+
+  if (abs((curr_time - start_time_).seconds()) > 5.0 && finished_event_) {
+    desired_velocity = 0.0;
+  }
+
+  if (desired_velocity != 0.0 && desired_velocity < 2.0) {
+    desired_velocity = 2.0;
   }
 
   // Set target state values.

@@ -155,11 +155,11 @@ void PathOptimizationNode::timerCBAccel() {
     return;
   }
   if (skip_path_opt_) {
-      if (center_path_ != nullptr) {
-        center_path_publisher_->publish(*center_path_);
-      } else {
-        RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
-                    function_name.c_str());
+    if (center_path_ != nullptr) {
+      center_path_publisher_->publish(*center_path_);
+    } else {
+      RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
+                  function_name.c_str());
     }
   } else {
     // CODE GOES HERE TO OPTIMIZE PATH
@@ -167,8 +167,9 @@ void PathOptimizationNode::timerCBAccel() {
 
   std::vector<double> velocities = calculateVelocities(
       *center_path_, lookahead_distance_, num_points_, a_lateral_max_);
-  std::vector<double> filtered_velocities = filterVelocities(
-      velocities, ego_state_->vel.twist.linear.x, lookahead_distance_, max_velocity_, 10, -10);
+  std::vector<double> filtered_velocities =
+      filterVelocities(velocities, ego_state_->vel.twist.linear.x,
+                       lookahead_distance_, max_velocity_, 10, -10);
   utfr_msgs::msg::VelocityProfile velocity_profile_msg;
   velocity_profile_msg.velocities = filtered_velocities;
   velocity_profile_msg.header.stamp = this->get_clock()->now();
@@ -186,11 +187,11 @@ void PathOptimizationNode::timerCBSkidpad() {
     return;
   }
   if (skip_path_opt_) {
-      if (center_path_ != nullptr) {
-        center_path_publisher_->publish(*center_path_);
-      } else {
-        RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
-                    function_name.c_str());
+    if (center_path_ != nullptr) {
+      center_path_publisher_->publish(*center_path_);
+    } else {
+      RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
+                  function_name.c_str());
     }
   } else {
     // CODE GOES HERE TO OPTIMIZE PATH
@@ -198,8 +199,9 @@ void PathOptimizationNode::timerCBSkidpad() {
 
   std::vector<double> velocities = calculateVelocities(
       *center_path_, lookahead_distance_, num_points_, a_lateral_max_);
-  std::vector<double> filtered_velocities = filterVelocities(
-      velocities, ego_state_->vel.twist.linear.x, lookahead_distance_, max_velocity_, 10, -10);
+  std::vector<double> filtered_velocities =
+      filterVelocities(velocities, ego_state_->vel.twist.linear.x,
+                       lookahead_distance_, max_velocity_, 10, -10);
   utfr_msgs::msg::VelocityProfile velocity_profile_msg;
   velocity_profile_msg.velocities = filtered_velocities;
   velocity_profile_msg.header.stamp = this->get_clock()->now();
@@ -217,11 +219,11 @@ void PathOptimizationNode::timerCBAutocross() {
     return;
   }
   if (skip_path_opt_) {
-      if (center_path_ != nullptr) {
-        center_path_publisher_->publish(*center_path_);
-      } else {
-        RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
-                    function_name.c_str());
+    if (center_path_ != nullptr) {
+      center_path_publisher_->publish(*center_path_);
+    } else {
+      RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
+                  function_name.c_str());
     }
   } else {
     // CODE GOES HERE TO OPTIMIZE PATH
@@ -229,8 +231,9 @@ void PathOptimizationNode::timerCBAutocross() {
 
   std::vector<double> velocities = calculateVelocities(
       *center_path_, lookahead_distance_, num_points_, a_lateral_max_);
-  std::vector<double> filtered_velocities = filterVelocities(
-      velocities, ego_state_->vel.twist.linear.x, lookahead_distance_, max_velocity_, 10, -10);
+  std::vector<double> filtered_velocities =
+      filterVelocities(velocities, ego_state_->vel.twist.linear.x,
+                       lookahead_distance_, max_velocity_, 10, -10);
   utfr_msgs::msg::VelocityProfile velocity_profile_msg;
   velocity_profile_msg.velocities = filtered_velocities;
   velocity_profile_msg.header.stamp = this->get_clock()->now();
@@ -242,17 +245,17 @@ void PathOptimizationNode::timerCBAutocross() {
 
 void PathOptimizationNode::timerCBTrackdrive() {
   const std::string function_name{"path_opt_timerCB:"};
-  
+
   if (!center_path_) {
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"), "No center path");
     return;
   }
   if (skip_path_opt_) {
-      if (center_path_ != nullptr) {
-        center_path_publisher_->publish(*center_path_);
-      } else {
-        RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
-                    function_name.c_str());
+    if (center_path_ != nullptr) {
+      center_path_publisher_->publish(*center_path_);
+    } else {
+      RCLCPP_WARN(this->get_logger(), "%s no center path to publish",
+                  function_name.c_str());
     }
   } else {
     // CODE GOES HERE TO OPTIMIZE PATH
@@ -260,8 +263,9 @@ void PathOptimizationNode::timerCBTrackdrive() {
 
   std::vector<double> velocities = calculateVelocities(
       *center_path_, lookahead_distance_, num_points_, a_lateral_max_);
-  std::vector<double> filtered_velocities = filterVelocities(
-      velocities, ego_state_->vel.twist.linear.x, lookahead_distance_, max_velocity_, 10, -10);
+  std::vector<double> filtered_velocities =
+      filterVelocities(velocities, ego_state_->vel.twist.linear.x,
+                       lookahead_distance_, max_velocity_, 10, -10);
   utfr_msgs::msg::VelocityProfile velocity_profile_msg;
   velocity_profile_msg.velocities = filtered_velocities;
   velocity_profile_msg.header.stamp = this->get_clock()->now();

@@ -22,10 +22,10 @@ controls: # Name of Module
       ]
 
     braking_controller_params: [
-        0.4, #p_gain
-        0.00008, #i_gain
-        1.0, #d_gain
+        12.0, #p_gain
+        0.005, #i_gain
+        30.0, #d_gain
 
         0.0, # output_lim_lower, absolute value limit of output
-        255.0, # output_lim_upper, absolute value limit of output
+        10.0, # output_lim_upper, absolute value limit of output
       ]
