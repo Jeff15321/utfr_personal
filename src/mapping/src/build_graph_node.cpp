@@ -170,7 +170,8 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           double dtheta = current_state_.pose.pose.orientation.z;
           loop_closed_ = true;
           // add an edge using the pose ids at initial detection and loop closure detection
-          addPoseToPoseEdge(first_detection_pose_id_, current_pose_id_, dx, dy, dtheta, loop_closed_);
+          g2o::EdgeSE2* edge = addPoseToPoseEdge(first_detection_pose_id_, current_pose_id_, dx, dy, dtheta, loop_closed_);
+          pose_to_pose_edges_.push_back(edge);
 
         }
       }
