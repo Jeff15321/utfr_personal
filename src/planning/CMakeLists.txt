@@ -27,6 +27,8 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     utfr_common
     CGAL
     Boost
+    eufs_msgs
+    visualization_msgs
 )
 
 ## Find Dependencies

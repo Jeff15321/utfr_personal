@@ -66,11 +66,11 @@ perception_node: # Name of Node
     confidence: 0.40
     cone_heights: 
       [
-        0,
-        325,
-        325,
-        325,
-        505
+        0.0,
+        325.0,
+        325.0,
+        325.0,
+        505.0
       ]
 
     # shopping cart

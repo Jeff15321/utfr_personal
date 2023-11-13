@@ -20,6 +20,8 @@
   <depend>boost</depend>
   <depend>libcgal-dev</depend>
   <depend>CGAL</depend>
+  <depend>eufs_msgs</depend>
+  <depend>visualization_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

@@ -203,9 +203,9 @@ accelLLS(const std::vector<utfr_msgs::msg::Cone> &cones) {
   MatrixXd A(n, 2);
   MatrixXd b(n, 1);
   for (int i = 0; i < n; i++) {
-    A(i, 0) = cones[i].pos.y;
+    A(i, 0) = cones[i].pos.x;
     A(i, 1) = 1;
-    b(i, 0) = cones[i].pos.x;
+    b(i, 0) = cones[i].pos.y;
   }
   MatrixXd At = A.transpose();
   MatrixXd res = (At * A).inverse() * (At * b);

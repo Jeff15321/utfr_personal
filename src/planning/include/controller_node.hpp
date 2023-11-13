@@ -26,6 +26,7 @@
 #include <vector>
 
 // Message Requirements
+#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
@@ -37,6 +38,7 @@
 #include <utfr_msgs/msg/trajectory_point.hpp>
 #include <utfr_msgs/msg/velocity_profile.hpp>
 #include <utfr_msgs/msg/waypoint_path.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -96,6 +98,10 @@ private:
    */
   void velocityProfileCB(const utfr_msgs::msg::VelocityProfile &msg);
 
+  /*! Lap counter callback:
+   */
+  void lapCounterCB(const utfr_msgs::msg::Heartbeat &msg);
+
   /*! Accel Timer Callback:
    */
   void timerCBAccel();
@@ -124,42 +130,19 @@ private:
   discretizeParametric(const utfr_msgs::msg::ParametricSpline &spline_params,
                        double cur_s, double ds, int num_points);
 
-  /*! Return Closest Point
-   */
-  geometry_msgs::msg::Pose
-  closestPoint(utfr_msgs::msg::EgoState ego_state,
-               std::vector<geometry_msgs::msg::Pose> waypoints);
-
-  /*! Sign
-   */
-  double sign(double x);
-
-  /*! Stanley Controller
-   */
-  utfr_msgs::msg::TargetState stanleyController(
-      double k, double max_speed, double max_steering_angle,
-      double max_steering_rate, utfr_msgs::msg::ParametricSpline spline_params,
-      double cur_s, double ds, utfr_msgs::msg::VelocityProfile velocity_profile,
-      double baselink_location, utfr_msgs::msg::EgoState ego_state);
-
   /*! Pure Pursuit Controller
    */
   utfr_msgs::msg::TargetState purePursuitController(
-      double max_speed, double max_steering_angle,
-      utfr_msgs::msg::ParametricSpline spline_params, double cur_s, double ds,
-      utfr_msgs::msg::VelocityProfile velocity_profile,
+      double max_steering_angle, utfr_msgs::msg::ParametricSpline spline_params,
+      double cur_s, double ds, utfr_msgs::msg::VelocityProfile velocity_profile,
       double baselink_location, utfr_msgs::msg::EgoState ego_state,
-      double lookahead_distance);
+      double base_lookahead_distance, double lookahead_distance_scaling_factor);
 
   /*! Initialize global variables:
    */
   double update_rate_;
   std::string event_;
   std::string controller_;
-  double stanley_gain_;
-  double softening_constant_;
-  double k_yaw_rate_;
-  double k_damp_steer_;
   int discretized_points_;
   double cte_error_;
   double cte_angle_error_;
@@ -171,7 +154,13 @@ private:
   double baselink_location_;
   double wheel_base_;
   int num_points_;
-  double lookahead_distance_;
+  double base_lookahead_distance_;
+  double lookahead_distance_scaling_factor_;
+  int lap_count_;
+  bool finished_event_ = false;
+  rclcpp::Time start_time_;
+  bool start_finish_time = true;
+  int last_lap_count_;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
@@ -185,12 +174,20 @@ private:
       path_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::VelocityProfile>::SharedPtr
       velocity_profile_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr
+      lap_counter_subscriber_;
 
   rclcpp::Publisher<utfr_msgs::msg::TargetState>::SharedPtr
       target_state_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr ego_state_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr
+      pure_pursuit_point_publisher_;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
+
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      path_publisher_;
 
   utfr_msgs::msg::TargetState target_;
   utfr_msgs::msg::SystemStatus::SharedPtr status_{nullptr};

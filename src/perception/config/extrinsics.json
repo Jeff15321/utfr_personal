@@ -1,0 +1,47 @@
+{
+  "left_camera_frame": {
+    "translation": [
+      -0.09,
+      0,
+      1.5
+    ],
+    "quaternion": [
+      0.9641,
+      -0.0158,
+      -0.0590,
+      -0.2583
+    ],
+    "frame_id": "baselink",
+    "child_frame_id": "left_camera"
+  },
+  "lidar_frame": {
+    "translation": [
+      0,
+      0,
+      1.5
+    ],
+    "quaternion": [
+      0.9981,
+      0,
+      -0.0610,
+      0
+    ],
+    "frame_id": "baselink",
+    "child_frame_id": "lidar"
+  },
+  "right_camera_frame": {
+    "translation": [
+      0.09,
+      0,
+      1.5
+    ],
+    "quaternion": [
+      0.9641,
+      0.0158,
+      -0.0590,
+      0.2583
+    ],
+    "frame_id": "baselink",
+    "child_frame_id": "right_camera"
+  }
+}
