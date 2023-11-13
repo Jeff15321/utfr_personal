@@ -171,9 +171,13 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           loop_closed_ = true;
           // Create node objects for each pose
           // Get the state estimate at a pose using id_to_state_map_[pose_id_]
+          int x = id_to_cone_map_[first_detection_pose_id_].pos.x;
+          int y = id_to_cone_map_[first_detection_pose_id_].pos.y;
           // Pass the data into createPoseNode, then pass the node objects into addPoseToPoseEdge
+          g2o::VertexSE2* first_pose_node = createPoseNode(first_detection_pose_id_, x, y, dtheta);
+          g2o::VertexSE2* current_pose_node = createPoseNode(current_pose_id_, dx, dy, dtheta);
           // add an edge using the pose ids at initial detection and loop closure detection
-          g2o::EdgeSE2* edge = addPoseToPoseEdge(first_detection_pose_id_, current_pose_id_, dx, dy, dtheta, loop_closed_);
+          g2o::EdgeSE2* edge = addPoseToPoseEdge(first_pose_node, current_pose_node, dx, dy, dtheta, loop_closed_);
           pose_to_pose_edges_.push_back(edge);
 
         }
