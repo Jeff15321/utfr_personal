@@ -1,6 +1,5 @@
 """
-
-██████  ██    ██ ██████  ██   ██
+██████  ██    ██ ██████  ██   ██.
 ██   ██ ██    ██      ██ ██   ██
 ██   ██ ██    ██  █████  ███████
 ██   ██  ██  ██  ██           ██
@@ -10,23 +9,22 @@
 * auth: Alfred Xue
 * desc: visualization node main file
 """
-
+from foxglove_msgs.msg import ImageMarkerArray
 import rclpy
 from rclpy.node import Node
-from foxglove_msgs.msg import ImageMarkerArray
-from foxglove_msgs.msg import TextAnnotation
 from foxglove_msgs.msg import ImageAnnotations
-from foxglove_msgs.msg import Point2
+from foxglove_msgs.msg import TextAnnotation
 from foxglove_msgs.msg import Color
-from visualization_msgs.msg import ImageMarker
+from foxglove_msgs.msg import Point2
 from geometry_msgs.msg import Point
+from visualization_msgs.msg import ImageMarker
 from std_msgs.msg import ColorRGBA
 from utfr_msgs.msg import PerceptionDebug
 
 
 class VisualizationNode(Node):
     def __init__(self):
-        super().__init__("visualization_node")
+        super().__init__('visualization_node')
         self.loadParams()
         self.initVariables()
         self.initSubscribers()
@@ -42,34 +40,34 @@ class VisualizationNode(Node):
 
     def initSubscribers(self):
         """
-        Subscribe to:
+        Subscribe to.
         perception debug
         lidar point cloud
         """
         self.perception_debug_subscriber_left_ = self.create_subscription(
-            PerceptionDebug, "/perception/debug_left", self.perceptionDebugLeftCB, 1
+            PerceptionDebug, '/perception/debug_left', self.perceptionDebugLeftCB, 1
         )
         self.perception_debug_subscriber_right_ = self.create_subscription(
-            PerceptionDebug, "/perception/debug_right", self.perceptionDebugRightCB, 1
+            PerceptionDebug, '/perception/debug_right', self.perceptionDebugRightCB, 1
         )
         print(self.perception_debug_subscriber_left_)
         print(self.perception_debug_subscriber_right_)
 
     def initPublishers(self):
         self.left_image_marker_publisher_ = self.create_publisher(
-            ImageMarkerArray, "/visualization/left_image_markers", 1
+            ImageMarkerArray, '/visualization/left_image_markers', 1
         )
 
         self.left_image_text_publisher_ = self.create_publisher(
-            ImageAnnotations, "/visualization/left_image_text", 1
+            ImageAnnotations, '/visualization/left_image_text', 1
         )
 
         self.right_image_marker_publisher_ = self.create_publisher(
-            ImageMarkerArray, "/visualization/right_image_markers", 1
+            ImageMarkerArray, '/visualization/right_image_markers', 1
         )
 
         self.right_image_text_publisher_ = self.create_publisher(
-            ImageAnnotations, "/visualization/right_image_text", 1
+            ImageAnnotations, '/visualization/right_image_text', 1
         )
 
         print(self.left_image_marker_publisher_)
@@ -81,7 +79,7 @@ class VisualizationNode(Node):
         pass
 
     def perceptionDebugLeftCB(self, msg):
-        self.get_logger().warn("Recieved left perception debug msg")
+        self.get_logger().warn('Recieved left perception debug msg')
         markers = ImageMarkerArray()
         image_annotation = ImageAnnotations()
         print(msg.header.stamp)
@@ -89,11 +87,6 @@ class VisualizationNode(Node):
         left_detections = msg.left
         for bounding_box in left_detections:
             # initialize image marker array
-            """
-            utfr_msgs.msg.BoundingBox(header=std_msgs.msg.Header
-            (stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id=''),
-            x=1076, y=284, width=11, height=22, type=0, score=0.552)
-            """
             if bounding_box.type == 0:  # unknown cone
                 markers.markers.append(
                     ImageMarker(
@@ -133,7 +126,7 @@ class VisualizationNode(Node):
                             x=float(bounding_box.x),
                             y=float(bounding_box.y - 10),
                         ),
-                        text="Unknown Cone " + str(bounding_box.score),
+                        text='Unknown Cone ' + str(bounding_box.score),
                         font_size=20.0,
                         text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
                         background_color=Color(r=0.0, g=1.0, b=1.0, a=1.0),
@@ -177,7 +170,7 @@ class VisualizationNode(Node):
                             x=float(bounding_box.x),
                             y=float(bounding_box.y - 10),
                         ),
-                        text="Blue Cone " + str(bounding_box.score),
+                        text='Blue Cone ' + str(bounding_box.score),
                         font_size=20.0,
                         text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
                         background_color=Color(r=0.0, g=0.0, b=1.0, a=1.0),
@@ -221,7 +214,7 @@ class VisualizationNode(Node):
                             x=float(bounding_box.x),
                             y=float(bounding_box.y - 20),
                         ),
-                        text="Yellow Cone " + str(bounding_box.score),
+                        text='Yellow Cone ' + str(bounding_box.score),
                         font_size=20.0,
                         text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
                         background_color=Color(r=1.0, g=0.3, b=0.0, a=1.0),
@@ -264,7 +257,7 @@ class VisualizationNode(Node):
                             x=float(bounding_box.x),
                             y=float(bounding_box.y - 20),
                         ),
-                        text="Small Orange Cone " + str(bounding_box.score),
+                        text='Small Orange Cone ' + str(bounding_box.score),
                         font_size=20.0,
                         text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
                         background_color=Color(r=1.0, g=0.0, b=1.0, a=1.0),
@@ -307,7 +300,7 @@ class VisualizationNode(Node):
                             x=float(bounding_box.x),
                             y=float(bounding_box.y - 20),
                         ),
-                        text="Large Orange Cone " + str(bounding_box.score),
+                        text='Large Orange Cone ' + str(bounding_box.score),
                         font_size=20.0,
                         text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
                         background_color=Color(r=0.0, g=0.0, b=0.0, a=1.0),
@@ -324,7 +317,7 @@ class VisualizationNode(Node):
         self.left_image_text_publisher_.publish(image_annotation)
 
     def perceptionDebugRightCB(self, msg):
-        self.get_logger().warn("Recieved right perception debug msg")
+        self.get_logger().warn('Recieved right perception debug msg')
         right_markers = ImageMarkerArray()
         right_image_annotation = ImageAnnotations()
 
@@ -332,11 +325,6 @@ class VisualizationNode(Node):
 
         for right_bounding_box in right_detections:
             # initialize image marker array
-            """
-            utfr_msgs.msg.BoundingBox(header=std_msgs.msg.Header
-            (stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id=''),
-            x=1076, y=284, width=11, height=22, type=0, score=0.552)
-            """
             if right_bounding_box.type == 0:  # unknown cone
                 right_markers.markers.append(
                     ImageMarker(
@@ -386,7 +374,7 @@ class VisualizationNode(Node):
                             x=float(right_bounding_box.x),
                             y=float(right_bounding_box.y - 10),
                         ),
-                        text="Unknown Cone " + str(right_bounding_box.score),
+                        text='Unknown Cone ' + str(right_bounding_box.score),
                         font_size=20.0,
                         text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
                         background_color=Color(r=0.0, g=1.0, b=1.0, a=1.0),
@@ -440,7 +428,7 @@ class VisualizationNode(Node):
                             x=float(right_bounding_box.x),
                             y=float(right_bounding_box.y - 10),
                         ),
-                        text="Blue Cone " + str(right_bounding_box.score),
+                        text='Blue Cone ' + str(right_bounding_box.score),
                         font_size=20.0,
                         text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
                         background_color=Color(r=0.0, g=0.0, b=1.0, a=1.0),
@@ -494,7 +482,7 @@ class VisualizationNode(Node):
                             x=float(right_bounding_box.x),
                             y=float(right_bounding_box.y - 20),
                         ),
-                        text="Yellow Cone " + str(right_bounding_box.score),
+                        text='Yellow Cone ' + str(right_bounding_box.score),
                         font_size=20.0,
                         text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
                         background_color=Color(r=1.0, g=0.3, b=0.0, a=1.0),
@@ -547,7 +535,7 @@ class VisualizationNode(Node):
                             x=float(right_bounding_box.x),
                             y=float(right_bounding_box.y - 20),
                         ),
-                        text="Small Orange Cone " + str(right_bounding_box.score),
+                        text='Small Orange Cone ' + str(right_bounding_box.score),
                         font_size=20.0,
                         text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
                         background_color=Color(r=1.0, g=0.0, b=1.0, a=1.0),
@@ -600,7 +588,7 @@ class VisualizationNode(Node):
                             x=float(right_bounding_box.x),
                             y=float(right_bounding_box.y - 20),
                         ),
-                        text="Large Orange Cone " + str(right_bounding_box.score),
+                        text='Large Orange Cone ' + str(right_bounding_box.score),
                         font_size=20.0,
                         text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
                         background_color=Color(r=0.0, g=0.0, b=0.0, a=1.0),
@@ -617,7 +605,7 @@ class VisualizationNode(Node):
 
 
 def main(args=None):
-    print("Hi from visualization.")
+    print('Hi from visualization.')
     rclpy.init(args=args)
     node = VisualizationNode()
     rclpy.spin(node)
@@ -625,5 +613,5 @@ def main(args=None):
     rclpy.shutdown()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
