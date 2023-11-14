@@ -31,6 +31,8 @@ void BuildGraphNode::initParams() {
   landmarkedID_ = -1;
   out_of_frame_ = false;
   cones_found_ = 0;
+  current_pose_id_ = 0;
+  first_detection_pose_id_ = 0;
 
   // Will have to tune these later depending on the accuracy of our sensors
   P2PInformationMatrix_ = Eigen::Matrix3d::Identity();
@@ -94,6 +96,13 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         //not adding if already detected (within error)
         if (displacement <= 0.3){
           adding_to_past=false;
+
+          // Maps the cone detection to the cone id
+          utfr_msgs::msg::Cone detection = newCone;
+          detection.pos.x -= current_state_.pose.pose.position.x;
+          detection.pos.y -= current_state_.pose.pose.position.y;
+          id_to_cone_map_[past_detections_[i].first] = detection;
+
           break;
         }
       }
@@ -101,19 +110,26 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         // adding to id_list_ and past_detections_ if past error for all previously detected cones
         cones_id_list_.push_back(cones_found_);
         past_detections_.emplace_back(cones_found_,newCone);
+
+        // Maps the cone detection to the cone id
+        utfr_msgs::msg::Cone detection = newCone;
+        detection.pos.x -= current_state_.pose.pose.position.x;
+        detection.pos.y -= current_state_.pose.pose.position.y;
+        id_to_cone_map_[cones_found_] = detection;
+
         cones_found_+=1;
       }
     }
     return cones_id_list_;  }
 
-void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
 
+void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
   // Loop hasn't been completed yet
-  if (loop_closed_ == false) {
+ 
+  if (!loop_closed_) {
     // Go through cone list
     for (int coneID : cones) {
       // No landmark cone yet
-
       // We gotta fix this later when Mark finishes his thing.
       // IDK why I chose past_detections_ to be a vector of pairs
       // but it should probably be a map :(
@@ -122,6 +138,7 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           // Set first large orange cone listed to be landmark cone
           landmarkedID_ = coneID;
           landmarked_ = true;
+          first_detection_pose_id_ = current_pose_id_;
         }
       }
 
@@ -146,7 +163,23 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
         // If cone in frame again
         if (seen_status != cones.end()) {
           // Car has returned back to landmark cone position, made full loop
+          double dx = id_to_cone_map_[first_detection_pose_id_].pos.x - 
+          	      id_to_cone_map_[current_pose_id_].pos.x;
+          double dy = id_to_cone_map_[first_detection_pose_id_].pos.y-
+          	      id_to_cone_map_[current_pose_id_].pos.y;
+          double dtheta = current_state_.pose.pose.orientation.z;
           loop_closed_ = true;
+          // Create node objects for each pose
+          // Get the state estimate at a pose using id_to_state_map_[pose_id_]
+          int x = id_to_cone_map_[first_detection_pose_id_].pos.x;
+          int y = id_to_cone_map_[first_detection_pose_id_].pos.y;
+          // Pass the data into createPoseNode, then pass the node objects into addPoseToPoseEdge
+          g2o::VertexSE2* first_pose_node = createPoseNode(first_detection_pose_id_, x, y, dtheta);
+          g2o::VertexSE2* current_pose_node = createPoseNode(current_pose_id_, dx, dy, dtheta);
+          // add an edge using the pose ids at initial detection and loop closure detection
+          g2o::EdgeSE2* edge = addPoseToPoseEdge(first_pose_node, current_pose_node, dx, dy, dtheta, loop_closed_);
+          pose_to_pose_edges_.push_back(edge);
+
         }
       }
     }
