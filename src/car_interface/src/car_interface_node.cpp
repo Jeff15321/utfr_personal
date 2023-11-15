@@ -132,10 +132,14 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
     directionBit = 1;
   }
 
+
+  RCLCPP_INFO(this->get_logger(), "%s: directionBit: %d | Mag: %d",
+                   function_name.c_str(), directionBit, steeringRateToSC);
+
   steeringRateToSC |= (uint16_t)(directionBit << 12);
 
   // Finalize commands
-  if (cmd_||testing_) {
+  if (cmd_) {
     braking_cmd_ = msg.brk_cmd;
     steering_cmd_ = steeringRateToSC;
     throttle_cmd_ = msg.thr_cmd;
@@ -173,12 +177,14 @@ void CarInterface::getSteeringAngleSensorData() {
   try {
     // TODO: Check value format
     steering_angle = -((int16_t)(can1_->get_can(dv_can_msg::ANGSENREC)) / 10);
-
+  RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
+                   function_name.c_str(), steering_angle);
     // Check for sensor malfunction
     if ((abs(steering_angle) > 750)) {
       RCLCPP_ERROR(this->get_logger(), "%s: Value error",
                    function_name.c_str());
       // TODO: Error handling function, change control cmds to 0 and trigger EBS
+      
     } else {
       // TODO: Check frame
       sensor_can_.steering_angle = steering_angle;
@@ -231,7 +237,7 @@ void CarInterface::getServiceBrakeData() {
     // TODO: Check value format
     front_pressure = (can1_->get_can(dv_can_msg::FBP));
     rear_pressure = (can1_->get_can(dv_can_msg::RBP))&0xFFFF;
-    RCLCPP_DEBUG(this->get_logger(), "rear brake pressure: %d",rear_pressure);
+    //RCLCPP_INFO(this->get_logger(), "rear brake pressure: %d",rear_pressure);
 
     sensor_can_.rear_pressure = front_pressure; 
     sensor_can_.front_pressure = rear_pressure; 
@@ -324,7 +330,7 @@ void CarInterface::getDVState() {
   long dv_state = can1_->get_can(dv_can_msg::DV_STATE);
 
   system_status_.as_state = dv_state & 0x7;
-
+  RCLCPP_INFO(this->get_logger(), "AS_STATE: %d", system_status_.as_state);
   system_status_.ebs_state = (dv_state << 3) & 0x3;
 
   system_status_.ami_state = (dv_state << 5) & 0x7;
@@ -465,7 +471,7 @@ void CarInterface::setDVStateAndCommand() {
       break;
     }
     default: {
-      dv_pc_state_ = DV_PC_STATE::EMERGENCY;
+      dv_pc_state_ = DV_PC_STATE::OFF;
       cmd_ = false;
       if (!shutdown_) {
         shutdownNodes();
@@ -479,10 +485,10 @@ void CarInterface::setDVStateAndCommand() {
     long dv_command = 0;
     dv_command |= (long)(dv_pc_state_)&7;
     
-    RCLCPP_DEBUG(this->get_logger(), "PC: %d", dv_pc_state_);
-    RCLCPP_DEBUG(this->get_logger(), "Steer: %d", steering_cmd_);
-    RCLCPP_DEBUG(this->get_logger(), "Throttle: %d", throttle_cmd_);
-    RCLCPP_DEBUG(this->get_logger(), "PWM: %d", braking_cmd_);
+    RCLCPP_INFO(this->get_logger(), "PC: %d", dv_pc_state_);
+    //RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
+    //RCLCPP_INFO(this->get_logger(), "Throttle: %d", throttle_cmd_);
+    //RCLCPP_INFO(this->get_logger(), "PWM: %d", braking_cmd_);
   
     if (cmd_) {
       dv_command |= (long)(throttle_cmd_ & 0xFFFF) << 3;

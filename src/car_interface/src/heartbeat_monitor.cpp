@@ -104,9 +104,9 @@ bool HeartbeatMonitor::verifyHeartbeats(const rclcpp::Time &curr_time) {
                    element.first.c_str());
       return false;
     }
-    RCLCPP_INFO(rclcpp::get_logger("heartbeat_monitor"),
-              "%s Module '%s' is alive",
-              function_name.c_str(), element.first.c_str());
+    // RCLCPP_INFO(rclcpp::get_logger("heartbeat_monitor"),
+    //           "%s Module '%s' is alive",
+    //           function_name.c_str(), element.first.c_str());
   }
 
   return true;

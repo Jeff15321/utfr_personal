@@ -33,7 +33,7 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::DVDrivingDynamics2, 0x501}, // FSG DV logging
     {(uint8_t)dv_can_msg::DVSystemStatus, 0x502},     // FSG DV logging
 
-    {(uint8_t)dv_can_msg::DV_STATE, 0x503}, // DV state from car
+    {(uint8_t)dv_can_msg::DV_STATE, 0x504}, // DV state from car
 
     {(uint8_t)dv_can_msg::DV_COMMAND, 0x506}}; // DV PC state + control cmd
 
@@ -76,8 +76,8 @@ int CanInterface::get_can(dv_can_msg msgName) {
   // while(pthread_mutex_trylock(&readlock)){;}
   int result;
   if (msgName == dv_can_msg::ANGSENREC) {
-    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[2]) |
-                   (((messages[dv_can_msg_map[(int)msgName]].data[3]) << 8)));
+    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[0]) |
+                   (((messages[dv_can_msg_map[(int)msgName]].data[1]) << 8)));
   } else if (msgName == dv_can_msg::MOTPOS) {
     result = (int)((messages[dv_can_msg_map[(int)msgName]].data[2]) |
                    (((messages[dv_can_msg_map[(int)msgName]].data[3]) << 8)));
