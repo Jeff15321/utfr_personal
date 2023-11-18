@@ -131,7 +131,9 @@ void ControlsNode::timerCB() {
     target_sa = target_state_->steering_angle;       // TODO: review
 
     control_cmd_.str_cmd =
-        (int16_t)steering_pid_->getCommand(target_sa, current_sa, dt);
+        steering_pid_->getCommand(target_sa, current_sa, dt);
+
+    RCLCPP_INFO(this->get_logger(), "Target Steering: %d \n Steering cmd: %d", target_state_->steering_angle, control_cmd_.str_cmd);
 
     //*****   Throttle & Brake  *****
     current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
@@ -141,7 +143,7 @@ void ControlsNode::timerCB() {
     control_cmd_.thr_cmd =
         throttle_pid_->getCommand(target_velocity, current_velocity, dt);
 
-    control_cmd_.brk_cmd = (uint8_t)braking_pid_->getCommand(
+    control_cmd_.brk_cmd = braking_pid_->getCommand(
         target_velocity, current_velocity, dt);
 
     if (current_velocity < target_velocity) {

@@ -26,7 +26,9 @@
 #include <vector>
 
 // Message Requirements
+#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
+#include <utfr_msgs/msg/cone_detections.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
@@ -34,8 +36,6 @@
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
-#include <utfr_msgs/msg/cone_detections.hpp>
-#include <geometry_msgs/msg/polygon_stamped.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -48,10 +48,8 @@
 #endif
 #include <CGAL/Delaunay_triangulation_2.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-
-typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-typedef CGAL::Delaunay_triangulation_2<K> Delaunay;
-typedef K::Point_2 Point;
+#include <CGAL/Triangulation_vertex_base_with_info_2.h>
+// #include <CGAL/draw_triangulation_2.h>
 
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
@@ -64,6 +62,14 @@ public:
   /*! Constructor, calls loadParams, initPublishers and initTimers.
    */
   CenterPathNode();
+  typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+  // typedef CGAL::Delaunay_triangulation_2<K> Delaunay;
+  typedef K::Point_2 Point;
+
+  typedef CGAL::Triangulation_vertex_base_with_info_2<unsigned int, K> Vb;
+  typedef CGAL::Triangulation_data_structure_2<Vb> Tds;
+  typedef CGAL::Delaunay_triangulation_2<K, Tds> Delaunay;
+  typedef Delaunay::Vertex_handle Vertex_handle;
 
 private:
   /*! Initialize and load params from config.yaml:
@@ -81,6 +87,10 @@ private:
   /*! Initialize Timers:
    */
   void initTimers();
+
+  /*! Initialize Sector:
+   */
+  void initSector();
 
   /*! Initialize Heartbeat:
    */
@@ -120,23 +130,44 @@ private:
 
   /*! Function for sorting cones
    */
-  bool coneDistComparitor(const utfr_msgs::msg::Cone& a, 
-      const utfr_msgs::msg::Cone& b);
-  
+  bool coneDistComparitor(const utfr_msgs::msg::Cone &a,
+                          const utfr_msgs::msg::Cone &b);
+
   /*! Accel line fitting
-   * This function returns m and c for the line y=mx+c using cone detections 
+   * This function returns m and c for the line y=mx+c using cone detections
      completely colorblind
    */
   std::vector<double> getAccelPath();
 
-  /*! Delaunay Triangulation:
+  /*! Midpoints using Delaunay Triangulation:
    */
-  void delaunayTriangulation();
+  std::vector<CGAL::Point_2<CGAL::Epick>>
+  Midpoints(utfr_msgs::msg::ConeDetections_<std::allocator<void>>::SharedPtr
+                cone_detections_);
+
+  /*! Bezier Points:
+   */
+  std::tuple<std::vector<CGAL::Point_2<CGAL::Epick>>, std::vector<double>,
+             std::vector<double>>
+  BezierPoints(std::vector<CGAL::Point_2<CGAL::Epick>> midpoints);
+
+  /*! Skidpad Lap Counter
+   */
+  void skidpadLapCounter();
+
+  /*! Autox/Trackdrive Lap Counter
+   */
+  void trackdriveLapCounter();
 
   /*! Initialize global variables:
    */
   double update_rate_;
   std::string event_;
+  int curr_sector_ = 0;
+  bool lock_sector_;
+  bool found_4_large_orange;
+  rclcpp::Time last_time;
+  bool accel_sector_increase;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
@@ -153,6 +184,10 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       accel_path_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      delaunay_path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      first_midpoint_path_publisher_;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
 

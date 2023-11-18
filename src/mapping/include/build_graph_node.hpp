@@ -164,11 +164,15 @@ public:
       past_detections_;                      // Previous cone detections
   utfr_msgs::msg::ConeMap current_cone_map_; // Current cone map estimate
   utfr_msgs::msg::EgoState current_state_;   // Current state estimate
+  std::map<int, utfr_msgs::msg::Cone> id_to_cone_map_; // Maps cone detection to id
+  std::map<int, utfr_msgs::msg::EgoState> id_to_state_map_; // Maps state estimate to id
   bool loop_closed_;                         // True if loop is closed
   bool landmarked_;
   int landmarkedID_;
   bool out_of_frame_;
   int cones_found_;
+  int current_pose_id_;
+  int first_detection_pose_id_;
 
   // Lists for poses, cones, and edges
   std::vector<g2o::VertexSE2*> pose_nodes_;
