@@ -162,6 +162,7 @@ public:
       past_states_; // Previous states of vehicle
   std::vector<std::pair<float, utfr_msgs::msg::Cone>>
       past_detections_;                      // Previous cone detections
+  std::map<int, g2o::VertexPointXY*> cone_id_to_vertex_map_;
   utfr_msgs::msg::ConeMap current_cone_map_; // Current cone map estimate
   utfr_msgs::msg::EgoState current_state_;   // Current state estimate
   std::map<int, utfr_msgs::msg::Cone> id_to_cone_map_; // Maps cone detection to id
