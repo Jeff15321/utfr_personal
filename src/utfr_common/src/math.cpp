@@ -363,8 +363,8 @@ ransacCircleLSF(const std::vector<utfr_msgs::msg::Cone> &cones, double radius) {
   MatrixXd b(n, 1);
 
   for (int i = 0; i < n; i++) {
-    A(i, 0) = 2.0 * cones[i].pos.y;
-    A(i, 1) = 2.0 * cones[i].pos.x;
+    A(i, 0) = 2.0 * cones[i].pos.x;
+    A(i, 1) = 2.0 * cones[i].pos.y;
     A(i, 2) = -1.0;
     // b(i, 0) = pow((cones[i].pos.x),2)+pow((cones[i].pos.y),2);
     b(i, 0) =

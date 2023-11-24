@@ -27,7 +27,10 @@
 
 // Message Requirements
 #include <geometry_msgs/msg/polygon_stamped.hpp>
+#include <geometry_msgs/msg/point.hpp>
+#include <geometry_msgs/msg/polygon.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
+#include <rclcpp/time.hpp>
 #include <utfr_msgs/msg/cone_detections.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
@@ -145,8 +148,17 @@ private:
   Midpoints(utfr_msgs::msg::ConeDetections_<std::allocator<void>>::SharedPtr
                 cone_detections_);
 
-  /*! Bezier Points:
+  /*! SkidPad Fit Function:
    */
+  void skidPadFit(const utfr_msgs::msg::ConeDetections &cone_detections,
+                  const utfr_msgs::msg::EgoState &msg);
+
+  /*! Publish Fitted Skidpad Path Lines:
+   */
+  void publishLine(
+    double m_left, double m_right, double c_left, double c_right, double x_min, 
+    double x_max, double thickness);
+
   std::tuple<std::vector<CGAL::Point_2<CGAL::Epick>>, std::vector<double>,
              std::vector<double>>
   BezierPoints(std::vector<CGAL::Point_2<CGAL::Epick>> midpoints);
@@ -159,19 +171,30 @@ private:
    */
   void trackdriveLapCounter();
 
+  std::tuple<double, double, double, double, double, double> skidpadMain();
+  std::tuple<double, double, double, double, double, double> skidpadRight();
+  std::tuple<double, double, double, double, double, double> skidpadLeft();
+
   /*! Initialize global variables:
    */
   double update_rate_;
   std::string event_;
+  double small_radius_;
+  double big_radius_;
+  double threshold_radius_;
+  int threshold_cones_;
   int curr_sector_ = 0;
   bool lock_sector_;
+  bool cones_detected_ = false;
   bool found_4_large_orange;
   rclcpp::Time last_time;
   bool accel_sector_increase;
+  int detections_in_row_ = 0;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
   utfr_msgs::msg::ConeDetections::SharedPtr cone_detections_{nullptr};
+  geometry_msgs::msg::Point reference_point_;
 
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
@@ -183,6 +206,12 @@ private:
       center_path_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       accel_path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      skidpad_path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      skidpad_path_publisher_2_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      skidpad_path_publisher_avg_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       delaunay_path_publisher_;
