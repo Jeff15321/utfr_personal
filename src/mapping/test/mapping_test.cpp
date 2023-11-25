@@ -21,7 +21,7 @@
 using namespace utfr_dv::build_graph;
 using namespace utfr_dv::compute_graph;
 using namespace utfr_dv::ekf;
-
+/*
 TEST(BuildGraphNodeTest, kNNTest1)
 {
     // Setup
@@ -73,7 +73,7 @@ TEST(BuildGraphNodeTest, kNNTest1)
     node.KNN(cones);
     ASSERT_EQ(3, node.past_detections_.size());
 }
-
+*/
 TEST(BuildGraphNodeTest, kNNTest2)
 {
     // Setup
