@@ -121,6 +121,7 @@ TEST(BuildGraphNodeTest, kNNTest2)
     ASSERT_EQ(4, node.past_detections_.size());
 }
 
+
 TEST(BuildGraphNodeTest, loopClosureTest1)
 {
     // Setup
