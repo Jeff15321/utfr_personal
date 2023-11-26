@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(lidar_pipeline)
+project(perception)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -23,21 +23,21 @@ find_package(PCL REQUIRED)
 include_directories(include)
 
 # Create a library for the clusterer and filter
-add_library(lidar_pipeline SHARED src/clusterer.cpp src/filter.cpp src/cone_filter.cpp)
-target_link_libraries(lidar_pipeline  ${PCL_LIBRARIES})
-ament_target_dependencies(lidar_pipeline rclcpp std_msgs geometry_msgs sensor_msgs utfr_msgs utfr_common PCL)
+add_library(${NODE_NAME}_library SHARED src/clusterer.cpp src/filter.cpp src/cone_filter.cpp src/lidar_proc_node.cpp)
+target_link_libraries(${NODE_NAME}_library  ${PCL_LIBRARIES})
+ament_target_dependencies(${NODE_NAME}_library rclcpp std_msgs geometry_msgs sensor_msgs utfr_msgs utfr_common PCL)
 
 # Create executable for the lidar node and link against the lidar_pipeline library
-add_executable(lidar_node src/lidar_node.cpp)
-target_link_libraries(lidar_node lidar_pipeline)
-ament_target_dependencies(lidar_node rclcpp std_msgs geometry_msgs sensor_msgs utfr_msgs utfr_common PCL)
+add_executable(lidar_proc src/lidar_proc.cpp)
+target_link_libraries(lidar_proc ${NODE_NAME}_library)
+ament_target_dependencies(lidar_proc rclcpp std_msgs geometry_msgs sensor_msgs utfr_msgs utfr_common PCL)
 
 install(TARGETS
-  lidar_node
+  lidar_proc
   DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS
-  lidar_pipeline
+  ${NODE_NAME}_library
   DESTINATION lib)
 
 install(DIRECTORY
