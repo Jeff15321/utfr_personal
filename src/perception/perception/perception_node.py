@@ -32,6 +32,7 @@ from tf2_ros.transform_listener import TransformListener
 
 # Message Requirements
 from sensor_msgs.msg import Image
+from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import Bool
 from utfr_msgs.msg import ConeDetections
 from utfr_msgs.msg import Heartbeat
@@ -119,6 +120,7 @@ class PerceptionNode(Node):
         self.declare_parameter("right_camera_topic", "/right_camera_node/images")
         self.declare_parameter("cone_detections_topic", "/perception/cone_detections")
         self.declare_parameter("heartbeat_topic", "/perception/heartbeat")
+        self.declare_parameter("processed_lidar_topic", "/lidar_pipeline/clustered")
         self.declare_parameter("update_rate", 33.33)
         self.declare_parameter("distortion_left", [0.0])
         self.declare_parameter("distortion_right", [0.0])
@@ -149,6 +151,11 @@ class PerceptionNode(Node):
         )
         self.heartbeat_topic_ = (
             self.get_parameter("heartbeat_topic").get_parameter_value().string_value
+        )
+        self.processed_lidar_topic = (
+            self.get_parameter("processed_lidar_topic")
+            .get_parameter_value()
+            .string_value
         )
         self.update_rate_ = (
             self.get_parameter("update_rate").get_parameter_value().double_value
@@ -291,6 +298,10 @@ class PerceptionNode(Node):
 
         self.right_cam_subscriber_ = self.create_subscription(
             Image, self.right_camera_topic, self.rightCameraCB, 1
+        )
+
+        self.processed_lidar_subscriber_ = self.create_subscription(
+            PointCloud2, self.processed_lidar_topic, self.lidarCB, 1
         )
 
         # Latching Subscribers:
@@ -461,6 +472,14 @@ class PerceptionNode(Node):
         """
         self.right_ready_ = msg.data
 
+    def lidarCB(self, msg):
+        """
+        Callback function for processed lidar point cloud
+        """
+        # TODO - create a variable in initvariables which stores the most recent
+        # processed lidar point cloud whenever lidarCB is called
+        pass
+
     def process(self, left_img_, right_img_):
         """
         main detection function for perception node
@@ -489,6 +508,15 @@ class PerceptionNode(Node):
             self.session,
             self.confidence_,
         )
+
+        # TODO - change bounding_boxes_to_cone_detections to return 3d cone
+        # detections using camera intrinsics and simple triangulation depth
+        # need to refactor this: make cone detections separately
+        # use the left_bounding_boxes, right_bounding_boxes to get depth measurements
+        # get 3d estimates
+        # ALSO: need to split cone_detections into left and right detections and return them
+        # dont need to return the bounding boxes
+
         cone_detections, left_image, right_image = bounding_boxes_to_cone_detections(
             left_bounding_boxes,
             left_classes,
@@ -601,17 +629,22 @@ class PerceptionNode(Node):
         )
 
         # TODO - use tf to convert results_left, results_right to lidar frame
+        # transpose to lidar coordinates
         # Syntax: self.tf_leftcam_lidar.transform.translation.y
         #        self.tf_leftcam_lidar.transform.rotation.x, y, z, w (quaternion)
         # or just use doTransform function
-        # Also, need to rework process function, update with current architecture
-        # need to refactor this: make cone detections separately
-        # use the results_left, results_right to get depth measurements
-        # get 3d estimates
-        # transpose to lidar coordinates
-        # make some logic for the clusters that are received from lidar node
-        # update the cone detections array with new lidar sstuff
 
+        # TODO - lidar camera fusion logic
+        # make some logic for the clusters that are received from lidar node
+        # all of the 3d camera detections are now in the lidar frame
+
+        # get the lidar point cloud
+        # for each single cluster point in the point cloud:
+        # calculate a numpy vector of the distances between the cone detection
+        # and the cluster
+        # choose the min distance one and remove from cone detections array
+        # when you remove it, you need to add it to a new array with the updated
+        # 3d point of the cluster
 
         # self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
 
