@@ -207,7 +207,7 @@ g2o::VertexSE2* BuildGraphNode::createPoseNode(int id, double x, double y,
 
 g2o::VertexPointXY* BuildGraphNode::createConeVertex(int id, double x, double y) {
 
-  g2o::VertexPointXY* coneVertex;
+  g2o::VertexPointXY* coneVertex = new g2o::VertexPointXY();
   coneVertex->setId(id);
 
   Eigen::Vector2d position(x, y);
