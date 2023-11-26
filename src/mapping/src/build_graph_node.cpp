@@ -138,6 +138,13 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         id_to_cone_map_[cones_found_] = detection;
 
         cones_found_+=1;
+        
+        // creates vertex for new cone detections and add to vertices array
+        g2o::VertexPointXY* vertex = createConeVertex(cones_found_, detection.pos.x, detection.pos.y);
+        cone_nodes_.push_back(vertex);
+
+        // maps cone id to vertex
+        cone_id_to_vertex_map_[cones_found_] = vertex;
       }
     }
     return cones_id_list_;  }
@@ -219,7 +226,7 @@ g2o::VertexSE2* BuildGraphNode::createPoseNode(int id, double x, double y,
 
 g2o::VertexPointXY* BuildGraphNode::createConeVertex(int id, double x, double y) {
 
-  g2o::VertexPointXY* coneVertex;
+  g2o::VertexPointXY* coneVertex = new g2o::VertexPointXY();
   coneVertex->setId(id);
 
   Eigen::Vector2d position(x, y);
