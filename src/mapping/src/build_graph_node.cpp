@@ -33,6 +33,7 @@ void BuildGraphNode::initParams() {
   cones_found_ = 0;
   current_pose_id_ = 0;
   first_detection_pose_id_ = 0;
+  
 
   // Will have to tune these later depending on the accuracy of our sensors
   P2PInformationMatrix_ = Eigen::Matrix3d::Identity();
@@ -59,17 +60,36 @@ void BuildGraphNode::initPublishers() {
       this->create_publisher<utfr_msgs::msg::PoseGraph>(topics::kPoseGraph, 10);
 }
 
-void BuildGraphNode::initTimers() {}
-
+void BuildGraphNode::initTimers() {
+}
 void BuildGraphNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kMappingBuildHeartbeat, 10);
 }
 
 void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
+  std::vector<int> cones = KNN(msg);
+  loopClosure(cones);
 }
 
-void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {}
+void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
+  current_state_ = msg;
+
+  current_pose_id_ += 1;
+  id_to_ego_map_[current_pose_id_] = current_state_;
+  
+  g2o::VertexSE2* poseVertex = createPoseNode(current_pose_id_, msg.pose.pose.position.x, msg.pose.pose.position.y, utfr_dv::util::quaternionToYaw(msg.pose.pose.orientation));
+  pose_nodes_.push_back(poseVertex);
+  id_to_pose_map_[current_pose_id_] = poseVertex;
+
+  utfr_msgs::msg::EgoState prevPoseVertex = id_to_ego_map_[current_pose_id_ - 1];
+
+  double dx = current_state_.pose.pose.position.x - prevPoseVertex.pose.pose.position.x;
+  double dy = current_state_.pose.pose.position.y - prevPoseVertex.pose.pose.position.y;
+  double dtheta = utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation) - utfr_dv::util::quaternionToYaw(prevPoseVertex.pose.pose.orientation);
+
+  g2o::EdgeSE2* edge = addPoseToPoseEdge(id_to_pose_map_[current_pose_id_ - 1], poseVertex, dx, dy, dtheta, false);
+}
 
 std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones){
     std::vector<int> cones_id_list_;  
@@ -163,21 +183,20 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
         // If cone in frame again
         if (seen_status != cones.end()) {
           // Car has returned back to landmark cone position, made full loop
-          double dx = id_to_cone_map_[first_detection_pose_id_].pos.x - 
-          	      id_to_cone_map_[current_pose_id_].pos.x;
-          double dy = id_to_cone_map_[first_detection_pose_id_].pos.y-
-          	      id_to_cone_map_[current_pose_id_].pos.y;
+          double dx = id_to_ego_map_[first_detection_pose_id_].pose.pose.position.x - 
+          	      id_to_ego_map_[current_pose_id_].pose.pose.position.x;
+          double dy = id_to_ego_map_[first_detection_pose_id_].pose.pose.position.y-
+          	      id_to_ego_map_[current_pose_id_].pose.pose.position.y;
           double dtheta = current_state_.pose.pose.orientation.z;
           loop_closed_ = true;
           // Create node objects for each pose
           // Get the state estimate at a pose using id_to_state_map_[pose_id_]
-          int x = id_to_cone_map_[first_detection_pose_id_].pos.x;
-          int y = id_to_cone_map_[first_detection_pose_id_].pos.y;
-          // Pass the data into createPoseNode, then pass the node objects into addPoseToPoseEdge
-          g2o::VertexSE2* first_pose_node = createPoseNode(first_detection_pose_id_, x, y, dtheta);
-          g2o::VertexSE2* current_pose_node = createPoseNode(current_pose_id_, dx, dy, dtheta);
+
+          g2o::VertexSE2* first_pose_node = id_to_pose_map_[first_detection_pose_id_];
+          g2o::VertexSE2* second_pose_node = id_to_pose_map_[current_pose_id_];
+
           // add an edge using the pose ids at initial detection and loop closure detection
-          g2o::EdgeSE2* edge = addPoseToPoseEdge(first_pose_node, current_pose_node, dx, dy, dtheta, loop_closed_);
+          g2o::EdgeSE2* edge = addPoseToPoseEdge(first_pose_node, second_pose_node, dx, dy, dtheta, loop_closed_);
           pose_to_pose_edges_.push_back(edge);
 
         }
@@ -189,7 +208,7 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
 g2o::VertexSE2* BuildGraphNode::createPoseNode(int id, double x, double y,
                                               double theta) {
   g2o::VertexSE2* poseVertex = new g2o::VertexSE2();
-  poseVertex->setId(0);
+  poseVertex->setId(id);
 
   g2o::SE2 poseEstimate;
   poseEstimate.fromVector(Eigen::Vector3d(x, y, theta));
