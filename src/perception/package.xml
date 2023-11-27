@@ -20,6 +20,7 @@
   <depend>geometry_msgs</depend>
   <depend>pcl_conversions</depend>
   <depend>utfr_common</depend>
+  <depend>tf2_ros_py</depend>
 
   <depend>python3-numpy</depend>
   <depend>python3-opencv</depend>

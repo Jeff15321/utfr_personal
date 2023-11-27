@@ -158,17 +158,21 @@ public:
       state_estimation_subscriber_;
 
   // Global variables
-  std::vector<utfr_msgs::msg::EgoState>
-      past_states_; // Previous states of vehicle
   std::vector<std::pair<float, utfr_msgs::msg::Cone>>
       past_detections_;                      // Previous cone detections
+  std::map<int, g2o::VertexPointXY*> cone_id_to_vertex_map_;
   utfr_msgs::msg::ConeMap current_cone_map_; // Current cone map estimate
   utfr_msgs::msg::EgoState current_state_;   // Current state estimate
+  std::map<int, utfr_msgs::msg::Cone> id_to_cone_map_; // Maps cone detection to id
+  std::map<int, utfr_msgs::msg::EgoState> id_to_ego_map_; // Maps state estimate to id
+  std::map<int, g2o::VertexSE2*> id_to_pose_map_; // Maps state estimate to pose node
   bool loop_closed_;                         // True if loop is closed
   bool landmarked_;
   int landmarkedID_;
   bool out_of_frame_;
   int cones_found_;
+  int current_pose_id_;
+  int first_detection_pose_id_;
 
   // Lists for poses, cones, and edges
   std::vector<g2o::VertexSE2*> pose_nodes_;

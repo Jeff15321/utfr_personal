@@ -26,9 +26,13 @@ from rclpy.node import Node
 from cv_bridge import CvBridge, CvBridgeError
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy
 import rospkg
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 
 # Message Requirements
 from sensor_msgs.msg import Image
+from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import Bool
 from utfr_msgs.msg import ConeDetections
 from utfr_msgs.msg import Heartbeat
@@ -116,6 +120,7 @@ class PerceptionNode(Node):
         self.declare_parameter("right_camera_topic", "/right_camera_node/images")
         self.declare_parameter("cone_detections_topic", "/perception/cone_detections")
         self.declare_parameter("heartbeat_topic", "/perception/heartbeat")
+        self.declare_parameter("processed_lidar_topic", "/lidar_pipeline/clustered")
         self.declare_parameter("update_rate", 33.33)
         self.declare_parameter("distortion_left", [0.0])
         self.declare_parameter("distortion_right", [0.0])
@@ -146,6 +151,11 @@ class PerceptionNode(Node):
         )
         self.heartbeat_topic_ = (
             self.get_parameter("heartbeat_topic").get_parameter_value().string_value
+        )
+        self.processed_lidar_topic = (
+            self.get_parameter("processed_lidar_topic")
+            .get_parameter_value()
+            .string_value
         )
         self.update_rate_ = (
             self.get_parameter("update_rate").get_parameter_value().double_value
@@ -256,6 +266,18 @@ class PerceptionNode(Node):
             "src/perception/perception/best.onnx", providers=providers
         )
 
+        # create transform frame variables
+        self.lidar_frame = "lidar"
+        self.left_camera_frame = "left_camera"
+        self.right_camera_frame = "right_camera"
+
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
+        print(self.tf_listener)
+
+        # TODO - add last tf for lidar to whatever the base frame is
+
     def initSubscribers(self):
         """
         Initialize Subscribers
@@ -278,8 +300,8 @@ class PerceptionNode(Node):
             Image, self.right_camera_topic, self.rightCameraCB, 1
         )
 
-        self.mapping_debug_subscriber_ = self.create_subscription(
-            Lidar, self.mapping_debug_topic, self.mappingCB, 1
+        self.processed_lidar_subscriber_ = self.create_subscription(
+            PointCloud2, self.processed_lidar_topic, self.lidarCB, 1
         )
 
         # Latching Subscribers:
@@ -450,6 +472,14 @@ class PerceptionNode(Node):
         """
         self.right_ready_ = msg.data
 
+    def lidarCB(self, msg):
+        """
+        Callback function for processed lidar point cloud
+        """
+        # TODO - create a variable in initvariables which stores the most recent
+        # processed lidar point cloud whenever lidarCB is called
+        pass
+
     def process(self, left_img_, right_img_):
         """
         main detection function for perception node
@@ -478,6 +508,15 @@ class PerceptionNode(Node):
             self.session,
             self.confidence_,
         )
+
+        # TODO - change bounding_boxes_to_cone_detections to return 3d cone
+        # detections using camera intrinsics and simple triangulation depth
+        # need to refactor this: make cone detections separately
+        # use the left_bounding_boxes, right_bounding_boxes to get depth measurements
+        # get 3d estimates
+        # ALSO: need to split cone_detections into left and right detections and return them
+        # dont need to return the bounding boxes
+
         cone_detections, left_image, right_image = bounding_boxes_to_cone_detections(
             left_bounding_boxes,
             left_classes,
@@ -559,10 +598,54 @@ class PerceptionNode(Node):
     frame_right = self.equalize_hist(frame_right)
     """
 
+        frame_left = undist_left
+        frame_right = undist_right
+
+        try:
+            # tf from left_cam to lidar
+
+            tf_leftcam_lidar = self.tf_buffer.lookup_transform(
+                self.lidar_frame,
+                self.left_camera_frame,
+                time=rclpy.time.Time(seconds=0),
+                timeout=rclpy.time.Duration(seconds=0.1),
+            )
+
+            # tf from right_cam to lidar
+            self.tf_rightcam_lidar = self.tf_buffer.lookup_transform(
+                self.lidar_frame,
+                self.right_camera_frame,
+                rclpy.time.Time(),
+                timeout=rclpy.duration.Duration(seconds=0.1),
+            )
+
+        except TransformException as ex:
+            self.get_logger().info(f"{ex}")
+            return
         # get the detections
+
         results_left, results_right, cone_detections = self.process(
             frame_left, frame_right
         )
+
+        # TODO - use tf to convert results_left, results_right to lidar frame
+        # transpose to lidar coordinates
+        # Syntax: self.tf_leftcam_lidar.transform.translation.y
+        #        self.tf_leftcam_lidar.transform.rotation.x, y, z, w (quaternion)
+        # or just use doTransform function
+
+        # TODO - lidar camera fusion logic
+        # make some logic for the clusters that are received from lidar node
+        # all of the 3d camera detections are now in the lidar frame
+
+        # get the lidar point cloud
+        # for each single cluster point in the point cloud:
+        # calculate a numpy vector of the distances between the cone detection
+        # and the cluster
+        # choose the min distance one and remove from cone detections array
+        # when you remove it, you need to add it to a new array with the updated
+        # 3d point of the cluster
+
         # self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
 
         # perception debug msg
@@ -585,8 +668,6 @@ class PerceptionNode(Node):
             bounding_box_right.width = int(results_right[i][2])
             bounding_box_right.height = int(results_right[i][3])
             self.perception_debug_msg.right.append(bounding_box_right)
-
-        self.perception_debug_msg.header.stamp = self.get_clock().now().to_msg()
 
         self.perception_debug_publisher_.publish(self.perception_debug_msg)
 
@@ -620,6 +701,8 @@ class PerceptionNode(Node):
                 self.detections_msg.small_orange_cones.append(self.cone_template)
             elif self.cone_template.type == 4:
                 self.detections_msg.large_orange_cones.append(self.cone_template)
+            else:  # unknown cones cone template type == 0
+                self.detections_msg.unknown_cones.append(self.cone_template)
 
         self.detections_msg.header.stamp = self.get_clock().now().to_msg()
 

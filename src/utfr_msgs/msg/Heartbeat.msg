@@ -10,6 +10,9 @@ float64 update_rate # ms
 # heartbeat status based on enum below
 uint8 status 
 
+# lap counter
+uint8 lap_count # TODO: Implement logic in car interface node
+
 # module status
 uint8 NOT_READY=1
 uint8 READY=2
