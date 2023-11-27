@@ -38,6 +38,14 @@ execute_process(
 )
 link_directories(${CMAKE_SOURCE_DIR}/external/g2o/lib)
 
+# Assume your G2O library files are in the following directory
+set(G2O_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/g2o/lib")
+
+# Install the libraries
+install(DIRECTORY ${G2O_LIB_DIR}/
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+        FILES_MATCHING PATTERN "*.so*")
+
 ## Add Libaries and Executables
 function(add_node NODE_NAME)
   add_library(${NODE_NAME}_library

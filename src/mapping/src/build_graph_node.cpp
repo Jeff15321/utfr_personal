@@ -123,6 +123,9 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
           detection.pos.y -= current_state_.pose.pose.position.y;
           id_to_cone_map_[past_detections_[i].first] = detection;
 
+          // Create edges between pose and cone
+          g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[current_pose_id_], cone_id_to_vertex_map_[past_detections_[i].first], detection.pos.x, detection.pos.y);
+
           break;
         }
       }
@@ -145,6 +148,9 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
 
         // maps cone id to vertex
         cone_id_to_vertex_map_[cones_found_] = vertex;
+
+        // Create edges between pose and cone
+        g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[current_pose_id_], vertex, detection.pos.x, detection.pos.y);
       }
     }
     return cones_id_list_;  }
