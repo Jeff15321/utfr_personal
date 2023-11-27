@@ -95,9 +95,9 @@ void BuildGraphNode::initHeartbeat() {
 
 void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
   std::vector<int> cones = KNN(msg);
-  // Print out the cones
-  for (int cone : cones) {
-    std::cout << cone << std::endl;
+
+  for (auto point : past_detections_) {
+    std::cout << point.first << " " << point.second.pos.x << " " << point.second.pos.y << std::endl;
   }
   loopClosure(cones);
 }
@@ -124,6 +124,10 @@ void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
 std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones){
     std::vector<int> cones_id_list_;  
     std::vector<utfr_msgs::msg::Cone> all_cones;
+
+    // Create a temp current state so current state doesn't get modified while we're using it
+    utfr_msgs::msg::EgoState temp_current_state_ = current_state_;
+    int temp_current_pose_id_ = current_pose_id_;
     //adding all cones to one vector
     all_cones.insert(all_cones.end(), cones.left_cones.begin(), cones.left_cones.end());
     all_cones.insert(all_cones.end(), cones.right_cones.begin(), cones.right_cones.end());
@@ -133,15 +137,15 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
     for (const auto& pastCone : all_cones){
       utfr_msgs::msg::Cone newCone = pastCone;
       //updating detected position to global frame
-      double ego_x = current_state_.pose.pose.position.x;
-      double ego_y = current_state_.pose.pose.position.y;
+      double ego_x = temp_current_state_.pose.pose.position.x;
+      double ego_y = temp_current_state_.pose.pose.position.y;
       newCone.pos.x += ego_x;
       newCone.pos.y += ego_y;
       bool adding_to_past = true;      
       //iterating through old cones
       for (size_t i=0; i <past_detections_.size(); ++i){
         const utfr_msgs::msg::Cone&pastDetectionsCone=past_detections_[i].second;    
-        //finding displacement between detected cone and past cone    
+        //finding displacement between detected cone and past cone 
         double displacement = utfr_dv::util::euclidianDistance2D(newCone.pos.x, pastDetectionsCone.pos.x, newCone.pos.y, pastDetectionsCone.pos.y);    
         //not adding if already detected (within error)
         if (displacement <= 0.3){
@@ -149,13 +153,14 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
 
           // Maps the cone detection to the cone id
           utfr_msgs::msg::Cone detection = newCone;
-          detection.pos.x -= current_state_.pose.pose.position.x;
-          detection.pos.y -= current_state_.pose.pose.position.y;
+          detection.pos.x -= temp_current_state_.pose.pose.position.x;
+          detection.pos.y -= temp_current_state_.pose.pose.position.y;
           id_to_cone_map_[past_detections_[i].first] = detection;
+          cones_id_list_.push_back(past_detections_[i].first);
 
           // Create edges between pose and cone
-          g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[current_pose_id_], cone_id_to_vertex_map_[past_detections_[i].first], detection.pos.x, detection.pos.y);
-
+          g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], cone_id_to_vertex_map_[past_detections_[i].first], detection.pos.x, detection.pos.y);
+          pose_to_cone_edges_.push_back(edge);
           break;
         }
       }
@@ -166,9 +171,9 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
 
         // Maps the cone detection to the cone id
         utfr_msgs::msg::Cone detection = newCone;
-        detection.pos.x -= current_state_.pose.pose.position.x;
-        detection.pos.y -= current_state_.pose.pose.position.y;
-        id_to_cone_map_[cones_found_] = detection;
+        detection.pos.x -= temp_current_state_.pose.pose.position.x;
+        detection.pos.y -= temp_current_state_.pose.pose.position.y;
+        id_to_cone_map_[temp_current_pose_id_] = detection;
 
         cones_found_+=1;
         
@@ -180,10 +185,12 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         cone_id_to_vertex_map_[cones_found_] = vertex;
 
         // Create edges between pose and cone
-        g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[current_pose_id_], vertex, detection.pos.x, detection.pos.y);
+        g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, detection.pos.x, detection.pos.y);
+        pose_to_cone_edges_.push_back(edge);
       }
     }
-    return cones_id_list_;  }
+    return cones_id_list_;  
+}
 
 
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
