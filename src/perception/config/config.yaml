@@ -3,6 +3,7 @@ perception_node: # Name of Node
     left_camera_topic: "/left_camera_node/images"
     right_camera_topic: "/right_camera_node/images"
     cone_detections_topic: "perception/cone_detections"
+    processed_lidar_topic: "/lidar_pipeline/clustered"
     baseline: 10.0
     update_rate: 33.0 #[ms]
     distortion_left:
