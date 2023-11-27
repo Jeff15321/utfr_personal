@@ -13,6 +13,20 @@
 */
 
 #include <build_graph_node.hpp>
+#include "g2o/core/factory.h"
+#include "g2o/core/optimization_algorithm_factory.h"
+#include "g2o/core/sparse_optimizer.h"
+#include <g2o/types/slam2d/se2.h>
+#include <g2o/types/slam2d/vertex_se2.h>
+#include "g2o/core/sparse_block_matrix.h"
+#include "g2o/core/block_solver.h"
+#include "g2o/core/sparse_optimizer.h"
+#include <Eigen/Core>
+#include "g2o/core/block_solver.h"
+#include "g2o/core/optimization_algorithm_levenberg.h"
+#include "g2o/solvers/eigen/linear_solver_eigen.h"
+
+G2O_USE_TYPE_GROUP(slam2d);
 
 namespace utfr_dv {
 namespace build_graph {
@@ -24,6 +38,10 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
   this->initTimers();
   this->initHeartbeat();
 }
+
+using SlamBlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1> >;
+using SlamLinearSolver =
+    g2o::LinearSolverEigen<SlamBlockSolver::PoseMatrixType>;
 
 void BuildGraphNode::initParams() {
   loop_closed_ = false;
@@ -39,6 +57,13 @@ void BuildGraphNode::initParams() {
   P2PInformationMatrix_ = Eigen::Matrix3d::Identity();
   P2CInformationMatrix_ = Eigen::Matrix2d::Identity();
   LoopClosureInformationMatrix_ = Eigen::Matrix3d::Identity();
+
+  auto linearSolverLM = std::make_unique<SlamLinearSolver>();
+  linearSolverLM->setBlockOrdering(false);
+  g2o::OptimizationAlgorithm* optimizer = new g2o::OptimizationAlgorithmLevenberg(
+      std::make_unique<SlamBlockSolver>(std::move(linearSolverLM)));
+  optimizer_.setAlgorithm(optimizer);
+
 }
 
 void BuildGraphNode::initSubscribers() {
@@ -62,6 +87,7 @@ void BuildGraphNode::initPublishers() {
 
 void BuildGraphNode::initTimers() {
 }
+
 void BuildGraphNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kMappingBuildHeartbeat, 10);
@@ -69,6 +95,10 @@ void BuildGraphNode::initHeartbeat() {
 
 void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
   std::vector<int> cones = KNN(msg);
+  // Print out the cones
+  for (int cone : cones) {
+    std::cout << cone << std::endl;
+  }
   loopClosure(cones);
 }
 
@@ -158,7 +188,6 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
 
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
   // Loop hasn't been completed yet
- 
   if (!loop_closed_) {
     // Go through cone list
     for (int coneID : cones) {
@@ -172,6 +201,7 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           landmarkedID_ = coneID;
           landmarked_ = true;
           first_detection_pose_id_ = current_pose_id_;
+          std::cout << "Landmark Set" << std::endl;
         }
       }
 
@@ -211,7 +241,8 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           // add an edge using the pose ids at initial detection and loop closure detection
           g2o::EdgeSE2* edge = addPoseToPoseEdge(first_pose_node, second_pose_node, dx, dy, dtheta, loop_closed_);
           pose_to_pose_edges_.push_back(edge);
-
+          std::cout << "Loop closure edge added" << std::endl;
+          graphSLAM();
         }
       }
     }
@@ -272,6 +303,51 @@ g2o::EdgeSE2PointXY* BuildGraphNode::addPoseToConeEdge(g2o::VertexSE2* pose,
   edge->setVertex(1, cone);
 
   return edge;
+}
+
+void BuildGraphNode::graphSLAM() {
+
+  std::cout << "Edges and nodes cleared" << std::endl;
+
+  // Add all the nodes and egdes to the optimizer
+  for (g2o::VertexSE2* pose : pose_nodes_) {
+    optimizer_.addVertex(pose);
+  }
+
+  for (g2o::VertexPointXY* cone : cone_nodes_) {
+    optimizer_.addVertex(cone);
+  }
+
+  for (g2o::EdgeSE2* edge : pose_to_pose_edges_) {
+    optimizer_.addEdge(edge);
+  }
+
+  for (g2o::EdgeSE2PointXY* edge : pose_to_cone_edges_) {
+    optimizer_.addEdge(edge);
+  }
+  
+  optimizer_.initializeOptimization();
+  optimizer_.optimize(10);
+
+  // for (g2o::SparseOptimizer::VertexIDMap::const_iterator it = optimizer_.vertices().begin(); it != optimizer_.vertices().end(); ++it) {
+  //       g2o::SparseOptimizer::Vertex* vertex = dynamic_cast<g2o::SparseOptimizer::Vertex*>(it->second);
+  //       if (vertex) {
+  //           g2o::VertexSE2* se2Vertex = dynamic_cast<g2o::VertexSE2*>(vertex);
+  //           if (se2Vertex) {
+  //               const g2o::SE2& se2 = se2Vertex->estimate();
+  //               double x = se2.toVector()[0];  // Extract the x component
+  //               double y = se2.toVector()[1];  // Extract the y component
+
+  //               utfr_msgs::msg::Cone cone;
+  //               cone.pos.x = x;
+  //               cone.pos.y = y;
+  //               cone_map_.left_cones.push_back(cone);
+  //           }
+  //       }
+  //   }
+  // Save the optimized pose graph
+  optimizer_.save("pose_graph.g2o");
+  std::cout << "Optimized pose graph saved" << std::endl;
 }
 
 void BuildGraphNode::buildGraph() {}

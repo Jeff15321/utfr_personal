@@ -64,8 +64,7 @@ function(add_node NODE_NAME)
   
   add_executable(${NODE_NAME} src/${NODE_NAME}.cpp)
   target_link_libraries(${NODE_NAME}_library fmt::fmt)
-  target_link_libraries(${NODE_NAME}_library g2o_core g2o_stuff g2o_types_data g2o_types_slam2d)
-
+  target_link_libraries(${NODE_NAME}_library g2o_core g2o_stuff g2o_types_data g2o_types_slam2d g2o_solver_eigen g2o_solver_slam2d_linear)
   
   target_link_libraries(${NODE_NAME} ${NODE_NAME}_library)
   ament_target_dependencies(${NODE_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})
