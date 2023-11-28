@@ -177,7 +177,7 @@ public:
   bool loop_closed_;                         // True if loop is closed
   bool landmarked_;
   int landmarkedID_;
-  bool out_of_frame_;
+  int out_of_frame_;
   int cones_found_;
   int current_pose_id_;
   int first_detection_pose_id_;

@@ -47,7 +47,7 @@ void BuildGraphNode::initParams() {
   loop_closed_ = false;
   landmarked_ = false;
   landmarkedID_ = -1;
-  out_of_frame_ = false;
+  out_of_frame_ = -1;
   cones_found_ = 0;
   current_pose_id_ = 0;
   first_detection_pose_id_ = 0;
@@ -207,6 +207,7 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           landmarkedID_ = coneID;
           landmarked_ = true;
           first_detection_pose_id_ = current_pose_id_;
+          out_of_frame_ = 0;
           std::cout << "Landmark Set" << std::endl;
         }
       }
@@ -217,16 +218,19 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
       //   landmarked_ = true;
       // }
       // Cone has been landmarked and still in frame for the first time
-      if (landmarked_ == true && out_of_frame_ == false) {
+      if (landmarked_ == true && out_of_frame_ > -1 && out_of_frame_ < 1000) {
         auto seen_status = std::find(cones.begin(), cones.end(), landmarkedID_);
         // If cone not in frame anymore
         if (seen_status == cones.end()) {
           // Set out of frame to be true
-          out_of_frame_ = true;
+          out_of_frame_ += 1;
+        } else {
+          // Set out of frame to be false
+          out_of_frame_ = 0;
         }
       }
       // Cone has been landmarked and is no longer in frame
-      if (landmarked_ == true && out_of_frame_ == true) {
+      if (landmarked_ == true && out_of_frame_ >= 1000) {
         // Check if cone appears in frame again
         auto seen_status = std::find(cones.begin(), cones.end(), landmarkedID_);
         // If cone in frame again
@@ -248,6 +252,7 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           g2o::EdgeSE2* edge = addPoseToPoseEdge(first_pose_node, second_pose_node, dx, dy, dtheta, loop_closed_);
           pose_to_pose_edges_.push_back(edge);
           std::cout << "Loop closure edge added" << std::endl;
+          out_of_frame_ = -1;
           graphSLAM();
         }
       }
