@@ -39,7 +39,6 @@
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
-#include <utfr_msgs/msg/cone_detections.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -195,6 +194,7 @@ private:
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
   utfr_msgs::msg::ConeDetections::SharedPtr cone_detections_{nullptr};
+  geometry_msgs::msg::Point reference_point_;
 
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
