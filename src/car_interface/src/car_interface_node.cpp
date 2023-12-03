@@ -27,18 +27,18 @@ CarInterface::CarInterface() : Node("car_interface_node") {
 }
 
 void CarInterface::initParams() {
-  std::vector<std::string> default_modules = {"controls"}; // TODO: update
+  std::vector<std::string> default_modules = {
+    "perception", "mapping", "ekf", "planning", "controls"}; 
 
   // Initialize Params with default values
   this->declare_parameter("update_rate", 33.33);
   this->declare_parameter("heartbeat_tolerance", 1.5);
- // this->declare_parameter("heartbeat_modules", default_modules);
+  this->declare_parameter("heartbeat_modules", default_modules);
   this->declare_parameter("testing", 0);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   heartbeat_tolerance_ = this->get_parameter("heartbeat_tolerance").as_double();
-  heartbeat_modules_ =default_modules;
-      //this->get_parameter("heartbeat_modules").as_string_array();
+  heartbeat_modules_ = this->get_parameter("heartbeat_modules").as_string_array();
   testing_ = this->get_parameter("testing").as_int();
 }
 
@@ -95,15 +95,15 @@ void CarInterface::initTimers() {
 
 void CarInterface::initCAN() {
   can1_ = std::make_unique<CanInterface>();
-  // can0_ = std::make_unique<CanInterface>();
+  can0_ = std::make_unique<CanInterface>();
 
-  if (can1_->connect("can0")) {
+  if (can1_->connect("can1") && can0_->connect("can0")) {
     RCLCPP_INFO(this->get_logger(), "Finished Initializing CAN");
   } else
     RCLCPP_ERROR(this->get_logger(), "Failed To Initialize CAN");
 
-  while (can1_->read_can())
-    ;
+  while (can1_->read_can());
+  while (can0_->read_can());
 
   return;
 }
@@ -135,7 +135,7 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   steeringRateToSC |= (uint16_t)(directionBit << 12);
 
   // Finalize commands
-  if (cmd_||testing_) {
+  if (cmd_) {
     braking_cmd_ = msg.brk_cmd;
     steering_cmd_ = steeringRateToSC;
     throttle_cmd_ = msg.thr_cmd;
@@ -224,16 +224,17 @@ void CarInterface::getMotorTorqueData() {
 
 void CarInterface::getServiceBrakeData() {
   const std::string function_name{"getServiceBrakeData"};
-  // uint16_t asb_pressure_front; // TODO: Check proper var type
-  uint16_t rear_pressure; // TODO: Check proper var type
+  uint16_t front_pressure; 
+  uint16_t rear_pressure; 
 
   try {
     // TODO: Check value format
-    // asb_pressure_front = (can1_->get_can(dv_can_msg::FBP));
+    front_pressure = (can1_->get_can(dv_can_msg::FBP));
     rear_pressure = (can1_->get_can(dv_can_msg::RBP))&0xFFFF;
     RCLCPP_DEBUG(this->get_logger(), "rear brake pressure: %d",rear_pressure);
 
-    sensor_can_.rear_pressure = rear_pressure; 
+    sensor_can_.rear_pressure = front_pressure; 
+    sensor_can_.front_pressure = rear_pressure; 
 
     system_status_.brake_hydr_actual =
         (int)(100 * rear_pressure / MAX_BRK_PRS); // Converting to %
@@ -246,23 +247,23 @@ void CarInterface::getServiceBrakeData() {
 
 void CarInterface::getWheelspeedSensorData() {
   const std::string function_name{"getWheelspeedSensorData"};
-  double wheelspeed_fl; // TODO: Check proper var type
-  double wheelspeed_fr; // TODO: Check proper var type
-  double wheelspeed_rl; // TODO: Check proper var type
-  double wheelspeed_rr; // TODO: Check proper var type
+  double wheelspeed_fl = 0; // TODO: Check proper var type
+  double wheelspeed_fr = 0; // TODO: Check proper var type
+  double wheelspeed_rl = 0; // TODO: Check proper var type
+  double wheelspeed_rr = 0; // TODO: Check proper var type
 
   try {
     // TODO: Proper CAN message
-    // wheelspeed_fl =
+    // wheelspeed_fl 
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TODO: Proper CAN message
-    // wheelspeed_fr =
+    // wheelspeed_fr 
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TODO: Proper CAN message
-    // wheelspeed_rl =
+    // wheelspeed_rl 
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TODO: Proper CAN message
-    // wheelspeed_rr =
+    // wheelspeed_rr 
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
 
     sensor_can_.wheelspeed_fl = wheelspeed_fl;
@@ -282,11 +283,11 @@ void CarInterface::getIMUData() {
     // TODO: Check reference frames, double check value format
     sensor_msgs::msg::Imu imu;
     imu.linear_acceleration.x =
-        (double)((can1_->get_can(dv_can_msg::ImuX) >> (8 * 4)) & 255) / 100;
+        (double)(((long)can1_->get_can(dv_can_msg::ImuX) >> (32)) & 255) / 100;
     imu.linear_acceleration.y =
-        -(double)((can1_->get_can(dv_can_msg::ImuY) >> (8 * 4)) & 255) / 100;
+        -(double)(((long)can1_->get_can(dv_can_msg::ImuY) >> (32)) & 255) / 100;
     imu.linear_acceleration.z =
-        (double)((can1_->get_can(dv_can_msg::ImuZ) >> (8 * 4)) & 255) / 100;
+        (double)(((long)can1_->get_can(dv_can_msg::ImuZ) >> (32)) & 255) / 100;
     imu.angular_velocity.x =
         (double)(can1_->get_can(dv_can_msg::ImuX) & 255) / 10;
     imu.angular_velocity.y =
@@ -483,7 +484,7 @@ void CarInterface::setDVStateAndCommand() {
     RCLCPP_DEBUG(this->get_logger(), "Throttle: %d", throttle_cmd_);
     RCLCPP_DEBUG(this->get_logger(), "PWM: %d", braking_cmd_);
   
-    if (cmd_||testing_) {
+    if (cmd_) {
       dv_command |= (long)(throttle_cmd_ & 0xFFFF) << 3;
       dv_command |= (long)(steering_cmd_ & 0x1FFF) << 19;
       dv_command |= (long)(braking_cmd_ & 0xFF) << 32;

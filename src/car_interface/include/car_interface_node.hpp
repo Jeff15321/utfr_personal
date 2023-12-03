@@ -207,6 +207,7 @@ private:
 
   // CAN objects
   CanInterfaceUPtr can1_{nullptr};
+  CanInterfaceUPtr can0_{nullptr};
   
   rclcpp::TimerBase::SharedPtr can_timer_;
 
