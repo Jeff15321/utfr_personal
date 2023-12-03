@@ -192,8 +192,6 @@ private:
   utfr_msgs::msg::TargetState target_;
   utfr_msgs::msg::SystemStatus::SharedPtr status_{nullptr};
   utfr_msgs::msg::Heartbeat heartbeat_;
-
-  bool max_vel = false;
 };
 } // namespace controller
 } // namespace utfr_dv
