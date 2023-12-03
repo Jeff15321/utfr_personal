@@ -57,10 +57,12 @@ void ControllerNode::initParams() {
   baselink_location_ = this->get_parameter("baselink_location").as_double();
   wheel_base_ = this->get_parameter("wheel_base").as_double();
   num_points_ = this->get_parameter("num_points").as_int();
-  lookahead_distance_ =
-      this->get_parameter("lookahead_distance_pp").as_double();
+  base_lookahead_distance_ =
+      this->get_parameter("base_lookahead_distance").as_double();
+  lookahead_distance_scaling_factor_ =
+      this->get_parameter("lookahead_scaling_factor").as_double();
 
-  RCLCPP_INFO(this->get_logger(), "Finished Initializing Params");
+  start_time_ = this->get_clock()->now();
 }
 
 void ControllerNode::initSubscribers() {
@@ -84,8 +86,6 @@ void ControllerNode::initSubscribers() {
       this->create_subscription<utfr_msgs::msg::Heartbeat>(
           topics::kCenterPathHeartbeat, 10,
           std::bind(&ControllerNode::lapCounterCB, this, _1));
-  
-  RCLCPP_INFO(this->get_logger(), "Finished Initializing Subscribers");
 }
 
 void ControllerNode::initPublishers() {
@@ -101,8 +101,6 @@ void ControllerNode::initPublishers() {
   pure_pursuit_point_publisher_ =
       this->create_publisher<visualization_msgs::msg::Marker>(
           topics::kPurePursuitPoint, 10);
-      
-  RCLCPP_INFO(this->get_logger(), "Finished Initializing Publishers");
 }
 
 void ControllerNode::initTimers() {
@@ -111,8 +109,7 @@ void ControllerNode::initTimers() {
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBAccel, this));
-  } 
-  /*else if (event_ == "skidpad") {
+  } else if (event_ == "skidpad") {
     last_lap_count_ = 17;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
@@ -127,7 +124,7 @@ void ControllerNode::initTimers() {
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBTrackdrive, this));
-  }*/
+  }
 }
 
 void ControllerNode::initHeartbeat() {
@@ -211,42 +208,20 @@ void ControllerNode::timerCBAccel() {
                 "Data not published or initialized yet. Using defaults.");
     return;
   }
-  if(ego_state_ == nullptr){
-    return;
-  }
-  // CODE GOES HERE
   double cur_s_ = 0;
 
-  // if (controller_ == "stanley") {
-  //   utfr_msgs::msg::TargetState target =
-  //       stanleyController(stanley_gain_, max_velocity_, max_steering_angle_,
-  //                         max_steering_rate_, *path_, cur_s_, ds_,
-  //                         *velocity_profile_, baselink_location_, *ego_state_);
-  //   target_ = target;
-  // } else if (controller_ == "pure_pursuit") {
-  //   utfr_msgs::msg::TargetState target = purePursuitController(
-  //       max_velocity_, max_steering_angle_, *path_, cur_s_, ds_,
-  //       *velocity_profile_, baselink_location_, *ego_state_,
-  //       lookahead_distance_);
-  //   target_ = target;
-  // }
-
-  utfr_msgs::msg::TargetState target;
-  target.speed = 5.0;
-  target.steering_angle = 0.0;
-
-  if (!max_vel && (ego_state_->vel.twist.linear.x > target.speed)) {
-    max_vel = true;
-  }
-
-  if (max_vel) {
-    target.speed = 0.0;
-    if (ego_state_->vel.twist.linear.x == target.speed) {
-      max_vel = false;
-    }
-  }
+  // Controller
+  utfr_msgs::msg::TargetState target = purePursuitController(
+      max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
+      baselink_location_, *ego_state_, base_lookahead_distance_,
+      lookahead_distance_scaling_factor_);
 
   target_ = target;
+
+  // print target state
+  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+              "Target steering: %f \n Target velocity: %f",
+              target.steering_angle, target.speed);
 
   // publish target state
   target_state_publisher_->publish(target_);
