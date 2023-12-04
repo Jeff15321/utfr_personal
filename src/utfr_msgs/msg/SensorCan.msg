@@ -9,6 +9,10 @@ int16 steering_angle
 std_msgs/Header motor_header
 float64 motor_speed
 
+#brake pressure data
+uint16 rear_pressure
+uint16 front_pressure 
+
 # Wheel speed sensor data 
 std_msgs/Header sensor_header
 float64 wheelspeed_fl

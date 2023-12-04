@@ -93,7 +93,7 @@ bool HeartbeatMonitor::verifyHeartbeats(const rclcpp::Time &curr_time) {
 
     double current_diff = (curr_time - new_stamp).nanoseconds() / 1000000;
     double latest_duration = current_diff - const_diff;
-    RCLCPP_INFO(rclcpp::get_logger("heartbeat_monitor"),
+    RCLCPP_DEBUG(rclcpp::get_logger("heartbeat_monitor"),
                 "%s Module %s duration %f, max duration %f!",
                 function_name.c_str(), element.first.c_str(), latest_duration,
                 max_duration);
@@ -104,6 +104,9 @@ bool HeartbeatMonitor::verifyHeartbeats(const rclcpp::Time &curr_time) {
                    element.first.c_str());
       return false;
     }
+    RCLCPP_INFO(rclcpp::get_logger("heartbeat_monitor"),
+              "%s Module '%s' is alive",
+              function_name.c_str(), element.first.c_str());
   }
 
   return true;
