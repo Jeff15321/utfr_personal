@@ -39,11 +39,7 @@ uint8 AMI_STATE_ACCELERATION=1
 uint8 AMI_STATE_SKIDPAD=2
 uint8 AMI_STATE_TRACKDRIVE=3
 uint8 AMI_STATE_BRAKETEST=4
-uint8 AMI_S
-      break;
-    }
-    default: {
-      dv_pc_state_ = DV_PC_STATE::OTATE_INSPECTION=5
+uint8 AMI_STATE_INSPECTION=5
 uint8 AMI_STATE_AUTOCROSS=6
 
 uint8 service_brake_state # 2 bits used for canbus
