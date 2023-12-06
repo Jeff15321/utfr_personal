@@ -183,6 +183,8 @@ private:
   rclcpp::Time ros_time_;
 
   // Params
+  int current_setpoint_ = 0;
+  std::vector<int> setpoints_;
   double update_rate_;
   int status_;
   uint8_t testing_;

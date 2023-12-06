@@ -125,8 +125,8 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   // Contruct command to send
   uint16_t steeringRateToSC = (abs((int) (msg.str_cmd * 1000)) & 0x0FFF)/1000;
   bool directionBit;
-
-  if (steering_cmd_ < 0) {
+                                                                                                                   
+  if (msg.str_cmd < 0) {
     directionBit = 0;
   } else {
     directionBit = 1;
@@ -139,6 +139,7 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   steeringRateToSC |= (uint16_t)(directionBit << 12);
 
   // Finalize commands
+
   if (cmd_) {
     braking_cmd_ = msg.brk_cmd;
     steering_cmd_ = steeringRateToSC;
@@ -237,7 +238,7 @@ void CarInterface::getServiceBrakeData() {
     // TODO: Check value format
     front_pressure = (can1_->get_can(dv_can_msg::FBP));
     rear_pressure = (can1_->get_can(dv_can_msg::RBP))&0xFFFF;
-    //RCLCPP_INFO(this->get_logger(), "rear brake pressure: %d",rear_pressure);
+    RCLCPP_INFO(this->get_logger(), "rear brake pressure: %d",rear_pressure);
 
     sensor_can_.rear_pressure = front_pressure; 
     sensor_can_.front_pressure = rear_pressure; 

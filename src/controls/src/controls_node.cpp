@@ -56,6 +56,8 @@ void ControlsNode::initParams() {
   steer_inc_ = 0;
 
   throttle_inc_ = 0;
+
+  setpoints_ = {-30, 0, 30};
 }
 
 void ControlsNode::initPublishers() {
@@ -117,42 +119,74 @@ void ControlsNode::sensorCanCB(const utfr_msgs::msg::SensorCan &msg) {
   sensor_can_ = msg;
 }
 
+
+
+bool max_vel = false;
 void ControlsNode::brakeTesting() {
   int current_velocity = 0.0;
   int target_velocity = 0.0;
 
   //If targets are available get them
-  if (ego_state_ == nullptr || target_state_ == nullptr) {
-    control_cmd_.brk_cmd = 255 - (brake_inc_/10)*15;
-    brake_inc_++;
-    if (brake_inc_ >= 179) {
-      brake_inc_ = 0;
-    }
-  }
-  else {
+  // if (ego_state_ == nullptr || target_state_ == nullptr) {
+  //   control_cmd_.brk_cmd = 255 - (brake_inc_/10)*15;
+  //   brake_inc_++;
+  //   if (brake_inc_ >= 179) {
+  //     brake_inc_ = 0;
+  //   }
+  // }
+  // else {
+  if(ego_state_ != nullptr ) {
     current_velocity = ego_state_->vel.twist.linear.x;
-    target_velocity = target_state_->speed;            // TODO: review
+    
+    target_velocity = 5.0;
+
+    if (!max_vel && (ego_state_->vel.twist.linear.x > target_velocity)) {
+      max_vel = true;
+    }
+
+    if (max_vel) {
+      target_velocity = 0.0;
+      if (ego_state_->vel.twist.linear.x == target_velocity) {
+        max_vel = false;
+      }
+    }
 
     RCLCPP_INFO(this->get_logger(), "Current speed: %dm/s", current_velocity);
     RCLCPP_INFO(this->get_logger(), "Target speed: %dm/s", target_velocity);
 
     control_cmd_.brk_cmd = (target_velocity > current_velocity) ? 0 : 255;
-  }
 
+    
 
-  
-  RCLCPP_INFO(this->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
+  } 
+  // }
 
   RCLCPP_INFO(this->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
 }
 
 void ControlsNode::steerTesting() {
-  control_cmd_.str_cmd = -4095 + (steer_inc_)*10;
-  steer_inc_++;
-  if (steer_inc_ >= 820) {
-    steer_inc_ = 0;
+  // control_cmd_.str_cmd = -4095 + (steer_inc_)*10;
+  // steer_inc_++;
+  // if (steer_inc_ >= 820) {
+  //   steer_inc_ = 0;
+  // }
+
+  if(setpoints_[current_setpoint_] != sensor_can_.steering_angle) {
+    RCLCPP_INFO(this->get_logger(), "Current angle: %d", sensor_can_.steering_angle);
+    RCLCPP_INFO(this->get_logger(), "Target angle: %d", setpoints_[current_setpoint_]);
+
+    control_cmd_.str_cmd = (setpoints_[current_setpoint_] < sensor_can_.steering_angle) ? 500 : -500;
+  } else {
+    if(current_setpoint_ == setpoints_.size() -1) {
+      current_setpoint_ = 0;
+    } else {
+      current_setpoint_++;
+    }
   }
+
+  RCLCPP_INFO(this->get_logger(), "STR Cmd: %d", control_cmd_.str_cmd);
 }
+
 
 void ControlsNode::throttleTesting() {
   control_cmd_.thr_cmd = (throttle_inc_)*5;
