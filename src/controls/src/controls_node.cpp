@@ -248,7 +248,6 @@ void ControlsNode::timerCB() {
         steering_pid_->getCommand(target_sa, current_sa, dt);
 
     RCLCPP_INFO(this->get_logger(), "Target Steering: %f", target_sa);
-    RCLCPP_INFO(this->get_logger(), "Current Steering: %f", current_sa);
     RCLCPP_INFO(this->get_logger(), "Steering command: %f", control_cmd_.str_cmd);
 
     //*****   Throttle & Brake  *****

@@ -123,10 +123,10 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   /***** Steering *****/
 
   // Contruct command to send
-  uint16_t steeringRateToSC = (abs((int) (msg.str_cmd * 1000)) & 0x0FFF)/1000;
+  uint16_t steeringRateToSC = (abs((int16_t)(msg.str_cmd)) & 0x0FFF)/1000;
   bool directionBit;
                                                                                                                    
-  if (msg.str_cmd < 0) {
+  if ((int16_t)msg.str_cmd < 0) {
     directionBit = 0;
   } else {
     directionBit = 1;
@@ -141,9 +141,9 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   // Finalize commands
 
   if (cmd_) {
-    braking_cmd_ = msg.brk_cmd;
+    braking_cmd_ = (int16_t)msg.brk_cmd;
     steering_cmd_ = steeringRateToSC;
-    throttle_cmd_ = msg.thr_cmd;
+    throttle_cmd_ = (int16_t)msg.thr_cmd;
   } else {
     braking_cmd_ = 0;
     steering_cmd_ = 0;
