@@ -133,8 +133,8 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   }
 
 
-  RCLCPP_INFO(this->get_logger(), "%s: directionBit: %d | Mag: %d",
-                   function_name.c_str(), directionBit, steeringRateToSC);
+ // RCLCPP_INFO(this->get_logger(), "%s: directionBit: %d | Mag: %d",
+   //                function_name.c_str(), directionBit, steeringRateToSC);
 
   steeringRateToSC |= (uint16_t)(directionBit << 12);
 
@@ -178,8 +178,8 @@ void CarInterface::getSteeringAngleSensorData() {
   try {
     // TODO: Check value format
     steering_angle = -((int16_t)(can1_->get_can(dv_can_msg::ANGSENREC)) / 10);
-  RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
-                   function_name.c_str(), steering_angle);
+//  RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
+  //                 function_name.c_str(), steering_angle);
     // Check for sensor malfunction
     if ((abs(steering_angle) > 750)) {
       RCLCPP_ERROR(this->get_logger(), "%s: Value error",
@@ -238,7 +238,7 @@ void CarInterface::getServiceBrakeData() {
     // TODO: Check value format
     front_pressure = (can1_->get_can(dv_can_msg::FBP));
     rear_pressure = (can1_->get_can(dv_can_msg::RBP))&0xFFFF;
-    RCLCPP_INFO(this->get_logger(), "rear brake pressure: %d",rear_pressure);
+//    RCLCPP_INFO(this->get_logger(), "rear brake pressure: %d",rear_pressure);
 
     sensor_can_.rear_pressure = front_pressure; 
     sensor_can_.front_pressure = rear_pressure; 
@@ -331,7 +331,7 @@ void CarInterface::getDVState() {
   long dv_state = can1_->get_can(dv_can_msg::DV_STATE);
 
   system_status_.as_state = dv_state & 0x7;
-  RCLCPP_INFO(this->get_logger(), "AS_STATE: %d", system_status_.as_state);
+  //RCLCPP_INFO(this->get_logger(), "AS_STATE: %d", system_status_.as_state);
   system_status_.ebs_state = (dv_state << 3) & 0x3;
 
   system_status_.ami_state = (dv_state << 5) & 0x7;
@@ -486,7 +486,7 @@ void CarInterface::setDVStateAndCommand() {
     long dv_command = 0;
     dv_command |= (long)(dv_pc_state_)&7;
     
-    RCLCPP_INFO(this->get_logger(), "PC: %d", dv_pc_state_);
+    //RCLCPP_INFO(this->get_logger(), "PC: %d", dv_pc_state_);
     //RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
     //RCLCPP_INFO(this->get_logger(), "Throttle: %d", throttle_cmd_);
     //RCLCPP_INFO(this->get_logger(), "PWM: %d", braking_cmd_);
