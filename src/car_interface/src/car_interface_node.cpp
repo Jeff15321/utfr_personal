@@ -27,8 +27,8 @@ CarInterface::CarInterface() : Node("car_interface_node") {
 }
 
 void CarInterface::initParams() {
-  std::vector<std::string> default_modules = {
-    "perception", "mapping", "ekf", "planning", "controls"}; 
+  std::vector<std::string> default_modules = {"perception", "mapping", "ekf",
+                                              "planning", "controls"};
 
   // Initialize Params with default values
   this->declare_parameter("update_rate", 33.33);
@@ -38,7 +38,8 @@ void CarInterface::initParams() {
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   heartbeat_tolerance_ = this->get_parameter("heartbeat_tolerance").as_double();
-  heartbeat_modules_ = this->get_parameter("heartbeat_modules").as_string_array();
+  heartbeat_modules_ =
+      this->get_parameter("heartbeat_modules").as_string_array();
   testing_ = this->get_parameter("testing").as_int();
 }
 
@@ -102,8 +103,10 @@ void CarInterface::initCAN() {
   } else
     RCLCPP_ERROR(this->get_logger(), "Failed To Initialize CAN");
 
-  while (can1_->read_can());
-  while (can0_->read_can());
+  while (can1_->read_can())
+    ;
+  while (can0_->read_can())
+    ;
 
   return;
 }
@@ -123,18 +126,17 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   /***** Steering *****/
 
   // Contruct command to send
-  uint16_t steeringRateToSC = (abs((int16_t)(msg.str_cmd)) & 0x0FFF)/1000;
+  uint16_t steeringRateToSC = (abs((int16_t)(msg.str_cmd)) & 0x0FFF) / 1000;
   bool directionBit;
-                                                                                                                   
+
   if ((int16_t)msg.str_cmd < 0) {
     directionBit = 0;
   } else {
     directionBit = 1;
   }
 
-
- // RCLCPP_INFO(this->get_logger(), "%s: directionBit: %d | Mag: %d",
-   //                function_name.c_str(), directionBit, steeringRateToSC);
+  // RCLCPP_INFO(this->get_logger(), "%s: directionBit: %d | Mag: %d",
+  //                function_name.c_str(), directionBit, steeringRateToSC);
 
   steeringRateToSC |= (uint16_t)(directionBit << 12);
 
@@ -178,14 +180,14 @@ void CarInterface::getSteeringAngleSensorData() {
   try {
     // TODO: Check value format
     steering_angle = -((int16_t)(can1_->get_can(dv_can_msg::ANGSENREC)) / 10);
-//  RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
-  //                 function_name.c_str(), steering_angle);
+    //  RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
+    //                 function_name.c_str(), steering_angle);
     // Check for sensor malfunction
     if ((abs(steering_angle) > 750)) {
       RCLCPP_ERROR(this->get_logger(), "%s: Value error",
                    function_name.c_str());
       // TODO: Error handling function, change control cmds to 0 and trigger EBS
-      
+
     } else {
       // TODO: Check frame
       sensor_can_.steering_angle = steering_angle;
@@ -231,17 +233,18 @@ void CarInterface::getMotorTorqueData() {
 
 void CarInterface::getServiceBrakeData() {
   const std::string function_name{"getServiceBrakeData"};
-  uint16_t front_pressure; 
-  uint16_t rear_pressure; 
+  uint16_t front_pressure;
+  uint16_t rear_pressure;
 
   try {
     // TODO: Check value format
     front_pressure = (can1_->get_can(dv_can_msg::FBP));
-    rear_pressure = (can1_->get_can(dv_can_msg::RBP))&0xFFFF;
-//    RCLCPP_INFO(this->get_logger(), "rear brake pressure: %d",rear_pressure);
+    rear_pressure = (can1_->get_can(dv_can_msg::RBP)) & 0xFFFF;
+    //    RCLCPP_INFO(this->get_logger(), "rear brake pressure:
+    //    %d",rear_pressure);
 
-    sensor_can_.rear_pressure = front_pressure; 
-    sensor_can_.front_pressure = rear_pressure; 
+    sensor_can_.rear_pressure = front_pressure;
+    sensor_can_.front_pressure = rear_pressure;
 
     system_status_.brake_hydr_actual =
         (int)(100 * rear_pressure / MAX_BRK_PRS); // Converting to %
@@ -261,16 +264,16 @@ void CarInterface::getWheelspeedSensorData() {
 
   try {
     // TODO: Proper CAN message
-    // wheelspeed_fl 
+    // wheelspeed_fl
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TODO: Proper CAN message
-    // wheelspeed_fr 
+    // wheelspeed_fr
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TODO: Proper CAN message
-    // wheelspeed_rl 
+    // wheelspeed_rl
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
     // TODO: Proper CAN message
-    // wheelspeed_rr 
+    // wheelspeed_rr
     //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
 
     sensor_can_.wheelspeed_fl = wheelspeed_fl;
@@ -331,7 +334,7 @@ void CarInterface::getDVState() {
   long dv_state = can1_->get_can(dv_can_msg::DV_STATE);
 
   system_status_.as_state = dv_state & 0x7;
-  //RCLCPP_INFO(this->get_logger(), "AS_STATE: %d", system_status_.as_state);
+  // RCLCPP_INFO(this->get_logger(), "AS_STATE: %d", system_status_.as_state);
   system_status_.ebs_state = (dv_state << 3) & 0x3;
 
   system_status_.ami_state = (dv_state << 5) & 0x7;
@@ -485,12 +488,12 @@ void CarInterface::setDVStateAndCommand() {
     // Write to can
     long dv_command = 0;
     dv_command |= (long)(dv_pc_state_)&7;
-    
-    //RCLCPP_INFO(this->get_logger(), "PC: %d", dv_pc_state_);
-    //RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
-    //RCLCPP_INFO(this->get_logger(), "Throttle: %d", throttle_cmd_);
-    //RCLCPP_INFO(this->get_logger(), "PWM: %d", braking_cmd_);
-  
+
+    // RCLCPP_INFO(this->get_logger(), "PC: %d", dv_pc_state_);
+    // RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
+    // RCLCPP_INFO(this->get_logger(), "Throttle: %d", throttle_cmd_);
+    // RCLCPP_INFO(this->get_logger(), "PWM: %d", braking_cmd_);
+
     if (cmd_) {
       dv_command |= (long)(throttle_cmd_ & 0xFFFF) << 3;
       dv_command |= (long)(steering_cmd_ & 0x1FFF) << 19;
