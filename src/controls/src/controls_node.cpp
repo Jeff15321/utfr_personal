@@ -171,20 +171,22 @@ void ControlsNode::steerTesting() {
   //   steer_inc_ = 0;
   // }
 
-  if(setpoints_[current_setpoint_] != sensor_can_.steering_angle) {
-    RCLCPP_INFO(this->get_logger(), "Current angle: %d", sensor_can_.steering_angle);
-    RCLCPP_INFO(this->get_logger(), "Target angle: %d", setpoints_[current_setpoint_]);
+  // if(setpoints_[current_setpoint_] != sensor_can_.steering_angle) {
+  //   RCLCPP_INFO(this->get_logger(), "Current angle: %d", sensor_can_.steering_angle);
+  //   RCLCPP_INFO(this->get_logger(), "Target angle: %d", setpoints_[current_setpoint_]);
 
-    control_cmd_.str_cmd = (setpoints_[current_setpoint_] < sensor_can_.steering_angle) ? 500 : -500;
-  } else {
-    if(current_setpoint_ == setpoints_.size() -1) {
-      current_setpoint_ = 0;
-    } else {
-      current_setpoint_++;
-    }
-  }
+  //   control_cmd_.str_cmd = (setpoints_[current_setpoint_] < sensor_can_.steering_angle) ? 500 : -500;
+  // } else {
+  //   if(current_setpoint_ == setpoints_.size() -1) {
+  //     current_setpoint_ = 0;
+  //   } else {
+  //     current_setpoint_++;
+  //   }
+  // }
 
-  RCLCPP_INFO(this->get_logger(), "STR Cmd: %d", control_cmd_.str_cmd);
+  // RCLCPP_INFO(this->get_logger(), "STR Cmd: %d", control_cmd_.str_cmd);
+
+  control_cmd_.thr_cmd = 0.2;
 }
 
 
@@ -247,13 +249,12 @@ void ControlsNode::timerCB() {
     control_cmd_.str_cmd =
         steering_pid_->getCommand(target_sa, current_sa, dt);
 
-    RCLCPP_INFO(this->get_logger(), "Target Steering: %f", target_sa);
-    RCLCPP_INFO(this->get_logger(), "Steering command: %f", control_cmd_.str_cmd);
+    //RCLCPP_INFO(this->get_logger(), "Target Steering: %f, STR_CMD: %f", target_sa, control_cmd_.str_cmd);
 
     //*****   Throttle & Brake  *****
     current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
     target_velocity = target_state_->speed;            // TODO: review
-    RCLCPP_INFO(this->get_logger(), "Current speed: %fm/s", current_velocity);
+    //RCLCPP_INFO(this->get_logger(), "Current speed: %fm/s", current_velocity);
 
     control_cmd_.thr_cmd =
         throttle_pid_->getCommand(target_velocity, current_velocity, dt);
@@ -262,10 +263,10 @@ void ControlsNode::timerCB() {
         target_velocity, current_velocity, dt);
 
     if (current_velocity < target_velocity) {
-      RCLCPP_INFO(this->get_logger(), "Accelerating to reach: %fm/s", target_velocity);
+      //RCLCPP_INFO(this->get_logger(), "Accelerating to reach: %fm/s", target_velocity);
       control_cmd_.brk_cmd = 0;
     } else {
-      RCLCPP_INFO(this->get_logger(), "Braking to reach: %fm/s", target_velocity);
+      //RCLCPP_INFO(this->get_logger(), "Braking to reach: %fm/s", target_velocity);
       control_cmd_.thr_cmd = 0;
     }
 
@@ -275,7 +276,7 @@ void ControlsNode::timerCB() {
     control_cmd_publisher_->publish(control_cmd_);
 
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "timerCB: Error occured, error #%d", e);
+    //RCLCPP_INFO(this->get_logger(), "timerCB: Error occured, error #%d", e);
     status_ = utfr_msgs::msg::Heartbeat::ERROR;
   }
 
