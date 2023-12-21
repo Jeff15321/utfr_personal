@@ -49,7 +49,7 @@ void BuildGraphNode::initParams() {
   landmarkedID_ = -1;
   out_of_frame_ = -1;
   cones_found_ = 0;
-  current_pose_id_ = 0;
+  current_pose_id_ = 1000;
   first_detection_pose_id_ = 0;
   
 
@@ -99,6 +99,8 @@ void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
 }
 
 void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
+
+  //Print the x and y position of the car
   current_state_ = msg;
 
   current_pose_id_ += 1;
@@ -115,6 +117,8 @@ void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
   double dtheta = utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation) - utfr_dv::util::quaternionToYaw(prevPoseVertex.pose.pose.orientation);
 
   g2o::EdgeSE2* edge = addPoseToPoseEdge(id_to_pose_map_[current_pose_id_ - 1], poseVertex, dx, dy, dtheta, false);
+
+  std::cout << msg.pose.pose.position.x << " " << msg.pose.pose.position.y << std::endl;
 }
 
 std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones){
@@ -252,7 +256,11 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           g2o::EdgeSE2* edge = addPoseToPoseEdge(first_pose_node, second_pose_node, dx, dy, dtheta, loop_closed_);
           pose_to_pose_edges_.push_back(edge);
           std::cout << "Loop closure edge added" << std::endl;
+
+          landmarked_ = false;
+          landmarkedID_ = -1;
           out_of_frame_ = -1;
+          first_detection_pose_id_ = 0;
           graphSLAM();
         }
       }
@@ -320,6 +328,9 @@ void BuildGraphNode::graphSLAM() {
 
   std::cout << "Edges and nodes cleared" << std::endl;
 
+  // Set the fixed node as 1001
+  pose_nodes_[0]->setFixed(true);
+
   // Add all the nodes and egdes to the optimizer
   for (g2o::VertexSE2* pose : pose_nodes_) {
     optimizer_.addVertex(pose);
@@ -337,8 +348,8 @@ void BuildGraphNode::graphSLAM() {
     optimizer_.addEdge(edge);
   }
   
-  optimizer_.initializeOptimization();
-  optimizer_.optimize(10);
+  // optimizer_.initializeOptimization();
+  // optimizer_.optimize(10);
 
   // for (g2o::SparseOptimizer::VertexIDMap::const_iterator it = optimizer_.vertices().begin(); it != optimizer_.vertices().end(); ++it) {
   //       g2o::SparseOptimizer::Vertex* vertex = dynamic_cast<g2o::SparseOptimizer::Vertex*>(it->second);
