@@ -49,6 +49,171 @@ using std::placeholders::_1; // for std::bind
 namespace utfr_dv {
 namespace build_graph {
 
+//KD TREE IMPLEMENTATION
+
+//point struct defining point
+struct Point {
+    double x;
+    double y;
+
+    Point(double x_val, double y_val) : x(x_val), y(y_val) {}
+};
+//KDNode struct storing axis info and defining node
+struct KDNode {
+    Point point;
+    int index;
+    KDNode* left;
+    KDNode* right;
+    int axis;  // 0 for x-axis, 1 for y-axis
+
+    KDNode(const Point& p, int i, int a) : point(p), index(i), left(nullptr), right(nullptr), axis(a) {}
+};
+
+class KDTree {
+private:
+    KDNode* root;
+
+    // Recursive function to build the KD tree
+    KDNode* buildTree(std::vector<Point>& points, int depth) {
+    if (points.empty()) {
+        return nullptr;
+    }
+
+    int axis = depth % 2; // Alternating between x and y coordinates
+
+    // Sort points and choose median as pivot element
+    if (axis == 0) {
+        std::sort(points.begin(), points.end(), [](const Point& a, const Point& b) {
+            return a.x < b.x;
+        });
+    } else {
+        std::sort(points.begin(), points.end(), [](const Point& a, const Point& b) {
+            return a.y < b.y;
+        });
+    }
+
+    int median = points.size() / 2;
+    KDNode* node = new KDNode(points[median], median, axis);
+
+    // Recursively build left and right subtrees
+    std::vector<Point> leftPoints(points.begin(), points.begin() + median);
+    std::vector<Point> rightPoints(points.begin() + median + 1, points.end());
+
+    node->left = buildTree(leftPoints, depth + 1);
+    node->right = buildTree(rightPoints, depth + 1);
+
+    return node;
+}
+
+
+    // Recursive function to perform KNN search
+    void KNNSearch(KDNode* node, const Point& target, int k, std::vector<int>& result, int depth) {
+    if (node == nullptr) {
+        return;
+    }
+
+    int axis = node->axis;
+
+    KDNode* nextBranch = nullptr;
+    KDNode* otherBranch = nullptr;
+
+    if ((axis == 0 && target.x < node->point.x) || (axis == 1 && target.y < node->point.y)) {
+        nextBranch = node->left;
+        otherBranch = node->right;
+    } else {
+        nextBranch = node->right;
+        otherBranch = node->left;
+    }
+
+    KNNSearch(nextBranch, target, k, result, depth + 1);
+
+    // Check current node
+    double distance = euclidianDistance2D(target.x, node->point.x, target.y, node->point.y);
+    if (result.size() < k || distance < euclidianDistance2D(target.x, result.empty() ? 0 : node->point.x, target.y, result.empty() ? 0 : node->point.y)) {
+        result.push_back(node->index);
+        std::sort(result.begin(), result.end(), [node, &target](int a, int b) {
+            return euclidianDistance2D(target.x, node->point.x, target.y, node->point.y) < euclidianDistance2D(target.x, node->point.x, target.y, node->point.y);
+        });
+        if (result.size() > k) {
+            result.pop_back();
+        }
+    }
+
+    if (result.size() < k || std::abs((axis == 0 ? target.x : target.y) - (axis == 0 ? node->point.x : node->point.y)) < euclidianDistance2D(target.x, result.empty() ? 0 : node->point.x, target.y, result.empty() ? 0 : node->point.y)) {
+        KNNSearch(otherBranch, target, k, result, depth + 1);
+    }
+}
+
+
+    // Recursive function that insert a new node into KD tree
+    KDNode* insertNode(KDNode* node, const Point& newPoint, int depth) {
+        if (node == nullptr) {
+            return new KDNode(newPoint, 0, depth % 2);
+        }
+
+        int axis = depth % 2;
+
+        if ((axis == 0 && newPoint.x < node->point.x) || (axis == 1 && newPoint.y < node->point.y)) {
+            node->left = insertNode(node->left, newPoint, depth + 1);
+        } else {
+            node->right = insertNode(node->right, newPoint, depth + 1);
+        }
+
+        return node;
+    }
+    // Recursive function to get the point for a given index
+    Point getPointFromIndex(KDNode* node, int targetIndex) const {
+        if (node == nullptr) {
+            // Handle the case where the index is not found (you can throw an exception or return a default Point)
+            throw std::out_of_range("Index not found in KD tree");
+        }
+
+        if (node->index == targetIndex) {
+            return node->point;
+        }
+
+        // Decide which branch to search based on the axis
+        if (targetIndex < node->index) {
+            return getPointFromIndex(node->left, targetIndex);
+        } else {
+            return getPointFromIndex(node->right, targetIndex);
+        }
+    }
+
+public:
+    // Constructor to build the KD tree
+    KDTree(std::vector<Point>&& points) : root(nullptr) {
+        if (!points.empty()) {
+        root = buildTree(points, 0);
+        }
+    }
+
+// Overload for lvalue reference
+    KDTree(std::vector<Point>& points) : root(nullptr) {
+        if (!points.empty()) {
+        root = buildTree(points, 0);
+        }
+    }
+
+    //perform KNN search
+    std::vector<int> KNN(const Point& target, int k) {
+        std::vector<int> result;
+        KNNSearch(root, target, k, result, 0);
+        return result;
+    }
+
+    //insert a new point into the KD tree
+    void insert(const Point& newPoint) {
+        root = insertNode(root, newPoint, 0);
+    }
+
+    // Public method to get the point for a given index
+    Point getPoint(int targetIndex) const {
+        return getPointFromIndex(root, targetIndex);
+    }
+
+};
+
 class BuildGraphNode : public rclcpp::Node {
 public:
   /*! Constructor, calls loadParams, initPublishers and initTimers.
@@ -166,6 +331,9 @@ public:
   std::map<int, utfr_msgs::msg::Cone> id_to_cone_map_; // Maps cone detection to id
   std::map<int, utfr_msgs::msg::EgoState> id_to_ego_map_; // Maps state estimate to id
   std::map<int, g2o::VertexSE2*> id_to_pose_map_; // Maps state estimate to pose node
+  std::map<int, std::tuple<double, double>> potential_cones_;
+  int cones_potential_;
+  int count_;
   bool loop_closed_;                         // True if loop is closed
   bool landmarked_;
   int landmarkedID_;
@@ -173,6 +341,7 @@ public:
   int cones_found_;
   int current_pose_id_;
   int first_detection_pose_id_;
+  
 
   // Lists for poses, cones, and edges
   std::vector<g2o::VertexSE2*> pose_nodes_;
