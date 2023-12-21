@@ -33,8 +33,7 @@ void BuildGraphNode::initParams() {
   cones_found_ = 0;
   current_pose_id_ = 0;
   first_detection_pose_id_ = 0;
-  count_ = 0;
-  cones_potential_= 0;
+  
 
   // Will have to tune these later depending on the accuracy of our sensors
   P2PInformationMatrix_ = Eigen::Matrix3d::Identity();
@@ -92,124 +91,64 @@ void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
   g2o::EdgeSE2* edge = addPoseToPoseEdge(id_to_pose_map_[current_pose_id_ - 1], poseVertex, dx, dy, dtheta, false);
 }
 
-std::unique_ptr<KDTree> generateKDTree(std::vector<std::tuple<double, double>> points_tuple) {
-    // Convert tuples to points
-    std::vector<Point> points;
-    for (const auto& tuple : points_tuple) {
-        points.emplace_back(std::get<0>(tuple), std::get<1>(tuple));
-    }
-
-    // Create a KD tree
-    KDTree globalKDTree(points);
-
-    // Now you can use the KD tree for various operations
-    return globalKDTree;
-}
-
-
 std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones){
     std::vector<int> cones_id_list_;  
     std::vector<utfr_msgs::msg::Cone> all_cones;
-    std::vector<std::tuple<double, double>> current_round_cones_;
-
     //adding all cones to one vector
     all_cones.insert(all_cones.end(), cones.left_cones.begin(), cones.left_cones.end());
     all_cones.insert(all_cones.end(), cones.right_cones.begin(), cones.right_cones.end());
     all_cones.insert(all_cones.end(), cones.large_orange_cones.begin(), cones.large_orange_cones.end());
     all_cones.insert(all_cones.end(), cones.small_orange_cones.begin(), cones.small_orange_cones.end());
+    //iterating through all detected cones
+    for (const auto& pastCone : all_cones){
+      utfr_msgs::msg::Cone newCone = pastCone;
+      //updating detected position to global frame
+      double ego_x = current_state_.pose.pose.position.x;
+      double ego_y = current_state_.pose.pose.position.y;
+      newCone.pos.x += ego_x;
+      newCone.pos.y += ego_y;
+      bool adding_to_past = true;      
+      //iterating through old cones
+      for (size_t i=0; i <past_detections_.size(); ++i){
+        const utfr_msgs::msg::Cone&pastDetectionsCone=past_detections_[i].second;    
+        //finding displacement between detected cone and past cone    
+        double displacement = utfr_dv::util::euclidianDistance2D(newCone.pos.x, pastDetectionsCone.pos.x, newCone.pos.y, pastDetectionsCone.pos.y);    
+        //not adding if already detected (within error)
+        if (displacement <= 0.3){
+          adding_to_past=false;
 
+          // Maps the cone detection to the cone id
+          utfr_msgs::msg::Cone detection = newCone;
+          detection.pos.x -= current_state_.pose.pose.position.x;
+          detection.pos.y -= current_state_.pose.pose.position.y;
+          id_to_cone_map_[past_detections_[i].first] = detection;
 
-    // Declare a static pointer to KDTree
-    static std::unique_ptr<KDTree> globalKDTreePtr = nullptr;
-
-    // Check if the KD tree is not created, and create it
-    if (!globalKDTreePtr) {
-      std::vector<std::tuple<double, double>> points_tuple;
-
-      //generating the required parameter for the KDtree generator function
-      for (size_t i = 0; i < past_detections_.size(); ++i) {
-            const utfr_msgs::msg::Cone &pastDetectionsCone = past_detections_[i].second;
-            points_tuple.push_back(std::make_tuple(pastDetectionsCone.x, pastDetectionsCone.y));
-      }    
-
-      //create KD tree
-      globalKDTreePtr = std::make_unique<KDTree>(generateKDTree(points_tuple)); 
-
-    }
-
-    // Iterating through all detected cones
-    for (const auto& newCone : all_cones) {
-        // Updating detected position to global frame
-        double ego_x = current_state_.pose.pose.position.x;
-        double ego_y = current_state_.pose.pose.position.y;
-        newCone.pos.x += ego_x;
-        newCone.pos.y += ego_y;
-
-        // Use KNN search to find the nearest cone
-        std::vector<int> knnResult = globalKDTreePtr->KNN({newCone.pos.x, newCone.pos.y}, 1);
-
-        // Check the result of the nearest neighbour search and calculate displacement
-        if (!knnResult.empty()) {
-            const Point& nearestCone = globalKDTreePtr->getPoint(knnResult.front());
-            double displacement = utfr_dv::util::euclidianDistance2D(newCone.pos.x, nearestCone.x, newCone.pos.y, nearestCone.y);
-
-            // do not add if its within 0.3 of an already seen cone
-            if (displacement <= 0.3) {
-                continue;
-            }
-
-            // do not add if its within 0.2 of another cone deteced within the current call of the function (rejecting duplicate detections)
-            double comparative_displacement = 0.0;
-            for (const auto& duplicates_potential : current_round_cones_){
-              comparative_displacement = utfr_dv::util::euclidianDistance2D(newCone.pos.x, duplicates_potential.x, newCone.pos.y, duplicates_potential.y);
-              if (comparative_displacement <= 0.2){
-                continue;
-              }
-            }
+          break;
         }
-        //add to duplicate checker
-        current_round_cones_.emplace_back(std::make_tuple(newCone.pos.x, newCone.pos.y));
-
-        //add to potential_cones (used for checking if cone can be added to past_detections)
-        potential_cones_.insert(std::make_pair(cones_potential_, std::make_tuple(newCone.pos.x, newCone.pos.y)));
-
-        //initialize keys
-        std::vector<int> keys{};
-
-        //loop for checking if same cone detected in three different time instances
-        for (const auto& pair : potential_cones_) {
-            int key_ = pair.first;
-            const std::tuple<double,double> potentialPoint = pair.second;
-            double temp_displacement_ = utfr_dv::util::euclidianDistance2D(newCone.pos.x, std::get<0>(potentialPoint), newCone.pos.y, std::get<1>(potentialPoint));
-
-            // Checking if cone within 0.2 of any other new detected cone
-            if (temp_displacement_ <= 0.2) {
-                    count_ += 1;
-                    keys.push_back(key_);
-
-                    //checking if three of same detected
-                    if (count_ == 2) {
-
-                        // Deleting all of the same cone from potential_cones_ if three detected
-                        for (auto& key_number_ : keys) {
-                            potential_cones_.erase(key_number_);
-                        potential_cones_.erase(cones_potential_);
-                        }
-
-                        // Update cone_id_list_ and past_detections_ and KD tree
-                        cones_id_list_.push_back(cones_found_);
-                        Point newPoint(newCone.pos.x, newCone.pos.y);
-                        past_detections_.emplace_back(cones_found_,newCone);
-                        globalKDTreePtr->insert(newPoint);
-                        cones_found_ += 1;
-                        }
-                    }
-            count_ = 0;
-            }
-        cones_potential_ += 1;
       }
-      return cones_id_list_;
-  }
+      if (adding_to_past){
+        // adding to id_list_ and past_detections_ if past error for all previously detected cones
+        cones_id_list_.push_back(cones_found_);
+        past_detections_.emplace_back(cones_found_,newCone);
+
+        // Maps the cone detection to the cone id
+        utfr_msgs::msg::Cone detection = newCone;
+        detection.pos.x -= current_state_.pose.pose.position.x;
+        detection.pos.y -= current_state_.pose.pose.position.y;
+        id_to_cone_map_[cones_found_] = detection;
+
+        cones_found_+=1;
+        
+        // creates vertex for new cone detections and add to vertices array
+        g2o::VertexPointXY* vertex = createConeVertex(cones_found_, detection.pos.x, detection.pos.y);
+        cone_nodes_.push_back(vertex);
+
+        // maps cone id to vertex
+        cone_id_to_vertex_map_[cones_found_] = vertex;
+      }
+    }
+    return cones_id_list_;  }
+
 
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
   // Loop hasn't been completed yet
