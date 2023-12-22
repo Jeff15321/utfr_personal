@@ -67,27 +67,11 @@ public:
    */
   CenterPathNode();
 
-  std::tuple<double,double,double> circle(std::vector<utfr_msgs::msg::Cone> &cones);
+  void GlobalWaypoints();
 
-  void test(){
-    std::vector<utfr_msgs::msg::Cone> cones;
-    utfr_msgs::msg::Cone cone; 
-    
-    cone.pos.x = 2; cone.pos.y = 1;
-    cones.push_back(cone);
-    cone.pos.x = 1; cone.pos.y = 2;
-    cones.push_back(cone);
-    cone.pos.x = 1; cone.pos.y = 0;
-    cones.push_back(cone);
-    // cone.pos.x = 0; cone.pos.y = 1;
-    // cones.push_back(cone);
-    // auto [xc, yc, radius, radiusf] = util::ransacCircleLSF(cones, 1);
-    // std::cout << xc << "," << yc << "," << radius << "," << radiusf << std::endl;
-    // this->circleCentre(cones, 1, 4);
-  }
+  std::vector<std::pair<double,double>> transform(std::vector<std::pair<double,double>> &points);
 
-  void transform(std::vector<std::pair<double,double>> &points, 
-    double xleftRef, double yleftRef, double xrightRef, double yrightRef);
+  std::tuple<double,double,double,double> getCentres();
 
   std::tuple<double,double,double,double> skidpadCircleCentres();
 
@@ -154,6 +138,11 @@ private:
    */
   double update_rate_;
   std::string event_;
+  const double smallRadius_ = 7.625; // radius of small circle for skidpad
+  const double largeRadius_ = 10.625; // radius of large circle for skidpad
+  const double centreDistance_ = 9.125; // skidpad centres to track centre dist
+  const int smallCircleCones_ = 16; // number of cones in small circle
+  const int largeCircleCones_ = 13; // number of cones in large circle
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
