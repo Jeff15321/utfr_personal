@@ -88,7 +88,8 @@ public:
    * This function calculates the maximum (positive) longitudinal acceleration possible
    * for a given velocity and lateral acceleration.
    * 
-   * @param 
+   * @param velocity the velocity of the car
+   * @param a_lateral the lateral acceleration of the car
    */
   double getMaxA_longit(double velocity, double a_lateral);
 
