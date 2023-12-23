@@ -102,105 +102,70 @@ void CenterPathNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
   ego_state_->finished = msg.finished;
 }
 
-std::tuple<double,double,double,double> CenterPathNode::getCentres(){
-  std::vector<utfr_msgs::msg::Cone> &orange = cone_map_->large_orange_cones;
-  if(orange.size() != 4){
-    return {NAN,NAN,NAN,NAN};
+void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
+  if (cone_map_ == nullptr) {
+    // first initialization:
+    utfr_msgs::msg::ConeMap template_cone_map;
+    cone_map_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
   }
-  auto [xLeft,yLeft,xRight,yRight] = this->skidpadCircleCentres();
-  if(isnan(xLeft) || isnan(xRight) || isnan(yLeft) || isnan(yRight)){
-    return {NAN,NAN,NAN,NAN};
+
+  cone_map_->header = msg.header;
+  cone_map_->left_cones = msg.left_cones;
+  cone_map_->right_cones = msg.right_cones;
+  cone_map_->large_orange_cones = msg.large_orange_cones;
+  cone_map_->small_orange_cones = msg.small_orange_cones;
+
+
+  std::ofstream out("cones.txt");
+  for(auto &c : msg.left_cones){
+    out << "(" << c.pos.x << "," << c.pos.y << ")" << std::endl;
   }
-  double xMid = (orange[0].pos.x+orange[1].pos.x+orange[2].pos.x+orange[3].pos.x)/4;
-  double yMid = (orange[0].pos.y+orange[1].pos.y+orange[2].pos.y+orange[3].pos.y)/4;
-  double rightDist = util::euclidianDistance2D(xRight, xMid, yRight, yMid);
-  double leftDist = util::euclidianDistance2D(xMid, xLeft, yMid, yLeft);
-  double totalDist = util::euclidianDistance2D(xRight, xLeft, yRight, yLeft);
-  if(abs(rightDist-centreDistance_) > 0.25){ // improper right centre
-    return {NAN,NAN,NAN,NAN};
+  out << std::endl;
+  for(auto &c : msg.right_cones){
+    out << "(" << c.pos.x << "," << c.pos.y << ")" << std::endl;
   }
-  // improper left centre
-  if(abs(totalDist-2*centreDistance_) > 0.5 || abs(leftDist-centreDistance_) > 0.25){
-    double theta = atan2(yMid-yRight, xMid-xRight);
-    double dx = cos(theta) * rightDist, dy = sin(theta) * rightDist;
-    xLeft = xMid + dx;
-    yLeft = yMid + dy;
-  }
-  return {xLeft, yLeft, xRight, yRight};
+  this->GlobalWaypoints();
+  this->nextWaypoint(*path_);
 }
 
-std::vector<std::pair<double,double>> CenterPathNode::transform(std::vector<std::pair<double,double>> &points){
-  std::ifstream referencePoints("src/planning/points/ReferencePoints.csv");
-  double xLeft1,yLeft1, xRight1, yRight1;
-  referencePoints >> xLeft1 >> yLeft1 >> xRight1 >> yRight1;
-
-  auto [xLeft2,yLeft2,xRight2,yRight2] = this->getCentres();
-  if(isnan(xLeft2) || isnan(xLeft2) || isnan(xRight2) || isnan(yRight2)){
-    return {};
-  } 
-
-  auto getIntersect = [&](double x0, double y0, double x1, double y1, int sign){
-    double d = util::euclidianDistance2D(x0, x1, y0, y1);
-    double a = d/2;
-    double h = sqrt((15.25/2+3)*(15.25/2+3)-a*a);
-    double xt = x0+a*(x1-x0)/d;
-    double yt = y0+a*(y1-y0)/d;
-    double x = xt+h*(y1-y0)/d;
-    double y = yt-h*(x1-x0)/d;
-    // return the coordinates that give the same signed cross product
-    double cross = (x1-x) * (y0-y) - (x0-x) * (y1-y);
-    if(cross * sign < 0){
-      x = xt-h*(y1-y0)/d;
-      y = yt+h*(x1-x0)/d;
-    }
-    return std::make_pair(x, y);
-  };
-
-  auto [xInter1, yInter1] = getIntersect(xLeft1, yLeft1, xRight1, yRight1, 1);
-  auto [xInter2, yInter2] = getIntersect(xLeft2, yLeft2, xRight2, yRight2, -1);
-  MatrixXd X(3,3); // a b tx
-  X << xLeft1, yLeft1, 1,
-       xRight1, yRight1, 1,
-       xInter1, yInter1, 1;
-  VectorXd Xb(3);
-  Xb << xLeft2, xRight2, xInter2;
-  VectorXd Xres = X.fullPivLu().solve(Xb);
-  MatrixXd Y(3,3); // c d ty
-  Y << xLeft1, yLeft1, 1,
-       xRight1, yRight1, 1,
-       xInter1, yInter1, 1;
-  VectorXd Yb(3);
-  Yb << yLeft2, yRight2, yInter2;
-  VectorXd Yres = Y.fullPivLu().solve(Yb);
-  MatrixXd T(3,3);
-  T << Xres(0), Xres(1), Xres(2), Yres(0), Yres(1), Yres(2), 0, 0, 1;
-
-  using namespace std;
-  // cout << "Reference: X_intersect = " << xInter1 << ", Y_intersect = " << yInter1 << endl;
-  // cout << "New: X_intersect = " << xInter2 << ", Y_intersect = " << yInter2 << endl;
-  // cout << "T:" << endl << T << endl;
-  
-  std::vector<std::pair<double,double>> transformed;
-  for(auto &p: points){
-    double &x = p.first, &y = p.second;
-    VectorXd v(3);
-    v << x, y, 1;
-
-    VectorXd out = T*v;
-    transformed.push_back({out(0), out(1)});
+void CenterPathNode::coneDetectionsCB(
+    const utfr_msgs::msg::ConeDetections &msg) {
+  if (cone_detections_ == nullptr) {
+    // first initialization:
+    utfr_msgs::msg::ConeDetections template_cone_detections;
+    cone_detections_ = std::make_shared<utfr_msgs::msg::ConeDetections>(
+        template_cone_detections);
   }
-  return transformed;
+
+  cone_detections_->header = msg.header;
+  cone_detections_->left_cones = msg.left_cones;
+  cone_detections_->right_cones = msg.right_cones;
+  cone_detections_->large_orange_cones = msg.large_orange_cones;
+  cone_detections_->small_orange_cones = msg.small_orange_cones;
 }
 
-std::vector<std::pair<double,double>> CenterPathNode::getWaypoints(){
-  std::ifstream in("src/planning/points/Waypoints.csv");
-  std::vector<std::pair<double,double>> v;
-  while(!in.eof()){
-    double x,y;
-    in >> x >> y;
-    v.push_back({x,y});
-  }
-  return v;
+void CenterPathNode::timerCBAccel() {
+  const std::string function_name{"center_path_timerCB:"};
+
+  // CODE GOES HERE
+}
+
+void CenterPathNode::timerCBSkidpad() {
+  const std::string function_name{"center_path_timerCB:"};
+
+  // CODE GOES HERE
+}
+
+void CenterPathNode::timerCBAutocross() {
+  const std::string function_name{"center_path_timerCB:"};
+
+  // CODE GOES HERE
+}
+
+void CenterPathNode::timerCBTrackdrive() {
+  const std::string function_name{"center_path_timerCB:"};
+
+  // CODE GOES HERE
 }
 
 void CenterPathNode::nextWaypoint(std::deque<std::pair<double,double>> &waypoints){
@@ -272,70 +237,105 @@ void CenterPathNode::GlobalWaypoints(){
     path_ = new std::deque<std::pair<double,double>>(v.begin(), v.end());
 }
 
-void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
-  if (cone_map_ == nullptr) {
-    // first initialization:
-    utfr_msgs::msg::ConeMap template_cone_map;
-    cone_map_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
+std::vector<std::pair<double,double>> CenterPathNode::getWaypoints(){
+  std::ifstream in("src/planning/points/Waypoints.csv");
+  std::vector<std::pair<double,double>> v;
+  while(!in.eof()){
+    double x,y;
+    in >> x >> y;
+    v.push_back({x,y});
   }
+  return v;
+}
 
-  cone_map_->header = msg.header;
-  cone_map_->left_cones = msg.left_cones;
-  cone_map_->right_cones = msg.right_cones;
-  cone_map_->large_orange_cones = msg.large_orange_cones;
-  cone_map_->small_orange_cones = msg.small_orange_cones;
+std::vector<std::pair<double,double>> CenterPathNode::transform(std::vector<std::pair<double,double>> &points){
+  std::ifstream referencePoints("src/planning/points/ReferencePoints.csv");
+  double xLeft1,yLeft1, xRight1, yRight1;
+  referencePoints >> xLeft1 >> yLeft1 >> xRight1 >> yRight1;
 
+  auto [xLeft2,yLeft2,xRight2,yRight2] = this->getCentres();
+  if(isnan(xLeft2) || isnan(xLeft2) || isnan(xRight2) || isnan(yRight2)){
+    return {};
+  } 
 
-  std::ofstream out("cones.txt");
-  for(auto &c : msg.left_cones){
-    out << "(" << c.pos.x << "," << c.pos.y << ")" << std::endl;
+  auto getIntersect = [&](double x0, double y0, double x1, double y1, int sign){
+    double d = util::euclidianDistance2D(x0, x1, y0, y1);
+    double a = d/2;
+    double h = sqrt((15.25/2+3)*(15.25/2+3)-a*a);
+    double xt = x0+a*(x1-x0)/d;
+    double yt = y0+a*(y1-y0)/d;
+    double x = xt+h*(y1-y0)/d;
+    double y = yt-h*(x1-x0)/d;
+    // return the coordinates that give the same signed cross product
+    double cross = (x1-x) * (y0-y) - (x0-x) * (y1-y);
+    if(cross * sign < 0){
+      x = xt-h*(y1-y0)/d;
+      y = yt+h*(x1-x0)/d;
+    }
+    return std::make_pair(x, y);
+  };
+
+  auto [xInter1, yInter1] = getIntersect(xLeft1, yLeft1, xRight1, yRight1, 1);
+  auto [xInter2, yInter2] = getIntersect(xLeft2, yLeft2, xRight2, yRight2, -1);
+  MatrixXd X(3,3); // a b tx
+  X << xLeft1, yLeft1, 1,
+       xRight1, yRight1, 1,
+       xInter1, yInter1, 1;
+  VectorXd Xb(3);
+  Xb << xLeft2, xRight2, xInter2;
+  VectorXd Xres = X.fullPivLu().solve(Xb);
+  MatrixXd Y(3,3); // c d ty
+  Y << xLeft1, yLeft1, 1,
+       xRight1, yRight1, 1,
+       xInter1, yInter1, 1;
+  VectorXd Yb(3);
+  Yb << yLeft2, yRight2, yInter2;
+  VectorXd Yres = Y.fullPivLu().solve(Yb);
+  MatrixXd T(3,3);
+  T << Xres(0), Xres(1), Xres(2), Yres(0), Yres(1), Yres(2), 0, 0, 1;
+
+  using namespace std;
+  // cout << "Reference: X_intersect = " << xInter1 << ", Y_intersect = " << yInter1 << endl;
+  // cout << "New: X_intersect = " << xInter2 << ", Y_intersect = " << yInter2 << endl;
+  // cout << "T:" << endl << T << endl;
+  
+  std::vector<std::pair<double,double>> transformed;
+  for(auto &p: points){
+    double &x = p.first, &y = p.second;
+    VectorXd v(3);
+    v << x, y, 1;
+
+    VectorXd out = T*v;
+    transformed.push_back({out(0), out(1)});
   }
-  out << std::endl;
-  for(auto &c : msg.right_cones){
-    out << "(" << c.pos.x << "," << c.pos.y << ")" << std::endl;
+  return transformed;
+}
+
+std::tuple<double,double,double,double> CenterPathNode::getCentres(){
+  std::vector<utfr_msgs::msg::Cone> &orange = cone_map_->large_orange_cones;
+  if(orange.size() != 4){
+    return {NAN,NAN,NAN,NAN};
   }
-  this->GlobalWaypoints();
-  this->nextWaypoint(*path_);
-}
-
-void CenterPathNode::coneDetectionsCB(
-    const utfr_msgs::msg::ConeDetections &msg) {
-  if (cone_detections_ == nullptr) {
-    // first initialization:
-    utfr_msgs::msg::ConeDetections template_cone_detections;
-    cone_detections_ = std::make_shared<utfr_msgs::msg::ConeDetections>(
-        template_cone_detections);
+  auto [xLeft,yLeft,xRight,yRight] = this->skidpadCircleCentres();
+  if(isnan(xLeft) || isnan(xRight) || isnan(yLeft) || isnan(yRight)){
+    return {NAN,NAN,NAN,NAN};
   }
-
-  cone_detections_->header = msg.header;
-  cone_detections_->left_cones = msg.left_cones;
-  cone_detections_->right_cones = msg.right_cones;
-  cone_detections_->large_orange_cones = msg.large_orange_cones;
-  cone_detections_->small_orange_cones = msg.small_orange_cones;
-}
-
-void CenterPathNode::timerCBAccel() {
-  const std::string function_name{"center_path_timerCB:"};
-
-  // CODE GOES HERE
-}
-
-void CenterPathNode::timerCBSkidpad() {
-  const std::string function_name{"center_path_timerCB:"};
-
-  // CODE GOES HERE
-}
-
-void CenterPathNode::timerCBAutocross() {
-  const std::string function_name{"center_path_timerCB:"};
-
-  // CODE GOES HERE
-}
-
-void CenterPathNode::timerCBTrackdrive() {
-  const std::string function_name{"center_path_timerCB:"};
-
-  // CODE GOES HERE
+  double xMid = (orange[0].pos.x+orange[1].pos.x+orange[2].pos.x+orange[3].pos.x)/4;
+  double yMid = (orange[0].pos.y+orange[1].pos.y+orange[2].pos.y+orange[3].pos.y)/4;
+  double rightDist = util::euclidianDistance2D(xRight, xMid, yRight, yMid);
+  double leftDist = util::euclidianDistance2D(xMid, xLeft, yMid, yLeft);
+  double totalDist = util::euclidianDistance2D(xRight, xLeft, yRight, yLeft);
+  if(abs(rightDist-centreDistance_) > 0.25){ // improper right centre
+    return {NAN,NAN,NAN,NAN};
+  }
+  // improper left centre
+  if(abs(totalDist-2*centreDistance_) > 0.5 || abs(leftDist-centreDistance_) > 0.25){
+    double theta = atan2(yMid-yRight, xMid-xRight);
+    double dx = cos(theta) * rightDist, dy = sin(theta) * rightDist;
+    xLeft = xMid + dx;
+    yLeft = yMid + dy;
+  }
+  return {xLeft, yLeft, xRight, yRight};
 }
 
 std::tuple<double,double,double,double> CenterPathNode::skidpadCircleCentres(){
