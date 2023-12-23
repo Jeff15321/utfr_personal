@@ -27,10 +27,12 @@
 #include <deque>
 
 // Message Requirements
+#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/polygon.hpp>
-#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
+#include <rclcpp/time.hpp>
+#include <utfr_msgs/msg/cone_detections.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
@@ -38,7 +40,6 @@
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
-#include <utfr_msgs/msg/cone_detections.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -51,10 +52,8 @@
 #endif
 #include <CGAL/Delaunay_triangulation_2.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-
-typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-typedef CGAL::Delaunay_triangulation_2<K> Delaunay;
-typedef K::Point_2 Point;
+#include <CGAL/Triangulation_vertex_base_with_info_2.h>
+// #include <CGAL/draw_triangulation_2.h>
 
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
@@ -67,6 +66,28 @@ public:
   /*! Constructor, calls loadParams, initPublishers and initTimers.
    */
   CenterPathNode();
+  typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+  // typedef CGAL::Delaunay_triangulation_2<K> Delaunay;
+  typedef K::Point_2 Point;
+
+  typedef CGAL::Triangulation_vertex_base_with_info_2<unsigned int, K> Vb;
+  typedef CGAL::Triangulation_data_structure_2<Vb> Tds;
+  typedef CGAL::Delaunay_triangulation_2<K, Tds> Delaunay;
+  typedef Delaunay::Vertex_handle Vertex_handle;
+
+  void GlobalWaypoints();
+
+  std::vector<std::pair<double,double>> getWaypoints();
+
+  void nextWaypoint(std::deque<std::pair<double,double>> &waypoints);
+
+  std::vector<std::pair<double,double>> transform(std::vector<std::pair<double,double>> &points);
+
+  std::tuple<double,double,double,double> getCentres();
+
+  std::tuple<double,double,double,double> skidpadCircleCentres();
+
+  std::pair<double,double> circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count);
 
   void GlobalWaypoints();
 
@@ -98,6 +119,10 @@ private:
   /*! Initialize Timers:
    */
   void initTimers();
+
+  /*! Initialize Sector:
+   */
+  void initSector();
 
   /*! Initialize Heartbeat:
    */
@@ -135,9 +160,49 @@ private:
    */
   void timerCBTrackdrive();
 
-  /*! Delaunay Triangulation:
+  /*! Function for sorting cones
    */
-  void delaunayTriangulation();
+  bool coneDistComparitor(const utfr_msgs::msg::Cone &a,
+                          const utfr_msgs::msg::Cone &b);
+
+  /*! Accel line fitting
+   * This function returns m and c for the line y=mx+c using cone detections
+     completely colorblind
+   */
+  std::vector<double> getAccelPath();
+
+  /*! Midpoints using Delaunay Triangulation:
+   */
+  std::vector<CGAL::Point_2<CGAL::Epick>>
+  Midpoints(utfr_msgs::msg::ConeDetections_<std::allocator<void>>::SharedPtr
+                cone_detections_);
+
+  /*! SkidPad Fit Function:
+   */
+  void skidPadFit(const utfr_msgs::msg::ConeDetections &cone_detections,
+                  const utfr_msgs::msg::EgoState &msg);
+
+  /*! Publish Fitted Skidpad Path Lines:
+   */
+  void publishLine(
+    double m_left, double m_right, double c_left, double c_right, double x_min, 
+    double x_max, double thickness);
+
+  std::tuple<std::vector<CGAL::Point_2<CGAL::Epick>>, std::vector<double>,
+             std::vector<double>>
+  BezierPoints(std::vector<CGAL::Point_2<CGAL::Epick>> midpoints);
+
+  /*! Skidpad Lap Counter
+   */
+  void skidpadLapCounter();
+
+  /*! Autox/Trackdrive Lap Counter
+   */
+  void trackdriveLapCounter();
+
+  std::tuple<double, double, double, double, double, double> skidpadMain();
+  std::tuple<double, double, double, double, double, double> skidpadRight();
+  std::tuple<double, double, double, double, double, double> skidpadLeft();
 
   /*! Initialize global variables:
    */
@@ -151,9 +216,23 @@ private:
 
   std::deque<std::pair<double,double>> *path_{nullptr};
 
+
+  double small_radius_;
+  double big_radius_;
+  double threshold_radius_;
+  int threshold_cones_;
+  int curr_sector_ = 0;
+  bool lock_sector_;
+  bool cones_detected_ = false;
+  bool found_4_large_orange;
+  rclcpp::Time last_time;
+  bool accel_sector_increase;
+  int detections_in_row_ = 0;
+
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
   utfr_msgs::msg::ConeDetections::SharedPtr cone_detections_{nullptr};
+  geometry_msgs::msg::Point reference_point_;
 
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
@@ -163,7 +242,19 @@ private:
 
   rclcpp::Publisher<utfr_msgs::msg::ParametricSpline>::SharedPtr
       center_path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      accel_path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      skidpad_path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      skidpad_path_publisher_2_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      skidpad_path_publisher_avg_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      delaunay_path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
+      first_midpoint_path_publisher_;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
 

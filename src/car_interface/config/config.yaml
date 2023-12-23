@@ -1,4 +1,6 @@
 car_interface: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    test_brake: 0.6
+    heartbeat_tolerance: 1.5
+    heartbeat_modules: {"controls"}
+    testing: 1 #0 - no test

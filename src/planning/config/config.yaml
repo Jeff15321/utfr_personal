@@ -1,43 +1,44 @@
 center_path_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    event: 'accel' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    event: 'skidpad' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
 
     ds: 0.01 # [m] discretization step
     max_velocity: 10.0 # [m/s]
-    num_points: 1000 # number of points to discretize the path
+    num_points: 500 # number of points to discretize the path
+
+    threshold_radius: 0.5 #[m]
+    threshold_cones: 3 # number of cones to check for radius
 
 path_optimization_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    event: 'accel' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    event: 'skidpad' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
     skip_path_opt: True #Skip if you don't want to do path optimization
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
+    lookahead_distance: 1.0 # [m]
+    a_lateral: 15.0 # [m/s^2]
 
     ds: 0.01 # [m] discretization step
     max_velocity: 10.0 # [m/s]
-    num_points: 1000 # number of points to discretize the path
+    num_points: 500 # number of points to discretize the path
 
 controller_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    event: 'accel' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    event: 'skidpad' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
     controller: 'pure_pursuit' #['stanley', 'pure_pursuit', 'mpc']
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
 
     ds: 0.01 # [m] discretization step
     max_velocity: 10.0 # [m/s]
-    num_points: 1000 # number of points to discretize the path
+    num_points: 500 # number of points to discretize the path
 
     # Stanley Controller Parameters
-    stanley_gain: 1.0 #8.0 works for accel 30 m/s
-    softening_constant: 5.0 #1.0 works for accel 30 m/s
-    k_yaw_rate: 0.0
-    k_damp_steer: 0.0
     discretized_points: 5000
     cte_error: 0.01
     cte_angle_error: 1.0
@@ -46,4 +47,5 @@ controller_node: # Name of Module
     max_steering_angle: 0.34
 
     # Pure Pursuit Controller Parameters
-    lookahead_distance: 1.0 # [m]
+    base_lookahead_distance: 1.5 # [m]
+    lookahead_scaling_factor: 0.5 # [m]

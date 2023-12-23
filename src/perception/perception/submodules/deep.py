@@ -115,7 +115,8 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
 
     for i, (batch_id, x0, y0, x1, y1, cls_id, score) in enumerate(outputs):
         if score < confidence:
-            continue
+            # if it is less than the config confidence value, than it is unknown random cone
+            cls_id = 0
         image = ori_images[int(batch_id)]
         box = np.array([x0, y0, x1, y1])
         box -= np.array(dwdh * 2)

@@ -36,6 +36,7 @@ execute_process(
     COMMAND sh ${SETUP}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/external
 )
+link_directories(${CMAKE_SOURCE_DIR}/external/g2o/lib)
 
 ## Add Libaries and Executables
 function(add_node NODE_NAME)
@@ -54,19 +55,10 @@ function(add_node NODE_NAME)
   target_include_directories(${NODE_NAME}_library PUBLIC ${G2O_INCLUDE_DIR})
   
   add_executable(${NODE_NAME} src/${NODE_NAME}.cpp)
+  target_link_libraries(${NODE_NAME}_library fmt::fmt)
+  target_link_libraries(${NODE_NAME}_library g2o_core g2o_stuff g2o_types_data g2o_types_slam2d)
+
   
-  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-    message("x86_64 (64-bit) architecture detected")
-    target_link_libraries(${NODE_NAME} ${NODE_NAME}_library ${CMAKE_CURRENT_SOURCE_DIR}/external/x86_lib/libg2o_core.so)
-  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i[3-6]86" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "i86pc")
-    message("x86 (32-bit) architecture detected")
-    target_link_libraries(${NODE_NAME} ${NODE_NAME}_library ${CMAKE_CURRENT_SOURCE_DIR}/external/x86_lib/libg2o_core.so)
-  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^arm")
-    message("ARM architecture detected")
-    target_link_libraries(${NODE_NAME} ${NODE_NAME}_library ${CMAKE_CURRENT_SOURCE_DIR}/external/arm_lib/libg2o_core.so)
-  else()
-      message("Unknown or unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
-  endif()
   target_link_libraries(${NODE_NAME} ${NODE_NAME}_library)
   ament_target_dependencies(${NODE_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})
   target_include_directories(${NODE_NAME}
@@ -128,6 +120,8 @@ target_include_directories(mapping_test PUBLIC /usr/include/eigen3/)
 target_include_directories(mapping_test PUBLIC ${G2O_INCLUDE_DIR})
 
 ## Link required files for testing:
+target_link_libraries(mapping_test fmt::fmt)
+target_link_libraries(mapping_test g2o_core g2o_stuff g2o_types_data g2o_types_slam2d)
 target_sources(mapping_test PRIVATE src/build_graph_node.cpp)
 target_sources(mapping_test PRIVATE src/compute_graph_node.cpp)
 target_sources(mapping_test PRIVATE src/ekf_node.cpp)

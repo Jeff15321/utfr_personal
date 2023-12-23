@@ -142,6 +142,7 @@ private:
   double lookahead_distance_;
   double num_points_;
   double a_lateral_max_;
+  double max_velocity_;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
