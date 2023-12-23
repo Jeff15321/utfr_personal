@@ -92,6 +92,77 @@ void PathOptimizationNode::initTimers() {
   }
 }
 
+void PathOptimizationNode::initGGV(std::string filename) {
+  std::ifstream GGV(filename);
+  if (!GGV.is_open()) {
+      std::cout << "Error opening file" << std::endl;
+  }
+
+  if (!GGV.eof()) {
+      std::string line[3];
+      std::getline(GGV, line[0], ',');
+      std::getline(GGV, line[1], ',');
+      std::getline(GGV, line[2]);
+  }
+
+  // Parse CSV
+  std::string line;
+  while (std::getline(GGV, line)) {
+      if (line == "" || line == "\n" || line == "\r") {
+          continue;
+      }
+
+      // parse each element of line into a vector
+      std::vector<std::string> data;
+      std::string temp = "";
+      for (int i = 0; i < line.length(); i++) {
+          if (line[i] == ',') {
+              data.push_back(temp);
+              temp = "";
+          } else {
+              temp += line[i];
+          }
+      }
+      data.push_back(temp);
+
+      // if the line is not formatted correctly, skip it
+      if (data.size() < 3) {
+          continue;
+      }
+      
+      int vel = std::stod(data[2]);
+      double latAccel = std::stod(data[1]);
+      double longAccel = std::stod(data[0]);
+
+      // Ignore negative accel values. We only care about positive values
+      if (longAccel < 0) {
+          continue;
+      }
+
+      GGV_velocities.insert(vel);
+
+      // Add the values into vectors in the map
+      if (GGV_vel_to_lat_accel.find(vel) == GGV_vel_to_lat_accel.end()) {
+          GGV_vel_to_lat_accel[vel] = std::vector<double>();
+      }
+      if (GGV_vel_to_long_accel.find(vel) == GGV_vel_to_long_accel.end()) {
+          GGV_vel_to_long_accel[vel] = std::vector<double>();
+      }
+
+      GGV_vel_to_lat_accel[vel].push_back(latAccel);
+      GGV_vel_to_long_accel[vel].push_back(longAccel);
+  }
+  GGV.close();
+
+  // Reverse the arrays in the hashmap because they are sorted high to low
+  for (auto it = GGV_vel_to_lat_accel.begin(); it != GGV_vel_to_lat_accel.end(); it++) {
+      std::reverse(it->second.begin(), it->second.end());
+  }
+  for (auto it = GGV_vel_to_long_accel.begin(); it != GGV_vel_to_long_accel.end(); it++) {
+      std::reverse(it->second.begin(), it->second.end());
+  }
+}
+
 void PathOptimizationNode::initHeartbeat() {
   heartbeat_.module.data = "path_optimization_node";
   heartbeat_.update_rate = update_rate_;
@@ -360,6 +431,38 @@ std::vector<double> PathOptimizationNode::filterVelocities(
     velocities[i] = velo(velocities[i - 1], a, ds);
   }
   return velocities;
+}
+
+double PathOptimizationNode::calculateLongitAccel(double velocity,
+                                                  double a_lateral) {
+  // get the closest velocity in the GGV data
+  if (velocity >= (*GGV_velocities.rbegin() + *--GGV_velocities.rbegin())/2.0) {
+      velocity = *GGV_velocities.rbegin();
+  } else {
+    // round velocity to nearest even number
+    int roundedVel = std::round(vel);
+    if (roundedVel % 2 != 0) {
+        roundedVel += (vel >= roundedVel) ? 1 : -1;
+    }
+  }
+
+  std::vector<double> latAccels = GGV_vel_to_lat_accel[roundedVel];
+  std::vector<double> longAccels = GGV_vel_to_long_accel[roundedVel];
+
+  for (int i = 0; i < latAccels.size(); i++) {
+      std::cout << latAccels[i] << ", " << longAccels[i] << std::endl;
+  }
+
+  // binary search for the index of the closest latAccel to the given latAccel
+  int idx = std::lower_bound(latAccels.begin(), latAccels.end(), latAccel)-latAccels.begin();
+  if (idx > 0) {
+      if (std::abs(latAccels[idx-1] - latAccel) < std::abs(latAccels[idx] - latAccel)) {
+          idx--;
+      }
+  }
+  std::cout << "idx: " << idx << std::endl;
+
+  return longAccels[idx];
 }
 
 } // namespace path_optimization

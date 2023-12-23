@@ -24,6 +24,8 @@
 #include <stdexcept> // std::runtime_error
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <set>
 
 // Message Requirements
 #include <nav_msgs/msg/occupancy_grid.hpp>
@@ -80,6 +82,12 @@ public:
                                        double max_velocity,
                                        double max_acceleration,
                                        double min_acceleration);
+  
+  /*! Calculate Longitudinal Acceleration:
+   * This function calculates the maximum (positive) longitudinal acceleration possible
+   * for a given velocity and lateral acceleration.
+   */
+  double calculateLongitAccel(double velocity, double a_lateral);
 
 private:
   /*! Initialize and load params from config.yaml:
@@ -97,6 +105,10 @@ private:
   /*! Initialize Timers:
    */
   void initTimers();
+
+  /*! Initialize GGV data:
+  */
+  void initGGV();
 
   /*! Initialize Heartbeat:
    */
@@ -134,6 +146,9 @@ private:
    */
   void timerCBTrackdrive();
 
+  /*! 
+   */
+
   /*! Initialize global variables:
    */
   double update_rate_;
@@ -165,6 +180,13 @@ private:
   utfr_msgs::msg::TargetState target_;
   utfr_msgs::msg::SystemStatus::SharedPtr status_{nullptr};
   utfr_msgs::msg::Heartbeat heartbeat_;
+
+  
+  // map of GGV data. keys are velocity, values are array of lat. accel
+  std::unordered_map<double, std::vector<double>> GGV_vel_to_lat_accel;
+  // map of GGV data. keys are velocity, values are array of long. accel
+  std::unordered_map<double, std::vector<double>> GGV_vel_to_long_accel;
+  std::set<double> GGV_velocities;
 };
 } // namespace path_optimization
 } // namespace utfr_dv
