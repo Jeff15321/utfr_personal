@@ -436,6 +436,9 @@ std::vector<double> PathOptimizationNode::filterVelocities(
 double PathOptimizationNode::calculateLongitAccel(double velocity,
                                                   double a_lateral) {
   // get the closest velocity in the GGV data
+  if (velocity >= *GGV_velocities.rbegin()) {
+    velocity = *GGV_velocities.rbegin();
+  }
   if (velocity >= (*GGV_velocities.rbegin() + *--GGV_velocities.rbegin())/2.0) {
       velocity = *GGV_velocities.rbegin();
   } else {
@@ -460,7 +463,9 @@ double PathOptimizationNode::calculateLongitAccel(double velocity,
           idx--;
       }
   }
-  std::cout << "idx: " << idx << std::endl;
+  if (idx > latAccels.size() - 1) {
+      idx = latAccels.size() - 1;
+  }
 
   return longAccels[idx];
 }
