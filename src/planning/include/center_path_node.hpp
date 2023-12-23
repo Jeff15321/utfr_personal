@@ -24,6 +24,7 @@
 #include <stdexcept> // std::runtime_error
 #include <string>
 #include <vector>
+#include <deque>
 
 // Message Requirements
 #include <geometry_msgs/msg/point.hpp>
@@ -68,6 +69,10 @@ public:
   CenterPathNode();
 
   void GlobalWaypoints();
+
+  std::vector<std::pair<double,double>> getWaypoints();
+
+  void nextWaypoint(std::deque<std::pair<double,double>> &waypoints);
 
   std::vector<std::pair<double,double>> transform(std::vector<std::pair<double,double>> &points);
 
@@ -143,6 +148,8 @@ private:
   const double centreDistance_ = 9.125; // skidpad centres to track centre dist
   const int smallCircleCones_ = 16; // number of cones in small circle
   const int largeCircleCones_ = 13; // number of cones in large circle
+
+  std::deque<std::pair<double,double>> *path_{nullptr};
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};

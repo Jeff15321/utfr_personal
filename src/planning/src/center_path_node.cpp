@@ -176,9 +176,9 @@ std::vector<std::pair<double,double>> CenterPathNode::transform(std::vector<std:
   T << Xres(0), Xres(1), Xres(2), Yres(0), Yres(1), Yres(2), 0, 0, 1;
 
   using namespace std;
-  cout << "Reference: X_intersect = " << xInter1 << ", Y_intersect = " << yInter1 << endl;
-  cout << "New: X_intersect = " << xInter2 << ", Y_intersect = " << yInter2 << endl;
-  cout << "T:" << endl << T << endl;
+  // cout << "Reference: X_intersect = " << xInter1 << ", Y_intersect = " << yInter1 << endl;
+  // cout << "New: X_intersect = " << xInter2 << ", Y_intersect = " << yInter2 << endl;
+  // cout << "T:" << endl << T << endl;
   
   std::vector<std::pair<double,double>> transformed;
   for(auto &p: points){
@@ -192,7 +192,7 @@ std::vector<std::pair<double,double>> CenterPathNode::transform(std::vector<std:
   return transformed;
 }
 
-void CenterPathNode::GlobalWaypoints(){
+std::vector<std::pair<double,double>> CenterPathNode::getWaypoints(){
   std::ifstream in("src/planning/points/Waypoints.csv");
   std::vector<std::pair<double,double>> v;
   while(!in.eof()){
@@ -200,11 +200,56 @@ void CenterPathNode::GlobalWaypoints(){
     in >> x >> y;
     v.push_back({x,y});
   }
-  std::cout << "Old:" << std::endl;
-  for(auto [x,y] : v) std::cout << x << "," << y << std::endl;
+  return v;
+}
+
+void CenterPathNode::nextWaypoint(std::deque<std::pair<double,double>> &waypoints){
+  while(waypoints.size()){
+    auto[x, y] = waypoints.front();
+    double carX = ego_state_->pose.pose.position.x;
+    double carY = ego_state_->pose.pose.position.y;
+    double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
+    double localY = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
+    double localX = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
+    double angle = util::wrapDeg(util::radToDeg(atan2(localY, localX)));
+    // std::cout << "Waypoint angle: " << angle << std::endl;
+    if(util::euclidianDistance2D(x, carX, y, carY) <= 0.4 || (angle >= 90 && angle <= 270)){
+      waypoints.pop_front();
+    }
+    else break;
+  }
+
+  using geometry_msgs::msg::PolygonStamped;
+  static rclcpp::Publisher<PolygonStamped>::SharedPtr path_pub =
+    this->create_publisher<PolygonStamped>("Waypoints", 1);
+
+  PolygonStamped points_stamped;
+  points_stamped.header.frame_id = "base_footprint";
+  points_stamped.header.stamp = this->get_clock()->now();
+
+  for(auto [x,y] : waypoints) {
+    double carX = ego_state_->pose.pose.position.x;
+    double carY = ego_state_->pose.pose.position.y;
+    double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
+    double localY = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
+    double localX = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
+    geometry_msgs::msg::Point32 point;
+    point.x = localX;
+    point.y = -localY;
+    point.z = 0;
+    points_stamped.polygon.points.push_back(point);
+  }
+  path_pub->publish(points_stamped);
+  // std::cout << "Next Waypoint Function Ran, " << waypoints.size() << " Points published" << std::endl;
+}
+
+void CenterPathNode::GlobalWaypoints(){
+  std::vector<std::pair<double,double>> v = this->getWaypoints();
+  // std::cout << "Old:" << std::endl;
+  // for(auto [x,y] : v) std::cout << x << "," << y << std::endl;
   v = this->transform(v);
-  std::cout << "New:" << std::endl;
-  for(auto [x,y] : v) std::cout << x << "," << y << std::endl;
+  // std::cout << "New:" << std::endl;
+  // for(auto [x,y] : v) std::cout << x << "," << y << std::endl;
 
   using geometry_msgs::msg::PolygonStamped;
   static rclcpp::Publisher<PolygonStamped>::SharedPtr waypoints_pub =
@@ -222,6 +267,9 @@ void CenterPathNode::GlobalWaypoints(){
     points_stamped.polygon.points.push_back(point);
   }
   waypoints_pub->publish(points_stamped);
+
+  if(!path_)
+    path_ = new std::deque<std::pair<double,double>>(v.begin(), v.end());
 }
 
 void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
@@ -246,8 +294,8 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
   for(auto &c : msg.right_cones){
     out << "(" << c.pos.x << "," << c.pos.y << ")" << std::endl;
   }
-
   this->GlobalWaypoints();
+  this->nextWaypoint(*path_);
 }
 
 void CenterPathNode::coneDetectionsCB(
@@ -308,10 +356,10 @@ std::tuple<double,double,double,double> CenterPathNode::skidpadCircleCentres(){
   auto smallYellow = this->circleCentre(yellow, smallRadius_, smallCircleCones_-3);
   auto largeBlue = this->circleCentre(blue, largeRadius_, largeCircleCones_-3);
   auto largeYellow = this->circleCentre(yellow, largeRadius_, largeCircleCones_-3);
-  printf("Small Blue Circle: Xc = %lf, Yc = %lf\n", smallBlue.first, smallBlue.second);
-  printf("Small Yellow Circle: Xc = %lf, Yc = %lf\n", smallYellow.first, smallYellow.second);
-  printf("Large Blue Circle: Xc = %lf, Yc = %lf\n", largeBlue.first, largeBlue.second);
-  printf("Large Yellow Circle: Xc = %lf, Yc = %lf\n", largeYellow.first, largeYellow.second);
+  // printf("Small Blue Circle: Xc = %lf, Yc = %lf\n", smallBlue.first, smallBlue.second);
+  // printf("Small Yellow Circle: Xc = %lf, Yc = %lf\n", smallYellow.first, smallYellow.second);
+  // printf("Large Blue Circle: Xc = %lf, Yc = %lf\n", largeBlue.first, largeBlue.second);
+  // printf("Large Yellow Circle: Xc = %lf, Yc = %lf\n", largeYellow.first, largeYellow.second);
   
   auto drawCircle = [this](auto publisher, auto &cord, double radius){
     auto [xc, yc] = cord;
