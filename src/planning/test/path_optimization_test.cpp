@@ -114,6 +114,33 @@ TEST(PathOptimizationNode, filterVelocities) {
     out << d << std::endl;
 }
 
+TEST(PathOptimizationNode, getMaxA_longitudinal) {
+  PathOptimizationNode node;
+  double velocity;
+  double a_lateral;
+  double a_longit;
+
+  velocity = 10;
+  a_lateral = 15;
+  a_longit = node.getMaxA_longitudinal(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 0.375);
+
+  velocity = 0;
+  a_lateral = 15;
+  a_longit = node.getMaxA_longitudinal(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 0);
+
+  velocity = 10;
+  a_lateral = 0;
+  a_longit = node.getMaxA_longitudinal(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 0);
+
+  velocity = 0;
+  a_lateral = 0;
+  a_longit = node.getMaxA_longitudinal(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 0);
+}
+
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
   ::testing::InitGoogleTest(&argc, argv);

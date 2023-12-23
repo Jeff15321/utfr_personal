@@ -87,7 +87,7 @@ public:
    * This function calculates the maximum (positive) longitudinal acceleration possible
    * for a given velocity and lateral acceleration.
    */
-  double calculateLongitAccel(double velocity, double a_lateral);
+  double getMaxA_longitudinal(double velocity, double a_lateral);
 
 private:
   /*! Initialize and load params from config.yaml:
