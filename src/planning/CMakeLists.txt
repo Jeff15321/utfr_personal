@@ -91,9 +91,9 @@ install(
     DESTINATION share/${PROJECT_NAME})
 
 ## Install CSV files
-# install(
-#   DIRECTORY paths
-#   DESTINATION share/${PROJECT_NAME})
+install(
+  DIRECTORY resource/
+  DESTINATION share/${PROJECT_NAME})
 
 #############
 ## Testing ##

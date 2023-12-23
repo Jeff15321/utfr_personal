@@ -15,6 +15,7 @@
 
 // ROS2 Requirements
 #include <rclcpp/rclcpp.hpp>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 // System Requirements
 #include <chrono>
@@ -86,8 +87,10 @@ public:
   /*! Calculate Longitudinal Acceleration:
    * This function calculates the maximum (positive) longitudinal acceleration possible
    * for a given velocity and lateral acceleration.
+   * 
+   * @param 
    */
-  double getMaxA_longitudinal(double velocity, double a_lateral);
+  double getMaxA_longit(double velocity, double a_lateral);
 
 private:
   /*! Initialize and load params from config.yaml:
@@ -108,7 +111,7 @@ private:
 
   /*! Initialize GGV data:
   */
-  void initGGV();
+  void initGGV(std::string filename);
 
   /*! Initialize Heartbeat:
    */

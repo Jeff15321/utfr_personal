@@ -24,6 +24,8 @@ PathOptimizationNode::PathOptimizationNode() : Node("path_optimization_node") {
   this->initPublishers();
   this->initTimers();
   this->initHeartbeat();
+  this->initGGV(ament_index_cpp::get_package_share_directory("planning") + 
+                "/GGV.csv");
 }
 
 void PathOptimizationNode::initParams() {
@@ -95,7 +97,7 @@ void PathOptimizationNode::initTimers() {
 void PathOptimizationNode::initGGV(std::string filename) {
   std::ifstream GGV(filename);
   if (!GGV.is_open()) {
-      std::cout << "Error opening file" << std::endl;
+      std::cout << "Error opening file" << filename << std::endl;
   }
 
   if (!GGV.eof()) {
@@ -130,7 +132,7 @@ void PathOptimizationNode::initGGV(std::string filename) {
           continue;
       }
       
-      int vel = std::stod(data[2]);
+      double vel = ((int) (std::stod(data[2]) * 100)) / 100.0;
       double latAccel = std::stod(data[1]);
       double longAccel = std::stod(data[0]);
 
@@ -433,33 +435,31 @@ std::vector<double> PathOptimizationNode::filterVelocities(
   return velocities;
 }
 
-double PathOptimizationNode::getMaxA_longitudinal(double velocity,
+double PathOptimizationNode::getMaxA_longit(double velocity,
                                                   double a_lateral) {
+  double roundedVel = velocity;
   // get the closest velocity in the GGV data
-  if (velocity >= *GGV_velocities.rbegin()) {
-    velocity = *GGV_velocities.rbegin();
-  }
   if (velocity >= (*GGV_velocities.rbegin() + *--GGV_velocities.rbegin())/2.0) {
-      velocity = *GGV_velocities.rbegin();
+      roundedVel = *GGV_velocities.rbegin();
   } else {
     // round velocity to nearest even number
-    int roundedVel = std::round(vel);
-    if (roundedVel % 2 != 0) {
-        roundedVel += (vel >= roundedVel) ? 1 : -1;
+    roundedVel = std::round(velocity);
+    if ((int) roundedVel % 2 != 0) {
+        roundedVel += (velocity >= roundedVel) ? 1 : -1;
     }
   }
 
   std::vector<double> latAccels = GGV_vel_to_lat_accel[roundedVel];
   std::vector<double> longAccels = GGV_vel_to_long_accel[roundedVel];
 
-  for (int i = 0; i < latAccels.size(); i++) {
-      std::cout << latAccels[i] << ", " << longAccels[i] << std::endl;
-  }
+  // for (int i = 0; i < latAccels.size(); i++) {
+  //     std::cout << latAccels[i] << ", " << longAccels[i] << std::endl;
+  // }
 
   // binary search for the index of the closest latAccel to the given latAccel
-  int idx = std::lower_bound(latAccels.begin(), latAccels.end(), latAccel)-latAccels.begin();
+  int idx = std::lower_bound(latAccels.begin(), latAccels.end(), a_lateral)-latAccels.begin();
   if (idx > 0) {
-      if (std::abs(latAccels[idx-1] - latAccel) < std::abs(latAccels[idx] - latAccel)) {
+      if (std::abs(latAccels[idx-1] - a_lateral) < std::abs(latAccels[idx] - a_lateral)) {
           idx--;
       }
   }

@@ -114,31 +114,66 @@ TEST(PathOptimizationNode, filterVelocities) {
     out << d << std::endl;
 }
 
-TEST(PathOptimizationNode, getMaxA_longitudinal) {
+TEST(PathOptimizationNode, getMaxA_longit) {
   PathOptimizationNode node;
   double velocity;
   double a_lateral;
   double a_longit;
 
-  velocity = 10;
-  a_lateral = 15;
-  a_longit = node.getMaxA_longitudinal(velocity, a_lateral);
-  ASSERT_DOUBLE_EQ(a_longit, 0.375);
+  velocity = 10.4;
+  a_lateral = 15.1;
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+  std::cout << "a_longit: " << a_longit << std::endl;
+  ASSERT_DOUBLE_EQ(a_longit, 3.1957371091771924);
+  
+  velocity = 9.1;
+  a_lateral = -15.1;
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+
+  ASSERT_DOUBLE_EQ(a_longit, 3.1957371091771924);
+
+  velocity = 0.3;
+  a_lateral = 14.9;
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 2.7753496968663423);
+
+  velocity = 0.9;
+  a_lateral = -14.9;
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 2.7753496968663423);
+
+  velocity = 10.8;
+  a_lateral = 0;
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 8.001412230575237);
 
   velocity = 0;
-  a_lateral = 15;
-  a_longit = node.getMaxA_longitudinal(velocity, a_lateral);
-  ASSERT_DOUBLE_EQ(a_longit, 0);
-
-  velocity = 10;
   a_lateral = 0;
-  a_longit = node.getMaxA_longitudinal(velocity, a_lateral);
-  ASSERT_DOUBLE_EQ(a_longit, 0);
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 7.959990224049994);
 
-  velocity = 0;
-  a_lateral = 0;
-  a_longit = node.getMaxA_longitudinal(velocity, a_lateral);
-  ASSERT_DOUBLE_EQ(a_longit, 0);
+
+  // edge cases
+  velocity = 0.5;
+  a_lateral = -21.6;
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 0.5587490382447899);
+
+  velocity = 0.2;
+  a_lateral = 20.3;
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 0.5587490382447899);
+
+  velocity = 30.5;
+  a_lateral = 0.5;
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 7.937797440348381);
+
+  velocity = 30.5;
+  a_lateral = -0.6;
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 7.937797440348381);
+
 }
 
 int main(int argc, char **argv) {
