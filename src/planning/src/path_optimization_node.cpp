@@ -437,6 +437,7 @@ std::vector<double> PathOptimizationNode::filterVelocities(
 
 double PathOptimizationNode::getMaxA_longit(double velocity,
                                                   double a_lateral) {
+  velocity = std::max(velocity, 0.0);
   double roundedVel = velocity;
   // get the closest velocity in the GGV data
   if (velocity >= (*GGV_velocities.rbegin() + *--GGV_velocities.rbegin())/2.0) {
@@ -448,6 +449,8 @@ double PathOptimizationNode::getMaxA_longit(double velocity,
         roundedVel += (velocity >= roundedVel) ? 1 : -1;
     }
   }
+
+  std::cout << "roundedVel: " << roundedVel << std::endl;
 
   std::vector<double> latAccels = GGV_vel_to_lat_accel[roundedVel];
   std::vector<double> longAccels = GGV_vel_to_long_accel[roundedVel];

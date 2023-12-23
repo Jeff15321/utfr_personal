@@ -152,8 +152,17 @@ TEST(PathOptimizationNode, getMaxA_longit) {
   a_longit = node.getMaxA_longit(velocity, a_lateral);
   ASSERT_DOUBLE_EQ(a_longit, 7.959990224049994);
 
+  velocity = 30.5;
+  a_lateral = 0.5;
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 7.937797440348381);
 
-  // edge cases
+  velocity = 30.5;
+  a_lateral = -0.6;
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 7.937797440348381);
+
+  // edge cases: out of bounds 
   velocity = 0.5;
   a_lateral = -21.6;
   a_longit = node.getMaxA_longit(velocity, a_lateral);
@@ -164,15 +173,15 @@ TEST(PathOptimizationNode, getMaxA_longit) {
   a_longit = node.getMaxA_longit(velocity, a_lateral);
   ASSERT_DOUBLE_EQ(a_longit, 0.5587490382447899);
 
-  velocity = 30.5;
-  a_lateral = 0.5;
-  a_longit = node.getMaxA_longit(velocity, a_lateral);
-  ASSERT_DOUBLE_EQ(a_longit, 7.937797440348381);
-
-  velocity = 30.5;
+  velocity = 36.4;
   a_lateral = -0.6;
   a_longit = node.getMaxA_longit(velocity, a_lateral);
   ASSERT_DOUBLE_EQ(a_longit, 7.937797440348381);
+
+  velocity = -10;
+  a_lateral = -0.3;
+  a_longit = node.getMaxA_longit(velocity, a_lateral);
+  ASSERT_DOUBLE_EQ(a_longit, 7.959990224049994);
 
 }
 
