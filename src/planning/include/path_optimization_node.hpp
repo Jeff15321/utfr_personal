@@ -111,6 +111,8 @@ private:
   void initTimers();
 
   /*! Initialize GGV data:
+  * NOTE: assumes that the lateral acceleration data is in
+  * decreasing order.
   */
   void initGGV(std::string filename);
 
