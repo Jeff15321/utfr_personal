@@ -89,20 +89,6 @@ public:
 
   std::pair<double,double> circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count);
 
-  void GlobalWaypoints();
-
-  std::vector<std::pair<double,double>> getWaypoints();
-
-  void nextWaypoint(std::deque<std::pair<double,double>> &waypoints);
-
-  std::vector<std::pair<double,double>> transform(std::vector<std::pair<double,double>> &points);
-
-  std::tuple<double,double,double,double> getCentres();
-
-  std::tuple<double,double,double,double> skidpadCircleCentres();
-
-  std::pair<double,double> circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count);
-
 private:
   /*! Initialize and load params from config.yaml:
    */
