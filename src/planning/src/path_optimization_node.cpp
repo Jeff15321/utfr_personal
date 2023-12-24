@@ -24,6 +24,8 @@ PathOptimizationNode::PathOptimizationNode() : Node("path_optimization_node") {
   this->initPublishers();
   this->initTimers();
   this->initHeartbeat();
+  this->initGGV(ament_index_cpp::get_package_share_directory("planning") +
+                "/GGV.csv");
 }
 
 void PathOptimizationNode::initParams() {
@@ -89,6 +91,79 @@ void PathOptimizationNode::initTimers() {
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&PathOptimizationNode::timerCBTrackdrive, this));
+  }
+}
+
+void PathOptimizationNode::initGGV(std::string filename) {
+  std::ifstream GGV(filename);
+  if (!GGV.is_open()) {
+    std::cerr << "Error opening file" << filename << std::endl;
+  }
+
+  if (!GGV.eof()) {
+    std::string line[3];
+    std::getline(GGV, line[0], ',');
+    std::getline(GGV, line[1], ',');
+    std::getline(GGV, line[2]);
+  }
+
+  // Parse CSV
+  std::string line;
+  while (std::getline(GGV, line)) {
+    if (line == "" || line == "\n" || line == "\r") {
+      continue;
+    }
+
+    // parse each element of line into a vector
+    std::vector<std::string> data;
+    std::string temp = "";
+    for (int i = 0; i < line.length(); i++) {
+      if (line[i] == ',') {
+        data.push_back(temp);
+        temp = "";
+      } else {
+        temp += line[i];
+      }
+    }
+    data.push_back(temp);
+
+    // if the line is not formatted correctly, skip it
+    if (data.size() < 3) {
+      continue;
+    }
+
+    double vel = ((int)(std::stod(data[2]) * 100)) / 100.0;
+    double lat_accel = std::stod(data[1]);
+    double long_accel = std::stod(data[0]);
+
+    // Ignore negative accel values. We only care about positive values
+    if (long_accel < 0) {
+      continue;
+    }
+
+    GGV_velocities_.insert(vel);
+
+    // Add the values into vectors in the map
+    if (GGV_vel_to_lat_accel_.find(vel) == GGV_vel_to_lat_accel_.end()) {
+      GGV_vel_to_lat_accel_[vel] = std::vector<double>();
+    }
+    if (GGV_vel_to_long_accel_.find(vel) == GGV_vel_to_long_accel_.end()) {
+      GGV_vel_to_long_accel_[vel] = std::vector<double>();
+    }
+
+    GGV_vel_to_lat_accel_[vel].push_back(lat_accel);
+    GGV_vel_to_long_accel_[vel].push_back(long_accel);
+  }
+  GGV.close();
+
+  // Reverse the arrays in the hashmap because they are sorted high to low
+  for (auto it = GGV_vel_to_lat_accel_.begin();
+       it != GGV_vel_to_lat_accel_.end(); it++) {
+    std::reverse(it->second.begin(), it->second.end());
+  }
+  for (auto it = GGV_vel_to_long_accel_.begin();
+       it != GGV_vel_to_long_accel_.end(); it++) {
+    std::reverse(it->second.begin(), it->second.end());
   }
 }
 
@@ -360,6 +435,41 @@ std::vector<double> PathOptimizationNode::filterVelocities(
     velocities[i] = velo(velocities[i - 1], a, ds);
   }
   return velocities;
+}
+
+double PathOptimizationNode::getMaxLongAccelGGV(double velocity,
+                                                double a_lateral) {
+  velocity = std::max(velocity, 0.0);
+  double rounded_vel = velocity;
+  // get the closest velocity in the GGV data
+  if (velocity >=
+      (*GGV_velocities_.rbegin() + *--GGV_velocities_.rbegin()) / 2.0) {
+    rounded_vel = *GGV_velocities_.rbegin();
+  } else {
+    // round velocity to nearest even number
+    rounded_vel = std::round(velocity);
+    if ((int)rounded_vel % 2 != 0) {
+      rounded_vel += (velocity >= rounded_vel) ? 1 : -1;
+    }
+  }
+
+  std::vector<double> lat_accels = GGV_vel_to_lat_accel_[rounded_vel];
+  std::vector<double> long_accels = GGV_vel_to_long_accel_[rounded_vel];
+
+  // binary search for the index of the closest lat_accel to the given lat_accel
+  int idx = std::lower_bound(lat_accels.begin(), lat_accels.end(), a_lateral) -
+            lat_accels.begin();
+  if (idx > 0) {
+    if (std::abs(lat_accels[idx - 1] - a_lateral) <
+        std::abs(lat_accels[idx] - a_lateral)) {
+      idx--;
+    }
+  }
+  if (idx > lat_accels.size() - 1) {
+    idx = lat_accels.size() - 1;
+  }
+
+  return long_accels[idx];
 }
 
 } // namespace path_optimization
