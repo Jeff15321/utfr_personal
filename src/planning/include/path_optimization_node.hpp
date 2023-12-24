@@ -91,7 +91,7 @@ public:
    * @param velocity the velocity of the car
    * @param a_lateral the lateral acceleration of the car
    */
-  double getMaxA_longit(double velocity, double a_lateral);
+  double getMaxLongAccelGGV(double velocity, double a_lateral);
 
 private:
   /*! Initialize and load params from config.yaml:
@@ -189,10 +189,10 @@ private:
 
   
   // map of GGV data. keys are velocity, values are array of lat. accel
-  std::unordered_map<double, std::vector<double>> GGV_vel_to_lat_accel;
+  std::unordered_map<double, std::vector<double>> GGV_vel_to_lat_accel_;
   // map of GGV data. keys are velocity, values are array of long. accel
-  std::unordered_map<double, std::vector<double>> GGV_vel_to_long_accel;
-  std::set<double> GGV_velocities;
+  std::unordered_map<double, std::vector<double>> GGV_vel_to_long_accel_;
+  std::set<double> GGV_velocities_;
 };
 } // namespace path_optimization
 } // namespace utfr_dv

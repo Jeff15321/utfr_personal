@@ -24,7 +24,7 @@ PathOptimizationNode::PathOptimizationNode() : Node("path_optimization_node") {
   this->initPublishers();
   this->initTimers();
   this->initHeartbeat();
-  this->initGGV(ament_index_cpp::get_package_share_directory("planning") + 
+  this->initGGV(ament_index_cpp::get_package_share_directory("planning") +
                 "/GGV.csv");
 }
 
@@ -97,71 +97,73 @@ void PathOptimizationNode::initTimers() {
 void PathOptimizationNode::initGGV(std::string filename) {
   std::ifstream GGV(filename);
   if (!GGV.is_open()) {
-      std::cout << "Error opening file" << filename << std::endl;
+    std::cerr << "Error opening file" << filename << std::endl;
   }
 
   if (!GGV.eof()) {
-      std::string line[3];
-      std::getline(GGV, line[0], ',');
-      std::getline(GGV, line[1], ',');
-      std::getline(GGV, line[2]);
+    std::string line[3];
+    std::getline(GGV, line[0], ',');
+    std::getline(GGV, line[1], ',');
+    std::getline(GGV, line[2]);
   }
 
   // Parse CSV
   std::string line;
   while (std::getline(GGV, line)) {
-      if (line == "" || line == "\n" || line == "\r") {
-          continue;
-      }
+    if (line == "" || line == "\n" || line == "\r") {
+      continue;
+    }
 
-      // parse each element of line into a vector
-      std::vector<std::string> data;
-      std::string temp = "";
-      for (int i = 0; i < line.length(); i++) {
-          if (line[i] == ',') {
-              data.push_back(temp);
-              temp = "";
-          } else {
-              temp += line[i];
-          }
+    // parse each element of line into a vector
+    std::vector<std::string> data;
+    std::string temp = "";
+    for (int i = 0; i < line.length(); i++) {
+      if (line[i] == ',') {
+        data.push_back(temp);
+        temp = "";
+      } else {
+        temp += line[i];
       }
-      data.push_back(temp);
+    }
+    data.push_back(temp);
 
-      // if the line is not formatted correctly, skip it
-      if (data.size() < 3) {
-          continue;
-      }
-      
-      double vel = ((int) (std::stod(data[2]) * 100)) / 100.0;
-      double latAccel = std::stod(data[1]);
-      double longAccel = std::stod(data[0]);
+    // if the line is not formatted correctly, skip it
+    if (data.size() < 3) {
+      continue;
+    }
 
-      // Ignore negative accel values. We only care about positive values
-      if (longAccel < 0) {
-          continue;
-      }
+    double vel = ((int)(std::stod(data[2]) * 100)) / 100.0;
+    double lat_accel = std::stod(data[1]);
+    double long_accel = std::stod(data[0]);
 
-      GGV_velocities.insert(vel);
+    // Ignore negative accel values. We only care about positive values
+    if (long_accel < 0) {
+      continue;
+    }
 
-      // Add the values into vectors in the map
-      if (GGV_vel_to_lat_accel.find(vel) == GGV_vel_to_lat_accel.end()) {
-          GGV_vel_to_lat_accel[vel] = std::vector<double>();
-      }
-      if (GGV_vel_to_long_accel.find(vel) == GGV_vel_to_long_accel.end()) {
-          GGV_vel_to_long_accel[vel] = std::vector<double>();
-      }
+    GGV_velocities_.insert(vel);
 
-      GGV_vel_to_lat_accel[vel].push_back(latAccel);
-      GGV_vel_to_long_accel[vel].push_back(longAccel);
+    // Add the values into vectors in the map
+    if (GGV_vel_to_lat_accel_.find(vel) == GGV_vel_to_lat_accel_.end()) {
+      GGV_vel_to_lat_accel_[vel] = std::vector<double>();
+    }
+    if (GGV_vel_to_long_accel_.find(vel) == GGV_vel_to_long_accel_.end()) {
+      GGV_vel_to_long_accel_[vel] = std::vector<double>();
+    }
+
+    GGV_vel_to_lat_accel_[vel].push_back(lat_accel);
+    GGV_vel_to_long_accel_[vel].push_back(long_accel);
   }
   GGV.close();
 
   // Reverse the arrays in the hashmap because they are sorted high to low
-  for (auto it = GGV_vel_to_lat_accel.begin(); it != GGV_vel_to_lat_accel.end(); it++) {
-      std::reverse(it->second.begin(), it->second.end());
+  for (auto it = GGV_vel_to_lat_accel_.begin();
+       it != GGV_vel_to_lat_accel_.end(); it++) {
+    std::reverse(it->second.begin(), it->second.end());
   }
-  for (auto it = GGV_vel_to_long_accel.begin(); it != GGV_vel_to_long_accel.end(); it++) {
-      std::reverse(it->second.begin(), it->second.end());
+  for (auto it = GGV_vel_to_long_accel_.begin();
+       it != GGV_vel_to_long_accel_.end(); it++) {
+    std::reverse(it->second.begin(), it->second.end());
   }
 }
 
@@ -435,42 +437,39 @@ std::vector<double> PathOptimizationNode::filterVelocities(
   return velocities;
 }
 
-double PathOptimizationNode::getMaxA_longit(double velocity,
-                                                  double a_lateral) {
+double PathOptimizationNode::getMaxLongAccelGGV(double velocity,
+                                                double a_lateral) {
   velocity = std::max(velocity, 0.0);
-  double roundedVel = velocity;
+  double rounded_vel = velocity;
   // get the closest velocity in the GGV data
-  if (velocity >= (*GGV_velocities.rbegin() + *--GGV_velocities.rbegin())/2.0) {
-      roundedVel = *GGV_velocities.rbegin();
+  if (velocity >=
+      (*GGV_velocities_.rbegin() + *--GGV_velocities_.rbegin()) / 2.0) {
+    rounded_vel = *GGV_velocities_.rbegin();
   } else {
     // round velocity to nearest even number
-    roundedVel = std::round(velocity);
-    if ((int) roundedVel % 2 != 0) {
-        roundedVel += (velocity >= roundedVel) ? 1 : -1;
+    rounded_vel = std::round(velocity);
+    if ((int)rounded_vel % 2 != 0) {
+      rounded_vel += (velocity >= rounded_vel) ? 1 : -1;
     }
   }
 
-  std::cout << "roundedVel: " << roundedVel << std::endl;
+  std::vector<double> lat_accels = GGV_vel_to_lat_accel_[rounded_vel];
+  std::vector<double> long_accels = GGV_vel_to_long_accel_[rounded_vel];
 
-  std::vector<double> latAccels = GGV_vel_to_lat_accel[roundedVel];
-  std::vector<double> longAccels = GGV_vel_to_long_accel[roundedVel];
-
-  // for (int i = 0; i < latAccels.size(); i++) {
-  //     std::cout << latAccels[i] << ", " << longAccels[i] << std::endl;
-  // }
-
-  // binary search for the index of the closest latAccel to the given latAccel
-  int idx = std::lower_bound(latAccels.begin(), latAccels.end(), a_lateral)-latAccels.begin();
+  // binary search for the index of the closest lat_accel to the given lat_accel
+  int idx = std::lower_bound(lat_accels.begin(), lat_accels.end(), a_lateral) -
+            lat_accels.begin();
   if (idx > 0) {
-      if (std::abs(latAccels[idx-1] - a_lateral) < std::abs(latAccels[idx] - a_lateral)) {
-          idx--;
-      }
+    if (std::abs(lat_accels[idx - 1] - a_lateral) <
+        std::abs(lat_accels[idx] - a_lateral)) {
+      idx--;
+    }
   }
-  if (idx > latAccels.size() - 1) {
-      idx = latAccels.size() - 1;
+  if (idx > lat_accels.size() - 1) {
+    idx = lat_accels.size() - 1;
   }
 
-  return longAccels[idx];
+  return long_accels[idx];
 }
 
 } // namespace path_optimization
