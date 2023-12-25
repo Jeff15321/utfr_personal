@@ -74,19 +74,46 @@ public:
   typedef CGAL::Triangulation_data_structure_2<Vb> Tds;
   typedef CGAL::Delaunay_triangulation_2<K, Tds> Delaunay;
   typedef Delaunay::Vertex_handle Vertex_handle;
-
+  
+  /*! This function tries to get global waypoints if possible and sets path_ */
   void GlobalWaypoints();
-
+  
+  /*! This function reads waypoints from a file
+  * @returns vector of the waypoints read
+  */
   std::vector<std::pair<double,double>> getWaypoints();
-
+  
+  /*! This function removes waypoints that have already been visited and sends 
+      the current path to the controller
+  * @param waypoints the current global waypoints in the path
+  */
   void nextWaypoint(std::deque<std::pair<double,double>> &waypoints);
-
+  
+  /*! This function transforms points from one frame of reference to cone coords
+  * @param points the points to be transformed
+  * @returns vector of transformed points
+  */
   std::vector<std::pair<double,double>> transform(std::vector<std::pair<double,double>> &points);
-
+  
+  /*! This function returns the left and right skidpad circle centres 
+      respectively if they are valid. If only the right one is valid, the left 
+      one is calculated. If none are valid it returns NAN.
+  * @returns <left_x, left_y, right_x, right_y>
+  */
   std::tuple<double,double,double,double> getCentres();
-
+  
+  /*! This function returns most feasible skidpad centres based on cone map
+  * @returns <left_x, left_y, right_x, right_y>
+  */
   std::tuple<double,double,double,double> skidpadCircleCentres();
-
+  
+  /*! This function calculates the circle of best fit with the radius for the 
+      cones that satisfy the inlier count
+  * @param cones the cones to find circle of best fit
+  * @param radius the radius of the circle
+  * @param inlier_count the number of cones the circle should contain at least
+  * @returns <centre_x, centre_y>
+  */
   std::pair<double,double> circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count);
 
 private:
@@ -194,14 +221,13 @@ private:
    */
   double update_rate_;
   std::string event_;
+
   const double smallRadius_ = 7.625; // radius of small circle for skidpad
   const double largeRadius_ = 10.625; // radius of large circle for skidpad
   const double centreDistance_ = 9.125; // skidpad centres to track centre dist
   const int smallCircleCones_ = 16; // number of cones in small circle
   const int largeCircleCones_ = 13; // number of cones in large circle
-
-  std::deque<std::pair<double,double>> *path_{nullptr};
-
+  std::deque<std::pair<double,double>> *path_{nullptr}; // global path
 
   double small_radius_;
   double big_radius_;

@@ -244,8 +244,14 @@ void CenterPathNode::timerCBSkidpad() {
           RCLCPP_WARN(get_logger(), "%s Either cone detections or ego state is empty.", function_name.c_str());
           return; 
       }
-      if(path_ && path_->size()) this->nextWaypoint(*path_);
-      else skidPadFit(*cone_detections_, *ego_state_);
+      if(path_ && path_->size()){
+        this->nextWaypoint(*path_);
+        RCLCPP_INFO(this->get_logger(), "GLOBAL PATH USED");
+      }
+      else{
+        skidPadFit(*cone_detections_, *ego_state_);
+        RCLCPP_INFO(this->get_logger(), "LOCAL PATH USED");
+      }
 
   } catch (const std::exception& e) {
       RCLCPP_ERROR(get_logger(), "%s Exception: %s", function_name.c_str(), e.what());
@@ -1864,12 +1870,10 @@ std::tuple<double,double,double,double> CenterPathNode::getCentres(){
   if(abs(rightDist-centreDistance_) > 0.25){ // improper right centre
     return {NAN,NAN,NAN,NAN};
   }
-  // improper left centre
+  // improper left centre, extrapolate it
   if(abs(totalDist-2*centreDistance_) > 0.5 || abs(leftDist-centreDistance_) > 0.25){
-    double theta = atan2(yMid-yRight, xMid-xRight);
-    double dx = cos(theta) * rightDist, dy = sin(theta) * rightDist;
-    xLeft = xMid + dx;
-    yLeft = yMid + dy;
+    xLeft = xMid*2-xRight;
+    yLeft = yMid*2-yRight;
   }
   return {xLeft, yLeft, xRight, yRight};
 }
