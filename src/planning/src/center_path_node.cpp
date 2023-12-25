@@ -181,7 +181,6 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     out << "(" << c.pos.x << "," << c.pos.y << ")" << std::endl;
   }
   this->GlobalWaypoints();
-  this->nextWaypoint(*path_);
 }
 
 void CenterPathNode::coneDetectionsCB(
@@ -245,7 +244,8 @@ void CenterPathNode::timerCBSkidpad() {
           RCLCPP_WARN(get_logger(), "%s Either cone detections or ego state is empty.", function_name.c_str());
           return; 
       }
-      skidPadFit(*cone_detections_, *ego_state_);
+      if(path_ && path_->size()) this->nextWaypoint(*path_);
+      else skidPadFit(*cone_detections_, *ego_state_);
 
   } catch (const std::exception& e) {
       RCLCPP_ERROR(get_logger(), "%s Exception: %s", function_name.c_str(), e.what());
@@ -1704,7 +1704,7 @@ void CenterPathNode::nextWaypoint(std::deque<std::pair<double,double>> &waypoint
     double localX = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
     double angle = util::wrapDeg(util::radToDeg(atan2(localY, localX)));
     // std::cout << "Waypoint angle: " << angle << std::endl;
-    if(util::euclidianDistance2D(x, carX, y, carY) <= 0.4 || (angle >= 90 && angle <= 270)){
+    if(util::euclidianDistance2D(x, carX, y, carY) <= 1 || (angle >= 90 && angle <= 270)){
       waypoints.pop_front();
     }
     else break;
@@ -1717,8 +1717,11 @@ void CenterPathNode::nextWaypoint(std::deque<std::pair<double,double>> &waypoint
   PolygonStamped points_stamped;
   points_stamped.header.frame_id = "base_footprint";
   points_stamped.header.stamp = this->get_clock()->now();
-
+  
+  std::vector<Point> nextPoints;
+  int idx = 0;
   for(auto [x,y] : waypoints) {
+    if(idx == 5) break;
     double carX = ego_state_->pose.pose.position.x;
     double carY = ego_state_->pose.pose.position.y;
     double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
@@ -1729,9 +1732,15 @@ void CenterPathNode::nextWaypoint(std::deque<std::pair<double,double>> &waypoint
     point.y = -localY;
     point.z = 0;
     points_stamped.polygon.points.push_back(point);
+    nextPoints.push_back(Point(localX, localY));
+    ++idx;
   }
   path_pub->publish(points_stamped);
-  // std::cout << "Next Waypoint Function Ran, " << waypoints.size() << " Points published" << std::endl;
+  auto [useless, xParams, yParams] = BezierPoints(nextPoints);
+  utfr_msgs::msg::ParametricSpline path;
+  path.x_params = xParams;
+  path.y_params = yParams;
+  center_path_publisher_->publish(path);
 }
 
 void CenterPathNode::GlobalWaypoints(){
@@ -1741,6 +1750,7 @@ void CenterPathNode::GlobalWaypoints(){
   v = this->transform(v);
   // std::cout << "New:" << std::endl;
   // for(auto [x,y] : v) std::cout << x << "," << y << std::endl;
+  if(v.empty()) return;
 
   using geometry_msgs::msg::PolygonStamped;
   static rclcpp::Publisher<PolygonStamped>::SharedPtr waypoints_pub =
