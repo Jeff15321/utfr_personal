@@ -99,16 +99,22 @@ public:
   utfr_msgs::msg::EgoState forwardPropagate(const utfr_msgs::msg::EgoState& ego, 
     const double velocity_cmd, const double steering_cmd, const double dt);
 
-  /*! Main EKF function.
-   *  The main EKF loop. Takes in measurement data for the EKF and performes a
-   *  single update step.
-   *  @param[in] imu_data sensor_msgs::msg::Imu&, IMU data.
-   *  @param[in] gps_data ?, GPS data. TODO: Figure out GPS return type
-   *  @param[in] vehicle_model_data utfr_msgs::msg::EgoState&, vehicle model
-   * data.
+  /* Given an acceleration input, perform the state extrapolation
+   *  @param[in] double accel_cmd: Acceleration input to car, in m/s^2
+   *  @param[in] double steering_cmd: Steering angle of car, in radians
+   *  @param[in] double dt: Change in time to calcuate new position, in seconds
+   *  @returns utfr_msgs::msg::EgoState of vehicle's estimated state
    */
-  void EKF();
+  utfr_msgs::msg::EgoState extrapolateState(const double accel_cmd, 
+    const double steering_cmd, const double dt);
 
+  /* Given a GPS message, perform a measurement update step
+   *  @param[in] double x: x position of car, in meters
+   *  @param[in] double y: y position of car, in meters
+   *  @returns utfr_msgs::msg::EgoState of vehicle's estimated state
+   */
+  utfr_msgs::msg::EgoState updateState(const double x, const double y);
+  
   // Publishers
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr
       state_estimation_publisher_;
