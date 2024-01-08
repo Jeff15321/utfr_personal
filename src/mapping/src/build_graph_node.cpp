@@ -204,8 +204,8 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                         cones_found_ += 1;
                         }
                     }
-            count_ = 0;
             }
+        count_ = 0;
         cones_potential_ += 1;
       }
       return cones_id_list_;
