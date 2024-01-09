@@ -180,6 +180,9 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         //add to duplicate checker
         current_round_cones_.emplace_back(std::make_tuple(position_x_, position_y_));
 
+        //add to potential_cones (used for checking if cone can be added to past_detections)
+        potential_cones_.insert(std::make_pair(cones_potential_, std::make_tuple(position_x_, position_y_)));
+
         //initialize keys
         std::vector<int> keys{};
 
@@ -195,7 +198,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                     keys.push_back(key_);
 
                     //checking if three of same detected
-                    if (count_ == 2) {
+                    if (count_ == 3) {
 
                         // Deleting all of the same cone from potential_cones_ if three detected
                         for (auto& key_number_ : keys) {
@@ -212,8 +215,6 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                         }
                     }
             }
-        //add to potential_cones (used for checking if cone can be added to past_detections)
-        potential_cones_.insert(std::make_pair(cones_potential_, std::make_tuple(position_x_, position_y_)));
 
         count_ = 0;
         cones_potential_ += 1;

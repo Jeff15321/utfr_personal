@@ -53,11 +53,15 @@ TEST(BuildGraphNodeTest, kNNTest1)
     cones.left_cones.push_back(blue_cone);
     cones.right_cones.push_back(yellow_cone);
     node.KNN(cones);
+    node.KNN(cones);
+    node.KNN(cones);
     ASSERT_EQ(2, node.past_detections_.size());
 
     // We detect the same cones again, but nothing should happen, as we
     // already know of their existences.
 
+    node.KNN(cones);
+    node.KNN(cones);
     node.KNN(cones);
     ASSERT_EQ(2, node.past_detections_.size());
 
@@ -71,6 +75,9 @@ TEST(BuildGraphNodeTest, kNNTest1)
 
     // It is a new cone, thus it should be added to the hashmap.
     node.KNN(cones);
+    node.KNN(cones);
+    node.KNN(cones);
+
     ASSERT_EQ(3, node.past_detections_.size());
 }
 
