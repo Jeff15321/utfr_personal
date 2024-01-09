@@ -55,13 +55,13 @@ TEST(BuildGraphNodeTest, kNNTest1)
     node.KNN(cones);
 
 
-    cones.left_cones.clear()
+    cones.left_cones.clear();
     cones.left_cones.push_back(yellow_cone);
 
     
     node.KNN(cones);
 
-    cones.left_cones.clear()
+    cones.left_cones.clear();
     cones.left_cones.push_back(yellow_cone);
 
     node.KNN(cones);
@@ -69,17 +69,17 @@ TEST(BuildGraphNodeTest, kNNTest1)
 
     // We detect the same cones again, but nothing should happen, as we
     // already know of their existences.
-    cones.left_cones.clear()
+    cones.left_cones.clear();
     cones.left_cones.push_back(yellow_cone);
 
     node.KNN(cones);
 
-    cones.left_cones.clear()
+    cones.left_cones.clear();
     cones.left_cones.push_back(yellow_cone);
 
     node.KNN(cones);
 
-    cones.left_cones.clear()
+    cones.left_cones.clear();
     cones.left_cones.push_back(yellow_cone);
 
     node.KNN(cones);
@@ -91,20 +91,20 @@ TEST(BuildGraphNodeTest, kNNTest1)
     yellow_cone2.pos.y = 1;
     yellow_cone2.pos.z = 0;
     yellow_cone2.type = 2;
-    cones.right_cones.clear()
+    cones.right_cones.clear();
     cones.right_cones.push_back(yellow_cone2);
 
     // It is a new cone, thus it should be added to the hashmap.
     node.KNN(cones);
 
-    cones.right_cones.clear()
+    cones.right_cones.clear();
     cones.right_cones.push_back(yellow_cone2);
 
     node.KNN(cones);
 
-    cones.right_cones.clear()
+    cones.right_cones.clear();
     cones.right_cones.push_back(yellow_cone2);
-    
+
     node.KNN(cones);
 
     ASSERT_EQ(3, node.past_detections_.size());
