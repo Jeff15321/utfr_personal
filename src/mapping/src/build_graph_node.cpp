@@ -124,17 +124,27 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
 
     // Check if the KD tree is not created, and create it
     if (!globalKDTreePtr) {
-      std::vector<std::tuple<double, double>> points_tuple;
 
-      //generating the required parameter for the KDtree generator function
-      for (size_t i = 0; i < past_detections_.size(); ++i) {
-            const utfr_msgs::msg::Cone &pastDetectionsCone = past_detections_[i].second;
-            points_tuple.push_back(std::make_tuple(pastDetectionsCone.pos.x, pastDetectionsCone.pos.y));
-      }    
+      if (past_detections_.size() == 0){
+        double position_x_ = all_cones[0].pos.x + current_state_.pose.pose.position.x;
+        double position_y_ = all_cones[0].pos.y + current_state_.pose.pose.position.y;
+        past_detections_.emplace_back(cones_found_,all_cones[0]);
+        cones_found_ += 1;
+        globalKDTreePtr = std::make_unique<KDTree>(generateKDTree({std::make_tuple(position_x_, position_y_)}));
+        all_cones.erase(all_cones.begin() + 0);
+      }
 
-      //create KD tree
-      globalKDTreePtr = std::make_unique<KDTree>(generateKDTree(points_tuple)); 
+      else{
+        std::vector<std::tuple<double, double>> points_tuple;
+        //generating the required parameter for the KDtree generator function
+        for (size_t i = 0; i < past_detections_.size(); ++i) {
+              const utfr_msgs::msg::Cone &pastDetectionsCone = past_detections_[i].second;
+              points_tuple.push_back(std::make_tuple(pastDetectionsCone.pos.x, pastDetectionsCone.pos.y));
+        }    
 
+        //create KD tree
+        globalKDTreePtr = std::make_unique<KDTree>(generateKDTree(points_tuple)); 
+      }
     }
 
     // Iterating through all detected cones
@@ -142,11 +152,11 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         // Updating detected position to global frame
         double ego_x = current_state_.pose.pose.position.x;
         double ego_y = current_state_.pose.pose.position.y;
-        int position_x_ = newCone.pos.x + ego_x;
-        int position_y_ = newCone.pos.y + ego_y;
+        double position_x_ = newCone.pos.x + ego_x;
+        double position_y_ = newCone.pos.y + ego_y;
 
         // Use KNN search to find the nearest cone
-        std::vector<int> knnResult = globalKDTreePtr->KNN({position_x_, position_y_}, 1);
+        std::vector<int> knnResult = globalKDTreePtr->KNN({position_x_,position_y_}, 1);
 
         // Check the result of the nearest neighbour search and calculate displacement
         if (!knnResult.empty()) {
@@ -162,16 +172,13 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
             double comparative_displacement = 0.0;
             for (const auto& duplicates_potential : current_round_cones_){
               comparative_displacement = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(duplicates_potential), position_y_, std::get<1>(duplicates_potential));
-              if (comparative_displacement <= 0.2){
+              if (comparative_displacement <= 0.3){
                 continue;
               }
             }
         }
         //add to duplicate checker
         current_round_cones_.emplace_back(std::make_tuple(position_x_, position_y_));
-
-        //add to potential_cones (used for checking if cone can be added to past_detections)
-        potential_cones_.insert(std::make_pair(cones_potential_, std::make_tuple(position_x_, position_y_)));
 
         //initialize keys
         std::vector<int> keys{};
@@ -183,7 +190,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
             double temp_displacement_ = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(potentialPoint), position_y_, std::get<1>(potentialPoint));
 
             // Checking if cone within 0.2 of any other new detected cone
-            if (temp_displacement_ <= 0.2) {
+            if (temp_displacement_ <= 0.3) {
                     count_ += 1;
                     keys.push_back(key_);
 
@@ -205,6 +212,9 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                         }
                     }
             }
+        //add to potential_cones (used for checking if cone can be added to past_detections)
+        potential_cones_.insert(std::make_pair(cones_potential_, std::make_tuple(position_x_, position_y_)));
+
         count_ = 0;
         cones_potential_ += 1;
       }
