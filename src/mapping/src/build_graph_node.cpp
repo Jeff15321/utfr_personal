@@ -124,28 +124,18 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
 
     // Check if the KD tree is not created, and create it
     if (!globalKDTreePtr) {
-
-      if (past_detections_.size() == 0){
+        
+        // Use first detection as root of tree and generate
         double position_x_ = all_cones[0].pos.x + current_state_.pose.pose.position.x;
         double position_y_ = all_cones[0].pos.y + current_state_.pose.pose.position.y;
+
+        // Update vars
         past_detections_.emplace_back(cones_found_,all_cones[0]);
         cones_found_ += 1;
-        globalKDTreePtr = std::make_unique<KDTree>(generateKDTree({std::make_tuple(position_x_, position_y_)}));
         all_cones.erase(all_cones.begin() + 0);
+        globalKDTreePtr = std::make_unique<KDTree>(generateKDTree({std::make_tuple(position_x_, position_y_)}));
       }
-
-      else{
-        std::vector<std::tuple<double, double>> points_tuple;
-        //generating the required parameter for the KDtree generator function
-        for (size_t i = 0; i < past_detections_.size(); ++i) {
-              const utfr_msgs::msg::Cone &pastDetectionsCone = past_detections_[i].second;
-              points_tuple.push_back(std::make_tuple(pastDetectionsCone.pos.x, pastDetectionsCone.pos.y));
-        }    
-
-        //create KD tree
-        globalKDTreePtr = std::make_unique<KDTree>(generateKDTree(points_tuple)); 
-      }
-    }
+    
 
     // Iterating through all detected cones
     for (const auto& newCone : all_cones) {
@@ -163,44 +153,49 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
             const Point& nearestCone = globalKDTreePtr->getPoint(knnResult.front());
             double displacement = utfr_dv::util::euclidianDistance2D(position_x_, nearestCone.x, position_y_, nearestCone.y);
 
-            // do not add if its within 0.3 of an already seen cone
+            // Do not add if its within 0.3 of an already seen cone
             if (displacement <= 0.3) {
                 continue;
             }
 
-            // do not add if its within 0.2 of another cone deteced within the current call of the function (rejecting duplicate detections)
+            // Do not add if its within 0.3 of another cone deteced within the current call of the function (rejecting duplicate detections)
             double comparative_displacement = 0.0;
+            bool is_duplicate_ = false;
             for (const auto& duplicates_potential : current_round_cones_){
               comparative_displacement = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(duplicates_potential), position_y_, std::get<1>(duplicates_potential));
               if (comparative_displacement <= 0.3){
-                continue;
+                is_duplicate_ = true;
+                break;
               }
             }
+            if (is_duplicate_){
+              continue;
+            }
         }
-        //add to duplicate checker
+        // Add to duplicate checker
         current_round_cones_.emplace_back(std::make_tuple(position_x_, position_y_));
 
-        //add to potential_cones (used for checking if cone can be added to past_detections)
+        // Add to potential_cones (used for checking if cone can be added to past_detections)
         potential_cones_.insert(std::make_pair(cones_potential_, std::make_tuple(position_x_, position_y_)));
 
-        //initialize keys
+        // Initialize keys
         std::vector<int> keys{};
 
-        //loop for checking if same cone detected in three different time instances
+        // Check if same cone detected in three different time instances
         for (const auto& pair : potential_cones_) {
             int key_ = pair.first;
             const std::tuple<double,double> potentialPoint = pair.second;
             double temp_displacement_ = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(potentialPoint), position_y_, std::get<1>(potentialPoint));
 
-            // Checking if cone within 0.2 of any other new detected cone
+            // Check if cone within 0.3 of any other new detected cone
             if (temp_displacement_ <= 0.3) {
                     count_ += 1;
                     keys.push_back(key_);
 
-                    //checking if three of same detected
+                    // Check if three of same detected
                     if (count_ == 3) {
 
-                        // Deleting all of the same cone from potential_cones_ if three detected
+                        // Delete all of the same cone from potential_cones_ if three detected
                         for (auto& key_number_ : keys) {
                             potential_cones_.erase(key_number_);
                         potential_cones_.erase(cones_potential_);

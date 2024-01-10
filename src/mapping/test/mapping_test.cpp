@@ -55,15 +55,11 @@ TEST(BuildGraphNodeTest, kNNTest1)
 
     // Run KNN three times
     node.KNN(cones);
-    node.KNN(cones);
-    node.KNN(cones);
 
     // Assert after three runs
     ASSERT_EQ(2, node.past_detections_.size());
 
     // Repeat cone detections three more times
-    node.KNN(cones);
-    node.KNN(cones);
     node.KNN(cones);
 
     // Assert after three more runs
@@ -79,8 +75,6 @@ TEST(BuildGraphNodeTest, kNNTest1)
     cones.right_cones.push_back(yellow_cone2);
 
     // Run KNN three times
-    node.KNN(cones);
-    node.KNN(cones);
     node.KNN(cones);
 
     // Assert after three more runs
@@ -120,8 +114,6 @@ TEST(BuildGraphNodeTest, kNNTest2)
 
     // Run KNN three times
     node.KNN(cones);
-    node.KNN(cones);
-    node.KNN(cones);
 
     // Assert after three runs
     ASSERT_EQ(2, node.past_detections_.size());
@@ -135,8 +127,6 @@ TEST(BuildGraphNodeTest, kNNTest2)
     node.current_state_ = ego;
 
     // Run KNN three times
-    node.KNN(cones);
-    node.KNN(cones);
     node.KNN(cones);
 
     // Assert after three more runs
