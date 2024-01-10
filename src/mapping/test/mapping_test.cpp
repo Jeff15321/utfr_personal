@@ -52,40 +52,24 @@ TEST(BuildGraphNodeTest, kNNTest1)
 
     cones.left_cones.push_back(blue_cone);
     cones.right_cones.push_back(yellow_cone);
+
+    // Run KNN three times
+    node.KNN(cones);
+    node.KNN(cones);
     node.KNN(cones);
 
-
-    cones.left_cones.clear();
-    cones.left_cones.push_back(yellow_cone);
-
-    
-    node.KNN(cones);
-
-    cones.left_cones.clear();
-    cones.left_cones.push_back(yellow_cone);
-
-    node.KNN(cones);
+    // Assert after three runs
     ASSERT_EQ(2, node.past_detections_.size());
 
-    // We detect the same cones again, but nothing should happen, as we
-    // already know of their existences.
-    cones.left_cones.clear();
-    cones.left_cones.push_back(yellow_cone);
-
+    // Repeat cone detections three more times
+    node.KNN(cones);
+    node.KNN(cones);
     node.KNN(cones);
 
-    cones.left_cones.clear();
-    cones.left_cones.push_back(yellow_cone);
-
-    node.KNN(cones);
-
-    cones.left_cones.clear();
-    cones.left_cones.push_back(yellow_cone);
-
-    node.KNN(cones);
+    // Assert after three more runs
     ASSERT_EQ(2, node.past_detections_.size());
 
-    // We now find a new cone, and it should be added to the hashmap.
+    // Detect a new cone
     utfr_msgs::msg::Cone yellow_cone2;
     yellow_cone2.pos.x = -1;
     yellow_cone2.pos.y = 1;
@@ -94,19 +78,12 @@ TEST(BuildGraphNodeTest, kNNTest1)
     cones.right_cones.clear();
     cones.right_cones.push_back(yellow_cone2);
 
-    // It is a new cone, thus it should be added to the hashmap.
+    // Run KNN three times
+    node.KNN(cones);
+    node.KNN(cones);
     node.KNN(cones);
 
-    cones.right_cones.clear();
-    cones.right_cones.push_back(yellow_cone2);
-
-    node.KNN(cones);
-
-    cones.right_cones.clear();
-    cones.right_cones.push_back(yellow_cone2);
-
-    node.KNN(cones);
-
+    // Assert after three more runs
     ASSERT_EQ(3, node.past_detections_.size());
 }
 
@@ -140,12 +117,16 @@ TEST(BuildGraphNodeTest, kNNTest2)
 
     cones.left_cones.push_back(blue_cone);
     cones.right_cones.push_back(yellow_cone);
+
+    // Run KNN three times
     node.KNN(cones);
+    node.KNN(cones);
+    node.KNN(cones);
+
+    // Assert after three runs
     ASSERT_EQ(2, node.past_detections_.size());
 
-    // Now we move positions
-    // We should now have new cone detections
-
+    // Change ego position
     ego.pose.pose.position.x = 10;
     ego.pose.pose.position.y = 10;
     ego.pose.pose.position.z = 0;
@@ -153,9 +134,15 @@ TEST(BuildGraphNodeTest, kNNTest2)
 
     node.current_state_ = ego;
 
+    // Run KNN three times
     node.KNN(cones);
+    node.KNN(cones);
+    node.KNN(cones);
+
+    // Assert after three more runs
     ASSERT_EQ(4, node.past_detections_.size());
 }
+
 
 
 TEST(BuildGraphNodeTest, loopClosureTest1)
