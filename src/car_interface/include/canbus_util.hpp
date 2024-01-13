@@ -60,7 +60,12 @@ enum dv_can_msg {
   // DV command + state sent from pc
   DV_COMMAND = 15,
 
-  COUNT = 16
+  SetMotorPos = 16,
+  SetMotorOrigin = 17,
+  SetMotorPosSpeedAcc = 18,
+  MotorStatus = 19,
+
+  COUNT = 20
 };
 
 typedef struct CAN_message_t {

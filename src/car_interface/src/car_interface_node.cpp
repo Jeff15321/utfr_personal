@@ -30,7 +30,6 @@ void CarInterface::initParams() {
   std::vector<std::string> default_modules = {"perception", "mapping", "ekf",
                                               "planning", "controls"};
 
-  // Initialize Params with default values
   this->declare_parameter("update_rate", 33.33);
   this->declare_parameter("heartbeat_tolerance", 1.5);
   this->declare_parameter("heartbeat_modules", default_modules);
@@ -123,28 +122,18 @@ void CarInterface::heartbeatCB(const utfr_msgs::msg::Heartbeat &msg) {
 void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   const std::string function_name{"controlCmdCB"};
 
-  /***** Steering *****/
-
-  // Contruct command to send
-  uint16_t steeringRateToSC = (abs((int16_t)(msg.str_cmd)) & 0x0FFF) / 1000;
-  bool directionBit;
-
-  if ((int16_t)msg.str_cmd < 0) {
-    directionBit = 0;
-  } else {
-    directionBit = 1;
-  }
-
-  // RCLCPP_INFO(this->get_logger(), "%s: directionBit: %d | Mag: %d",
-  //                function_name.c_str(), directionBit, steeringRateToSC);
-
-  steeringRateToSC |= (uint16_t)(directionBit << 12);
+  // Clamp steering angle to +/-360
+  steering_cmd_ = msg.str_cmd;
+  if (steering_cmd_ > 360)
+    steering_cmd_ = 360;
+  else if (steering_cmd_ < -360)
+    steering_cmd_ = -360;
 
   // Finalize commands
 
-  if (cmd_) {
+  if (cmd_ || testing_) {
     braking_cmd_ = (int16_t)msg.brk_cmd;
-    steering_cmd_ = steeringRateToSC;
+    steering_cmd_ = ((int32_t)(msg.str_cmd * 10000)) & 0xFFFFFFFF;
     throttle_cmd_ = (int16_t)msg.thr_cmd;
   } else {
     braking_cmd_ = 0;
@@ -240,6 +229,14 @@ void CarInterface::getServiceBrakeData() {
     // TODO: Check value format
     front_pressure = (can1_->get_can(dv_can_msg::FBP));
     rear_pressure = (can1_->get_can(dv_can_msg::RBP)) & 0xFFFF;
+    //    RCLCPP_INFO(this->get_logger(), "rear brake pressure:
+    //    %d",rear_pressure);
+
+    sensor_can_.rear_pressure = front_pressure;
+    sensor_can_.front_pressure = rear_pressure;
+
+    system_status_.brake_hydr_actual =
+        (int)(100 * rear_pressure / MAX_BRK_PRS); // Converting to %
     //    RCLCPP_INFO(this->get_logger(), "rear brake pressure:
     //    %d",rear_pressure);
 
@@ -490,19 +487,22 @@ void CarInterface::setDVStateAndCommand() {
     dv_command |= (long)(dv_pc_state_)&7;
 
     // RCLCPP_INFO(this->get_logger(), "PC: %d", dv_pc_state_);
-    // RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
     // RCLCPP_INFO(this->get_logger(), "Throttle: %d", throttle_cmd_);
     // RCLCPP_INFO(this->get_logger(), "PWM: %d", braking_cmd_);
 
     if (cmd_) {
       dv_command |= (long)(throttle_cmd_ & 0xFFFF) << 3;
-      dv_command |= (long)(steering_cmd_ & 0x1FFF) << 19;
-      dv_command |= (long)(braking_cmd_ & 0xFF) << 32;
+      dv_command |= (long)(braking_cmd_ & 0xFF) << 19;
     }
 
-    RCLCPP_DEBUG(this->get_logger(), "Command: %lx", dv_command);
+    // RCLCPP_DEBUG(this->get_logger(), "Command: %lx", dv_command);
 
     can1_->write_can(dv_can_msg::DV_COMMAND, dv_command);
+
+    // Write to steering motor
+
+    RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
+    can1_->write_can(dv_can_msg::SetMotorPos, (long)steering_cmd_);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",

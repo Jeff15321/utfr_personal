@@ -196,8 +196,8 @@ void ControllerNode::velocityProfileCB(
 
 void ControllerNode::lapCounterCB(const utfr_msgs::msg::Heartbeat &msg) {
   lap_count_ = msg.lap_count;
-  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-              " Controller Lap count: %d", lap_count_);
+  // RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+  //             " Controller Lap count: %d", lap_count_);
 }
 
 void ControllerNode::timerCBAccel() {
@@ -219,9 +219,7 @@ void ControllerNode::timerCBAccel() {
   target_ = target;
 
   // print target state
-  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-              "Target steering: %f \n Target velocity: %f",
-              target.steering_angle, target.speed);
+  //  
 
   // publish target state
   target_state_publisher_->publish(target_);
@@ -246,9 +244,9 @@ void ControllerNode::timerCBSkidpad() {
   target_ = target;
 
   // print target state
-  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-              "Target steering: %f \n Target velocity: %f",
-              target.steering_angle, target.speed);
+  // RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+  //             "Target steering: %f \n Target velocity: %f",
+              // target.steering_angle, target.speed);
 
   // publish target state
   target_state_publisher_->publish(target_);

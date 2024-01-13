@@ -241,7 +241,7 @@ void CenterPathNode::timerCBSkidpad() {
 
   skidpadLapCounter();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  RCLCPP_WARN(this->get_logger(), "Skidpad lap count: %d", curr_sector_);
+  //RCLCPP_WARN(this->get_logger(), "Skidpad lap count: %d", curr_sector_);
 }
 
 void CenterPathNode::timerCBAutocross() {
@@ -303,8 +303,8 @@ void CenterPathNode::timerCBTrackdrive() {
   const std::string function_name{"center_path_timerCB:"};
 
   if (!cone_detections_) {
-    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Data not published or initialized yet. Using defaults.");
+    // RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+    //             "Data not published or initialized yet. Using defaults.");
     return;
   }
 

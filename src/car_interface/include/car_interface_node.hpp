@@ -185,7 +185,7 @@ private:
 
   // TODO: Change global to local vars
   // Commands to rest of car
-  int16_t steering_cmd_;
+  int steering_cmd_;
   uint8_t braking_cmd_;
   int throttle_cmd_;
   int testing_;
@@ -208,7 +208,7 @@ private:
   // CAN objects
   CanInterfaceUPtr can1_{nullptr};
   CanInterfaceUPtr can0_{nullptr};
-  
+
   rclcpp::TimerBase::SharedPtr can_timer_;
 
   // Heartbeat object
