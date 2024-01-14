@@ -333,8 +333,6 @@ g2o::EdgeSE2PointXY* BuildGraphNode::addPoseToConeEdge(g2o::VertexSE2* pose,
 
 void BuildGraphNode::graphSLAM() {
 
-  std::cout << "Edges and nodes cleared" << std::endl;
-
   // Set the fixed node as 1001
   pose_nodes_[0]->setFixed(true);
 
@@ -355,8 +353,8 @@ void BuildGraphNode::graphSLAM() {
     optimizer_.addEdge(edge);
   }
   
-  // optimizer_.initializeOptimization();
-  // optimizer_.optimize(10);
+  optimizer_.initializeOptimization();
+  optimizer_.optimize(10);
 
   // for (g2o::SparseOptimizer::VertexIDMap::const_iterator it = optimizer_.vertices().begin(); it != optimizer_.vertices().end(); ++it) {
   //       g2o::SparseOptimizer::Vertex* vertex = dynamic_cast<g2o::SparseOptimizer::Vertex*>(it->second);
@@ -375,7 +373,6 @@ void BuildGraphNode::graphSLAM() {
   //       }
   //   }
   // Save the optimized pose graph
-  optimizer_.save("pose_graph.g2o");
   std::cout << "Optimized pose graph saved" << std::endl;
 }
 
