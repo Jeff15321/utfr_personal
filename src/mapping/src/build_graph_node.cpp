@@ -54,9 +54,17 @@ void BuildGraphNode::initParams() {
   
 
   // Will have to tune these later depending on the accuracy of our sensors
-  P2PInformationMatrix_ = Eigen::Matrix3d::Identity();
-  P2CInformationMatrix_ = Eigen::Matrix2d::Identity();
-  LoopClosureInformationMatrix_ = Eigen::Matrix3d::Identity();
+  Eigen::DiagonalMatrix<double, 3> P2P;
+  Eigen::DiagonalMatrix<double, 2> P2C;
+  Eigen::DiagonalMatrix<double, 3> LoopClosure;
+  P2P.diagonal() << 20, 20, 200;
+  P2C.diagonal() << 10, 100;
+  LoopClosure.diagonal() << 100, 100, 1000;
+
+
+  P2PInformationMatrix_ = P2P;
+  P2CInformationMatrix_ = P2C;
+  LoopClosureInformationMatrix_ = LoopClosure;
 
   auto linearSolverLM = std::make_unique<SlamLinearSolver>();
   linearSolverLM->setBlockOrdering(false);
@@ -117,8 +125,7 @@ void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
   double dtheta = utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation) - utfr_dv::util::quaternionToYaw(prevPoseVertex.pose.pose.orientation);
 
   g2o::EdgeSE2* edge = addPoseToPoseEdge(id_to_pose_map_[current_pose_id_ - 1], poseVertex, dx, dy, dtheta, false);
-
-  std::cout << msg.pose.pose.position.x << " " << msg.pose.pose.position.y << std::endl;
+  pose_to_pose_edges_.push_back(edge);
 }
 
 std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones){
@@ -162,7 +169,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
           cones_id_list_.push_back(past_detections_[i].first);
 
           // Create edges between pose and cone
-          g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], cone_id_to_vertex_map_[past_detections_[i].first], detection.pos.x, detection.pos.y);
+          g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], cone_id_to_vertex_map_[past_detections_[i].first], pastCone.pos.x, pastCone.pos.y);
           pose_to_cone_edges_.push_back(edge);
           break;
         }
@@ -188,7 +195,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         cone_id_to_vertex_map_[cones_found_] = vertex;
 
         // Create edges between pose and cone
-        g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, detection.pos.x, detection.pos.y);
+        g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, pastCone.pos.x, pastCone.pos.y);
         pose_to_cone_edges_.push_back(edge);
       }
     }
@@ -212,7 +219,6 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           landmarked_ = true;
           first_detection_pose_id_ = current_pose_id_;
           out_of_frame_ = 0;
-          std::cout << "Landmark Set" << std::endl;
         }
       }
 
@@ -261,6 +267,7 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           landmarkedID_ = -1;
           out_of_frame_ = -1;
           first_detection_pose_id_ = 0;
+          loop_closed_ = false;
           graphSLAM();
         }
       }
