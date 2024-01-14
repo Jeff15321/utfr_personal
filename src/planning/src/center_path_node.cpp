@@ -180,6 +180,7 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
   for(auto &c : msg.right_cones){
     out << "(" << c.pos.x << "," << c.pos.y << ")" << std::endl;
   }
+  this->createTransform();
   this->GlobalWaypoints();
 }
 
@@ -244,13 +245,13 @@ void CenterPathNode::timerCBSkidpad() {
           RCLCPP_WARN(get_logger(), "%s Either cone detections or ego state is empty.", function_name.c_str());
           return; 
       }
-      if(path_ && path_->size()){
-        this->nextWaypoint(*path_);
-        RCLCPP_INFO(this->get_logger(), "GLOBAL PATH USED");
+      if(skidpadTransform_ != nullptr){
+        RCLCPP_INFO(this->get_logger(), "USING GLOBAL PATH");
+        this->nextWaypoint();
       }
       else{
+        RCLCPP_INFO(this->get_logger(), "USING LOCAL PATH");
         skidPadFit(*cone_detections_, *ego_state_);
-        RCLCPP_INFO(this->get_logger(), "LOCAL PATH USED");
       }
 
   } catch (const std::exception& e) {
@@ -1700,22 +1701,132 @@ std::tuple<double, double, double, double, double, double> CenterPathNode::skidp
   return std::make_tuple(xc1, yc1, r1, xc2, yc2, r2);
 }
 
-void CenterPathNode::nextWaypoint(std::deque<std::pair<double,double>> &waypoints){
-  while(waypoints.size()){
-    auto[x, y] = waypoints.front();
-    double carX = ego_state_->pose.pose.position.x;
-    double carY = ego_state_->pose.pose.position.y;
-    double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
-    double localY = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
-    double localX = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
-    double angle = util::wrapDeg(util::radToDeg(atan2(localY, localX)));
-    // std::cout << "Waypoint angle: " << angle << std::endl;
-    if(util::euclidianDistance2D(x, carX, y, carY) <= 1 || (angle >= 90 && angle <= 270)){
-      waypoints.pop_front();
-    }
-    else break;
+void CenterPathNode::nextWaypoint(){
+  std::vector<std::pair<double,double>> waypoints;
+
+  int loop = curr_sector_-9;
+  std::cout << "LOOP = " << loop << std::endl;
+
+  bool right = (loop == 3 || loop == 4), left = (loop == 5 || loop == 6);
+  if(right){
+    waypoints = this->transformWaypoints(this->getWaypoints("src/planning/points/RightCircle.csv"));
+  }
+  else if(left){
+    waypoints = this->transformWaypoints(this->getWaypoints("src/planning/points/LeftCircle.csv"));
   }
 
+  std::cout << "SIZE = " << waypoints.size() << std::endl;
+  // remove points passed in the current loop
+
+  // while(waypoints.size()){
+  //   auto[x, y] = waypoints.front();
+  //   double carX = ego_state_->pose.pose.position.x;
+  //   double carY = ego_state_->pose.pose.position.y;
+  //   double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
+  //   double localY = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
+  //   double localX = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
+  //   double angle = util::wrapDeg(util::radToDeg(atan2(localY, localX)));
+  //   // std::cout << "Waypoint angle: " << angle << std::endl;
+  //   if(util::euclidianDistance2D(x, carX, y, carY) <= 1 || (angle >= 90 && angle <= 270)){
+  //     waypoints.pop_front();
+  //   }
+  //   else break;
+  // }
+  if(waypoints.empty()){
+    RCLCPP_INFO(this->get_logger(), "NO GLOBAL PATH FOUND, USING LOCAL PATH");
+    skidPadFit(*cone_detections_, *ego_state_);
+    return;
+  }
+
+
+  double centerX, centerY;
+  if(right){
+    std::ifstream("src/planning/points/RightCentre.csv") >> centerX >> centerY;
+  }
+  else{
+    std::ifstream("src/planning/points/LeftCentre.csv") >> centerX >> centerY;
+  }
+  std::tie(centerX, centerY) = this->transformWaypoints({{centerX, centerY}})[0];
+
+  auto [startX, startY] = waypoints[0];
+  
+  double debugCross, debugDot;
+  auto getAngle = [&](double otherX, double otherY){
+    
+    double dot = (startX-centerX)*(otherX-centerX) + (startY-centerY)*(otherY-centerY);
+    double otherMag = util::euclidianDistance2D(otherX, centerX, otherY, centerY);
+    double startMag = util::euclidianDistance2D(startX, centerX, startY, centerY);
+    double angle = util::radToDeg(acos(dot/otherMag/startMag));
+    double cross = (startX-centerX) * (otherY-centerY) - (otherX-centerX) * (startY-centerY);
+    cross *= -1; // the sim is a left handed coordinate system
+
+    debugCross = cross;
+    debugDot = dot;
+    if(right && cross > 0){
+      angle = 360-angle;
+    }
+    else if(left && cross < 0){
+      angle = 360-angle;
+    }
+    return angle;
+  };
+
+  double carX = ego_state_->pose.pose.position.x;
+  double carY = ego_state_->pose.pose.position.y;
+  double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
+  double carAngle = getAngle(carX, carY);
+  
+  double target = carAngle + 15;
+  int l = 0, r = waypoints.size()-1;    
+  while(l <= r){
+    int mid = (l+r)/2;
+    auto [pointX, pointY] = waypoints[mid];
+    double pointAngle = getAngle(pointX, pointY);
+    if(pointAngle <= target){
+      l = mid+1;
+    }
+    else r = mid-1;
+  }
+
+
+  // std::ofstream cross("cross.txt"), dot("dot.txt"), angle("angle.txt");
+  // for(int i = 0; i < waypoints.size(); i++){
+  //   auto [pointX, pointY] = waypoints[i];
+  //   double pointAngle = getAngle(pointX, pointY);
+  //   cross << debugCross << std::endl;
+  //   dot << debugDot << std::endl;
+  //   angle << pointAngle << std::endl;
+  // }
+
+  int t = 0;
+  for(; t < waypoints.size(); t++){
+    auto [pointX, pointY] = waypoints[t];
+    double pointAngle = getAngle(pointX, pointY);
+    if(pointAngle > target) break;
+  }
+  if(t != l){
+    auto [pointX,pointY] = waypoints[t];
+    double pointAngle = getAngle(pointX, pointY);
+    RCLCPP_INFO(this->get_logger(), "TpointAngle = %f, CarAngle = %f", pointAngle, carAngle);
+    RCLCPP_FATAL(this->get_logger(), "FAILED l=%d vs t=%d", l, t);
+  }
+
+  unsigned int idx = l;
+  if(idx >= waypoints.size()){
+    RCLCPP_INFO(this->get_logger(), "NO GLOBAL PATH FOUND, USING LOCAL PATH");
+    skidPadFit(*cone_detections_, *ego_state_);
+    return;
+  }
+
+  auto [pointX,pointY] = waypoints[idx];
+  double pointAngle = getAngle(pointX, pointY);
+  RCLCPP_INFO(this->get_logger(), "PointAngle = %f, CarAngle = %f", pointAngle, carAngle);
+  
+
+  static std::ofstream waypointLog("waypointLog.txt");
+  waypointLog << "(" << pointX << "," << pointY << "), Angle = " << pointAngle << " Index = " << idx << (right? " Right" : " Left") << std::endl;
+
+  
   using geometry_msgs::msg::PolygonStamped;
   static rclcpp::Publisher<PolygonStamped>::SharedPtr path_pub =
     this->create_publisher<PolygonStamped>("Waypoints", 1);
@@ -1725,12 +1836,8 @@ void CenterPathNode::nextWaypoint(std::deque<std::pair<double,double>> &waypoint
   points_stamped.header.stamp = this->get_clock()->now();
   
   std::vector<Point> nextPoints;
-  int idx = 0;
-  for(auto [x,y] : waypoints) {
-    if(idx == 5) break;
-    double carX = ego_state_->pose.pose.position.x;
-    double carY = ego_state_->pose.pose.position.y;
-    double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
+  for(unsigned int i = idx; i < idx+5 && i < waypoints.size(); i++){
+    auto [x,y] = waypoints[i];
     double localY = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
     double localX = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
     geometry_msgs::msg::Point32 point;
@@ -1739,7 +1846,6 @@ void CenterPathNode::nextWaypoint(std::deque<std::pair<double,double>> &waypoint
     point.z = 0;
     points_stamped.polygon.points.push_back(point);
     nextPoints.push_back(Point(localX, localY));
-    ++idx;
   }
   path_pub->publish(points_stamped);
   auto [useless, xParams, yParams] = BezierPoints(nextPoints);
@@ -1750,10 +1856,10 @@ void CenterPathNode::nextWaypoint(std::deque<std::pair<double,double>> &waypoint
 }
 
 void CenterPathNode::GlobalWaypoints(){
-  std::vector<std::pair<double,double>> v = this->getWaypoints();
+  std::vector<std::pair<double,double>> v = this->getWaypoints("src/planning/points/Waypoints.csv");
   // std::cout << "Old:" << std::endl;
   // for(auto [x,y] : v) std::cout << x << "," << y << std::endl;
-  v = this->transform(v);
+  v = this->transformWaypoints(v);
   // std::cout << "New:" << std::endl;
   // for(auto [x,y] : v) std::cout << x << "," << y << std::endl;
   if(v.empty()) return;
@@ -1774,13 +1880,10 @@ void CenterPathNode::GlobalWaypoints(){
     points_stamped.polygon.points.push_back(point);
   }
   waypoints_pub->publish(points_stamped);
-
-  if(!path_)
-    path_ = new std::deque<std::pair<double,double>>(v.begin(), v.end());
 }
 
-std::vector<std::pair<double,double>> CenterPathNode::getWaypoints(){
-  std::ifstream in("src/planning/points/Waypoints.csv");
+std::vector<std::pair<double,double>> CenterPathNode::getWaypoints(std::string path){
+  std::ifstream in(path);
   std::vector<std::pair<double,double>> v;
   while(!in.eof()){
     double x,y;
@@ -1790,14 +1893,15 @@ std::vector<std::pair<double,double>> CenterPathNode::getWaypoints(){
   return v;
 }
 
-std::vector<std::pair<double,double>> CenterPathNode::transform(std::vector<std::pair<double,double>> &points){
-  std::ifstream referencePoints("src/planning/points/ReferencePoints.csv");
-  double xLeft1,yLeft1, xRight1, yRight1;
-  referencePoints >> xLeft1 >> yLeft1 >> xRight1 >> yRight1;
+void CenterPathNode::createTransform(){
+  double xLeft1,yLeft1;
+  std::ifstream("src/planning/points/LeftCentre.csv") >> xLeft1 >> yLeft1;
+  double xRight1, yRight1;
+  std::ifstream("src/planning/points/RightCentre.csv") >> xRight1 >> yRight1;
 
   auto [xLeft2,yLeft2,xRight2,yRight2] = this->getCentres();
   if(isnan(xLeft2) || isnan(xLeft2) || isnan(xRight2) || isnan(yRight2)){
-    return {};
+    return;
   } 
 
   auto getIntersect = [&](double x0, double y0, double x1, double y1, int sign){
@@ -1836,18 +1940,23 @@ std::vector<std::pair<double,double>> CenterPathNode::transform(std::vector<std:
   MatrixXd T(3,3);
   T << Xres(0), Xres(1), Xres(2), Yres(0), Yres(1), Yres(2), 0, 0, 1;
 
-  using namespace std;
+  // using namespace std;
   // cout << "Reference: X_intersect = " << xInter1 << ", Y_intersect = " << yInter1 << endl;
   // cout << "New: X_intersect = " << xInter2 << ", Y_intersect = " << yInter2 << endl;
   // cout << "T:" << endl << T << endl;
-  
+  skidpadTransform_ = std::make_unique<MatrixXd>(T);
+}
+
+std::vector<std::pair<double,double>> CenterPathNode::transformWaypoints(const std::vector<std::pair<double,double>> &points){
+  if(skidpadTransform_ == nullptr){
+    return {};
+  }
   std::vector<std::pair<double,double>> transformed;
-  for(auto &p: points){
-    double &x = p.first, &y = p.second;
+  for(auto [x,y]: points){
     VectorXd v(3);
     v << x, y, 1;
 
-    VectorXd out = T*v;
+    VectorXd out = *skidpadTransform_ * v;
     transformed.push_back({out(0), out(1)});
   }
   return transformed;

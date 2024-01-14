@@ -79,21 +79,21 @@ public:
   void GlobalWaypoints();
   
   /*! This function reads waypoints from a file
+  * @param path the file path for the waypoints to read
   * @returns vector of the waypoints read
   */
-  std::vector<std::pair<double,double>> getWaypoints();
+  std::vector<std::pair<double,double>> getWaypoints(std::string path);
   
   /*! This function removes waypoints that have already been visited and sends 
       the current path to the controller
-  * @param waypoints the current global waypoints in the path
   */
-  void nextWaypoint(std::deque<std::pair<double,double>> &waypoints);
+  void nextWaypoint();
   
   /*! This function transforms points from one frame of reference to cone coords
-  * @param points the points to be transformed
-  * @returns vector of transformed points
   */
-  std::vector<std::pair<double,double>> transform(std::vector<std::pair<double,double>> &points);
+  void createTransform();
+
+  std::vector<std::pair<double,double>> transformWaypoints(const std::vector<std::pair<double,double>> &points);
   
   /*! This function returns the left and right skidpad circle centres 
       respectively if they are valid. If only the right one is valid, the left 
@@ -227,7 +227,7 @@ private:
   const double centreDistance_ = 9.125; // skidpad centres to track centre dist
   const int smallCircleCones_ = 16; // number of cones in small circle
   const int largeCircleCones_ = 13; // number of cones in large circle
-  std::deque<std::pair<double,double>> *path_{nullptr}; // global path
+  std::unique_ptr<MatrixXd> skidpadTransform_{nullptr};
 
   double small_radius_;
   double big_radius_;
