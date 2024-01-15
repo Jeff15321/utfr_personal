@@ -42,7 +42,7 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
      0x0000050F}, // Set Origin on Steering motor
     {(uint8_t)dv_can_msg::SetMotorPosSpeedAcc,
      0x0000060F}, // Set Pos, speed, and accel on Steering motor
-    {(uint8_t)dv_can_msg::MotorStatus, 0x0000290F}}; // Set Status of motor
+    {(uint8_t)dv_can_msg::StrMotorStatus, 0x0000290F}}; // Get Status of motor
 
 bool CanInterface::connect(const char *canline) {
 
@@ -91,6 +91,9 @@ int CanInterface::get_can(dv_can_msg msgName) {
   } else if (msgName == dv_can_msg::APPS) {
     result = (int)((messages[dv_can_msg_map[(int)msgName]].data[0]) |
                    (((messages[dv_can_msg_map[(int)msgName]].data[1]) << 8)));
+  }else if (msgName == dv_can_msg::StrMotorStatus) {
+    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[7]) |
+                   (((messages[dv_can_msg_map[(int)msgName]].data[6]) << 8)));
   } else {
     result = ARRAY_TO_INT64(
         messages[dv_can_msg_map[(int)msgName]]
