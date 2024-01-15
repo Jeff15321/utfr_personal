@@ -160,10 +160,10 @@ void ControlsNode::brakeTesting() {
 }
 
 void ControlsNode::steerTesting() {
-  control_cmd_.str_cmd = 0 + (steer_inc_)*30;
+  control_cmd_.str_cmd = (steer_inc_ / 50) * 30;
   steer_inc_++;
-  if (steer_inc_ >= 11) {
-    steer_inc_ = 0;
+  if (steer_inc_ >= 550) {
+    steer_inc_ = -360;
   }
 
   RCLCPP_INFO(this->get_logger(), "STR Cmd: %d", control_cmd_.str_cmd);
@@ -181,6 +181,7 @@ void ControlsNode::throttleTesting() {
 
 void ControlsNode::timerCB() {
   status_ = utfr_msgs::msg::Heartbeat::ACTIVE;
+  RCLCPP_INFO(this->get_logger(), "Controls");
 
   // Check if testing is in place
   if (testing_) {

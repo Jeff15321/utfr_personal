@@ -133,7 +133,7 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
 
   if (cmd_ || testing_) {
     braking_cmd_ = (int16_t)msg.brk_cmd;
-    steering_cmd_ = ((int32_t)(msg.str_cmd * 10000)) & 0xFFFFFFFF;
+    steering_cmd_ = (((int32_t)(msg.str_cmd * 10000)) & 0xFFFFFFFF);
     throttle_cmd_ = (int16_t)msg.thr_cmd;
   } else {
     braking_cmd_ = 0;
@@ -502,7 +502,7 @@ void CarInterface::setDVStateAndCommand() {
     // Write to steering motor
 
     RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
-    can1_->write_can(dv_can_msg::SetMotorPos, (long)steering_cmd_);
+    can1_->write_can(dv_can_msg::SetMotorPos, ((long)steering_cmd_) << 32);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",

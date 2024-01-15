@@ -133,19 +133,21 @@ void CanInterface::write_can(dv_can_msg msgName, long long data) {
   // can_frame to_write;
   struct canfd_frame to_write;
   to_write.can_id = dv_can_msg_map[(int)msgName];
-  if (msgName == dv_can_msg::SetMotorPos ||
-      msgName == dv_can_msg::SetMotorOrigin ||
-      msgName == dv_can_msg::SetMotorPosSpeedAcc)
-    to_write.can_id =
-        dv_can_msg_map[(int)msgName] & (CAN_EFF_MASK | CAN_EFF_FLAG);
   to_write.len = 8;
   uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   INT64_TO_ARRAY(data, signalArray); // Convert to array of bytes
 
+  if (msgName == dv_can_msg::SetMotorPos ||
+      msgName == dv_can_msg::SetMotorOrigin ||
+      msgName == dv_can_msg::SetMotorPosSpeedAcc) {
+    to_write.can_id = dv_can_msg_map[(int)msgName] | (CAN_EFF_FLAG);
+    INT64_TO_ARRAY_REVERSE(data, signalArray); // Convert to array of bytes
+  }
+
   for (uint8_t i = 0; i < 8; i++) {
     to_write.data[i] = signalArray[i];
   }
-
+  
   ssize_t bytes = write(sock, &to_write, sizeof(can_frame));
 
   if (bytes < 0)

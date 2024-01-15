@@ -3,7 +3,7 @@ controls: # Name of Module
     update_rate: 33.33 #[ms]
 
     #0 - no test, 1 - brakes, 2 - steering, 3 - brakes and steering, 4 - throttle test, 5 - throttle +brake, 6 - throttle + steer, 7 - brake, steer, throttle
-    testing: 2
+    testing: 0
 
     #pid_parameters:
     steering_controller_params: [
