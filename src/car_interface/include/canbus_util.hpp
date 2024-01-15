@@ -63,7 +63,7 @@ enum dv_can_msg {
   SetMotorPos = 16,
   SetMotorOrigin = 17,
   SetMotorPosSpeedAcc = 18,
-  MotorStatus = 19,
+  StrMotorStatus = 19,
 
   COUNT = 20
 };

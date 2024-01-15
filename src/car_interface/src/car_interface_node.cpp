@@ -168,9 +168,9 @@ void CarInterface::getSteeringAngleSensorData() {
 
   try {
     // TODO: Check value format
-    steering_angle = -((int16_t)(can1_->get_can(dv_can_msg::ANGSENREC)) / 10);
-    //  RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
-    //                 function_name.c_str(), steering_angle);
+    steering_angle = -((int16_t)(can1_->get_can(dv_can_msg::StrMotorStatus)) / 10);
+     RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
+                    function_name.c_str(), steering_angle);
     // Check for sensor malfunction
     if ((abs(steering_angle) > 750)) {
       RCLCPP_ERROR(this->get_logger(), "%s: Value error",
