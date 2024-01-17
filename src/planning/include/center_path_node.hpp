@@ -93,7 +93,7 @@ public:
   */
   void createTransform();
 
-  std::vector<std::pair<double,double>> transformWaypoints(const std::vector<std::pair<double,double>> &points);
+  std::pair<double,double> transformWaypoint(const std::pair<double,double> &point);
   
   /*! This function returns the left and right skidpad circle centres 
       respectively if they are valid. If only the right one is valid, the left 
@@ -228,6 +228,11 @@ private:
   const int smallCircleCones_ = 16; // number of cones in small circle
   const int largeCircleCones_ = 13; // number of cones in large circle
   std::unique_ptr<MatrixXd> skidpadTransform_{nullptr};
+  std::vector<std::pair<double,double>> right_path_;
+  std::vector<std::pair<double,double>> left_path_;
+  std::pair<double,double> right_center_;
+  std::pair<double,double> left_center_;
+  int lap = 0;
 
   double small_radius_;
   double big_radius_;
