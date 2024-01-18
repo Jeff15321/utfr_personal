@@ -84,15 +84,20 @@ public:
   */
   std::vector<std::pair<double,double>> getWaypoints(std::string path);
   
-  /*! This function removes waypoints that have already been visited and sends 
-      the current path to the controller
+  /*! This function finds the next waypoint to follow and sends the current path
+      to the controller
   */
   void nextWaypoint();
   
-  /*! This function transforms points from one frame of reference to cone coords
+  /*! This function generates the transform by using the centres of the skipad 
+      circle and the intersection of the circle
   */
   void createTransform();
 
+  /*! This function transforms points from one frame of reference to cone coords
+  * @param point the point to be transformed
+  * @returns point transformed using the skidpad transform
+  */
   std::pair<double,double> transformWaypoint(const std::pair<double,double> &point);
   
   /*! This function returns the left and right skidpad circle centres 
@@ -228,11 +233,9 @@ private:
   const int smallCircleCones_ = 16; // number of cones in small circle
   const int largeCircleCones_ = 13; // number of cones in large circle
   std::unique_ptr<MatrixXd> skidpadTransform_{nullptr};
-  std::vector<std::pair<double,double>> right_path_;
-  std::vector<std::pair<double,double>> left_path_;
-  std::pair<double,double> right_center_;
-  std::pair<double,double> left_center_;
-  int lap = 0;
+  std::vector<std::pair<double,double>> waypoints;
+  std::vector<std::tuple<double,double,double>> visited;
+  bool global_path_;
 
   double small_radius_;
   double big_radius_;
