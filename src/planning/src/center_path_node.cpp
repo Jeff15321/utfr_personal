@@ -1904,10 +1904,6 @@ std::tuple<double,double,double,double> CenterPathNode::skidpadCircleCentres(){
   auto smallYellow = this->circleCentre(yellow, smallRadius_, smallCircleCones_-3);
   auto largeBlue = this->circleCentre(blue, largeRadius_, largeCircleCones_-3);
   auto largeYellow = this->circleCentre(yellow, largeRadius_, largeCircleCones_-3);
-  // printf("Small Blue Circle: Xc = %lf, Yc = %lf\n", smallBlue.first, smallBlue.second);
-  // printf("Small Yellow Circle: Xc = %lf, Yc = %lf\n", smallYellow.first, smallYellow.second);
-  // printf("Large Blue Circle: Xc = %lf, Yc = %lf\n", largeBlue.first, largeBlue.second);
-  // printf("Large Yellow Circle: Xc = %lf, Yc = %lf\n", largeYellow.first, largeYellow.second);
   
   auto drawCircle = [this](auto publisher, auto &cord, double radius){
     auto [xc, yc] = cord;

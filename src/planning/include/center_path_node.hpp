@@ -24,7 +24,6 @@
 #include <stdexcept> // std::runtime_error
 #include <string>
 #include <vector>
-#include <deque>
 
 // Message Requirements
 #include <geometry_msgs/msg/polygon_stamped.hpp>
