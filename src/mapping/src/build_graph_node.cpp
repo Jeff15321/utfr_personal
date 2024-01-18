@@ -35,6 +35,7 @@ void BuildGraphNode::initParams() {
   first_detection_pose_id_ = 0;
   count_ = 0;
   cones_potential_= 0;
+  globalKDTreePtr = nullptr;
 
   // Will have to tune these later depending on the accuracy of our sensors
   P2PInformationMatrix_ = Eigen::Matrix3d::Identity();
@@ -118,12 +119,8 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
     all_cones.insert(all_cones.end(), cones.large_orange_cones.begin(), cones.large_orange_cones.end());
     all_cones.insert(all_cones.end(), cones.small_orange_cones.begin(), cones.small_orange_cones.end());
 
-
-    // Declare a static pointer to KDTree
-    static std::unique_ptr<KDTree> globalKDTreePtr = nullptr;
-
     // Check if the KD tree is not created, and create it
-    if (!globalKDTreePtr) {
+    if (globalKDTreePtr) {
         
         // Use first detection as root of tree and generate
         double position_x_ = all_cones[0].pos.x + current_state_.pose.pose.position.x;
