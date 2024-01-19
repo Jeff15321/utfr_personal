@@ -69,8 +69,29 @@ TEST(BuildGraphNodeTest, kNNTest1)
     ASSERT_EQ(1, node.past_detections_.size());
     ASSERT_EQ(1, node.potential_cones_.size());
 
-    // Assert after three more runs
-    
+    // run one more time to see if added to potential_cones_ again
+    utfr_msgs::msg::Cone yellow_cone2;
+    yellow_cone2.pos.x = -1;
+    yellow_cone2.pos.y = -1;
+    yellow_cone2.pos.z = 0;
+    yellow_cone2.type = 2;
+    cones.right_cones.push_back(yellow_cone2);
+
+    node.KNN(cones);
+
+    ASSERT_EQ(2, node.potential_cones_.size());
+
+    // run one more time to see if added to past_detections_
+    utfr_msgs::msg::Cone yellow_cone3;
+    yellow_cone3.pos.x = -1;
+    yellow_cone3.pos.y = -1;
+    yellow_cone3.pos.z = 0;
+    yellow_cone3.type = 2;
+    cones.right_cones.push_back(yellow_cone3);
+
+    node.KNN(cones);
+
+    ASSERT_EQ(2, node.past_detections_.size());
 
     // Detect a new cone
     // utfr_msgs::msg::Cone yellow_cone2;

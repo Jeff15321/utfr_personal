@@ -120,7 +120,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
     all_cones.insert(all_cones.end(), cones.small_orange_cones.begin(), cones.small_orange_cones.end());
 
     // Check if the KD tree is not created, and create it
-    if (globalKDTreePtr) {
+    if (globalKDTreePtr == nullptr) {
         
         // Use first detection as root of tree and generate
         double position_x_ = all_cones[0].pos.x + current_state_.pose.pose.position.x;
@@ -192,11 +192,11 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                     // Check if three of same detected
                     if (count_ == 3) {
 
-                        // Delete all of the same cone from potential_cones_ if three detected
-                        for (auto& key_number_ : keys) {
-                            potential_cones_.erase(key_number_);
-                        potential_cones_.erase(cones_potential_);
-                        }
+                        // FIX: Delete all of the same cone from potential_cones_ if three detected
+                        //for (auto& key_number_ : keys) {
+                            //potential_cones_.erase(key_number_);
+                            //potential_cones_.erase(cones_potential_);
+                        //}
 
                         // Update cone_id_list_ and past_detections_ and KD tree
                         cones_id_list_.push_back(cones_found_);
