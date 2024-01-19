@@ -34,10 +34,7 @@ TEST(BuildGraphNodeTest, kNNTest1)
     node.current_state_ = ego;
 
     // Custom failure message
-    ASSERT_EQ(0, node.current_state_.pose.pose.position.x); << "Unexpected value for position.x";
-
-    // Additional logging
-    std::cout << "Debug info: " << node.current_state_.pose.pose.position.x << std::endl;
+    ASSERT_EQ(0, node.current_state_.pose.pose.position.x);
 
     // First round of cone detections
     utfr_msgs::msg::ConeDetections cones;
@@ -54,10 +51,10 @@ TEST(BuildGraphNodeTest, kNNTest1)
     node.KNN(cones);
 
     // check if tree created
-    ASSERT_EQ(false, globalKDTreePtr == nullptr);
+    ASSERT_EQ(false, node.globalKDTreePtr == nullptr);
 
     // check is added to past_detections_
-    ASSERT_EQ(1, past_detections_.size());
+    ASSERT_EQ(1, node.past_detections_.size());
 
     //utfr_msgs::msg::Cone yellow_cone;
     //yellow_cone.pos.x = -1;
