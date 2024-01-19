@@ -168,9 +168,10 @@ void CarInterface::getSteeringAngleSensorData() {
 
   try {
     // TODO: Check value format
-    steering_angle = -((int16_t)(can1_->get_can(dv_can_msg::StrMotorStatus)) / 10);
-     RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
-                    function_name.c_str(), steering_angle);
+    steering_angle =
+        ((int16_t)(can1_->get_can(dv_can_msg::StrMotorStatus)) / 10);
+    RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
+                function_name.c_str(), steering_angle);
     // Check for sensor malfunction
     if ((abs(steering_angle) > 750)) {
       RCLCPP_ERROR(this->get_logger(), "%s: Value error",
@@ -466,6 +467,7 @@ void CarInterface::setDVStateAndCommand() {
       dv_pc_state_ = DV_PC_STATE::FINISH; // Should already be finish
       cmd_ = false;                       // Should already be false
       if (!shutdown_) {
+
         shutdownNodes();
         shutdown_ = true;
       }
@@ -484,25 +486,20 @@ void CarInterface::setDVStateAndCommand() {
 
     // Write to can
     long dv_command = 0;
-    dv_command |= (long)(dv_pc_state_)&7;
-
-    // RCLCPP_INFO(this->get_logger(), "PC: %d", dv_pc_state_);
-    // RCLCPP_INFO(this->get_logger(), "Throttle: %d", throttle_cmd_);
-    // RCLCPP_INFO(this->get_logger(), "PWM: %d", braking_cmd_);
 
     if (cmd_) {
+      dv_command |= (long)(dv_pc_state_)&7;
       dv_command |= (long)(throttle_cmd_ & 0xFFFF) << 3;
       dv_command |= (long)(braking_cmd_ & 0xFF) << 19;
+      can1_->write_can(dv_can_msg::DV_COMMAND, dv_command);
+
+      // Write to steering motor
+      // RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
+      can1_->write_can(
+          dv_can_msg::SetMotorPos,
+          ((long)steering_cmd_)
+              << 32); // can use different mode to command speed/accel
     }
-
-    // RCLCPP_DEBUG(this->get_logger(), "Command: %lx", dv_command);
-
-    can1_->write_can(dv_can_msg::DV_COMMAND, dv_command);
-
-    // Write to steering motor
-
-    RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
-    can1_->write_can(dv_can_msg::SetMotorPos, ((long)steering_cmd_) << 32);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",

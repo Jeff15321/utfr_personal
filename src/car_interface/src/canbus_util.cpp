@@ -91,9 +91,9 @@ int CanInterface::get_can(dv_can_msg msgName) {
   } else if (msgName == dv_can_msg::APPS) {
     result = (int)((messages[dv_can_msg_map[(int)msgName]].data[0]) |
                    (((messages[dv_can_msg_map[(int)msgName]].data[1]) << 8)));
-  }else if (msgName == dv_can_msg::StrMotorStatus) {
-    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[7]) |
-                   (((messages[dv_can_msg_map[(int)msgName]].data[6]) << 8)));
+  } else if (msgName == dv_can_msg::StrMotorStatus) { 
+    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[1]) |
+                   (((messages[dv_can_msg_map[(int)msgName]].data[0]) << 8)));
   } else {
     result = ARRAY_TO_INT64(
         messages[dv_can_msg_map[(int)msgName]]
@@ -116,8 +116,13 @@ static void *thread_read(void *node) {
     }
     read(canNode->sock, &recieved, sizeof(struct canfd_frame));
     pthread_mutex_unlock(&(canNode->readlock));
-    canNode->messages[recieved.can_id] = recieved;
-  }
+    if (recieved.can_id  & CAN_EFF_FLAG) {
+      canNode->messages[recieved.can_id & CAN_EFF_MASK] = recieved;
+    } 
+    else {
+      canNode->messages[recieved.can_id] = recieved;
+    }
+  } 
   pthread_mutex_unlock(&(canNode->lock));
   return NULL;
 }

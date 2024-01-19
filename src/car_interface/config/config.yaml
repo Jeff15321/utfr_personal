@@ -3,4 +3,4 @@ car_interface: # Name of Module
     update_rate: 33.33 #[ms]
     heartbeat_tolerance: 4.0
     heartbeat_modules: ["controls"]
-    testing: 1 #0 - no test
+    testing: 1 #0 - no test, 1 - testing

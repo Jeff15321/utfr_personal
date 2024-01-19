@@ -125,45 +125,47 @@ void ControlsNode::brakeTesting() {
   int target_velocity = 0.0;
 
   // If targets are available get them
-  // if (ego_state_ == nullptr || target_state_ == nullptr) {
-  //   control_cmd_.brk_cmd = 255 - (brake_inc_/10)*15;
-  //   brake_inc_++;
-  //   if (brake_inc_ >= 179) {
-  //     brake_inc_ = 0;
-  //   }
-  // }
-  // else {
-  if (ego_state_ != nullptr) {
-    current_velocity = ego_state_->vel.twist.linear.x;
-
-    target_velocity = 5.0;
-
-    if (!max_vel && (ego_state_->vel.twist.linear.x > target_velocity)) {
-      max_vel = true;
+  if (ego_state_ == nullptr || target_state_ == nullptr) {
+    control_cmd_.brk_cmd = 255 - (brake_inc_ / 10) * 15;
+    brake_inc_++;
+    if (brake_inc_ >= 179) {
+      brake_inc_ = 0;
     }
+  } else {
+    if (ego_state_ != nullptr) {
+      current_velocity = ego_state_->vel.twist.linear.x;
 
-    if (max_vel) {
-      target_velocity = 0.0;
-      if (ego_state_->vel.twist.linear.x == target_velocity) {
-        max_vel = false;
+      target_velocity = 5.0;
+
+      if (!max_vel && (ego_state_->vel.twist.linear.x > target_velocity)) {
+        max_vel = true;
       }
+
+      if (max_vel) {
+        target_velocity = 0.0;
+        if (ego_state_->vel.twist.linear.x == target_velocity) {
+          max_vel = false;
+        }
+      }
+
+      RCLCPP_INFO(this->get_logger(), "Current speed: %dm/s", current_velocity);
+      RCLCPP_INFO(this->get_logger(), "Target speed: %dm/s", target_velocity);
+
+      control_cmd_.brk_cmd = (target_velocity > current_velocity) ? 0 : 255;
     }
-
-    RCLCPP_INFO(this->get_logger(), "Current speed: %dm/s", current_velocity);
-    RCLCPP_INFO(this->get_logger(), "Target speed: %dm/s", target_velocity);
-
-    control_cmd_.brk_cmd = (target_velocity > current_velocity) ? 0 : 255;
   }
-  // }
 
   RCLCPP_INFO(this->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
 }
 
 void ControlsNode::steerTesting() {
-  control_cmd_.str_cmd = (steer_inc_ / 50) * 30;
   steer_inc_++;
-  if (steer_inc_ >= 550) {
-    steer_inc_ = -360;
+  if (steer_inc_ >= 20) {
+    steer_inc_ = -20;
+  } else if (steer_inc_ >= 0) {
+    control_cmd_.str_cmd = 85;
+  } else if (steer_inc_ < 0) {
+    control_cmd_.str_cmd = -85;
   }
 
   RCLCPP_INFO(this->get_logger(), "STR Cmd: %d", control_cmd_.str_cmd);
@@ -235,26 +237,26 @@ void ControlsNode::timerCB() {
     //(ego_state_->steering_angle), control_cmd_.str_cmd);
 
     // //*****   Throttle & Brake  *****
-    // current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
-    // target_velocity = target_state_->speed;            // TODO: review
-    // // RCLCPP_INFO(this->get_logger(), "Current speed: %fm/s",
-    // // current_velocity);
+    current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
+    target_velocity = target_state_->speed;            // TODO: review
+    // RCLCPP_INFO(this->get_logger(), "Current speed: %fm/s",
+    // current_velocity);
 
-    // control_cmd_.thr_cmd =
-    //     throttle_pid_->getCommand(target_velocity, current_velocity, dt);
+    control_cmd_.thr_cmd =
+        throttle_pid_->getCommand(target_velocity, current_velocity, dt);
 
-    // control_cmd_.brk_cmd =
-    //     braking_pid_->getCommand(target_velocity, current_velocity, dt);
+    control_cmd_.brk_cmd =
+        braking_pid_->getCommand(target_velocity, current_velocity, dt);
 
-    // if (current_velocity < target_velocity) {
-    //   // RCLCPP_INFO(this->get_logger(), "Accelerating to reach: %fm/s",
-    //   // target_velocity);
-    //   control_cmd_.brk_cmd = 0;
-    // } else {
-    //   // RCLCPP_INFO(this->get_logger(), "Braking to reach: %fm/s",
-    //   // target_velocity);
-    //   control_cmd_.thr_cmd = 0;
-    // }
+    if (current_velocity < target_velocity) {
+      // RCLCPP_INFO(this->get_logger(), "Accelerating to reach: %fm/s",
+      // target_velocity);
+      control_cmd_.brk_cmd = 0;
+    } else {
+      // RCLCPP_INFO(this->get_logger(), "Braking to reach: %fm/s",
+      // target_velocity);
+      control_cmd_.thr_cmd = 0;
+    }
 
     control_cmd_.header.stamp = this->get_clock()->now();
 
