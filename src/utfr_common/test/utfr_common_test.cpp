@@ -478,7 +478,41 @@ TEST(math, getCrosstrackError) {
   ego.pose.pose.position.y = 973;
   ASSERT_NEAR(getCrosstrackError(p1, p2, ego), 594.830770, 1e-3);
 }
-
+TEST(math, egoHelperTest)
+{
+  ego_state newEgo; 
+  newEgo.pose.pose.postion.x = -1;
+  newEgo.pose.pose.postion.y = 1;
+  newEgo.vel.twist.linear.x = -2;
+  newEgo.vel.twist.linear.y = 2;
+  ASSERT_EQ(-1, egoHelper(newEgo ,"pos_x"));
+  ASSERT_EQ(1, egoHelper(newEgo ,"pos_y"));
+  ASSERT_EQ(2, egoHelper(newEgo ,"vel_y"));
+  ASSERT_EQ(-2, egoHelper(newEgo ,"vel_x"));
+  newEgo.pose.pose.postion.x = 23;
+  newEgo.pose.pose.postion.y = -331;
+  newEgo.vel.twist.linear.x = 0.2;
+  newEgo.vel.twist.linear.y = -0.1012;
+  ASSERT_EQ(23, egoHelper(newEgo ,"pos_x"));
+  ASSERT_EQ(-331, egoHelper(newEgo ,"pos_y"));
+  ASSERT_EQ(-0.1012, egoHelper(newEgo ,"vel_y"));
+  ASSERT_EQ(0.2, egoHelper(newEgo ,"vel_x"));
+  newEgo.pose.pose.postion.x = 23;
+  newEgo.pose.pose.postion.y = -331;
+  newEgo.vel.twist.linear.x = 0.2;
+  newEgo.vel.twist.linear.y = -0.1012;
+  ASSERT_EQ(-FLT_MAX, egoHelper(newEgo ,"os_x"));
+  ASSERT_EQ(-FLT_MAX, egoHelper(newEgo ,"posy"));
+  ASSERT_EQ(-FLT_MAX, egoHelper(newEgo ,"vl_y"));
+  ASSERT_EQ(-FLT_MAX, egoHelper(newEgo ,"vel_"));
+  newEgo.steering_angle = 7;
+  ASSERT_EQ(7, egoHelper(newEgo ,"steering_angle"));
+  newEgo.steering_angle = -97;
+  ASSERT_EQ(-97, egoHelper(newEgo ,"steering_angle"));
+  newEgo.steering_angle = 7;
+  ASSERT_EQ(-FLT_MAX, egoHelper(newEgo ,"steerig_angle"));
+  
+}
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
   ::testing::InitGoogleTest(&argc, argv);

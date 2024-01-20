@@ -210,14 +210,21 @@ geometry_msgs::msg::Quaternion yawToQuaternion(double yaw);
  * @returns double of yaw in radians
  */
 double quaternionToYaw(const geometry_msgs::msg::Quaternion &q);
-
-bool isLargeOrangeCone(const uint coneID);
-
 /*! Determine if a cone is a large orange cone or not
  *
  * @param[in] coneID ID of cone
  * @returns bool true if cone is large orange cone, false if not
  */
+
+bool isLargeOrangeCone(const uint coneID);
+
+/*! Helper function for easier acess of postion, velocity and steering angle
+ *
+ *@param[in] eg ego_state to be acessed
+ *@param[in] infoWanted a string that tells the function what to acess either "pos_x","pos_y","vel_x","vel_y" or "steering_angle"
+ *@returns returns requested information
+ */
+float egoHelper(ego_state eg,String infoWanted);
 
 } // namespace util
 } // namespace utfr_dv
