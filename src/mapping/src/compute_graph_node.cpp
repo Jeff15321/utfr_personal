@@ -21,12 +21,17 @@
 namespace utfr_dv {
 namespace compute_graph {
 
+enum class HeartBeatState{ NOT_READY, READY, ACTIVE, ERROR, FINISH };
+
+
 ComputeGraphNode::ComputeGraphNode() : Node("compute_graph_node") {
   this->initParams();
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
   this->initHeartbeat();
+  
+  HeartBeatState heartbeat_state_ = HeartBeatState::ACTIVE;
 }
 
 void ComputeGraphNode::initParams() {
