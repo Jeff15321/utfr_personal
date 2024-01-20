@@ -228,8 +228,14 @@ void ControlsNode::timerCB() {
     double dt = (this->now() - ros_time_).seconds();
     ros_time_ = this->now();
 
-    control_cmd_.str_cmd =
-        utfr_dv::util::radToDeg(target_state_->steering_angle);
+    if (utfr_dv::util::radToDeg(target_state_->steering_angle) > 80) {
+      control_cmd_.str_cmd = 80
+    } else if (utfr_dv::util::radToDeg(target_state_->steering_angle) < -80) {
+      control_cmd_.str_cmd = -80
+    } else {
+      control_cmd_.str_cmd =
+          utfr_dv::util::radToDeg(target_state_->steering_angle);
+    }
 
     // RCLCPP_INFO(this->get_logger(),
     //             "Target Steering: "); //%f, Current SA: %f, STR_CMD: %f",
