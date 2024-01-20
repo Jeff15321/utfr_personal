@@ -23,7 +23,6 @@ namespace compute_graph {
 
 enum class HeartBeatState{ NOT_READY, READY, ACTIVE, ERROR, FINISH };
 
-
 ComputeGraphNode::ComputeGraphNode() : Node("compute_graph_node") {
   this->initParams();
   this->initSubscribers();
@@ -31,6 +30,7 @@ ComputeGraphNode::ComputeGraphNode() : Node("compute_graph_node") {
   this->initTimers();
   this->initHeartbeat();
   
+  // set heartbeat state to active
   HeartBeatState heartbeat_state_ = HeartBeatState::ACTIVE;
 }
 

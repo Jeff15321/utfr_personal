@@ -17,12 +17,17 @@
 namespace utfr_dv {
 namespace ekf {
 
+enum class HeartBeatState{ NOT_READY, READY, ACTIVE, ERROR, FINISH };
+
 EkfNode::EkfNode() : Node("ekf_node") {
   this->initParams();
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
   this->initHeartbeat();
+  
+  // set heartbeat state to active
+  HeartBeatState heartbeat_state_ = HeartBeatState::ACTIVE;
 }
 
 void EkfNode::initParams() {}
