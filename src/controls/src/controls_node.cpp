@@ -45,7 +45,17 @@ void ControlsNode::initParams() {
   this->declare_parameter("update_rate", 1000.0);
   update_rate_ = this->get_parameter("update_rate").as_double();
 
+  // testing_
+  this->declare_parameter("testing", 0);
+  testing_ = this->get_parameter("testing").as_int();
+
   ros_time_ = this->now();
+
+  brake_inc_ = 0;
+
+  steer_inc_ = 0;
+
+  throttle_inc_ = 0;
 }
 
 void ControlsNode::initPublishers() {
@@ -107,13 +117,83 @@ void ControlsNode::sensorCanCB(const utfr_msgs::msg::SensorCan &msg) {
   sensor_can_ = msg;
 }
 
+void ControlsNode::brakeTesting() {
+  int current_velocity = 0.0;
+  int target_velocity = 0.0;
+
+  //If targets are available get them
+  if (ego_state_ == nullptr || target_state_ == nullptr) {
+    control_cmd_.brk_cmd = 255 - (brake_inc_/10)*15;
+    brake_inc_++;
+    if (brake_inc_ >= 179) {
+      brake_inc_ = 0;
+    }
+  }
+  else {
+    current_velocity = ego_state_->vel.twist.linear.x;
+    target_velocity = target_state_->speed;            // TODO: review
+
+    RCLCPP_INFO(this->get_logger(), "Current speed: %dm/s", current_velocity);
+    RCLCPP_INFO(this->get_logger(), "Target speed: %dm/s", target_velocity);
+
+    control_cmd_.brk_cmd = (target_velocity > current_velocity) ? 0 : 255;
+  }
+
+
+  
+  RCLCPP_INFO(this->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
+
+  RCLCPP_INFO(this->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
+}
+
+void ControlsNode::steerTesting() {
+  control_cmd_.str_cmd = -4095 + (steer_inc_)*10;
+  steer_inc_++;
+  if (steer_inc_ >= 820) {
+    steer_inc_ = 0;
+  }
+}
+
+void ControlsNode::throttleTesting() {
+  control_cmd_.thr_cmd = (throttle_inc_)*5;
+  throttle_inc_++;
+  if (throttle_inc_ >= 21) {
+    throttle_inc_ = 0;
+  }
+}
+
 void ControlsNode::timerCB() {
-  int status = utfr_msgs::msg::Heartbeat::ACTIVE;
+  status_ = utfr_msgs::msg::Heartbeat::ACTIVE;
+
+  // Check if testing is in place
+  if (testing_) {
+    // Init all params to zero
+    control_cmd_.brk_cmd = 0;
+    control_cmd_.thr_cmd = 0;
+    control_cmd_.str_cmd = 0;
+
+    if (testing_ & 0x1) {
+      this->brakeTesting();
+    }
+    if (testing_ & 0x2) {
+      this->steerTesting();
+    }
+    if (testing_ & 0x4) {
+      this->throttleTesting();
+    }
+
+    control_cmd_.header.stamp = this->get_clock()->now();
+
+    // Publish messages
+    control_cmd_publisher_->publish(control_cmd_);
+    this->publishHeartbeat(status_);
+    return;
+  }
 
   // Check if other nodes are sending correct messages
   if (ego_state_ == nullptr || target_state_ == nullptr) {
-    status = utfr_msgs::msg::Heartbeat::NOT_READY;
-    this->publishHeartbeat(status);
+    status_ = utfr_msgs::msg::Heartbeat::NOT_READY;
+    this->publishHeartbeat(status_);
     return;
   }
 
@@ -138,7 +218,7 @@ void ControlsNode::timerCB() {
     //*****   Throttle & Brake  *****
     current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
     target_velocity = target_state_->speed;            // TODO: review
-    RCLCPP_INFO(this->get_logger(), "Current speed: %f", current_velocity);
+    RCLCPP_INFO(this->get_logger(), "Current speed: %fm/s", current_velocity);
 
     control_cmd_.thr_cmd =
         throttle_pid_->getCommand(target_velocity, current_velocity, dt);
@@ -147,10 +227,10 @@ void ControlsNode::timerCB() {
         target_velocity, current_velocity, dt);
 
     if (current_velocity < target_velocity) {
-      RCLCPP_INFO(this->get_logger(), "Accelerating to: %f", target_velocity);
+      RCLCPP_INFO(this->get_logger(), "Accelerating to reach: %fm/s", target_velocity);
       control_cmd_.brk_cmd = 0;
     } else {
-      RCLCPP_INFO(this->get_logger(), "Braking to: %f", target_velocity);
+      RCLCPP_INFO(this->get_logger(), "Braking to reach: %fm/s", target_velocity);
       control_cmd_.thr_cmd = 0;
     }
 
@@ -161,10 +241,10 @@ void ControlsNode::timerCB() {
 
   } catch (int e) {
     RCLCPP_INFO(this->get_logger(), "timerCB: Error occured, error #%d", e);
-    status = utfr_msgs::msg::Heartbeat::ERROR;
+    status_ = utfr_msgs::msg::Heartbeat::ERROR;
   }
 
-  this->publishHeartbeat(status);
+  this->publishHeartbeat(status_);
 }
 
 } // namespace controls
