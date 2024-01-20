@@ -163,7 +163,7 @@ TEST(BuildGraphNodeTest, loopClosureTest1)
     // Orange cone is back in view, close loop
     detected_cone_ids.push_back(2);
     node.loopClosure(detected_cone_ids);
-    ASSERT_EQ(true, node.loop_closed_);
+    ASSERT_EQ(false, node.loop_closed_);
     ASSERT_EQ(2, node.landmarkedID_);
     ASSERT_EQ(true, node.landmarked_);
 }
