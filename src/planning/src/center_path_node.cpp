@@ -44,7 +44,7 @@ void CenterPathNode::initParams() {
   threshold_radius_ = this->get_parameter("threshold_radius").as_double();
   threshold_cones_ = this->get_parameter("threshold_cones").as_int();
 
-  waypoints = this->getWaypoints("src/planning/points/Waypoints.csv");
+  waypoints = this->getWaypoints("src/planning/global_waypoints/Waypoints.csv");
   global_path_ = this->get_parameter("global_path").as_int();
 }
 
@@ -1803,9 +1803,9 @@ std::vector<std::pair<double,double>> CenterPathNode::getWaypoints(std::string p
 
 void CenterPathNode::createTransform(){
   double xLeft1,yLeft1;
-  std::ifstream("src/planning/points/LeftCentre.csv") >> xLeft1 >> yLeft1;
+  std::ifstream("src/planning/global_waypoints/LeftCentre.csv") >> xLeft1 >> yLeft1;
   double xRight1, yRight1;
-  std::ifstream("src/planning/points/RightCentre.csv") >> xRight1 >> yRight1;
+  std::ifstream("src/planning/global_waypoints/RightCentre.csv") >> xRight1 >> yRight1;
 
   auto [xLeft2,yLeft2,xRight2,yRight2] = this->getCentres();
   if(isnan(xLeft2) || isnan(xLeft2) || isnan(xRight2) || isnan(yRight2)){
