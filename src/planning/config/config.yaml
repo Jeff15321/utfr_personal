@@ -11,8 +11,8 @@ center_path_node: # Name of Module
 
     threshold_radius: 0.5 #[m]
     threshold_cones: 3 # number of cones to check for radius
-    global_path: 1
-    
+    global_path: 0
+
 path_optimization_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
