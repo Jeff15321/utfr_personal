@@ -93,10 +93,47 @@ void EkfNode::updateState(const double x, const double y) {
 void EkfNode::extrapolateState(const double accel_cmd,
                                const double steering_cmd, const double dt) {
   // Extrapolate state
-  // x = Fx + Gu
+  // x_new = Fx + Gu
+Eigen::Matrix2d F;
+Eigen::Matrix2d G;
+double L=1.58; //wheelbase is 1.58m
+//double x_new= //current_x+[current_vx*dt+0.5*ax*pow(dt,2)]*cosine(steering_cmd)
+ //+sine(steering_cmd)[current_vy*dt+0.5*ay*pow(dt,2)]
+//double y_new= //current_y+[current_vy*dt+0.5*ay*pow(dt,2)]*cosine(steering_cmd)
+ //+sine(steering_cmd)[current_vx*dt+0.5*ax*pow(dt,2)]
+//double Vx_new= //vx+ax*dt
+//double Vy_new= //vy+ay*dt
+//double ax_new=//ax
+//double ay_new=//ay
+//double steering_cmd_new=//steering_cmd+(vy+ay*dt)/ L *dt;
+
+
+F=<<1,0,cos(steering_cmd)*dt, sin(steering_cmd)*dt,0,
+    0,1,sin(steering_cmd)*dt,cos(steering_cmd)*dt,0,
+    0,0,1,0,0,
+    0,0,0,1,0,
+    0,0,0,dt/L,1;
+
+G<<cos(steering_cmd)*0.5*pow(dt,2),sin(steering_cmd)*0.5*pow(dt,2),
+   sin(steering_cmd)*0.5*pow(dt,2), cos(steering_cmd)*0.5*pow(dt,2);
+
+Eigen::Vector5d x(current_state_.pose.pose.position.x, current_state_.pose.pose.position.y,
+current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y, 
+current_state_.steering_angle);
+Eigen::Vector2d u(current_state_.accel.linear.x, current_state_.accel.linear.y);
+Eigen::Vector5d x_new=F*x+G*u;
+
 
   // Extrapolate uncertainty
-  // P = FPF^T + Q                
+  // P = FPF^T + Q  
+  //value randomly assigned
+Eigen::Matrix2d P;
+Eigen::Matrix2d Q;
+P<<1,0
+   0,1;
+Q<<1,0
+   0,1;
+Eigen::Matrix2d P_new=F*P*F.transpose()+Q;
 }
 
 } // namespace ekf
