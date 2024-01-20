@@ -13,6 +13,20 @@
 */
 
 #include <build_graph_node.hpp>
+#include "g2o/core/factory.h"
+#include "g2o/core/optimization_algorithm_factory.h"
+#include "g2o/core/sparse_optimizer.h"
+#include <g2o/types/slam2d/se2.h>
+#include <g2o/types/slam2d/vertex_se2.h>
+#include "g2o/core/sparse_block_matrix.h"
+#include "g2o/core/block_solver.h"
+#include "g2o/core/sparse_optimizer.h"
+#include <Eigen/Core>
+#include "g2o/core/block_solver.h"
+#include "g2o/core/optimization_algorithm_levenberg.h"
+#include "g2o/solvers/eigen/linear_solver_eigen.h"
+
+G2O_USE_TYPE_GROUP(slam2d);
 
 namespace utfr_dv {
 namespace build_graph {
@@ -25,20 +39,39 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
   this->initHeartbeat();
 }
 
+using SlamBlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1> >;
+using SlamLinearSolver =
+    g2o::LinearSolverEigen<SlamBlockSolver::PoseMatrixType>;
+
 void BuildGraphNode::initParams() {
   loop_closed_ = false;
   landmarked_ = false;
   landmarkedID_ = -1;
-  out_of_frame_ = false;
+  out_of_frame_ = -1;
   cones_found_ = 0;
-  current_pose_id_ = 0;
+  current_pose_id_ = 1000;
   first_detection_pose_id_ = 0;
   
 
   // Will have to tune these later depending on the accuracy of our sensors
-  P2PInformationMatrix_ = Eigen::Matrix3d::Identity();
-  P2CInformationMatrix_ = Eigen::Matrix2d::Identity();
-  LoopClosureInformationMatrix_ = Eigen::Matrix3d::Identity();
+  Eigen::DiagonalMatrix<double, 3> P2P;
+  Eigen::DiagonalMatrix<double, 2> P2C;
+  Eigen::DiagonalMatrix<double, 3> LoopClosure;
+  P2P.diagonal() << 20, 20, 200;
+  P2C.diagonal() << 10, 100;
+  LoopClosure.diagonal() << 100, 100, 1000;
+
+
+  P2PInformationMatrix_ = P2P;
+  P2CInformationMatrix_ = P2C;
+  LoopClosureInformationMatrix_ = LoopClosure;
+
+  auto linearSolverLM = std::make_unique<SlamLinearSolver>();
+  linearSolverLM->setBlockOrdering(false);
+  g2o::OptimizationAlgorithm* optimizer = new g2o::OptimizationAlgorithmLevenberg(
+      std::make_unique<SlamBlockSolver>(std::move(linearSolverLM)));
+  optimizer_.setAlgorithm(optimizer);
+
 }
 
 void BuildGraphNode::initSubscribers() {
@@ -62,6 +95,7 @@ void BuildGraphNode::initPublishers() {
 
 void BuildGraphNode::initTimers() {
 }
+
 void BuildGraphNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kMappingBuildHeartbeat, 10);
@@ -73,6 +107,8 @@ void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
 }
 
 void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
+
+  //Print the x and y position of the car
   current_state_ = msg;
 
   current_pose_id_ += 1;
@@ -89,29 +125,37 @@ void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
   double dtheta = utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation) - utfr_dv::util::quaternionToYaw(prevPoseVertex.pose.pose.orientation);
 
   g2o::EdgeSE2* edge = addPoseToPoseEdge(id_to_pose_map_[current_pose_id_ - 1], poseVertex, dx, dy, dtheta, false);
+  pose_to_pose_edges_.push_back(edge);
 }
 
 std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones){
     std::vector<int> cones_id_list_;  
     std::vector<utfr_msgs::msg::Cone> all_cones;
+
+    // Create a temp current state so current state doesn't get modified while we're using it
+    utfr_msgs::msg::EgoState temp_current_state_ = current_state_;
+    int temp_current_pose_id_ = current_pose_id_;
     //adding all cones to one vector
     all_cones.insert(all_cones.end(), cones.left_cones.begin(), cones.left_cones.end());
     all_cones.insert(all_cones.end(), cones.right_cones.begin(), cones.right_cones.end());
     all_cones.insert(all_cones.end(), cones.large_orange_cones.begin(), cones.large_orange_cones.end());
     all_cones.insert(all_cones.end(), cones.small_orange_cones.begin(), cones.small_orange_cones.end());
     //iterating through all detected cones
+
+    float yaw = utfr_dv::util::quaternionToYaw(temp_current_state_.pose.pose.orientation);
     for (const auto& pastCone : all_cones){
       utfr_msgs::msg::Cone newCone = pastCone;
       //updating detected position to global frame
-      double ego_x = current_state_.pose.pose.position.x;
-      double ego_y = current_state_.pose.pose.position.y;
-      newCone.pos.x += ego_x;
-      newCone.pos.y += ego_y;
+      double ego_x = temp_current_state_.pose.pose.position.x;
+      double ego_y = temp_current_state_.pose.pose.position.y;
+      // The cone data is in the ego frame, so we need to transform it to the global frame
+      newCone.pos.x = ego_x + pastCone.pos.x * cos(yaw) - pastCone.pos.y * sin(yaw);
+      newCone.pos.y = ego_y + pastCone.pos.x * sin(yaw) + pastCone.pos.y * cos(yaw);
       bool adding_to_past = true;      
       //iterating through old cones
       for (size_t i=0; i <past_detections_.size(); ++i){
         const utfr_msgs::msg::Cone&pastDetectionsCone=past_detections_[i].second;    
-        //finding displacement between detected cone and past cone    
+        //finding displacement between detected cone and past cone 
         double displacement = utfr_dv::util::euclidianDistance2D(newCone.pos.x, pastDetectionsCone.pos.x, newCone.pos.y, pastDetectionsCone.pos.y);    
         //not adding if already detected (within error)
         if (displacement <= 0.3){
@@ -119,10 +163,14 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
 
           // Maps the cone detection to the cone id
           utfr_msgs::msg::Cone detection = newCone;
-          detection.pos.x -= current_state_.pose.pose.position.x;
-          detection.pos.y -= current_state_.pose.pose.position.y;
-          id_to_cone_map_[past_detections_[i].first] = detection;
+          // detection.pos.x -= temp_current_state_.pose.pose.position.x;
+          // detection.pos.y -= temp_current_state_.pose.pose.position.y;
+          // id_to_cone_map_[past_detections_[i].first] = detection;
+          cones_id_list_.push_back(past_detections_[i].first);
 
+          // Create edges between pose and cone
+          g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], cone_id_to_vertex_map_[past_detections_[i].first], pastCone.pos.x, pastCone.pos.y);
+          pose_to_cone_edges_.push_back(edge);
           break;
         }
       }
@@ -133,9 +181,9 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
 
         // Maps the cone detection to the cone id
         utfr_msgs::msg::Cone detection = newCone;
-        detection.pos.x -= current_state_.pose.pose.position.x;
-        detection.pos.y -= current_state_.pose.pose.position.y;
-        id_to_cone_map_[cones_found_] = detection;
+        // detection.pos.x -= temp_current_state_.pose.pose.position.x;
+        // detection.pos.y -= temp_current_state_.pose.pose.position.y;
+        id_to_cone_map_[temp_current_pose_id_] = newCone;
 
         cones_found_+=1;
         
@@ -145,14 +193,18 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
 
         // maps cone id to vertex
         cone_id_to_vertex_map_[cones_found_] = vertex;
+
+        // Create edges between pose and cone
+        g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, pastCone.pos.x, pastCone.pos.y);
+        pose_to_cone_edges_.push_back(edge);
       }
     }
-    return cones_id_list_;  }
+    return cones_id_list_;  
+}
 
 
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
   // Loop hasn't been completed yet
- 
   if (!loop_closed_) {
     // Go through cone list
     for (int coneID : cones) {
@@ -166,6 +218,7 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           landmarkedID_ = coneID;
           landmarked_ = true;
           first_detection_pose_id_ = current_pose_id_;
+          out_of_frame_ = 0;
         }
       }
 
@@ -175,16 +228,19 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
       //   landmarked_ = true;
       // }
       // Cone has been landmarked and still in frame for the first time
-      if (landmarked_ == true && out_of_frame_ == false) {
+      if (landmarked_ == true && out_of_frame_ > -1 && out_of_frame_ < 1000) {
         auto seen_status = std::find(cones.begin(), cones.end(), landmarkedID_);
         // If cone not in frame anymore
         if (seen_status == cones.end()) {
           // Set out of frame to be true
-          out_of_frame_ = true;
+          out_of_frame_ += 1;
+        } else {
+          // Set out of frame to be false
+          out_of_frame_ = 0;
         }
       }
       // Cone has been landmarked and is no longer in frame
-      if (landmarked_ == true && out_of_frame_ == true) {
+      if (landmarked_ == true && out_of_frame_ >= 1000) {
         // Check if cone appears in frame again
         auto seen_status = std::find(cones.begin(), cones.end(), landmarkedID_);
         // If cone in frame again
@@ -205,7 +261,14 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           // add an edge using the pose ids at initial detection and loop closure detection
           g2o::EdgeSE2* edge = addPoseToPoseEdge(first_pose_node, second_pose_node, dx, dy, dtheta, loop_closed_);
           pose_to_pose_edges_.push_back(edge);
+          std::cout << "Loop closure edge added" << std::endl;
 
+          landmarked_ = false;
+          landmarkedID_ = -1;
+          out_of_frame_ = -1;
+          first_detection_pose_id_ = 0;
+          loop_closed_ = false;
+          graphSLAM();
         }
       }
     }
@@ -266,6 +329,51 @@ g2o::EdgeSE2PointXY* BuildGraphNode::addPoseToConeEdge(g2o::VertexSE2* pose,
   edge->setVertex(1, cone);
 
   return edge;
+}
+
+void BuildGraphNode::graphSLAM() {
+
+  // Set the fixed node as 1001
+  pose_nodes_[0]->setFixed(true);
+
+  // Add all the nodes and egdes to the optimizer
+  for (g2o::VertexSE2* pose : pose_nodes_) {
+    optimizer_.addVertex(pose);
+  }
+
+  for (g2o::VertexPointXY* cone : cone_nodes_) {
+    optimizer_.addVertex(cone);
+  }
+
+  for (g2o::EdgeSE2* edge : pose_to_pose_edges_) {
+    optimizer_.addEdge(edge);
+  }
+
+  for (g2o::EdgeSE2PointXY* edge : pose_to_cone_edges_) {
+    optimizer_.addEdge(edge);
+  }
+  
+  optimizer_.initializeOptimization();
+  optimizer_.optimize(10);
+
+  // for (g2o::SparseOptimizer::VertexIDMap::const_iterator it = optimizer_.vertices().begin(); it != optimizer_.vertices().end(); ++it) {
+  //       g2o::SparseOptimizer::Vertex* vertex = dynamic_cast<g2o::SparseOptimizer::Vertex*>(it->second);
+  //       if (vertex) {
+  //           g2o::VertexSE2* se2Vertex = dynamic_cast<g2o::VertexSE2*>(vertex);
+  //           if (se2Vertex) {
+  //               const g2o::SE2& se2 = se2Vertex->estimate();
+  //               double x = se2.toVector()[0];  // Extract the x component
+  //               double y = se2.toVector()[1];  // Extract the y component
+
+  //               utfr_msgs::msg::Cone cone;
+  //               cone.pos.x = x;
+  //               cone.pos.y = y;
+  //               cone_map_.left_cones.push_back(cone);
+  //           }
+  //       }
+  //   }
+  // Save the optimized pose graph
+  std::cout << "Optimized pose graph saved" << std::endl;
 }
 
 void BuildGraphNode::buildGraph() {}
