@@ -481,6 +481,11 @@ TEST(math, getCrosstrackError) {
 TEST(math, egoHelperTest)
 {
   ego_state newEgo; 
+  ASSERT_EQ(-FLT_MAX, egoHelper(newEgo ,"pos_x"));
+  ASSERT_EQ(-FLT_MAX, egoHelper(newEgo ,"pos_y"));
+  ASSERT_EQ(-FLT_MAX, egoHelper(newEgo ,"vel_y"));
+  ASSERT_EQ(-FLT_MAX, egoHelper(newEgo ,"vel_x"));
+  ASSERT_EQ(-FLT_MAX, egoHelper(newEgo , "steering_angle"))
   newEgo.pose.pose.postion.x = -1;
   newEgo.pose.pose.postion.y = 1;
   newEgo.vel.twist.linear.x = -2;

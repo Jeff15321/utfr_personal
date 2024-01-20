@@ -406,18 +406,33 @@ double quaternionToYaw(const geometry_msgs::msg::Quaternion &q) {
 }
 float egoHelper(ego_state egs,String infoWanted){
   if (infoWanted == "pos_x"){
+    if (!egs.pose.pose.position.x){
+      return -FLT_MAX;
+    }
     return egs.pose.pose.position.x;
   }
   if (infoWanted == "pos_y"){
+    if (!egs.pose.pose.position.y){
+      return -FLT_MAX;
+    }
     return egs.pose.pose.position.y;
   }
   if (infoWanted == "vel_x"){
+    if (!egs.vel.twist.linear.x){
+      return -FLT_MAX;
+    }
     return egs.vel.twist.linear.x;
   }
   if (infoWanted == "vel_y"){
+    if (!egs.vel.twist.linear.x){
+      return -FLT_MAX;
+    }
     return egs.vel.twist.linear.y;
   }
   if (infoWanted == "steering_angle"){
+    if (!egs.steering_angle){
+      return -FLT_MAX;
+    }
     return egs.steering_angle;
   }
   else{

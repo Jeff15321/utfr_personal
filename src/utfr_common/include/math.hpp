@@ -222,7 +222,7 @@ bool isLargeOrangeCone(const uint coneID);
  *
  *@param[in] eg ego_state to be acessed
  *@param[in] infoWanted a string that tells the function what to acess either "pos_x","pos_y","vel_x","vel_y" or "steering_angle"
- *@returns returns requested information
+ *@returns returns requested information or -FLT_MAX is input is invalid
  */
 float egoHelper(ego_state eg,String infoWanted);
 
