@@ -1725,7 +1725,7 @@ void CenterPathNode::nextWaypoint(){
     double localY = (cos(yaw) * (pointY-carY)) - (sin(yaw) * (pointX-carX));
     double localX = (sin(yaw) * (pointY-carY)) + (cos(yaw) * (pointX-carX));
     double angle = util::wrapDeg(util::radToDeg(atan2(localY, localX)));
-    if(util::euclidianDistance2D(pointX, carX, pointY, carY) <= 1.5 || (angle >= 90 && angle <= 270)){
+    if(angle >= 90 && angle <= 270){
       i++;
     }
     else{
@@ -1749,7 +1749,7 @@ void CenterPathNode::nextWaypoint(){
   points_stamped.header.stamp = this->get_clock()->now();
   
   std::vector<Point> nextPoints;
-  for(unsigned int k = i; k < i+10 && k < waypoints.size(); k++){
+  for(unsigned int k = i; k < i+25 && k < waypoints.size(); k += 5){
     auto [x,y] = this->transformWaypoint(waypoints[k]);
     double localY = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
     double localX = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
@@ -1875,11 +1875,11 @@ std::tuple<double,double,double,double> CenterPathNode::getCentres(){
   double rightDist = util::euclidianDistance2D(xRight, xMid, yRight, yMid);
   double leftDist = util::euclidianDistance2D(xMid, xLeft, yMid, yLeft);
   double totalDist = util::euclidianDistance2D(xRight, xLeft, yRight, yLeft);
-  if(abs(rightDist-centreDistance_) > 0.25){ // improper right centre
+  if(abs(rightDist-centre_distance_) > 0.25){ // improper right centre
     return {NAN,NAN,NAN,NAN};
   }
   // improper left centre, extrapolate it
-  if(abs(totalDist-2*centreDistance_) > 0.5 || abs(leftDist-centreDistance_) > 0.25){
+  if(abs(totalDist-2*centre_distance_) > 0.5 || abs(leftDist-centre_distance_) > 0.25){
     xLeft = xMid*2-xRight;
     yLeft = yMid*2-yRight;
   }
@@ -1900,10 +1900,10 @@ std::tuple<double,double,double,double> CenterPathNode::skidpadCircleCentres(){
   std::vector<utfr_msgs::msg::Cone> &blue = cone_map_->left_cones;
   std::vector<utfr_msgs::msg::Cone> &yellow = cone_map_->right_cones;
 
-  auto smallBlue = this->circleCentre(blue, smallRadius_, smallCircleCones_-3);
-  auto smallYellow = this->circleCentre(yellow, smallRadius_, smallCircleCones_-3);
-  auto largeBlue = this->circleCentre(blue, largeRadius_, largeCircleCones_-3);
-  auto largeYellow = this->circleCentre(yellow, largeRadius_, largeCircleCones_-3);
+  auto smallBlue = this->circleCentre(blue, small_radius_, small_circle_cones_-3);
+  auto smallYellow = this->circleCentre(yellow, small_radius_, small_circle_cones_-3);
+  auto largeBlue = this->circleCentre(blue, big_radius_, big_circle_cones_-3);
+  auto largeYellow = this->circleCentre(yellow, big_radius_, big_circle_cones_-3);
   
   auto drawCircle = [this](auto publisher, auto &cord, double radius){
     auto [xc, yc] = cord;

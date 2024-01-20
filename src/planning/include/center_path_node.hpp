@@ -226,11 +226,9 @@ private:
   double update_rate_;
   std::string event_;
 
-  const double smallRadius_ = 7.625; // radius of small circle for skidpad
-  const double largeRadius_ = 10.625; // radius of large circle for skidpad
-  const double centreDistance_ = 9.125; // skidpad centres to track centre dist
-  const int smallCircleCones_ = 16; // number of cones in small circle
-  const int largeCircleCones_ = 13; // number of cones in large circle
+  const double centre_distance_ = 9.125; // skidpad centres to track centre dist
+  const int small_circle_cones_ = 16; // number of cones in small circle
+  const int big_circle_cones_ = 13; // number of cones in large circle
   std::unique_ptr<MatrixXd> skidpadTransform_{nullptr};
   std::vector<std::pair<double,double>> waypoints;
   std::vector<std::tuple<double,double,double>> visited;
