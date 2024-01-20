@@ -25,7 +25,9 @@ EkfNode::EkfNode() : Node("ekf_node") {
   this->initHeartbeat();
 }
 
-void EkfNode::initParams() {}
+void EkfNode::initParams() {
+  P_ = 1000.0 * Eigen::MatrixXd::Identity(5, 5);
+}
 
 void EkfNode::initSubscribers() {
 
@@ -79,6 +81,7 @@ void EkfNode::updateState(const double x, const double y) {
 
   // Compute the Kalman gain
   // K = P * H^T * (H * P * H^T + R)^-1
+  kalman_gain_ = P_ * H_.transpose() * (H_ * P_ * H_.transpose() + R_).inverse();
 
   // Update the estimate with the measurement
   // x = x + K * (z - H * x)

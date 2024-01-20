@@ -128,6 +128,7 @@ public:
   // Global variables
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
   double kalman_gain_;                     // Kalman gain
+  Eigen::MatrixXd P_;
 };
 } // namespace ekf
 } // namespace utfr_dv
