@@ -21,8 +21,6 @@
 namespace utfr_dv {
 namespace compute_graph {
 
-enum class HeartBeatState{ NOT_READY, READY, ACTIVE, ERROR, FINISH };
-
 ComputeGraphNode::ComputeGraphNode() : Node("compute_graph_node") {
   this->initParams();
   this->initSubscribers();
@@ -32,6 +30,7 @@ ComputeGraphNode::ComputeGraphNode() : Node("compute_graph_node") {
   
   // set heartbeat state to active
   HeartBeatState heartbeat_state_ = HeartBeatState::ACTIVE;
+  this->publishHeartbeat(); 
 }
 
 void ComputeGraphNode::initParams() {
@@ -62,6 +61,15 @@ void ComputeGraphNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kMappingComputeHeartbeat, 10);
 }
+
+void ComputeGraphNode::publishHeartbeat() {
+    utfr_msgs::msg::Heartbeat heartbeat_msg;
+    heartbeat_msg.status = static_cast<uint8_t>(heartbeat_state_);  
+    heartbeat_msg.header.stamp = this->now();  
+
+    heartbeat_publisher_->publish(heartbeat_msg);
+}
+
 
 void ComputeGraphNode::poseGraphCB(const utfr_msgs::msg::PoseGraph msg) {}
 

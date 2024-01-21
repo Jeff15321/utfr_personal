@@ -69,6 +69,10 @@ public:
   /*! Initialize Heartbeat:
    */
   void initHeartbeat();
+  
+  /*! Publish Heartbeat:
+   */
+  void publishHeartbeat();
 
   /*! Pose Graph callback function
    */
@@ -88,6 +92,16 @@ public:
   // Subscribers
   rclcpp::Subscription<utfr_msgs::msg::PoseGraph>::SharedPtr
       pose_graph_subscriber_;
+      
+  enum class HeartBeatState{ 
+    NOT_READY = 1, 
+    READY = 2, 
+    ACTIVE = 3, 
+    ERROR = 4, 
+    FINISH = 5
+};
+
+  HeartBeatState heartbeat_state_;
 
   utfr_msgs::msg::PoseGraph pose_graph_;
   double slam_rate_;

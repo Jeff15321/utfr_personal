@@ -69,6 +69,22 @@ public:
   /*! Initialize Heartbeat:
    */
   void initHeartbeat();
+  
+  /*! Publish Heartbeat:
+   */
+  void publishHeartbeat();
+  
+  
+  enum class HeartBeatState{ 
+    NOT_READY = 1, 
+    READY = 2, 
+    ACTIVE = 3, 
+    ERROR = 4, 
+    FINISH = 5
+};
+
+  HeartBeatState heartbeat_state_;
+
 
   /*! CAN sensor callback function
    */

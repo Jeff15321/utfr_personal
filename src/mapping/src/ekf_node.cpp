@@ -28,6 +28,8 @@ EkfNode::EkfNode() : Node("ekf_node") {
   
   // set heartbeat state to active
   HeartBeatState heartbeat_state_ = HeartBeatState::ACTIVE;
+  
+  this->publishHeartbeat();
 }
 
 void EkfNode::initParams() {}
@@ -45,6 +47,16 @@ void EkfNode::initPublishers() {
 }
 
 void EkfNode::initTimers() {}
+
+
+void EkfNode::publishHeartbeat() {
+    utfr_msgs::msg::Heartbeat heartbeat_msg;
+    heartbeat_msg.status = static_cast<uint8_t>(heartbeat_state_);  
+    heartbeat_msg.header.stamp = this->now();  
+
+    heartbeat_publisher_->publish(heartbeat_msg);
+}
+
 
 void EkfNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
