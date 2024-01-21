@@ -59,15 +59,20 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
 
     // Get the position from the GPS
     // ...
-
-    updateState(double x, double y);
+    //throwing in random value for now
+    double x=1.0;
+    double y=2.0;
+    updateState(x, y);
     
   } else if (is_imu) {
 
     // Get acceleration and steering from the IMU
     // ...
 
-    extrapolateState(double accel_cmd, double steering_cmd, double dt);
+    double accel_cmd=1.0;
+    double steering_cmd=2.0;
+    double dt=0.001;
+    extrapolateState(accel_cmd, steering_cmd, dt);
   }
 
   // Publish the state estimation
@@ -77,11 +82,11 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
 void EkfNode::vehicleModel(const float &throttle, const float &brake,
                            const float &steering_angle) {}
 
-void EkfNode::updateState(const double x, const double y) {
+utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y) {
 
   // Compute the Kalman gain
   // K = P * H^T * (H * P * H^T + R)^-1
-  kalman_gain_ = P_ * H_.transpose() * (H_ * P_ * H_.transpose() + R_).inverse();
+  //kalman_gain_ = P_ * H_.transpose() * (H_ * P_ * H_.transpose() + R_).inverse();
 
   // Update the estimate with the measurement
   // x = x + K * (z - H * x)
@@ -90,12 +95,12 @@ void EkfNode::updateState(const double x, const double y) {
   // P = (I - K * H) * P(I - K * H)^T + K * R * K^T
 }
 
-void EkfNode::extrapolateState(const double accel_cmd,
+utfr_msgs::msg::EgoState EkfNode::extrapolateState(const double accel_cmd,
                                const double steering_cmd, const double dt) {
   // Extrapolate state
   // x_new = Fx + Gu
-Eigen::Matrix2d F;
-Eigen::Matrix2d G;
+Eigen::MatrixXd F(5,5);
+Eigen::MatrixXd G(5,2);
 double L=1.58; //wheelbase is 1.58m
 //double x_new= //current_x+[current_vx*dt+0.5*ax*pow(dt,2)]*cosine(steering_cmd)
  //+sine(steering_cmd)[current_vy*dt+0.5*ay*pow(dt,2)]
@@ -108,32 +113,50 @@ double L=1.58; //wheelbase is 1.58m
 //double steering_cmd_new=//steering_cmd+(vy+ay*dt)/ L *dt;
 
 
-F=<<1,0,cos(steering_cmd)*dt, sin(steering_cmd)*dt,0,
+F<< 1,0,cos(steering_cmd)*dt, sin(steering_cmd)*dt,0,
     0,1,sin(steering_cmd)*dt,cos(steering_cmd)*dt,0,
     0,0,1,0,0,
     0,0,0,1,0,
     0,0,0,dt/L,1;
 
-G<<cos(steering_cmd)*0.5*pow(dt,2),sin(steering_cmd)*0.5*pow(dt,2),
-   sin(steering_cmd)*0.5*pow(dt,2), cos(steering_cmd)*0.5*pow(dt,2);
+G<< cos(steering_cmd)*0.5*pow(dt,2),sin(steering_cmd)*0.5*pow(dt,2),
+    sin(steering_cmd)*0.5*pow(dt,2), cos(steering_cmd)*0.5*pow(dt,2),
+    dt,0,
+    0,dt,
+    0,pow(dt,2)/L;
 
-Eigen::Vector5d x(current_state_.pose.pose.position.x, current_state_.pose.pose.position.y,
+Eigen::VectorXd x(5);
+x<<current_state_.pose.pose.position.x, current_state_.pose.pose.position.y,
 current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y, 
-current_state_.steering_angle);
-Eigen::Vector2d u(current_state_.accel.linear.x, current_state_.accel.linear.y);
-Eigen::Vector5d x_new=F*x+G*u;
+current_state_.steering_angle;
+Eigen::VectorXd u(2);
+u<<current_state_.accel.accel.linear.x, current_state_.accel.accel.linear.y;
+Eigen::VectorXd x_new(5);
+x_new=F*x+G*u;
 
+current_state_.pose.pose.position.x=x_new(0);
+current_state_.pose.pose.position.y=x_new(1);
+current_state_.vel.twist.linear.x=x_new(2);
+current_state_.vel.twist.linear.y=x_new(3);
+current_state_.steering_angle=x_new(4);
 
   // Extrapolate uncertainty
   // P = FPF^T + Q  
   //value randomly assigned
-Eigen::Matrix2d P;
-Eigen::Matrix2d Q;
-P<<1,0
-   0,1;
-Q<<1,0
-   0,1;
-Eigen::Matrix2d P_new=F*P*F.transpose()+Q;
+Eigen::MatrixXd P(5,5);
+Eigen::MatrixXd Q(5,5);
+P << 1,0,0,0,0,
+   0,1,0,0,0,
+   0,0,1,0,0,
+   0,0,0,1,0,
+   0,0,0,0,1;
+Q << 1,0,0,0,0,
+   0,1,0,0,0,
+   0,0,1,0,0,
+   0,0,0,1,0,
+   0,0,0,0,1;
+Eigen::MatrixXd P_new=F*P*F.transpose()+Q;
+return current_state_;
 }
 
 } // namespace ekf
