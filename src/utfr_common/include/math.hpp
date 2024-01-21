@@ -20,6 +20,7 @@
 #include <list>
 using Eigen::MatrixXd;
 #include <tuple>
+#include <string>
 
 // Message Requirements
 #include <geometry_msgs/msg/point.hpp>
@@ -220,11 +221,11 @@ bool isLargeOrangeCone(const uint coneID);
 
 /*! Helper function for easier acess of postion, velocity and steering angle
  *
- *@param[in] eg ego_state to be acessed
- *@param[in] infoWanted a string that tells the function what to acess either "pos_x","pos_y","vel_x","vel_y" or "steering_angle"
- *@returns returns requested information or -FLT_MAX is input is invalid
+ *@param[in] eg EgoState to be acessed
+ *@param[in] infoWanted a char* that tells the function what to acess either "pos_x","pos_y","vel_x","vel_y" or "steering_angle"
+ *@returns returns requested information or -10000000000000000 is input is invalid
  */
-float egoHelper(ego_state eg,String infoWanted);
+float egoHelper(utfr_msgs::msg::EgoState eg,const char* infoWanted);
 
 } // namespace util
 } // namespace utfr_dv
