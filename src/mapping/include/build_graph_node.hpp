@@ -57,6 +57,11 @@ struct Point {
     double y;
 
     Point(double x_val, double y_val) : x(x_val), y(y_val) {}
+
+    // Define the operator!= for Point class
+    bool operator!=(const Point& other) const {
+        return (x != other.x) || (y != other.y);
+    }
 };
 //KDNode struct storing axis info and defining node
 struct KDNode {
@@ -73,8 +78,10 @@ class KDTree {
 private:
     KDNode* root;
 
+
+
     // Recursive function to build the KD tree
-    KDNode* buildTree(std::vector<Point>& points, int depth) {
+    KDNode* buildTree(std::vector<Point> points, int depth) {
     if (points.empty()) {
         return nullptr;
     }
@@ -104,12 +111,24 @@ private:
 
     return node;
 }
-
-
-    // Recursive function to perform KNN search
-    void KNNSearch(KDNode* node, const Point& target, int k, std::vector<int>& result, int depth) {
+    void printKDCoordinates(KDNode* node) {
     if (node == nullptr) {
         return;
+    }
+
+    // Print the coordinates of the current node
+    std::cout << "Node coordinates: (" << node->point.x << ", " << node->point.y << ")" << std::endl;
+
+    // Recursively print left and right subtrees
+    printKDCoordinates(node->left);
+    printKDCoordinates(node->right);
+}
+
+
+   // Function to find the nearest neighbor and return its x, y coordinates
+    Point findNearestNeighbor(KDNode* node, const Point& target, int depth, KDTree* globalKDTreePtr) {
+    if (node == nullptr) {
+        return Point(0.0, 0.0);
     }
 
     int axis = node->axis;
@@ -125,41 +144,55 @@ private:
         otherBranch = node->left;
     }
 
-    KNNSearch(nextBranch, target, k, result, depth + 1);
+    // Recursively search the appropriate branch
+    Point nearestInNext = findNearestNeighbor(nextBranch, target, depth + 1, globalKDTreePtr);
 
     // Check current node
-    double distance = utfr_dv::util::euclidianDistance2D(target.x, node->point.x, target.y, node->point.y);
-    if (result.size() < k || distance < utfr_dv::util::euclidianDistance2D(target.x, result.empty() ? 0 : node->point.x, target.y, result.empty() ? 0 : node->point.y)) {
-        result.push_back(node->index);
-        std::sort(result.begin(), result.end(), [node, &target](int a, int b) {
-            return utfr_dv::util::euclidianDistance2D(target.x, node->point.x, target.y, node->point.y) < utfr_dv::util::euclidianDistance2D(target.x, node->point.x, target.y, node->point.y);
-        });
-        if (result.size() > k) {
-            result.pop_back();
+    double distanceToCurrent = utfr_dv::util::euclidianDistance2D(target.x, node->point.x, target.y, node->point.y);
+    double distanceToNearestInNext = utfr_dv::util::euclidianDistance2D(target.x, nearestInNext.x, target.y, nearestInNext.y);
+
+    // Decide whether to update the nearest point
+    if (distanceToCurrent < distanceToNearestInNext) {
+        nearestInNext = node->point;
+    }
+
+    // Recursively search the other branch if needed
+    if (std::abs((axis == 0 ? target.x : target.y) - (axis == 0 ? node->point.x : node->point.y)) < distanceToNearestInNext) {
+        Point nearestInOther = findNearestNeighbor(otherBranch, target, depth + 1, globalKDTreePtr);
+        double distanceToNearestInOther = utfr_dv::util::euclidianDistance2D(target.x, nearestInOther.x, target.y, nearestInOther.y);
+
+        // Decide whether to update the nearest point
+        if (distanceToNearestInOther < distanceToNearestInNext) {
+            nearestInNext = nearestInOther;
         }
     }
 
-    if (result.size() < k || std::abs((axis == 0 ? target.x : target.y) - (axis == 0 ? node->point.x : node->point.y)) < utfr_dv::util::euclidianDistance2D(target.x, result.empty() ? 0 : node->point.x, target.y, result.empty() ? 0 : node->point.y)) {
-        KNNSearch(otherBranch, target, k, result, depth + 1);
-    }
+    return nearestInNext;
 }
-
-
-    // Recursive function that insert a new node into KD tree
-    KDNode* insertNode(KDNode* node, const Point& newPoint, int depth) {
+    // Recursive function to insert a new node into KD tree
+    KDNode* insertNode(KDNode* node, const Point& newPoint, int depth, int& currentIndex) {
         if (node == nullptr) {
-            return new KDNode(newPoint, 0, depth % 2);
+            return new KDNode(newPoint, currentIndex++, depth % 2);
         }
 
         int axis = depth % 2;
 
         if ((axis == 0 && newPoint.x < node->point.x) || (axis == 1 && newPoint.y < node->point.y)) {
-            node->left = insertNode(node->left, newPoint, depth + 1);
+            node->left = insertNode(node->left, newPoint, depth + 1, currentIndex);
         } else {
-            node->right = insertNode(node->right, newPoint, depth + 1);
+            node->right = insertNode(node->right, newPoint, depth + 1, currentIndex);
         }
 
         return node;
+    }
+    // Recursive function to count the number of cones in the tree
+    int countCones(KDNode* node) const {
+        if (node == nullptr) {
+            return 0;
+        }
+
+        // Count the cone in the current node and recursively count in left and right subtrees
+        return 1 + countCones(node->left) + countCones(node->right);
     }
     // Recursive function to get the point for a given index
     Point getPointFromIndex(KDNode* node, int targetIndex) const {
@@ -181,37 +214,33 @@ private:
     }
 
 public:
+
+    int getNumberOfCones() const {
+        return countCones(root);
+    }
     // Constructor to build the KD tree
-    KDTree(std::vector<Point>&& points) : root(nullptr) {
-        if (!points.empty()) {
-        root = buildTree(points, 0);
-        }
+     KDTree(std::vector<Point> points) : root(buildTree(std::move(points), 0)) {}
+
+    // Wrapper function for KNN search (always searches for 1 nearest neighbor)
+    Point KNN(const Point& target) {
+    return findNearestNeighbor(root, target, 0, this);
     }
 
-// Overload for lvalue reference
-    KDTree(std::vector<Point>& points) : root(nullptr) {
-        if (!points.empty()) {
-        root = buildTree(points, 0);
-        }
-    }
-
-    //perform KNN search
-    std::vector<int> KNN(const Point& target, int k) {
-        std::vector<int> result;
-        KNNSearch(root, target, k, result, 0);
-        return result;
-    }
 
     //insert a new point into the KD tree
     void insert(const Point& newPoint) {
-        root = insertNode(root, newPoint, 0);
+        int currentIndex = 0;  // Start with index 0 for the root node
+        root = insertNode(root, newPoint, 0, currentIndex);
     }
+
 
     // Public method to get the point for a given index
     Point getPoint(int targetIndex) const {
         return getPointFromIndex(root, targetIndex);
     }
-
+    void printKDCoordinates() {
+        printKDCoordinates(root);
+    }
 };
 
 class BuildGraphNode : public rclcpp::Node {
