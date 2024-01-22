@@ -80,10 +80,6 @@ public:
   /*! Publish Heartbeat:
    */
   void publishHeartbeat();
-  
-  /*! Heartbeat Timer:
-   */
-  void initTimer();
 
   /*! Cone detection callback function
    */

@@ -70,9 +70,6 @@ public:
    */
   void initHeartbeat();
   
-  /*! Publish Heartbeat:
-   */
-  void publishHeartbeat();
 
   /*! Pose Graph callback function
    */
