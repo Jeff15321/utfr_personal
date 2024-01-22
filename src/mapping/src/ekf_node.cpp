@@ -20,6 +20,10 @@ namespace ekf {
 enum class HeartBeatState{ NOT_READY, READY, ACTIVE, ERROR, FINISH };
 
 EkfNode::EkfNode() : Node("ekf_node") {
+
+  // set heartbeat state to not ready
+  HeartBeatState heartbeat_state_ = HeartBeatState::NOT_READY;
+
   this->initParams();
   this->initSubscribers();
   this->initPublishers();
@@ -27,12 +31,14 @@ EkfNode::EkfNode() : Node("ekf_node") {
   this->initHeartbeat();
   
   // set heartbeat state to active
-  HeartBeatState heartbeat_state_ = HeartBeatState::ACTIVE;
+  heartbeat_state_ = HeartBeatState::ACTIVE;
   
   this->publishHeartbeat();
 }
 
-void EkfNode::initParams() {}
+void EkfNode::initParams() {
+   heartbeat_rate_ = 1;
+}
 
 void EkfNode::initSubscribers() {
 
@@ -46,8 +52,17 @@ void EkfNode::initPublishers() {
       this->create_publisher<utfr_msgs::msg::EgoState>(topics::kEgoState, 10);
 }
 
-void EkfNode::initTimers() {}
+void EkfNode::initTimers() {
+    heartbeat_timer_ = this->create_wall_timer(
+        std::chrono::duration<double, std::milli>(heartbeat_rate_),
+        std::bind(&EkfNode::publishHeartbeat, this));
+}
 
+
+void EkfNode::initHeartbeat() {
+  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
+      topics::kEKFHeartbeat, 10);
+}
 
 void EkfNode::publishHeartbeat() {
     utfr_msgs::msg::Heartbeat heartbeat_msg;
@@ -55,12 +70,6 @@ void EkfNode::publishHeartbeat() {
     heartbeat_msg.header.stamp = this->now();  
 
     heartbeat_publisher_->publish(heartbeat_msg);
-}
-
-
-void EkfNode::initHeartbeat() {
-  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-      topics::kEKFHeartbeat, 10);
 }
 
 void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {}
