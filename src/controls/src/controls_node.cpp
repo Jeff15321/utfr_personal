@@ -222,9 +222,6 @@ void ControlsNode::timerCB() {
   }
 
   try {
-    double target_velocity;
-    double current_velocity;
-
     double dt = (this->now() - ros_time_).seconds();
     ros_time_ = this->now();
 
@@ -236,11 +233,6 @@ void ControlsNode::timerCB() {
       control_cmd_.str_cmd =
           utfr_dv::util::radToDeg(target_state_->steering_angle);
     }
-
-    // RCLCPP_INFO(this->get_logger(),
-    //             "Target Steering: "); //%f, Current SA: %f, STR_CMD: %f",
-    // utfr_dv::util::radToDeg(target_state_->steering_angle),
-    //(ego_state_->steering_angle), control_cmd_.str_cmd);
 
     // //*****   Throttle & Brake  *****
     current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
