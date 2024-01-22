@@ -43,6 +43,8 @@
 #include <utfr_common/math.hpp>
 #include <utfr_common/topics.hpp>
 
+#include <g2o/core/sparse_optimizer.h>
+
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
 
@@ -341,6 +343,12 @@ public:
    */
   void buildGraph();
 
+  /*! Graph SLAM function
+   *   @param[in] pose_graph utfr_msgs::msg::PoseGraph Pose graph message
+   *   @param[out] cone_map utfr_msgs::msg::ConeMap Cone map message
+   */
+  void graphSLAM();
+
   // Publisher
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::PoseGraph>::SharedPtr pose_graph_publisher_;
@@ -366,7 +374,7 @@ public:
   bool loop_closed_;                         // True if loop is closed
   bool landmarked_;
   int landmarkedID_;
-  bool out_of_frame_;
+  int out_of_frame_;
   int cones_found_;
   int current_pose_id_;
   int first_detection_pose_id_;
@@ -383,6 +391,9 @@ public:
   Eigen::Matrix3d P2PInformationMatrix_;
   Eigen::Matrix2d P2CInformationMatrix_;
   Eigen::Matrix3d LoopClosureInformationMatrix_;
+
+  g2o::SparseOptimizer optimizer_;
+  utfr_msgs::msg::ConeMap cone_map_;
 };
 } // namespace build_graph
 } // namespace utfr_dv
