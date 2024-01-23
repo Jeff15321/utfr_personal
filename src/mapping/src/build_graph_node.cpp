@@ -32,11 +32,20 @@ namespace utfr_dv {
 namespace build_graph {
 
 BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
+
+  // set heartbeat state to not ready
+  HeartBeatState heartbeat_state_ = HeartBeatState::NOT_READY;
+  heartbeat_rate_ = 1;
+  this->initTimers();
+  
+  this->initHeartbeat();
+  this->publishHeartbeat(); 
   this->initParams();
   this->initSubscribers();
   this->initPublishers();
-  this->initTimers();
-  this->initHeartbeat();
+
+  // set heartbeat state to active
+  heartbeat_state_ = HeartBeatState::ACTIVE;
 }
 
 using SlamBlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1> >;
@@ -51,7 +60,6 @@ void BuildGraphNode::initParams() {
   cones_found_ = 0;
   current_pose_id_ = 1000;
   first_detection_pose_id_ = 0;
-  
 
   // Will have to tune these later depending on the accuracy of our sensors
   Eigen::DiagonalMatrix<double, 3> P2P;
@@ -94,12 +102,25 @@ void BuildGraphNode::initPublishers() {
 }
 
 void BuildGraphNode::initTimers() {
-}
+    heartbeat_timer_ = this->create_wall_timer(
+        std::chrono::duration<double, std::milli>(heartbeat_rate_),
+        std::bind(&BuildGraphNode::publishHeartbeat, this));
+  }
 
 void BuildGraphNode::initHeartbeat() {
-  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-      topics::kMappingBuildHeartbeat, 10);
-}
+    heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
+        topics::kMappingBuildHeartbeat, 10);
+  }
+
+
+void BuildGraphNode::publishHeartbeat() {
+    utfr_msgs::msg::Heartbeat heartbeat_msg;
+    heartbeat_msg.status = static_cast<uint8_t>(heartbeat_state_);  
+    heartbeat_msg.header.stamp = this->now();  
+
+    heartbeat_publisher_->publish(heartbeat_msg);
+  }
+
 
 void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
   std::vector<int> cones = KNN(msg);

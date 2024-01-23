@@ -70,6 +70,23 @@ public:
   /*! Initialize Heartbeat:
    */
   void initHeartbeat();
+  
+  /*! Publish Heartbeat:
+   */
+  void publishHeartbeat();
+  
+  
+  enum class HeartBeatState{ 
+    NOT_READY = 1, 
+    READY = 2, 
+    ACTIVE = 3, 
+    ERROR = 4, 
+    FINISH = 5
+};
+
+  HeartBeatState heartbeat_state_;
+  double heartbeat_rate_;
+
 
   /*! CAN sensor callback function
    */
@@ -119,6 +136,7 @@ public:
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr
       state_estimation_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+  rclcpp::TimerBase::SharedPtr heartbeat_timer_;
 
   // Subscribers
   // SensorCAN handles GPS, IMU, and wheel/steering speed data!

@@ -18,11 +18,20 @@ namespace utfr_dv {
 namespace ekf {
 
 EkfNode::EkfNode() : Node("ekf_node") {
+
+  // set heartbeat state to not ready
+  HeartBeatState heartbeat_state_ = HeartBeatState::NOT_READY;
+  heartbeat_rate_ = 1;
+  this->initTimers();
+  
+  this->initHeartbeat();
+  this->publishHeartbeat();
   this->initParams();
   this->initSubscribers();
   this->initPublishers();
-  this->initTimers();
-  this->initHeartbeat();
+  
+  // set heartbeat state to active
+  heartbeat_state_ = HeartBeatState::ACTIVE;
 }
 
 void EkfNode::initParams() {
@@ -41,7 +50,12 @@ void EkfNode::initPublishers() {
       this->create_publisher<utfr_msgs::msg::EgoState>(topics::kEgoState, 10);
 }
 
-void EkfNode::initTimers() {}
+void EkfNode::initTimers() {
+    heartbeat_timer_ = this->create_wall_timer(
+        std::chrono::duration<double, std::milli>(heartbeat_rate_),
+        std::bind(&EkfNode::publishHeartbeat, this));
+}
+
 
 void EkfNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
@@ -73,6 +87,15 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   // Publish the state estimation
   // ...
 }
+
+void EkfNode::publishHeartbeat() {
+    utfr_msgs::msg::Heartbeat heartbeat_msg;
+    heartbeat_msg.status = static_cast<uint8_t>(heartbeat_state_);  
+    heartbeat_msg.header.stamp = this->now();  
+
+    heartbeat_publisher_->publish(heartbeat_msg);
+}
+
 
 void EkfNode::vehicleModel(const float &throttle, const float &brake,
                            const float &steering_angle) {}
