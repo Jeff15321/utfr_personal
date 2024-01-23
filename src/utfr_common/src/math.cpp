@@ -406,32 +406,32 @@ double quaternionToYaw(const geometry_msgs::msg::Quaternion &q) {
   return yaw;
 }
 
-float egoHelper(utfr_msgs::msg::EgoState egs,const char* infoWanted){
-  if (infoWanted == "pos_x"){
+float egoHelper(utfr_msgs::msg::EgoState egs,const std::string& infoWanted){
+  if (infoWanted=="pos_x"){
     if (!egs.pose.pose.position.x){
       return -10000000000000000;
     }
     return egs.pose.pose.position.x;
   }
-  if (infoWanted == "pos_y"){
+  if (infoWanted=="pos_y"){
     if (!egs.pose.pose.position.y){
       return -10000000000000000;
     }
     return egs.pose.pose.position.y;
   }
-  if (infoWanted == "vel_x"){
+  if (infoWanted=="vel_x"){
     if (!egs.vel.twist.linear.x){
       return -10000000000000000;
     }
     return egs.vel.twist.linear.x;
   }
-  if (infoWanted == "vel_y"){
+  if (infoWanted=="vel_y"){
     if (!egs.vel.twist.linear.y){
       return -10000000000000000;
     }
     return egs.vel.twist.linear.y;
   }
-  if (infoWanted == "steering_angle"){
+  if (infoWanted=="steering angle"){
     if (!egs.steering_angle){
       return -10000000000000000;
     }
