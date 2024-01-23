@@ -23,9 +23,9 @@ EkfNode::EkfNode() : Node("ekf_node") {
   HeartBeatState heartbeat_state_ = HeartBeatState::NOT_READY;
   heartbeat_rate_ = 1;
   this->initTimers();
+  
   this->initHeartbeat();
   this->publishHeartbeat();
-
   this->initParams();
   this->initSubscribers();
   this->initPublishers();

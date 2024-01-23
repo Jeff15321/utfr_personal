@@ -35,10 +35,10 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
 
   // set heartbeat state to not ready
   HeartBeatState heartbeat_state_ = HeartBeatState::NOT_READY;
-  
   heartbeat_rate_ = 1;
-  this->initHeartbeat();
   this->initTimers();
+  
+  this->initHeartbeat();
   this->publishHeartbeat(); 
   
   this->initParams();
@@ -47,7 +47,6 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
 
   // set heartbeat state to active
   heartbeat_state_ = HeartBeatState::ACTIVE;
-  this->publishHeartbeat(); 
 }
 
 using SlamBlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1> >;
