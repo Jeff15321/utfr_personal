@@ -32,6 +32,7 @@
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/sensor_can.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
+#include "sensor_msgs/msg/imu.hpp"
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -105,8 +106,7 @@ public:
    *  @param[in] double dt: Change in time to calcuate new position, in seconds
    *  @returns utfr_msgs::msg::EgoState of vehicle's estimated state
    */
-  utfr_msgs::msg::EgoState extrapolateState(const double accel_cmd, 
-    const double steering_cmd, const double dt);
+  utfr_msgs::msg::EgoState extrapolateState(const sensor_msgs::msg::Imu imu_data, const double dt);
 
   /* Given a GPS message, perform a measurement update step
    *  @param[in] double x: x position of car, in meters
@@ -127,7 +127,6 @@ public:
 
   // Global variables
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
-  double kalman_gain_;                     // Kalman gain
   Eigen::MatrixXd P_;
 };
 } // namespace ekf

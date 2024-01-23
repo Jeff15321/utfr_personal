@@ -60,19 +60,14 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     // Get the position from the GPS
     // ...
     //throwing in random value for now
-    double x=1.0;
-    double y=2.0;
+    double x = 1.0;
+    double y = 2.0;
     updateState(x, y);
     
   } else if (is_imu) {
 
-    // Get acceleration and steering from the IMU
-    // ...
-
-    double accel_cmd=1.0;
-    double steering_cmd=2.0;
-    double dt=0.001;
-    extrapolateState(accel_cmd, steering_cmd, dt);
+    float dt = 0.01; // TODO: Get this from the message
+    extrapolateState(msg.imu_data, dt);
   }
 
   // Publish the state estimation
@@ -84,79 +79,95 @@ void EkfNode::vehicleModel(const float &throttle, const float &brake,
 
 utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y) {
 
+  Eigen::MatrixXd H; // Measurement matrix
+  Eigen::MatrixXd R; // Measurement noise covariance matrix
+
+  H = Eigen::MatrixXd::Zero(2, 6);
+  H(0, 0) = 1; // Map x position
+  H(1, 1) = 1; // Map y position
+
+  R = Eigen::MatrixXd::Identity(2, 2);
+  R(0, 0) = 9.0; // Variance for x measurement
+  R(1, 1) = 9.0; // Variance for y measurement
+
   // Compute the Kalman gain
   // K = P * H^T * (H * P * H^T + R)^-1
-  //kalman_gain_ = P_ * H_.transpose() * (H_ * P_ * H_.transpose() + R_).inverse();
+  Eigen::MatrixXd S = H * P_ * H.transpose() + R;
+  Eigen::MatrixXd K = P_ * H.transpose() * S.inverse();
 
   // Update the estimate with the measurement
   // x = x + K * (z - H * x)
+  Eigen::VectorXd state = Eigen::VectorXd(6);
+  state << current_state_.pose.pose.position.x, current_state_.pose.pose.position.y,
+      current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y,
+      utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation), current_state_.vel.twist.angular.z;
+  
+  Eigen::VectorXd measurement = Eigen::VectorXd(2);
+  measurement << x, y;
+
+  state = state + K * (measurement - H * state);
 
   // Update the uncertainty
   // P = (I - K * H) * P(I - K * H)^T + K * R * K^T
+  P_ = (Eigen::MatrixXd::Identity(6, 6) - K * H) * P_ * (Eigen::MatrixXd::Identity(6, 6) - K * H).transpose() + K * R * K.transpose();
+
+  utfr_msgs::msg::EgoState state_msg = current_state_;
+  state_msg.pose.pose.position.x = state(0);
+  state_msg.pose.pose.position.y = state(1);
+  state_msg.vel.twist.linear.x = state(2);
+  state_msg.vel.twist.linear.y = state(3);
+  state_msg.pose.pose.orientation = utfr_dv::util::yawToQuaternion(state(4));
+  state_msg.vel.twist.angular.z = state(5);
+
+  return state_msg;
 }
 
-utfr_msgs::msg::EgoState EkfNode::extrapolateState(const double accel_cmd,
-                               const double steering_cmd, const double dt) {
+utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu_data, const double dt) {
+  
+  Eigen::MatrixXd F; // State transition matrix
+  Eigen::MatrixXd G; // Control input matrix
+
+  F = Eigen::MatrixXd::Identity(6, 6);
+  F(0, 2) = dt;
+  F(1, 3) = dt;
+  F(4, 5) = dt;
+
+  G = Eigen::MatrixXd::Zero(6, 3);
+  G(2, 0) = dt;
+  G(3, 1) = dt;
+  G(5, 2) = dt;
+  
   // Extrapolate state
   // x_new = Fx + Gu
-Eigen::MatrixXd F(5,5);
-Eigen::MatrixXd G(5,2);
-double L=1.58; //wheelbase is 1.58m
-//double x_new= //current_x+[current_vx*dt+0.5*ax*pow(dt,2)]*cosine(steering_cmd)
- //+sine(steering_cmd)[current_vy*dt+0.5*ay*pow(dt,2)]
-//double y_new= //current_y+[current_vy*dt+0.5*ay*pow(dt,2)]*cosine(steering_cmd)
- //+sine(steering_cmd)[current_vx*dt+0.5*ax*pow(dt,2)]
-//double Vx_new= //vx+ax*dt
-//double Vy_new= //vy+ay*dt
-//double ax_new=//ax
-//double ay_new=//ay
-//double steering_cmd_new=//steering_cmd+(vy+ay*dt)/ L *dt;
 
+  Eigen::VectorXd state = Eigen::VectorXd(6);
+  state << current_state_.pose.pose.position.x, current_state_.pose.pose.position.y,
+      current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y,
+      utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation), current_state_.vel.twist.angular.z;
 
-F<< 1,0,cos(steering_cmd)*dt, sin(steering_cmd)*dt,0,
-    0,1,sin(steering_cmd)*dt,cos(steering_cmd)*dt,0,
-    0,0,1,0,0,
-    0,0,0,1,0,
-    0,0,0,dt/L,1;
+  Eigen::VectorXd input = Eigen::VectorXd(3);
+  input << imu_data.linear_acceleration.x, imu_data.linear_acceleration.y,
+      imu_data.angular_velocity.z;
 
-G<< cos(steering_cmd)*0.5*pow(dt,2),sin(steering_cmd)*0.5*pow(dt,2),
-    sin(steering_cmd)*0.5*pow(dt,2), cos(steering_cmd)*0.5*pow(dt,2),
-    dt,0,
-    0,dt,
-    0,pow(dt,2)/L;
-
-Eigen::VectorXd x(5);
-x<<current_state_.pose.pose.position.x, current_state_.pose.pose.position.y,
-current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y, 
-current_state_.steering_angle;
-Eigen::VectorXd u(2);
-u<<current_state_.accel.accel.linear.x, current_state_.accel.accel.linear.y;
-Eigen::VectorXd x_new(5);
-x_new=F*x+G*u;
-
-current_state_.pose.pose.position.x=x_new(0);
-current_state_.pose.pose.position.y=x_new(1);
-current_state_.vel.twist.linear.x=x_new(2);
-current_state_.vel.twist.linear.y=x_new(3);
-current_state_.steering_angle=x_new(4);
+  state = F * state + G * input;
 
   // Extrapolate uncertainty
-  // P = FPF^T + Q  
-  //value randomly assigned
-Eigen::MatrixXd P(5,5);
-Eigen::MatrixXd Q(5,5);
-P << 1,0,0,0,0,
-   0,1,0,0,0,
-   0,0,1,0,0,
-   0,0,0,1,0,
-   0,0,0,0,1;
-Q << 1,0,0,0,0,
-   0,1,0,0,0,
-   0,0,1,0,0,
-   0,0,0,1,0,
-   0,0,0,0,1;
-Eigen::MatrixXd P_new=F*P*F.transpose()+Q;
-return current_state_;
+  // P = FPF^T + Q
+  Eigen::MatrixXd Q_; // Process noise covariance matrix
+  Q_ = 100 * Eigen::MatrixXd::Identity(6, 6); 
+
+  P_ = F * P_ * F.transpose() + Q_;
+
+  // Add the state to the message
+  utfr_msgs::msg::EgoState state_msg = current_state_;
+  state_msg.pose.pose.position.x = state(0);
+  state_msg.pose.pose.position.y = state(1);
+  state_msg.vel.twist.linear.x = state(2);
+  state_msg.vel.twist.linear.y = state(3);
+  state_msg.pose.pose.orientation = utfr_dv::util::yawToQuaternion(state(4));
+  state_msg.vel.twist.angular.z = state(5);
+
+  return state_msg;
 }
 
 } // namespace ekf
