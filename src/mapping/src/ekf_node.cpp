@@ -32,8 +32,6 @@ EkfNode::EkfNode() : Node("ekf_node") {
   
   // set heartbeat state to active
   heartbeat_state_ = HeartBeatState::ACTIVE;
-  
-  this->publishHeartbeat();
 }
 
 void EkfNode::initParams() {}

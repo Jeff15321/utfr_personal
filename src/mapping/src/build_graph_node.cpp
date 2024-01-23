@@ -40,7 +40,6 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
   
   this->initHeartbeat();
   this->publishHeartbeat(); 
-  
   this->initParams();
   this->initSubscribers();
   this->initPublishers();
