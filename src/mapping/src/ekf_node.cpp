@@ -34,7 +34,9 @@ EkfNode::EkfNode() : Node("ekf_node") {
   heartbeat_state_ = HeartBeatState::ACTIVE;
 }
 
-void EkfNode::initParams() {}
+void EkfNode::initParams() {
+  P_ = 1000.0 * Eigen::MatrixXd::Identity(5, 5);
+}
 
 void EkfNode::initSubscribers() {
 
@@ -60,6 +62,32 @@ void EkfNode::initHeartbeat() {
       topics::kEKFHeartbeat, 10);
 }
 
+void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
+  // We gotta figure out a way to determine if we're getting a GPS message or
+  // an IMU one. Just follow our train of thought here:
+
+  bool is_gps = false;
+  bool is_imu = false;
+
+  if (is_gps) {
+
+    // Get the position from the GPS
+    // ...
+    //throwing in random value for now
+    double x = 1.0;
+    double y = 2.0;
+    updateState(x, y);
+    
+  } else if (is_imu) {
+
+    float dt = 0.01; // TODO: Get this from the message
+    extrapolateState(msg.imu_data, dt);
+  }
+
+  // Publish the state estimation
+  // ...
+}
+
 void EkfNode::publishHeartbeat() {
     utfr_msgs::msg::Heartbeat heartbeat_msg;
     heartbeat_msg.status = static_cast<uint8_t>(heartbeat_state_);  
@@ -68,12 +96,102 @@ void EkfNode::publishHeartbeat() {
     heartbeat_publisher_->publish(heartbeat_msg);
 }
 
-void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {}
 
 void EkfNode::vehicleModel(const float &throttle, const float &brake,
                            const float &steering_angle) {}
 
-void EkfNode::EKF() {}
+utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y) {
+
+  Eigen::MatrixXd H; // Measurement matrix
+  Eigen::MatrixXd R; // Measurement noise covariance matrix
+
+  H = Eigen::MatrixXd::Zero(2, 6);
+  H(0, 0) = 1; // Map x position
+  H(1, 1) = 1; // Map y position
+
+  R = Eigen::MatrixXd::Identity(2, 2);
+  R(0, 0) = 9.0; // Variance for x measurement
+  R(1, 1) = 9.0; // Variance for y measurement
+
+  // Compute the Kalman gain
+  // K = P * H^T * (H * P * H^T + R)^-1
+  Eigen::MatrixXd S = H * P_ * H.transpose() + R;
+  Eigen::MatrixXd K = P_ * H.transpose() * S.inverse();
+
+  // Update the estimate with the measurement
+  // x = x + K * (z - H * x)
+  Eigen::VectorXd state = Eigen::VectorXd(6);
+  state << current_state_.pose.pose.position.x, current_state_.pose.pose.position.y,
+      current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y,
+      utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation), current_state_.vel.twist.angular.z;
+  
+  Eigen::VectorXd measurement = Eigen::VectorXd(2);
+  measurement << x, y;
+
+  state = state + K * (measurement - H * state);
+
+  // Update the uncertainty
+  // P = (I - K * H) * P(I - K * H)^T + K * R * K^T
+  P_ = (Eigen::MatrixXd::Identity(6, 6) - K * H) * P_ * (Eigen::MatrixXd::Identity(6, 6) - K * H).transpose() + K * R * K.transpose();
+
+  utfr_msgs::msg::EgoState state_msg = current_state_;
+  state_msg.pose.pose.position.x = state(0);
+  state_msg.pose.pose.position.y = state(1);
+  state_msg.vel.twist.linear.x = state(2);
+  state_msg.vel.twist.linear.y = state(3);
+  state_msg.pose.pose.orientation = utfr_dv::util::yawToQuaternion(state(4));
+  state_msg.vel.twist.angular.z = state(5);
+
+  return state_msg;
+}
+
+utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu_data, const double dt) {
+  
+  Eigen::MatrixXd F; // State transition matrix
+  Eigen::MatrixXd G; // Control input matrix
+
+  F = Eigen::MatrixXd::Identity(6, 6);
+  F(0, 2) = dt;
+  F(1, 3) = dt;
+  F(4, 5) = dt;
+
+  G = Eigen::MatrixXd::Zero(6, 3);
+  G(2, 0) = dt;
+  G(3, 1) = dt;
+  G(5, 2) = dt;
+  
+  // Extrapolate state
+  // x_new = Fx + Gu
+
+  Eigen::VectorXd state = Eigen::VectorXd(6);
+  state << current_state_.pose.pose.position.x, current_state_.pose.pose.position.y,
+      current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y,
+      utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation), current_state_.vel.twist.angular.z;
+
+  Eigen::VectorXd input = Eigen::VectorXd(3);
+  input << imu_data.linear_acceleration.x, imu_data.linear_acceleration.y,
+      imu_data.angular_velocity.z;
+
+  state = F * state + G * input;
+
+  // Extrapolate uncertainty
+  // P = FPF^T + Q
+  Eigen::MatrixXd Q_; // Process noise covariance matrix
+  Q_ = 100 * Eigen::MatrixXd::Identity(6, 6); 
+
+  P_ = F * P_ * F.transpose() + Q_;
+
+  // Add the state to the message
+  utfr_msgs::msg::EgoState state_msg = current_state_;
+  state_msg.pose.pose.position.x = state(0);
+  state_msg.pose.pose.position.y = state(1);
+  state_msg.vel.twist.linear.x = state(2);
+  state_msg.vel.twist.linear.y = state(3);
+  state_msg.pose.pose.orientation = utfr_dv::util::yawToQuaternion(state(4));
+  state_msg.vel.twist.angular.z = state(5);
+
+  return state_msg;
+}
 
 } // namespace ekf
 } // namespace utfr_dv
