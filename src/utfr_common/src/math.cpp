@@ -431,7 +431,7 @@ float egoHelper(utfr_msgs::msg::EgoState egs,const std::string& infoWanted){
     }
     return egs.vel.twist.linear.y;
   }
-  if (infoWanted=="steering angle"){
+  if (infoWanted=="steering_angle"){
     if (!egs.steering_angle){
       return -10000000000000000;
     }
