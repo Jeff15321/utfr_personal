@@ -270,6 +270,10 @@ public:
   /*! Initialize Heartbeat:
    */
   void initHeartbeat();
+  
+  /*! Publish Heartbeat:
+   */
+  void publishHeartbeat();
 
   /*! Cone detection callback function
    */
@@ -348,10 +352,22 @@ public:
    *   @param[out] cone_map utfr_msgs::msg::ConeMap Cone map message
    */
   void graphSLAM();
+  
+  /*! States for hearbeat publisher */
+  enum class HeartBeatState{ 
+    NOT_READY = 1, 
+    READY = 2, 
+    ACTIVE = 3, 
+    ERROR = 4, 
+    FINISH = 5
+  };
+
+  HeartBeatState heartbeat_state_;
 
   // Publisher
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::PoseGraph>::SharedPtr pose_graph_publisher_;
+  rclcpp::TimerBase::SharedPtr heartbeat_timer_;
 
   // Subscribers
   rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
@@ -379,7 +395,7 @@ public:
   int current_pose_id_;
   int first_detection_pose_id_;
   std::unique_ptr<KDTree> globalKDTreePtr;
-  
+  double heartbeat_rate_;
 
   // Lists for poses, cones, and edges
   std::vector<g2o::VertexSE2*> pose_nodes_;

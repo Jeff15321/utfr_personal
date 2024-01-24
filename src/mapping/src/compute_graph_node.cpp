@@ -58,6 +58,7 @@ void ComputeGraphNode::initHeartbeat() {
       topics::kMappingComputeHeartbeat, 10);
 }
 
+
 void ComputeGraphNode::poseGraphCB(const utfr_msgs::msg::PoseGraph msg) {}
 
 void ComputeGraphNode::graphSLAM() {}
