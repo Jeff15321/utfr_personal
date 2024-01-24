@@ -60,6 +60,9 @@ void BuildGraphNode::initParams() {
   cones_found_ = 0;
   current_pose_id_ = 1000;
   first_detection_pose_id_ = 0;
+  count_ = 0;
+  cones_potential_= 0;
+  globalKDTreePtr = nullptr;
 
   // Will have to tune these later depending on the accuracy of our sensors
   Eigen::DiagonalMatrix<double, 3> P2P;
@@ -149,9 +152,26 @@ void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
   pose_to_pose_edges_.push_back(edge);
 }
 
+KDTree generateKDTree(std::vector<std::tuple<double, double>> points_tuple) {
+    // Convert tuples to points
+    std::vector<Point> points;
+    for (const auto& tuple : points_tuple) {
+        points.emplace_back(std::get<0>(tuple), std::get<1>(tuple));
+    }
+
+    // Create a KD tree
+    KDTree globalKDTree(points);
+
+    // Now you can use the KD tree for various operations
+    return globalKDTree;
+}
+
+
 std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones){
     std::vector<int> cones_id_list_;  
     std::vector<utfr_msgs::msg::Cone> all_cones;
+    std::vector<std::tuple<double, double>> current_round_cones_;
+
 
     // Create a temp current state so current state doesn't get modified while we're using it
     utfr_msgs::msg::EgoState temp_current_state_ = current_state_;
@@ -161,68 +181,113 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
     all_cones.insert(all_cones.end(), cones.right_cones.begin(), cones.right_cones.end());
     all_cones.insert(all_cones.end(), cones.large_orange_cones.begin(), cones.large_orange_cones.end());
     all_cones.insert(all_cones.end(), cones.small_orange_cones.begin(), cones.small_orange_cones.end());
-    //iterating through all detected cones
+    
+    // Iterating through all detected cones
+    for (const auto& newCone : all_cones) {
+        // Updating detected position to global frame
+        double ego_x = current_state_.pose.pose.position.x;
+        double ego_y = current_state_.pose.pose.position.y;
+        double position_x_ = newCone.pos.x + ego_x;
+        double position_y_ = newCone.pos.y + ego_y;
 
-    float yaw = utfr_dv::util::quaternionToYaw(temp_current_state_.pose.pose.orientation);
-    for (const auto& pastCone : all_cones){
-      utfr_msgs::msg::Cone newCone = pastCone;
-      //updating detected position to global frame
-      double ego_x = temp_current_state_.pose.pose.position.x;
-      double ego_y = temp_current_state_.pose.pose.position.y;
-      // The cone data is in the ego frame, so we need to transform it to the global frame
-      newCone.pos.x = ego_x + pastCone.pos.x * cos(yaw) - pastCone.pos.y * sin(yaw);
-      newCone.pos.y = ego_y + pastCone.pos.x * sin(yaw) + pastCone.pos.y * cos(yaw);
-      bool adding_to_past = true;      
-      //iterating through old cones
-      for (size_t i=0; i <past_detections_.size(); ++i){
-        const utfr_msgs::msg::Cone&pastDetectionsCone=past_detections_[i].second;    
-        //finding displacement between detected cone and past cone 
-        double displacement = utfr_dv::util::euclidianDistance2D(newCone.pos.x, pastDetectionsCone.pos.x, newCone.pos.y, pastDetectionsCone.pos.y);    
-        //not adding if already detected (within error)
-        if (displacement <= 0.3){
-          adding_to_past=false;
 
-          // Maps the cone detection to the cone id
-          utfr_msgs::msg::Cone detection = newCone;
-          // detection.pos.x -= temp_current_state_.pose.pose.position.x;
-          // detection.pos.y -= temp_current_state_.pose.pose.position.y;
-          // id_to_cone_map_[past_detections_[i].first] = detection;
-          cones_id_list_.push_back(past_detections_[i].first);
-
-          // Create edges between pose and cone
-          g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], cone_id_to_vertex_map_[past_detections_[i].first], pastCone.pos.x, pastCone.pos.y);
-          pose_to_cone_edges_.push_back(edge);
-          break;
+        // Check if the KD tree is not created, and create it
+        if (globalKDTreePtr == nullptr) {
+        // Update vars
+          past_detections_.emplace_back(cones_found_,newCone);
+          cones_id_list_.push_back(cones_found_);
+          cones_found_ += 1;
+          globalKDTreePtr = std::make_unique<KDTree>(generateKDTree({std::make_tuple(position_x_, position_y_)}));
+          continue;
         }
+        int number_cones = globalKDTreePtr->getNumberOfCones();
+
+        if (number_cones == 1){
+          past_detections_.emplace_back(cones_found_,newCone);
+          cones_id_list_.push_back(cones_found_);
+          cones_found_ += 1;
+          Point newPoint(position_x_,position_y_);
+          globalKDTreePtr->insert(newPoint);
+          continue;
+        }
+
+        // Use KNN search to find the nearest cone
+
+        std::cout << "POS X" << position_x_ << " " << "POS Y" << position_y_ << std::endl;
+
+        Point knnResult = globalKDTreePtr->KNN(Point(position_x_, position_y_));
+
+        const Point& nearestCone = knnResult;
+
+        std::cout << "RESULT X" << nearestCone.x << " " << "RESULT Y" << nearestCone.y << std::endl;
+
+        // Check the result of the nearest neighbour search and calculate displacement
+        if (knnResult != Point(0.0, 0.0)){
+        // Use the nearest point
+
+            double displacement = utfr_dv::util::euclidianDistance2D(position_x_, nearestCone.x, position_y_, nearestCone.y);
+
+            // Do not add if its within 0.3 of an already seen cone
+            if (displacement <= 0.3) {
+                continue;
+            }
+
+            // Do not add if its within 0.3 of another cone deteced within the current call of the function (rejecting duplicate detections)
+            double comparative_displacement = 0.0;
+            bool is_duplicate_ = false;
+            for (const auto& duplicates_potential : current_round_cones_){
+              comparative_displacement = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(duplicates_potential), position_y_, std::get<1>(duplicates_potential));
+              if (comparative_displacement <= 0.3){
+                is_duplicate_ = true;
+                break;
+              }
+            }
+            if (is_duplicate_){
+              continue;
+            }
+        }
+        // Add to duplicate checker
+        current_round_cones_.emplace_back(std::make_tuple(position_x_, position_y_));
+
+        // Add to potential_cones (used for checking if cone can be added to past_detections)
+        potential_cones_.insert(std::make_pair(cones_potential_, std::make_tuple(position_x_, position_y_)));
+
+        std::vector<int> keys{};
+
+        // Check if same cone detected in three different time instances
+        for (const auto& pair : potential_cones_) {
+            int key_ = pair.first;
+            const std::tuple<double,double> potentialPoint = pair.second;
+            double temp_displacement_ = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(potentialPoint), position_y_, std::get<1>(potentialPoint));
+
+            // Check if cone within 0.3 of any other new detected cone
+            if (temp_displacement_ <= 0.3) {
+                    count_ += 1;
+                    keys.push_back(key_);
+                    // Check if three of same detected
+                    if (count_ == 3) {
+                        // FIX: Delete all of the same cone from potential_cones_ if three detected
+                        for (int key_number_ : keys) {
+                            potential_cones_.erase(key_number_);
+                        }
+                        keys.clear();
+                        // Update cone_id_list_ and past_detections_ and KD tree
+                        cones_id_list_.push_back(cones_found_);
+                        Point newPoint(position_x_,position_y_);
+                        past_detections_.emplace_back(cones_found_,newCone);
+                        globalKDTreePtr->insert(newPoint);
+                        std::cout << "ADDED" << std::endl;
+                        cones_found_ += 1;
+                        break;
+                        }
+                    }
+            }
+
+        count_ = 0;
+        cones_potential_ += 1;
       }
-      if (adding_to_past){
-        // adding to id_list_ and past_detections_ if past error for all previously detected cones
-        cones_id_list_.push_back(cones_found_);
-        past_detections_.emplace_back(cones_found_,newCone);
-
-        // Maps the cone detection to the cone id
-        utfr_msgs::msg::Cone detection = newCone;
-        // detection.pos.x -= temp_current_state_.pose.pose.position.x;
-        // detection.pos.y -= temp_current_state_.pose.pose.position.y;
-        id_to_cone_map_[temp_current_pose_id_] = newCone;
-
-        cones_found_+=1;
-        
-        // creates vertex for new cone detections and add to vertices array
-        g2o::VertexPointXY* vertex = createConeVertex(cones_found_, detection.pos.x, detection.pos.y);
-        cone_nodes_.push_back(vertex);
-
-        // maps cone id to vertex
-        cone_id_to_vertex_map_[cones_found_] = vertex;
-
-        // Create edges between pose and cone
-        g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, pastCone.pos.x, pastCone.pos.y);
-        pose_to_cone_edges_.push_back(edge);
-      }
-    }
-    return cones_id_list_;  
-}
-
+    return cones_id_list_;
+  }
 
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
   // Loop hasn't been completed yet
