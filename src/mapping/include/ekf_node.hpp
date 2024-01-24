@@ -32,6 +32,7 @@
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/sensor_can.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
+#include "sensor_msgs/msg/imu.hpp"
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -84,6 +85,7 @@ public:
 };
 
   HeartBeatState heartbeat_state_;
+  double heartbeat_rate_;
 
 
   /*! CAN sensor callback function
@@ -115,18 +117,21 @@ public:
   utfr_msgs::msg::EgoState forwardPropagate(const utfr_msgs::msg::EgoState& ego, 
     const double velocity_cmd, const double steering_cmd, const double dt);
 
-  /*! Main EKF function.
-   *  The main EKF loop. Takes in measurement data for the EKF and performes a
-   *  single update step.
-   *  @param[in] imu_data sensor_msgs::msg::Imu&, IMU data.
-   *  @param[in] gps_data ?, GPS data. TODO: Figure out GPS return type
-   *  @param[in] vehicle_model_data utfr_msgs::msg::EgoState&, vehicle model
-   * data.
+  /* Given an acceleration input, perform the state extrapolation
+   *  @param[in] double accel_cmd: Acceleration input to car, in m/s^2
+   *  @param[in] double steering_cmd: Steering angle of car, in radians
+   *  @param[in] double dt: Change in time to calcuate new position, in seconds
+   *  @returns utfr_msgs::msg::EgoState of vehicle's estimated state
    */
-  void EKF();
-  
-  double heartbeat_rate_;
+  utfr_msgs::msg::EgoState extrapolateState(const sensor_msgs::msg::Imu imu_data, const double dt);
 
+  /* Given a GPS message, perform a measurement update step
+   *  @param[in] double x: x position of car, in meters
+   *  @param[in] double y: y position of car, in meters
+   *  @returns utfr_msgs::msg::EgoState of vehicle's estimated state
+   */
+  utfr_msgs::msg::EgoState updateState(const double x, const double y);
+  
   // Publishers
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr
       state_estimation_publisher_;
@@ -140,7 +145,7 @@ public:
 
   // Global variables
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
-  double kalman_gain_;                     // Kalman gain
+  Eigen::MatrixXd P_;
 };
 } // namespace ekf
 } // namespace utfr_dv
