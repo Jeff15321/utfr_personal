@@ -500,10 +500,10 @@ TEST(Math, egoHelper)
   newEgo.pose.pose.position.x = 23;
   newEgo.pose.pose.position.y = -331;
   newEgo.vel.twist.linear.x = 0.2;
-  newEgo.vel.twist.linear.y = -0.1012;
+  newEgo.vel.twist.linear.y = -0.12;
   ASSERT_EQ(23, egoHelper(newEgo ,"pos_x"));
   ASSERT_EQ(-331, egoHelper(newEgo ,"pos_y"));
-  ASSERT_EQ(-0.1012, egoHelper(newEgo ,"vel_y"));
+  ASSERT_EQ(-0.12, egoHelper(newEgo ,"vel_y"));
   ASSERT_EQ(0.2, egoHelper(newEgo ,"vel_x"));
   newEgo.pose.pose.position.x = 23;
   newEgo.pose.pose.position.y = -331;
