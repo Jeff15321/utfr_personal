@@ -24,6 +24,7 @@
 #include <stdexcept> // std::runtime_error
 #include <string>
 #include <vector>
+#include <random>
 
 // Message Requirements
 #include <nav_msgs/msg/occupancy_grid.hpp>

@@ -110,6 +110,17 @@ void EkfNode::publishHeartbeat() {
 void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
   double x = msg.pose.pose.position.x;
   double y = msg.pose.pose.position.y;
+  // Add random noise to the measurement with a covarience of 0.001
+  double standardDeviation = std::sqrt(0.001);
+
+  // Initialize a random number generator
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::normal_distribution<double> distribution(0.0, standardDeviation);
+  // Add noise to the ground truth value
+  x += distribution(gen);
+  y += distribution(gen);
+
   utfr_msgs::msg::EgoState res = updateState(x, y);
   std::cout << "x: " << res.pose.pose.position.x << " y: " << res.pose.pose.position.y << std::endl;
   state_estimation_publisher_->publish(res);
@@ -154,9 +165,9 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y) {
       utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation), current_state_.vel.twist.angular.z;
   
   // Output the Kalman gain
-  std::cout << "Kalman gain: " << std::endl;
-  std::cout << K << std::endl;  
-  std::cout << state << std::endl;
+  // std::cout << "Kalman gain: " << std::endl;
+  // std::cout << K << std::endl;  
+  // std::cout << state << std::endl;
 
   Eigen::VectorXd measurement = Eigen::VectorXd(2);
   measurement << x, y;
