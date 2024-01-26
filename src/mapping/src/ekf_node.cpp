@@ -199,9 +199,17 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
   F(1, 3) = dt;
   F(4, 5) = dt;
 
+  double yaw = utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation);
   G = Eigen::MatrixXd::Zero(6, 3);
-  G(2, 0) = dt;
-  G(3, 1) = dt;
+  G(0, 0) = 0.5 * dt * dt * cos(yaw);
+  G(1, 0) = 0.5 * dt * dt * sin(yaw);
+  G(0, 1) = -0.5 * dt * dt * sin(yaw);
+  G(1, 1) = 0.5 * dt * dt * cos(yaw);
+  G(2, 0) = dt * cos(yaw);
+  G(3, 0) = dt * sin(yaw);
+  G(2, 1) = -dt * sin(yaw);
+  G(3, 1) = dt * cos(yaw);
+  G(4, 2) = 0.5 * dt * dt;
   G(5, 2) = dt;
   
   // Extrapolate state
