@@ -33,6 +33,7 @@
 #include <utfr_msgs/msg/sensor_can.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
 #include "sensor_msgs/msg/imu.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -92,6 +93,14 @@ public:
    */
   void sensorCB(const utfr_msgs::msg::SensorCan msg);
 
+  /*! GPS sensor callback function
+   */
+  void gpsCB(const nav_msgs::msg::Odometry msg);
+
+  /*! IMU sensor callback function
+   */
+  void imuCB(const sensor_msgs::msg::Imu msg);
+
   /*! Implement a dynamic vehicle model
    *  Use the throttle, brake, and steering angle to update the vehicle model
    * state
@@ -105,7 +114,7 @@ public:
                     const float &steering_angle);
 
   /*! Given the vehicle's current state, and a collection of inputs like
-    * throttle and steering angle, calculate the state of the vehicle after a
+    * throttle and steering angle, calculate the state of the vehicle after asensorcan_subscriber_
     * given time.
     * 2023 old bicycle model
     *  @param[in] EgoState ego: Current ego state of car, utfr_msgs::msg::EgoState msg
@@ -143,9 +152,17 @@ public:
   rclcpp::Subscription<utfr_msgs::msg::SensorCan>::SharedPtr
       sensorcan_subscriber_;
 
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr
+      gps_subscriber_;
+
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr
+      imu_subscriber_;
+
   // Global variables
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
   Eigen::MatrixXd P_;
+
+  rclcpp::Time prev_time_;
 };
 } // namespace ekf
 } // namespace utfr_dv

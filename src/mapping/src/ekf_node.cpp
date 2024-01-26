@@ -35,7 +35,10 @@ EkfNode::EkfNode() : Node("ekf_node") {
 }
 
 void EkfNode::initParams() {
-  P_ = 1000.0 * Eigen::MatrixXd::Identity(5, 5);
+  P_ = 1 * Eigen::MatrixXd::Identity(6, 6);
+  prev_time_ = this->now();
+  current_state_.pose.pose.position.x = 0.0;
+  current_state_.pose.pose.position.y = 0.0;
 }
 
 void EkfNode::initSubscribers() {
@@ -43,6 +46,14 @@ void EkfNode::initSubscribers() {
   sensorcan_subscriber_ = this->create_subscription<utfr_msgs::msg::SensorCan>(
       topics::kSensorCan, 1,
       std::bind(&EkfNode::sensorCB, this, std::placeholders::_1));
+
+  gps_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
+      "/ground_truth/odom", 1,
+      std::bind(&EkfNode::gpsCB, this, std::placeholders::_1));
+
+  imu_subscriber_ = this->create_subscription<sensor_msgs::msg::Imu>(
+      "/imu/data", 1,
+      std::bind(&EkfNode::imuCB, this, std::placeholders::_1));
 }
 
 void EkfNode::initPublishers() {
@@ -96,6 +107,23 @@ void EkfNode::publishHeartbeat() {
     heartbeat_publisher_->publish(heartbeat_msg);
 }
 
+void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
+  double x = msg.pose.pose.position.x;
+  double y = msg.pose.pose.position.y;
+  utfr_msgs::msg::EgoState res = updateState(x, y);
+  std::cout << "x: " << res.pose.pose.position.x << " y: " << res.pose.pose.position.y << std::endl;
+  state_estimation_publisher_->publish(res);
+  current_state_ = res;
+}
+
+void EkfNode::imuCB(const sensor_msgs::msg::Imu msg) {
+  double dt = (this->now() - prev_time_).seconds();
+  prev_time_ = this->now();
+  utfr_msgs::msg::EgoState res = extrapolateState(msg, dt);
+  state_estimation_publisher_->publish(res);
+  std::cout << "x: " << res.pose.pose.position.x << " y: " << res.pose.pose.position.y << std::endl;
+  current_state_ = res;
+}
 
 void EkfNode::vehicleModel(const float &throttle, const float &brake,
                            const float &steering_angle) {}
@@ -110,8 +138,8 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y) {
   H(1, 1) = 1; // Map y position
 
   R = Eigen::MatrixXd::Identity(2, 2);
-  R(0, 0) = 9.0; // Variance for x measurement
-  R(1, 1) = 9.0; // Variance for y measurement
+  R(0, 0) = 0.001; // Variance for x measurement
+  R(1, 1) = 0.001; // Variance for y measurement
 
   // Compute the Kalman gain
   // K = P * H^T * (H * P * H^T + R)^-1
@@ -125,6 +153,11 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y) {
       current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y,
       utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation), current_state_.vel.twist.angular.z;
   
+  // Output the Kalman gain
+  std::cout << "Kalman gain: " << std::endl;
+  std::cout << K << std::endl;  
+  std::cout << state << std::endl;
+
   Eigen::VectorXd measurement = Eigen::VectorXd(2);
   measurement << x, y;
 
@@ -137,10 +170,10 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y) {
   utfr_msgs::msg::EgoState state_msg = current_state_;
   state_msg.pose.pose.position.x = state(0);
   state_msg.pose.pose.position.y = state(1);
-  state_msg.vel.twist.linear.x = state(2);
-  state_msg.vel.twist.linear.y = state(3);
-  state_msg.pose.pose.orientation = utfr_dv::util::yawToQuaternion(state(4));
-  state_msg.vel.twist.angular.z = state(5);
+  // state_msg.vel.twist.linear.x = state(2);
+  // state_msg.vel.twist.linear.y = state(3);
+  // state_msg.pose.pose.orientation = utfr_dv::util::yawToQuaternion(state(4));
+  // state_msg.vel.twist.angular.z = state(5);
 
   return state_msg;
 }
@@ -177,7 +210,13 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
   // Extrapolate uncertainty
   // P = FPF^T + Q
   Eigen::MatrixXd Q_; // Process noise covariance matrix
-  Q_ = 100 * Eigen::MatrixXd::Identity(6, 6); 
+  Q_ = Eigen::MatrixXd::Identity(6, 6); 
+  Q_(0, 0) = 0.0064; // Variance for x position
+  Q_(1, 1) = 0.0064; // Variance for y position
+  Q_(2, 2) = 0.0064; // Variance for x velocity
+  Q_(3, 3) = 0.0064; // Variance for y velocity
+  Q_(4, 4) = 0.0064; // Variance for yaw
+  Q_(5, 5) = 0.0064; // Variance for yaw rate
 
   P_ = F * P_ * F.transpose() + Q_;
 
