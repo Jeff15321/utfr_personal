@@ -43,6 +43,11 @@ void ControllerNode::initParams() {
   this->declare_parameter("base_lookahead_distance", 1.0);
   this->declare_parameter("lookahead_scaling_factor", 0.15);
 
+  this->declare_parameter("stanley_gain", 1.0);
+  this->declare_parameter("softening_constant", 5.0);
+  this->declare_parameter("k_yaw_rate", 0.0);
+  this->declare_parameter("k_damp_steer", 0.0);
+
   update_rate_ = this->get_parameter("update_rate").as_double();
   event_ = this->get_parameter("event").as_string();
   controller_ = this->get_parameter("controller").as_string();
@@ -61,6 +66,11 @@ void ControllerNode::initParams() {
       this->get_parameter("base_lookahead_distance").as_double();
   lookahead_distance_scaling_factor_ =
       this->get_parameter("lookahead_scaling_factor").as_double();
+
+  stanley_gain_ = this->get_parameter("stanley_gain").as_double();
+  softening_constant_ = this->get_parameter("softening_constant").as_double();
+  k_yaw_rate_ = this->get_parameter("k_yaw_rate").as_double();
+  k_damp_steer_ = this->get_parameter("k_damp_steer").as_double();
 
   start_time_ = this->get_clock()->now();
 }
@@ -242,6 +252,10 @@ void ControllerNode::timerCBSkidpad() {
       max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
       baselink_location_, *ego_state_, base_lookahead_distance_,
       lookahead_distance_scaling_factor_);
+
+  // utfr_msgs::msg::TargetState target = stanleyController(
+  //   stanley_gain_, INT_MAX, max_steering_angle_, max_steering_rate_,
+  //   *path_, cur_s_, ds_, *velocity_profile_, baselink_location_, *ego_state_);
 
   target_ = target;
 
@@ -484,6 +498,212 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   target.steering_angle = -delta;
 
   return target; // Return the target state.
+}
+
+utfr_msgs::msg::TargetState ControllerNode::stanleyController(
+    double k, double max_speed, double max_steering_angle,
+    double max_steering_rate, utfr_msgs::msg::ParametricSpline spline_params,
+    double cur_s, double ds, utfr_msgs::msg::VelocityProfile velocity_profile,
+    double baselink_location, utfr_msgs::msg::EgoState ego_state) {
+  const std::string function_name{"stanleyController:"};
+
+  static std::ofstream out("stanley.txt", std::ios::trunc);
+  static int idx = 0;
+  idx++;
+  out << "Log " << idx << ":" << std::endl;
+
+  // double vehicle_theta = util::quaternionToYaw(ego_state.pose.pose.orientation);
+
+  double prev_steering = ego_state.steering_angle;
+
+  // double vehicle_x =
+  //     ego_state.pose.pose.position.x + baselink_location * cos(vehicle_theta);
+  // double vehicle_y = 
+  //     ego_state.pose.pose.position.y + baselink_location * sin(vehicle_theta);
+
+  double vehicle_x = 0.79, vehicle_y = 0;
+
+  // double x = ego_state.pose.pose.position.x, y = ego_state.pose.pose.position.y;
+  // RCLCPP_FATAL(this->get_logger(), "Center: %f, %f", x, y);
+  // RCLCPP_FATAL(this->get_logger(), "Front: %f, %f", vehicle_x, vehicle_y);
+  // RCLCPP_FATAL(this->get_logger(), "Angle: %f", vehicle_theta);
+
+  std::vector<geometry_msgs::msg::Pose> discretized_points =
+      discretizeParametric(spline_params, cur_s, ds, num_points_);
+
+  geometry_msgs::msg::PolygonStamped path_stamped;
+
+  path_stamped.header.frame_id = "base_footprint";
+
+  path_stamped.header.stamp = this->get_clock()->now();
+
+  for (int i = 0; i < static_cast<int>(discretized_points.size()); i++) {
+    geometry_msgs::msg::Point32 point;
+    point.x = discretized_points[i].position.x;
+    point.y = -discretized_points[i].position.y;
+    point.z = 0.0;
+    path_stamped.polygon.points.push_back(point);
+  }
+
+  path_publisher_->publish(path_stamped);
+
+  geometry_msgs::msg::Pose closest_wp =
+      closestPoint(ego_state, discretized_points);
+
+  out << "WP Distance: " << sqrt(pow(closest_wp.position.x-vehicle_x, 2) + pow(closest_wp.position.y, 2)) << std::endl;
+
+  double vx = ego_state.vel.twist.linear.x, vy = ego_state.vel.twist.linear.y;
+  double vehicle_velocity = sqrt(vx * vx + vy * vy);
+  RCLCPP_FATAL(this->get_logger(), "Velocity: %f", vehicle_velocity);
+  out << "Velocity: " << vehicle_velocity << std::endl;
+
+  // Compute the errors
+  double dx = closest_wp.position.x - vehicle_x;
+  double dy = closest_wp.position.y - vehicle_y;
+  // Crosstrack error i.e. the distance from the vehicle to the racing line
+  double cte;
+  if(atan2(dy, dx) < 0){
+    cte = -sqrt(dx * dx + dy * dy);
+  }
+  else{
+    cte = sqrt(dx * dx + dy * dy);
+  }
+  // Heading error i.e. the difference between the vehicle's heading and the
+  // racing line's heading
+
+  // if (vehicle_theta > M_PI) {
+  //   vehicle_theta = vehicle_theta - 2 * M_PI;
+  // } else if (vehicle_theta < -M_PI) {
+  //   vehicle_theta = vehicle_theta + 2 * M_PI;
+  // }
+  double psi = util::quaternionToYaw(closest_wp.orientation);
+
+  RCLCPP_FATAL(this->get_logger(), "WP Angle: %f", psi);
+  out << "WP Angle: " << psi << std::endl;
+
+  // if (psi > M_PI) {
+  //   psi = psi - 2 * M_PI;
+  // } else if (psi < -M_PI) {
+  //   psi = psi + 2 * M_PI;
+  // }
+
+  // // Compute vector from vehicle to target point
+  // double vecToTarget[2] = {dx, dy};
+
+  // // Compute path direction vector at target point
+  // double theta = util::quaternionToYaw(closest_wp.orientation);
+  // double pathDir[2] = {cos(theta), sin(theta)};
+
+  // // Compute the magnitudes of the vectors
+  // double magnitudeVecToTarget =
+  //     sqrt(vecToTarget[0] * vecToTarget[0] + vecToTarget[1] * vecToTarget[1]);
+  // double magnitudePathDir =
+  //     sqrt(pathDir[0] * pathDir[0] + pathDir[1] * pathDir[1]);
+
+  // // Compute the dot product
+  // double dotProduct = vecToTarget[0] * pathDir[0] + vecToTarget[1] * pathDir[1];
+
+  // // Compute the angle in radians
+  // double angleRad =
+  //     acos(dotProduct / (magnitudeVecToTarget * magnitudePathDir));
+
+  // // Convert the angle to degrees
+  // double angleDeg = angleRad * 180.0 / M_PI;
+  // if (cte < cte_error_ || abs(angleDeg) < cte_angle_error_)
+  //   cte = 0.0;
+
+  // // Compute cross product
+  // double crossProduct =
+  //     vecToTarget[0] * pathDir[1] - vecToTarget[1] * pathDir[0];
+
+  // // Check the side
+  // if (crossProduct > 0) {
+  //   cte = -cte;
+  // }
+
+
+  if (vehicle_velocity < 1.0) {
+    vehicle_velocity = 1.0; // to prevent division by zero
+  }
+
+  // Control law for the Stanley steering controller
+  double stanley_term = atan2((k * cte), vehicle_velocity);
+
+  double desired_velocity = velocity_profile.velocities[50];
+
+  {
+    double low = 1e9, high = -1e9;
+    for(double v : velocity_profile.velocities){
+      low = std::min(low, v);
+      high = std::max(high, v);
+    }
+    RCLCPP_FATAL(this->get_logger(), "High=%f, Low=%f", high, low);
+    out << "High=" << high << ", Low=" << low << std::endl;
+  }
+
+  // double yaw_rate_damping =
+  //     k_yaw_rate_ * (-desired_velocity * sin(prev_steering)) / wheel_base_;
+
+  // double desired_steering_angle = psi + yaw_rate_damping + stanley_term;
+
+  // double steering_delay =
+  //     k_damp_steer_ * (desired_steering_angle - prev_steering);
+
+  // double unclipped_delta = desired_steering_angle + steering_delay;
+
+  double unclipped_delta = psi + stanley_term;
+
+  // Clip the steering angle to the maximum allowed
+  double delta =
+      std::clamp(unclipped_delta, -max_steering_angle, max_steering_angle);
+
+  RCLCPP_FATAL(this->get_logger(), "Steering Angle: %f", delta);
+  out << "Old Steering Angle: " << prev_steering << std::endl;
+  out << "New Steering Angle: " << delta << std::endl;
+  out << "Steering difference: " << delta-prev_steering << std::endl;
+
+  // If we're at the maximum steering angle, slow down
+  // if (abs(delta) == max_steering_angle ||
+  //     (cte > cte_error_ && abs(angleDeg) > cte_angle_error_ &&
+  //      abs(psi) > 0.2 * max_steering_angle)) {
+  //   desired_velocity = 1.0; // or some other speed lower than max_speed
+  // } else {
+  //   // Use the velocity profile to determine the desired velocity
+  //   desired_velocity = velocity_profile.velocities[0];
+  // }
+
+  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+              "Target steering: %f \n Target velocity: %f", delta,
+              desired_velocity);
+
+  utfr_msgs::msg::TargetState target;
+  target.speed = desired_velocity;
+  target.speed = 2;
+  target.steering_angle = -delta;
+
+  return target;
+}
+
+geometry_msgs::msg::Pose
+ControllerNode::closestPoint(utfr_msgs::msg::EgoState ego_state,
+                             std::vector<geometry_msgs::msg::Pose> waypoints) {
+  double closest_distance = 100000.0;
+  geometry_msgs::msg::Pose closest_wp;
+
+  double vehicle_x = 0.79, vehicle_y = 0;
+
+  for (int i = 0; i < waypoints.size(); i++) {
+    geometry_msgs::msg::Pose wp = waypoints[i];
+    double dx = wp.position.x - vehicle_x;
+    double dy = wp.position.y - vehicle_y;
+    double distance = sqrt(dx * dx + dy * dy);
+    if (distance < closest_distance) {
+      closest_distance = distance;
+      closest_wp = wp;
+    }
+  }
+
+  return closest_wp;
 }
 
 } // namespace controller

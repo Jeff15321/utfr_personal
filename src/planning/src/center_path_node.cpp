@@ -1749,7 +1749,7 @@ void CenterPathNode::nextWaypoint(){
   points_stamped.header.stamp = this->get_clock()->now();
   
   std::vector<Point> nextPoints;
-  for(unsigned int k = i; k < i+25 && k < waypoints.size(); k += 5){
+  for(unsigned int k = i; k < i+6 && k < waypoints.size(); k++){
     auto [x,y] = this->transformWaypoint(waypoints[k]);
     double localY = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
     double localX = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));

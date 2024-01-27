@@ -138,6 +138,20 @@ private:
       double baselink_location, utfr_msgs::msg::EgoState ego_state,
       double base_lookahead_distance, double lookahead_distance_scaling_factor);
 
+  /*! Stanley Controller
+   */
+  utfr_msgs::msg::TargetState stanleyController(
+      double k, double max_speed, double max_steering_angle,
+      double max_steering_rate, utfr_msgs::msg::ParametricSpline spline_params,
+      double cur_s, double ds, utfr_msgs::msg::VelocityProfile velocity_profile,
+      double baselink_location, utfr_msgs::msg::EgoState ego_state);
+
+  /*! Return Closest Point
+   */
+  geometry_msgs::msg::Pose
+  closestPoint(utfr_msgs::msg::EgoState ego_state,
+               std::vector<geometry_msgs::msg::Pose> waypoints);
+
   /*! Initialize global variables:
    */
   double update_rate_;
@@ -161,6 +175,11 @@ private:
   rclcpp::Time start_time_;
   bool start_finish_time = true;
   int last_lap_count_;
+  
+  double stanley_gain_;
+  double softening_constant_;
+  double k_yaw_rate_;
+  double k_damp_steer_;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
