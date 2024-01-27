@@ -37,10 +37,10 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
 
     {(uint8_t)dv_can_msg::DV_COMMAND, 0x506}, // DV PC state + control cmd
 
-    {(uint8_t)dv_can_msg::SetMotorPos, 0x0000040F}, // Set Pos on Steering motor
-    {(uint8_t)dv_can_msg::SetMotorOrigin,
+    {(uint8_t)dv_can_msg::SetSTRMotorPos, 0x0000040F}, // Set Pos on Steering motor
+    {(uint8_t)dv_can_msg::SetSTRMotorOrigin,
      0x0000050F}, // Set Origin on Steering motor
-    {(uint8_t)dv_can_msg::SetMotorPosSpeedAcc,
+    {(uint8_t)dv_can_msg::SetSTRMotorPosSpeedAcc,
      0x0000060F}, // Set Pos, speed, and accel on Steering motor
     {(uint8_t)dv_can_msg::StrMotorStatus, 0x0000290F}}; // Get Status of motor
 
@@ -145,9 +145,9 @@ void CanInterface::write_can(dv_can_msg msgName, long long data) {
   uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   INT64_TO_ARRAY(data, signalArray); // Convert to array of bytes
 
-  if (msgName == dv_can_msg::SetMotorPos ||
-      msgName == dv_can_msg::SetMotorOrigin ||
-      msgName == dv_can_msg::SetMotorPosSpeedAcc) {
+  if (msgName == dv_can_msg::SetSTRMotorPos ||
+      msgName == dv_can_msg::SetSTRMotorOrigin ||
+      msgName == dv_can_msg::SetSTRMotorPosSpeedAcc) {
     to_write.can_id = dv_can_msg_map[(int)msgName] | (CAN_EFF_FLAG);
     INT64_TO_ARRAY_REVERSE(data, signalArray); // Convert to array of bytes
   }

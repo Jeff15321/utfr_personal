@@ -40,7 +40,7 @@
 
 #define MAX_BRK_PRS 1600 // PSI
 #define MAX_THROTTLE 200 // Nm, from kProcessedTHrottleMax variable in FC code
-
+#define MAX_STR 19 // angle to be sent to motor is this *4.5
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
 
@@ -207,7 +207,6 @@ private:
 
   // CAN objects
   CanInterfaceUPtr can1_{nullptr};
-  CanInterfaceUPtr can0_{nullptr};
 
   rclcpp::TimerBase::SharedPtr can_timer_;
 

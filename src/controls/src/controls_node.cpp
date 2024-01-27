@@ -25,11 +25,6 @@ ControlsNode::ControlsNode() : Node("controls_node") {
 }
 
 void ControlsNode::initParams() {
-  // steering_controller_params
-  std::vector<double> default_pid;
-  this->declare_parameter("steering_controller_params", default_pid);
-  str_ctrl_params_ =
-      this->get_parameter("steering_controller_params").as_double_array();
 
   // throttle_controller_params
   this->declare_parameter("throttle_controller_params", default_pid);
@@ -225,14 +220,10 @@ void ControlsNode::timerCB() {
     double dt = (this->now() - ros_time_).seconds();
     ros_time_ = this->now();
 
-    if (utfr_dv::util::radToDeg(target_state_->steering_angle) > 80) {
-      control_cmd_.str_cmd = 80
-    } else if (utfr_dv::util::radToDeg(target_state_->steering_angle) < -80) {
-      control_cmd_.str_cmd = -80
-    } else {
-      control_cmd_.str_cmd =
+    control_cmd_.str_cmd =
           utfr_dv::util::radToDeg(target_state_->steering_angle);
-    }
+    std::clamp(steering_cmd_, MAX_STR, -MAX_STR);
+
 
     // //*****   Throttle & Brake  *****
     current_velocity = ego_state_->vel.twist.linear.x; // TODO: review

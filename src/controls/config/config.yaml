@@ -6,14 +6,6 @@ controls: # Name of Module
     testing: 0
 
     #pid_parameters:
-    steering_controller_params: [
-        1000.0, #p_gain
-        0.0, #i_gain
-        0.0, #d_gain
-
-        -4095.0, # output_lim_lower, absolute value limit of output
-        4095.0, # output_lim_upper, absolute value limit of output
-      ]
 
     throttle_controller_params: [
         16.0, #p_gain

@@ -95,17 +95,13 @@ void CarInterface::initTimers() {
 
 void CarInterface::initCAN() {
   can1_ = std::make_unique<CanInterface>();
-  can0_ = std::make_unique<CanInterface>();
 
-  if (can1_->connect("can1") && can0_->connect("can0")) {
+  if (can1_->connect("can1")) {
     RCLCPP_INFO(this->get_logger(), "Finished Initializing CAN");
   } else
     RCLCPP_ERROR(this->get_logger(), "Failed To Initialize CAN");
 
-  while (can1_->read_can())
-    ;
-  while (can0_->read_can())
-    ;
+  while (can1_->read_can());
 
   return;
 }
@@ -117,23 +113,24 @@ void CarInterface::initMonitor() {
 
 void CarInterface::heartbeatCB(const utfr_msgs::msg::Heartbeat &msg) {
   heartbeat_monitor_->updateHeartbeat(msg, this->get_clock()->now());
+
+  if (msg.status == utfr_msgs::msg::Heartbeat::FINISH) {
+    finished_ = true;
+  } 
 }
 
 void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   const std::string function_name{"controlCmdCB"};
 
-  // Clamp steering angle to +/-360
   steering_cmd_ = msg.str_cmd;
-  if (steering_cmd_ > 360)
-    steering_cmd_ = 360;
-  else if (steering_cmd_ < -360)
-    steering_cmd_ = -360;
+  // Clamp steering angle to +/- MAX_STR
+  std::clamp(steering_cmd_, MAX_STR, -MAX_STR);
 
   // Finalize commands
 
   if (cmd_ || testing_) {
     braking_cmd_ = (int16_t)msg.brk_cmd;
-    steering_cmd_ = (((int32_t)(msg.str_cmd * 10000)) & 0xFFFFFFFF);
+    steering_cmd_ = (((int32_t)(msg.str_cmd * 45000)) & 0xFFFFFFFF); // *4.5 for motor to wheels angle
     throttle_cmd_ = (int16_t)msg.thr_cmd;
   } else {
     braking_cmd_ = 0;
@@ -154,7 +151,6 @@ void CarInterface::EgoStateCB(const utfr_msgs::msg::EgoState &msg) {
   system_status_.yaw_rate = -msg.vel.twist.angular.z;
   system_status_.lap_counter = msg.lap_count; // TODO: Should this be in
                                               // ego state or in a planning msg
-  finished_ = msg.finished;
 }
 
 void CarInterface::TargetStateCB(const utfr_msgs::msg::TargetState &msg) {
@@ -169,11 +165,11 @@ void CarInterface::getSteeringAngleSensorData() {
   try {
     // TODO: Check value format
     steering_angle =
-        ((int16_t)(can1_->get_can(dv_can_msg::StrMotorStatus)) / 10);
+        (uint16_t)((int16_t)(can1_->get_can(dv_can_msg::StrMotorStatus)) / 10)/4.5;
     RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
                 function_name.c_str(), steering_angle);
     // Check for sensor malfunction
-    if ((abs(steering_angle) > 750)) {
+    if ((abs(steering_angle) > 50)) {
       RCLCPP_ERROR(this->get_logger(), "%s: Value error",
                    function_name.c_str());
       // TODO: Error handling function, change control cmds to 0 and trigger EBS
@@ -487,11 +483,10 @@ void CarInterface::setDVStateAndCommand() {
     // Write to can
     long dv_command = 0;
 
-    if (cmd_) {
+    if (cmd_ || testing_) {
       dv_command |= (long)(dv_pc_state_)&7;
       dv_command |= (long)(throttle_cmd_ & 0xFFFF) << 3;
       dv_command |= (long)(braking_cmd_ & 0xFF) << 19;
-      can1_->write_can(dv_can_msg::DV_COMMAND, dv_command);
 
       // Write to steering motor
       // RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
@@ -500,6 +495,8 @@ void CarInterface::setDVStateAndCommand() {
           ((long)steering_cmd_)
               << 32); // can use different mode to command speed/accel
     }
+    // Need to always send dv command so RC always knows DC status
+    can1_->write_can(dv_can_msg::DV_COMMAND, dv_command);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",

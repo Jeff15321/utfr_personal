@@ -60,9 +60,9 @@ enum dv_can_msg {
   // DV command + state sent from pc
   DV_COMMAND = 15,
 
-  SetMotorPos = 16,
-  SetMotorOrigin = 17,
-  SetMotorPosSpeedAcc = 18,
+  SetSTRMotorPos = 16,
+  SetSTRMotorOrigin = 17,
+  SetSTRMotorPosSpeedAcc = 18,
   StrMotorStatus = 19,
 
   COUNT = 20
