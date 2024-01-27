@@ -149,8 +149,8 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y) {
   H(1, 1) = 1; // Map y position
 
   R = Eigen::MatrixXd::Identity(2, 2);
-  R(0, 0) = 0.001; // Variance for x measurement
-  R(1, 1) = 0.001; // Variance for y measurement
+  R(0, 0) = 0.01; // Variance for x measurement
+  R(1, 1) = 0.01; // Variance for y measurement
 
   // Compute the Kalman gain
   // K = P * H^T * (H * P * H^T + R)^-1
@@ -194,21 +194,21 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
   Eigen::MatrixXd F; // State transition matrix
   Eigen::MatrixXd G; // Control input matrix
 
-  F = Eigen::MatrixXd::Identity(6, 6);
-  F(0, 2) = dt;
-  F(1, 3) = dt;
-  F(4, 5) = dt;
 
   double yaw = utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation);
+   F = Eigen::MatrixXd::Identity(6, 6);
+  F(0, 2) = cos(yaw)*dt;
+  F(0, 3) = sin(yaw)*dt;
+  F(1, 2) = -sin(yaw)*dt;
+  F(1, 3) = cos(yaw)*dt;
+  F(4, 5) = dt;
   G = Eigen::MatrixXd::Zero(6, 3);
   G(0, 0) = 0.5 * dt * dt * cos(yaw);
-  G(1, 0) = 0.5 * dt * dt * sin(yaw);
-  G(0, 1) = -0.5 * dt * dt * sin(yaw);
+  G(1, 0) = -0.5 * dt * dt * sin(yaw);
+  G(0, 1) = 0.5 * dt * dt * sin(yaw);
   G(1, 1) = 0.5 * dt * dt * cos(yaw);
-  G(2, 0) = dt * cos(yaw);
-  G(3, 0) = dt * sin(yaw);
-  G(2, 1) = -dt * sin(yaw);
-  G(3, 1) = dt * cos(yaw);
+  G(2, 0) = dt;
+  G(3, 0) = dt;
   G(4, 2) = 0.5 * dt * dt;
   G(5, 2) = dt;
   
@@ -218,11 +218,11 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
   Eigen::VectorXd state = Eigen::VectorXd(6);
   state << current_state_.pose.pose.position.x, current_state_.pose.pose.position.y,
       current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y,
-      utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation), current_state_.vel.twist.angular.z;
+      yaw, current_state_.vel.twist.angular.z;
 
   Eigen::VectorXd input = Eigen::VectorXd(3);
-  input << imu_data.linear_acceleration.x, imu_data.linear_acceleration.y,
-      imu_data.angular_velocity.z;
+  input << imu_data.linear_acceleration.x, imu_data.linear_acceleration.y, 
+   current_state_.accel.angular.z;
 
   state = F * state + G * input;
 
@@ -230,12 +230,12 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
   // P = FPF^T + Q
   Eigen::MatrixXd Q_; // Process noise covariance matrix
   Q_ = Eigen::MatrixXd::Identity(6, 6); 
-  Q_(0, 0) = 0.0064; // Variance for x position
-  Q_(1, 1) = 0.0064; // Variance for y position
-  Q_(2, 2) = 0.0064; // Variance for x velocity
-  Q_(3, 3) = 0.0064; // Variance for y velocity
-  Q_(4, 4) = 0.0064; // Variance for yaw
-  Q_(5, 5) = 0.0064; // Variance for yaw rate
+  Q_(0, 0) = 0.01; // Variance for x position, in m
+  Q_(1, 1) = 0.01; // Variance for y position
+  Q_(2, 2) = 0.05; // Variance for x velocity, m/s
+  Q_(3, 3) = 0.05; // Variance for y velocity
+  Q_(4, 4) = 0.00872; // Variance for yaw in radian
+  Q_(5, 5) = 0.0064; // Variance for yaw rate, to be tuned
 
   P_ = F * P_ * F.transpose() + Q_;
 
