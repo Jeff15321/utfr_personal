@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Run DV stack and record all topics
+# Author: Daniel Asadi
+# Description: Run DV stack and record all topics
 # Usage: bash scripts/p_sensors_bag.sh <bag_name>
 
 cleanup() {

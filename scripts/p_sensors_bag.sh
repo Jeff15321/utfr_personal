@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Record cameras + LIDAR data
+# Author: Daniel Asadi
+# Description: Record cameras + LIDAR data
 # Usage: bash scripts/p_sensors_bag.sh <bag_name>
 
 cleanup() {
