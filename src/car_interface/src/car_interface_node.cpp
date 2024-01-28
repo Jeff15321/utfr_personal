@@ -101,7 +101,8 @@ void CarInterface::initCAN() {
   } else
     RCLCPP_ERROR(this->get_logger(), "Failed To Initialize CAN");
 
-  while (can1_->read_can());
+  while (can1_->read_can())
+    ;
 
   return;
 }
@@ -116,7 +117,7 @@ void CarInterface::heartbeatCB(const utfr_msgs::msg::Heartbeat &msg) {
 
   if (msg.status == utfr_msgs::msg::Heartbeat::FINISH) {
     finished_ = true;
-  } 
+  }
 }
 
 void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
@@ -130,7 +131,8 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
 
   if (cmd_ || testing_) {
     braking_cmd_ = (int16_t)msg.brk_cmd;
-    steering_cmd_ = (((int32_t)(msg.str_cmd * 45000)) & 0xFFFFFFFF); // *4.5 for motor to wheels angle
+    steering_cmd_ = (((int32_t)(msg.str_cmd * 45000)) &
+                     0xFFFFFFFF); // *4.5 for motor to wheels angle
     throttle_cmd_ = (int16_t)msg.thr_cmd;
   } else {
     braking_cmd_ = 0;
@@ -165,7 +167,8 @@ void CarInterface::getSteeringAngleSensorData() {
   try {
     // TODO: Check value format
     steering_angle =
-        (uint16_t)((int16_t)(can1_->get_can(dv_can_msg::StrMotorStatus)) / 10)/4.5;
+        (uint16_t)((int16_t)(can1_->get_can(dv_can_msg::StrMotorStatus)) / 10) /
+        4.5;
     RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
                 function_name.c_str(), steering_angle);
     // Check for sensor malfunction
@@ -507,35 +510,38 @@ void CarInterface::setDVStateAndCommand() {
 void CarInterface::launchMission() {
   const std::string function_name{"launchMission"};
 
-  std::string launchCmd =
-      "ros2 launch launcher dv.launch.py -p mission:=" +
-      std::to_string(system_status_.ami_state); // TODO: Param implementation
+  std::string launchCmd = "ros2 launch launcher dv.launch.py";
   // Execute the launch command
   int result = std::system(launchCmd.c_str());
 
   if (result != 0) {
-    RCLCPP_ERROR(this->get_logger(), "%s: Error occured",
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occurred",
                  function_name.c_str());
   }
 }
 
 void CarInterface::shutdownNodes() {
   const std::string function_name{"shutdownNodes"};
-  // TODO: Fix
-  // // Create a node to retrieve the list of active nodes
-  // auto node = std::make_shared<rclcpp::Node>("shutdown_nodes");
 
-  // // Retrieve the list of active node names
-  // auto node_names = rclcpp::Node::get_node_names(node);
+  // // Retrieve the list of active node names, including rosbag recording
+  // auto node_names = rclcpp::Node::get_node_names();
 
   // for (const auto &name : node_names) {
   //   if (name != "car_interface") {
-  //     auto node_interface = node->get_node_base_interface();
-  //     node_interface->get_node_by_name(name)->shutdown();
+  //     // Create a node to shutdown the active node
+  //     auto node = std::make_shared<rclcpp::Node>(name);
+
+  //     // Shutdown the active node
+  //     node->rclcpp::shutdown();
+  //     RCLCPP_INFO(this->get_logger(), "%s: Shutting down node: %s",
+  //                 function_name.c_str(), name.c_str());
   //   }
   // }
 
-  // rclcpp::shutdown(); TODO: Decide to kill car_interface or not
+  // // Shutdown the car_interface node
+  // rclcpp::shutdown();
+  // RCLCPP_INFO(this->get_logger(), "%s: Shutting down car_interface node",
+  //             function_name.c_str());
 }
 
 void CarInterface::timerCB() {
