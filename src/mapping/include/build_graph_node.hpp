@@ -57,8 +57,9 @@ namespace build_graph {
 struct Point {
     double x;
     double y;
+    double id;
 
-    Point(double x_val, double y_val) : x(x_val), y(y_val) {}
+    Point(double x_val, double y_val, double id_val) : x(x_val), y(y_val), id(id_val){}
 
     // Define the operator!= for Point class
     bool operator!=(const Point& other) const {
@@ -130,7 +131,7 @@ private:
    // Function to find the nearest neighbor and return its x, y coordinates
     Point findNearestNeighbor(KDNode* node, const Point& target, int depth, KDTree* globalKDTreePtr) {
     if (node == nullptr) {
-        return Point(0.0, 0.0);
+        return Point(0.0, 0.0, 0.0);
     }
 
     int axis = node->axis;
