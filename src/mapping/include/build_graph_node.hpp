@@ -371,6 +371,7 @@ public:
   int current_pose_id_;
   int first_detection_pose_id_;
   std::unique_ptr<KDTree> globalKDTreePtr;
+  std::map<int, int> cone_id_to_col_;
   
 
   // Lists for poses, cones, and edges

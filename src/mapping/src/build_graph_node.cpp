@@ -133,6 +133,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         // Update vars
           past_detections_.emplace_back(cones_found_,newCone);
           cones_id_list_.push_back(cones_found_);
+          cone_id_to_col_.insert(std::make_pair(cones_found_,newCone.type));
           cones_found_ += 1;
           globalKDTreePtr = std::make_unique<KDTree>(generateKDTree({std::make_tuple(position_x_, position_y_)}));
           continue;
@@ -142,6 +143,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         if (number_cones == 1){
           past_detections_.emplace_back(cones_found_,newCone);
           cones_id_list_.push_back(cones_found_);
+          cone_id_to_col_.insert(std::make_pair(cones_found_,newCone.type));
           cones_found_ += 1;
           Point newPoint(position_x_,position_y_);
           globalKDTreePtr->insert(newPoint);
@@ -210,6 +212,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                         keys.clear();
                         // Update cone_id_list_ and past_detections_ and KD tree
                         cones_id_list_.push_back(cones_found_);
+                        cone_id_to_col_.insert(std::make_pair(cones_found_,newCone.type));
                         Point newPoint(position_x_,position_y_);
                         past_detections_.emplace_back(cones_found_,newCone);
                         globalKDTreePtr->insert(newPoint);

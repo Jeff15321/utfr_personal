@@ -57,6 +57,10 @@ TEST(BuildGraphNodeTest, kNNTest1)
     // check is added to past_detections_
     ASSERT_EQ(1, node.past_detections_.size());
 
+    // check to see that map works
+
+    ASSERT_EQ(1, node.cone_id_to_col_[0]);
+
     cones = empty;
 
     utfr_msgs::msg::Cone yellow_cone;
@@ -120,6 +124,8 @@ TEST(BuildGraphNodeTest, kNNTest1)
     ASSERT_EQ(0,node.potential_cones_.size());
 
     ASSERT_EQ(3, node.past_detections_.size());
+
+    ASSERT_EQ(2, node.cone_id_to_col_[2]);
 
 
     // Detect a new cone
