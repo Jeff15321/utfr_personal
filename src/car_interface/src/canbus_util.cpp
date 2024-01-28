@@ -35,7 +35,7 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
 
     {(uint8_t)dv_can_msg::DV_STATE, 0x503}, // DV state from car
 
-    {(uint8_t)dv_can_msg::DV_COMMAND, 0x504}}; // DV PC state + control cmd
+    {(uint8_t)dv_can_msg::DV_COMMAND, 0x506}}; // DV PC state + control cmd
 
 bool CanInterface::connect(const char *canline) {
 
