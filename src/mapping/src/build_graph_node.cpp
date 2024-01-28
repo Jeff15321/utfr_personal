@@ -102,6 +102,9 @@ void BuildGraphNode::initSubscribers() {
 void BuildGraphNode::initPublishers() {
   pose_graph_publisher_ =
       this->create_publisher<utfr_msgs::msg::PoseGraph>(topics::kPoseGraph, 10);
+
+  cone_map_publisher_ =
+      this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
 }
 
 void BuildGraphNode::initTimers() {
@@ -196,6 +199,11 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         // Update vars
           past_detections_.emplace_back(cones_found_,newCone);
           cones_id_list_.push_back(cones_found_);
+          cone_id_to_color_map_[cones_found_] = newCone.type;
+          g2o::VertexPointXY* vertex = createConeVertex(cones_found_, position_x_, position_y_);
+          cone_nodes_.push_back(vertex);
+          g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, newCone.pos.x, newCone.pos.y);
+          pose_to_cone_edges_.push_back(edge);
           cones_found_ += 1;
           globalKDTreePtr = std::make_unique<KDTree>(generateKDTree({std::make_tuple(position_x_, position_y_)}));
           continue;
@@ -205,6 +213,11 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         if (number_cones == 1){
           past_detections_.emplace_back(cones_found_,newCone);
           cones_id_list_.push_back(cones_found_);
+          cone_id_to_color_map_[cones_found_] = newCone.type;
+          g2o::VertexPointXY* vertex = createConeVertex(cones_found_, position_x_, position_y_);
+          cone_nodes_.push_back(vertex);
+          g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, newCone.pos.x, newCone.pos.y);
+          pose_to_cone_edges_.push_back(edge);
           cones_found_ += 1;
           Point newPoint(position_x_,position_y_);
           globalKDTreePtr->insert(newPoint);
@@ -273,6 +286,11 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                         keys.clear();
                         // Update cone_id_list_ and past_detections_ and KD tree
                         cones_id_list_.push_back(cones_found_);
+                        cone_id_to_color_map_[cones_found_] = newCone.type;
+                        g2o::VertexPointXY* vertex = createConeVertex(cones_found_, position_x_, position_y_);
+                        cone_nodes_.push_back(vertex);
+                        g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, newCone.pos.x, newCone.pos.y);
+                        pose_to_cone_edges_.push_back(edge);
                         Point newPoint(position_x_,position_y_);
                         past_detections_.emplace_back(cones_found_,newCone);
                         globalKDTreePtr->insert(newPoint);
@@ -288,6 +306,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
       }
     return cones_id_list_;
   }
+
 
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
   // Loop hasn't been completed yet
@@ -442,22 +461,32 @@ void BuildGraphNode::graphSLAM() {
   optimizer_.initializeOptimization();
   optimizer_.optimize(10);
 
-  // for (g2o::SparseOptimizer::VertexIDMap::const_iterator it = optimizer_.vertices().begin(); it != optimizer_.vertices().end(); ++it) {
-  //       g2o::SparseOptimizer::Vertex* vertex = dynamic_cast<g2o::SparseOptimizer::Vertex*>(it->second);
-  //       if (vertex) {
-  //           g2o::VertexSE2* se2Vertex = dynamic_cast<g2o::VertexSE2*>(vertex);
-  //           if (se2Vertex) {
-  //               const g2o::SE2& se2 = se2Vertex->estimate();
-  //               double x = se2.toVector()[0];  // Extract the x component
-  //               double y = se2.toVector()[1];  // Extract the y component
+  cone_map_.left_cones.clear();
 
-  //               utfr_msgs::msg::Cone cone;
-  //               cone.pos.x = x;
-  //               cone.pos.y = y;
-  //               cone_map_.left_cones.push_back(cone);
-  //           }
-  //       }
-  //   }
+  for (auto v : optimizer_.vertices()) {
+      g2o::VertexPointXY* vertexPointXY = dynamic_cast<g2o::VertexPointXY*>(v.second);
+      if (vertexPointXY) {
+          // Extract the x and y coordinates
+          double x = vertexPointXY->estimate()(0);
+          double y = vertexPointXY->estimate()(1);
+
+          // Get the ID
+          int id = vertexPointXY->id();
+          int color = cone_id_to_color_map_[id];
+
+          // Create a cone object then add it to the cone map
+          utfr_msgs::msg::Cone cone;
+          cone.pos.x = x;
+          cone.pos.y = y;
+          std::cout << "Cone x: " << x << " Cone y: " << y << "with color " << color << std::endl;
+
+          // Add the cone to the cone map
+          cone_map_.left_cones.push_back(cone);
+      }
+  }
+
+  cone_map_publisher_->publish(cone_map_);
+
   // Save the optimized pose graph
   std::cout << "Optimized pose graph saved" << std::endl;
 }

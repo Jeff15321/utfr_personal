@@ -367,6 +367,7 @@ public:
   // Publisher
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::PoseGraph>::SharedPtr pose_graph_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_publisher_;
   rclcpp::TimerBase::SharedPtr heartbeat_timer_;
 
   // Subscribers
@@ -383,6 +384,7 @@ public:
   utfr_msgs::msg::EgoState current_state_;   // Current state estimate
   std::map<int, utfr_msgs::msg::Cone> id_to_cone_map_; // Maps cone detection to id
   std::map<int, utfr_msgs::msg::EgoState> id_to_ego_map_; // Maps state estimate to id
+  std::map<int, int> cone_id_to_color_map_; // Maps cone id to color
   std::map<int, g2o::VertexSE2*> id_to_pose_map_; // Maps state estimate to pose node
   std::map<int, std::tuple<double, double>> potential_cones_;
   int cones_potential_;
