@@ -96,13 +96,8 @@ YAML_CONTENT=$(cat <<EOF
         [
           "arena_camera_node",
           "bluespace_ai_xsens_mti_driver",
-          "ouster_msgs",
-          "ros2_ouster",
-          "velodyne",
-          "velodyne_driver",
-          "velodyne_laserscan",
-          "velodyne_msgs",
-          "velodyne_pointcloud",
+          "ouster_sensor_msgs",
+          "ouster_ros",
           "launcher"
         ],
     },
@@ -112,13 +107,8 @@ YAML_CONTENT=$(cat <<EOF
         [
           "arena_camera_node",
           "bluespace_ai_xsens_mti_driver",
-          "ouster_msgs",
-          "ros2_ouster",
-          "velodyne",
-          "velodyne_driver",
-          "velodyne_laserscan",
-          "velodyne_msgs",
-          "velodyne_pointcloud",
+          "ouster_sensor_msgs",
+          "ouster_ros",
           "launcher"
         ],
     },
