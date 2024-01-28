@@ -131,6 +131,9 @@ void BuildGraphNode::publishHeartbeat() {
 void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
   std::vector<int> cones = KNN(msg);
   loopClosure(cones);
+  if (cones_found_ > 10) {
+    graphSLAM();
+  }
 }
 
 void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
@@ -295,7 +298,6 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                         Point newPoint(position_x_,position_y_, cones_found_);
                         past_detections_.emplace_back(cones_found_,newCone);
                         globalKDTreePtr->insert(newPoint);
-                        std::cout << "ADDED " << cones_found_ << std::endl;
                         cones_found_ += 1;
                         break;
                         }
@@ -352,11 +354,13 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
         // If cone in frame again
         if (seen_status != cones.end()) {
           // Car has returned back to landmark cone position, made full loop
-          double dx = id_to_ego_map_[first_detection_pose_id_].pose.pose.position.x - 
-          	      id_to_ego_map_[current_pose_id_].pose.pose.position.x;
-          double dy = id_to_ego_map_[first_detection_pose_id_].pose.pose.position.y-
-          	      id_to_ego_map_[current_pose_id_].pose.pose.position.y;
-          double dtheta = current_state_.pose.pose.orientation.z;
+
+          double dx = id_to_ego_map_[current_pose_id_].pose.pose.position.x - 
+                      id_to_ego_map_[first_detection_pose_id_].pose.pose.position.x;
+          double dy = id_to_ego_map_[current_pose_id_].pose.pose.position.y-
+                      id_to_ego_map_[first_detection_pose_id_].pose.pose.position.y;
+          double dtheta = utfr_dv::util::quaternionToYaw(id_to_ego_map_[current_pose_id_].pose.pose.orientation) - 
+                          utfr_dv::util::quaternionToYaw(id_to_ego_map_[first_detection_pose_id_].pose.pose.orientation);
           loop_closed_ = true;
           // Create node objects for each pose
           // Get the state estimate at a pose using id_to_state_map_[pose_id_]
@@ -367,7 +371,6 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           // add an edge using the pose ids at initial detection and loop closure detection
           g2o::EdgeSE2* edge = addPoseToPoseEdge(first_pose_node, second_pose_node, dx, dy, dtheta, loop_closed_);
           pose_to_pose_edges_.push_back(edge);
-          std::cout << "Loop closure edge added" << std::endl;
 
           landmarked_ = false;
           landmarkedID_ = -1;
@@ -447,20 +450,20 @@ void BuildGraphNode::graphSLAM() {
     optimizer_.addVertex(pose);
   }
 
-  // for (g2o::VertexPointXY* cone : cone_nodes_) {
-  //   optimizer_.addVertex(cone);
-  // }
+  for (g2o::VertexPointXY* cone : cone_nodes_) {
+    optimizer_.addVertex(cone);
+  }
 
   for (g2o::EdgeSE2* edge : pose_to_pose_edges_) {
     optimizer_.addEdge(edge);
   }
 
-  // for (g2o::EdgeSE2PointXY* edge : pose_to_cone_edges_) {
-  //   optimizer_.addEdge(edge);
-  // }
+  for (g2o::EdgeSE2PointXY* edge : pose_to_cone_edges_) {
+    optimizer_.addEdge(edge);
+  }
   
   optimizer_.initializeOptimization();
-  optimizer_.optimize(10);
+  // optimizer_.optimize(10);
 
   cone_map_.left_cones.clear();
 
@@ -479,20 +482,24 @@ void BuildGraphNode::graphSLAM() {
           utfr_msgs::msg::Cone cone;
           cone.pos.x = x;
           cone.pos.y = y;
-          std::cout << "Cone x: " << x << " Cone y: " << y << "with color " << color << std::endl;
 
-          // Add the cone to the cone map
-          cone_map_.left_cones.push_back(cone);
+          if (color == 1) {
+            cone_map_.left_cones.push_back(cone);
+          } else if (color == 2) {
+            cone_map_.right_cones.push_back(cone);
+          } else if (color == 3) {
+            cone_map_.large_orange_cones.push_back(cone);
+          } else if (color == 4) {
+            cone_map_.small_orange_cones.push_back(cone);
+          }
       }
   }
 
   cone_map_publisher_->publish(cone_map_);
 
   // Save the optimized pose graph
-  optimizer_.save("optimized_graph.g2o");
-
-  // Save the optimized pose graph
-  std::cout << "Optimized pose graph saved" << std::endl;
+  // optimizer_.save("optimized_graph.g2o");
+  // std::cout << "Optimized pose graph saved" << std::endl;
 }
 
 void BuildGraphNode::buildGraph() {}
