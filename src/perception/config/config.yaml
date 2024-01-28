@@ -65,14 +65,7 @@ perception_node: # Name of Node
       ]
     save_pic: "False"
     confidence: 0.40
-    cone_heights: 
-      [
-        0.0,
-        325.0,
-        325.0,
-        325.0,
-        505.0
-      ]
+    cone_heights: [0.0, 325.0, 325.0, 325.0, 505.0]
 
     # shopping cart
     # intrinsics_left:
@@ -110,6 +103,7 @@ perception_node: # Name of Node
 
 lidar_proc_node:
   ros__parameters:
+    update_rate: 33.33 #[ms]
     topics: # TODO: fix
       input: "/velodyne_points"
       filtered: "/lidar_pipeline/filtered"
@@ -144,4 +138,3 @@ lidar_proc_node:
       inlier_mse_threshold: 0.1
       ransac_max_iters: 100
       min_inlier_ratio: 0.9
-

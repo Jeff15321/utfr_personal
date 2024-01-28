@@ -33,7 +33,7 @@ const std::string kFiltered{"/lidar_pipeline/filtered"};
 const std::string kNoGround{"/lidar_pipeline/no_ground"};
 const std::string kClustered{"/lidar_pipeline/clustered"};
 const std::string kDetected{"/lidar_pipeline/detected"};
-const std::string kLidarHeartbeat{"/lidar_pipeline/heartbeat"};
+const std::string kLidarProcHeartbeat{"/lidar_pipeline/heartbeat"};
 
 // EKF
 const std::string kEgoState{"ekf/ego_state"};

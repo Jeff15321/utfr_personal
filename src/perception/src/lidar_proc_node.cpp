@@ -15,7 +15,7 @@
 #include <lidar_proc_node.hpp>
 
 namespace utfr_dv {
-namespace center_path {
+namespace lidar_proc {
 
 LidarProcNode::LidarProcNode() : Node("lidar_proc_node") {
   this->initParams();
@@ -26,6 +26,7 @@ LidarProcNode::LidarProcNode() : Node("lidar_proc_node") {
 }
 
 void LidarProcNode::initParams() {
+  this->declare_parameter("update_rate", 33.33);
   this->declare_parameter("topics.input", rclcpp::PARAMETER_STRING);
   this->declare_parameter("view_filter.outer_box.xmin",
                           rclcpp::PARAMETER_DOUBLE);
@@ -66,69 +67,75 @@ void LidarProcNode::initParams() {
   this->declare_parameter("cone_filter.min_inlier_ratio",
                           rclcpp::PARAMETER_DOUBLE);
 
-  outer_xmin_ = this->get_parameter("view_filter.outer_box.xmin").as_double();
-  outer_xmax_ = this->get_parameter("view_filter.outer_box.xmax").as_double();
-  outer_ymin_ = this->get_parameter("view_filter.outer_box.ymin").as_double();
-  outer_ymax_ = this->get_parameter("view_filter.outer_box.ymax").as_double();
-  inner_xmin_ = this->get_parameter("view_filter.inner_box.xmin").as_double();
-  inner_xmax_ = this->get_parameter("view_filter.inner_box.xmax").as_double();
-  inner_ymin_ = this->get_parameter("view_filter.inner_box.ymin").as_double();
-  inner_ymax_ = this->get_parameter("view_filter.inner_box.ymax").as_double();
-  ViewBounds bounds = {{outer_xmin_, outer_xmax_, outer_ymin_, outer_ymax_},
-                       {inner_xmin_, inner_xmax_, inner_ymin_, inner_ymax_}};
+  update_rate_ = this->get_parameter("update_rate").as_double();
+  double outer_xmin =
+      this->get_parameter("view_filter.outer_box.xmin").as_double();
+  double outer_xmax =
+      this->get_parameter("view_filter.outer_box.xmax").as_double();
+  double outer_ymin =
+      this->get_parameter("view_filter.outer_box.ymin").as_double();
+  double outer_ymax =
+      this->get_parameter("view_filter.outer_box.ymax").as_double();
+  double inner_xmin =
+      this->get_parameter("view_filter.inner_box.xmin").as_double();
+  double inner_xmax =
+      this->get_parameter("view_filter.inner_box.xmax").as_double();
+  double inner_ymin =
+      this->get_parameter("view_filter.inner_box.ymin").as_double();
+  double inner_ymax =
+      this->get_parameter("view_filter.inner_box.ymax").as_double();
+  ViewBounds bounds = {{outer_xmin, outer_xmax, outer_ymin, outer_ymax},
+                       {inner_xmin, inner_xmax, inner_ymin, inner_ymax}};
 
-  grid_size_x_ = this->get_parameter("view_filter.grid_size_x").as_int();
-  grid_size_y_ = this->get_parameter("view_filter.grid_size_y").as_int();
+  int grid_size_x = this->get_parameter("view_filter.grid_size_x").as_int();
+  int grid_size_y = this->get_parameter("view_filter.grid_size_y").as_int();
   filter = Filter(bounds, grid_size_x, grid_size_y);
 
-  groundRansacMaxIterations_ =
+  int groundRansacMaxIterations =
       this->get_parameter("ground_ransac.max_iterations").as_int();
-  groundRansacDistanceThreshold_ =
+  double groundRansacDistanceThreshold =
       this->get_parameter("ground_ransac.distance_threshold").as_double();
-  ransac_params_ = {groundRansacMaxIterations_, groundRansacDistanceThreshold_};
+  RansacParams ransac_params = {groundRansacMaxIterations,
+                                groundRansacDistanceThreshold};
 
-  cluster_tolerace_ =
+  double cluster_tolerace =
       this->get_parameter("clustering.cluster_tolerance").as_double();
-  min_cluster_size_ =
+  int min_cluster_size =
       this->get_parameter("clustering.min_cluster_size").as_int();
-  max_cluster_size_ =
+  int max_cluster_size =
       this->get_parameter("clustering.max_cluster_size").as_int();
-  reconstruct_radius_ =
+  double reconstruct_radius =
       this->get_parameter("clustering.reconstruct_radius").as_double();
 
-  ClusterParams cluster_params = {cluster_tolerace_, min_cluster_size_,
-                                  max_cluster_size_};
-  clusterer = Clusterer(ransac_params_, cluster_params_, reconstruct_radius_);
+  ClusterParams cluster_params = {cluster_tolerace, min_cluster_size,
+                                  max_cluster_size};
+  clusterer = Clusterer(ransac_params, cluster_params, reconstruct_radius);
 
-  cone_height_ = this->get_parameter("cone_filter.cone_height").as_double();
-  cone_radius_ = this->get_parameter("cone_filter.cone_radius").as_double();
-  inlier_mse_threshold =
+  double cone_height =
+      this->get_parameter("cone_filter.cone_height").as_double();
+  double cone_radius =
+      this->get_parameter("cone_filter.cone_radius").as_double();
+  double inlier_mse_threshold =
       this->get_parameter("cone_filter.inlier_mse_threshold").as_double();
-  ransac_max_iters_ =
+  int ransac_max_iters =
       this->get_parameter("cone_filter.ransac_max_iters").as_int();
-  min_inlier_ratio_ =
+  double min_inlier_ratio =
       this->get_parameter("cone_filter.min_inlier_ratio").as_double();
-  ConeFilterParams cone_filter_params = {cone_height_, cone_radius_,
-                                         inlier_mse_threshold_,
-                                         ransac_max_iters_, min_inlier_ratio_};
+  ConeFilterParams cone_filter_params = {cone_height, cone_radius,
+                                         inlier_mse_threshold, ransac_max_iters,
+                                         min_inlier_ratio};
 
   cone_filter = ConeFilter(cone_filter_params);
 }
 
 void LidarProcNode::initSubscribers() {
-  ego_state_subscriber_ = this->create_subscription<utfr_msgs::msg::EgoState>(
-      topics::kEgoState, 10, std::bind(&LidarProcNode::egoStateCB, this, _1));
+  point_cloud_subscriber_ =
+      this->create_subscription<sensor_msgs::msg::PointCloud2>(
+          "/ouster/points", 10,
+          std::bind(&LidarProcNode::pointCloudCallback, this, _1));
 }
 
 void LidarProcNode::initPublishers() {
-  center_path_publisher_ =
-      this->create_publisher<utfr_msgs::msg::ParametricSpline>(
-          topics::kCenterPath, 10);
-
-  sub = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      input_topic, 10,
-      std::bind(&LidarProcessingNode::pointCloudCallback, this,
-                std::placeholders::_1));
   pub_filtered = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       topics::kFiltered, 10);
   pub_no_ground = this->create_publisher<sensor_msgs::msg::PointCloud2>(
@@ -137,8 +144,8 @@ void LidarProcNode::initPublishers() {
       topics::kClustered, 10);
   pub_clustered_center = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       topics::kClustered, 10);
-  pub_heartbeat = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-      topics::kLidarHeartbeat, 10);
+  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
+      topics::kLidarProcHeartbeat, 10);
 }
 
 void LidarProcNode::initTimers() {
@@ -150,8 +157,8 @@ void LidarProcNode::initTimers() {
 }
 
 void LidarProcNode::initHeartbeat() {
-  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-      topics::kMappingComputeHeartbeat, 10);
+  heartbeat_.module.data = "lidar_proc_node";
+  heartbeat_.update_rate = update_rate_;
 }
 
 void LidarProcNode::publishHeartbeat(const int status) {
@@ -160,7 +167,8 @@ void LidarProcNode::publishHeartbeat(const int status) {
   heartbeat_publisher_->publish(heartbeat_);
 }
 
-void pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr input) {
+void LidarProcNode::pointCloudCallback(
+    const sensor_msgs::msg::PointCloud2::SharedPtr input) {
   PointCloud custom_cloud = convertToCustomPointCloud(input);
 
   // Filtering
@@ -194,13 +202,11 @@ void pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr input) {
   if (cluster_centers.size() > 0) {
     publishPointCloud(cluster_centers, pub_clustered_center);
   }
-  heartbeat.status = utfr_msgs::msg::Heartbeat::ACTIVE;
-  publishHeartbeat();
 }
 
-sensor_msgs::msg::PointCloud2
-convertToPointCloud2(const std::vector<std::array<float, 3>> &points,
-                     const std::string &frame_id) {
+sensor_msgs::msg::PointCloud2 LidarProcNode::convertToPointCloud2(
+    const std::vector<std::array<float, 3>> &points,
+    const std::string &frame_id) {
   sensor_msgs::msg::PointCloud2 cloud;
   cloud.header.frame_id = frame_id;
   cloud.header.stamp = rclcpp::Clock().now();
@@ -242,7 +248,7 @@ convertToPointCloud2(const std::vector<std::array<float, 3>> &points,
   return cloud;
 }
 
-void publishPointCloud(
+void LidarProcNode::publishPointCloud(
     const PointCloud &cloud,
     const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub) {
   sensor_msgs::msg::PointCloud2 output =
@@ -250,7 +256,7 @@ void publishPointCloud(
   pub->publish(output);
 }
 
-PointCloud convertToCustomPointCloud(
+PointCloud LidarProcNode::convertToCustomPointCloud(
     const sensor_msgs::msg::PointCloud2::SharedPtr &input) {
   PointCloud custom_cloud;
 
@@ -276,7 +282,10 @@ PointCloud convertToCustomPointCloud(
   return custom_cloud;
 }
 
-void LidarProcNode::timerCB() { const std::string function_name{"timerCB"}; }
+void LidarProcNode::timerCB() {
+  const std::string function_name{"timerCB"};
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+}
 
-} // namespace center_path
+} // namespace lidar_proc
 } // namespace utfr_dv
