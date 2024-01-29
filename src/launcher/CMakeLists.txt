@@ -16,8 +16,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     ament_cmake
     arena_camera_node
     bluespace_ai_xsens_mti_driver
-    ros2_ouster
-    velodyne
+    ouster_ros
     mapping
     planning
     controls

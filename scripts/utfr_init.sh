@@ -3,7 +3,7 @@
 # Prerequisite: Ubuntu 22.04 environment
 # Author: Daniel Asadi
 # Description: One-time script for first time repo setup + ROS 2 Humble installation
-# Instructions: In dv24/ run 'bash scripts/utfr_init'
+# Usage: In dv24/ run 'bash scripts/utfr_init.sh'
 
 install_ros2_humble(){
   echo "ROS 2 Humble is not installed. Installing ROS 2 Humble..."
@@ -53,15 +53,18 @@ if ! grep -Fxq "source /opt/ros/humble/setup.bash" ~/.bashrc; then
 fi
 
 # Init all submodules
+echo "==========================================="
+echo "=           Initalize submodules          ="
+echo "==========================================="
 git submodule update --init --recursive
 
 # Update existing Packages:
 echo "==========================================="
-echo "=            Updating Ubuntu              ="
+echo "=           Install Ubuntu deps           ="
 echo "==========================================="
 sudo apt-get update -y
 sudo apt-get upgrade -y
-sudo apt-get install -y libcgal-dev libboost-all-dev
+sudo apt-get install -y libcgal-dev libboost-all-dev ros-humble-rosbag2-storage-mcap clang-format ros-humble-foxglove-bridge
 
 echo "==========================================="
 echo "=            Install rosdeps              ="
@@ -73,10 +76,7 @@ rosdep install --from-paths src --ignore-src -r -y
 echo "==========================================="
 echo "=            Install pip deps             ="
 echo "==========================================="
-pip install xgboost
-pip install scikit-learn
-pip install imutils
-pip install xacro
+pip install xgboost scikit-learn imutils xacro
 
 echo "==========================================="
 echo "=               Config sim                ="
