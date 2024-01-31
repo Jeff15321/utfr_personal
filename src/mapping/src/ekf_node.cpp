@@ -222,7 +222,7 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
 
   Eigen::VectorXd input = Eigen::VectorXd(3);
   input << imu_data.linear_acceleration.x, imu_data.linear_acceleration.y, 
-   current_state_.accel.angular.z;
+   current_state_.accel.accel.angular.z;
 
   state = F * state + G * input;
 
