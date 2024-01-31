@@ -149,6 +149,18 @@ private:
    */
   void timerCB();
 
+  /*! Enables testing of brake actuators using simple commands
+   */
+  void brakeTesting();
+
+  /*! Enables testing of steering actuators using simple commands
+   */
+  void steerTesting();
+
+  /*! Enables testing of throttles using simple commands
+   */
+  void throttleTesting();
+
   // Publisher
   rclcpp::Publisher<utfr_msgs::msg::ControlCmd>::SharedPtr
       control_cmd_publisher_;
@@ -172,6 +184,11 @@ private:
 
   // Params
   double update_rate_;
+  int status_;
+  uint8_t testing_;
+  int brake_inc_;
+  int steer_inc_;
+  int throttle_inc_;
   std::vector<double> str_ctrl_params_;
   std::vector<double> thr_ctrl_params_;
   std::vector<double> brk_ctrl_params_;

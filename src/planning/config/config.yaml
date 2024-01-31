@@ -9,6 +9,9 @@ center_path_node: # Name of Module
     max_velocity: 10.0 # [m/s]
     num_points: 500 # number of points to discretize the path
 
+    threshold_radius: 0.5 #[m]
+    threshold_cones: 3 # number of cones to check for radius
+
 path_optimization_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
