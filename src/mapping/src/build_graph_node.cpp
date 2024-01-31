@@ -213,13 +213,9 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
 
         // Use KNN search to find the nearest cone
 
-        std::cout << "POS X" << position_x_ << " " << "POS Y" << position_y_ << std::endl;
-
         Point knnResult = globalKDTreePtr->KNN(Point(position_x_, position_y_));
 
         const Point& nearestCone = knnResult;
-
-        std::cout << "RESULT X" << nearestCone.x << " " << "RESULT Y" << nearestCone.y << std::endl;
 
         // Check the result of the nearest neighbour search and calculate displacement
         if (knnResult != Point(0.0, 0.0)){
@@ -276,7 +272,6 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                         Point newPoint(position_x_,position_y_);
                         past_detections_.emplace_back(cones_found_,newCone);
                         globalKDTreePtr->insert(newPoint);
-                        std::cout << "ADDED" << std::endl;
                         cones_found_ += 1;
                         break;
                         }
@@ -347,7 +342,6 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           // add an edge using the pose ids at initial detection and loop closure detection
           g2o::EdgeSE2* edge = addPoseToPoseEdge(first_pose_node, second_pose_node, dx, dy, dtheta, loop_closed_);
           pose_to_pose_edges_.push_back(edge);
-          std::cout << "Loop closure edge added" << std::endl;
 
           landmarked_ = false;
           landmarkedID_ = -1;
@@ -458,8 +452,6 @@ void BuildGraphNode::graphSLAM() {
   //           }
   //       }
   //   }
-  // Save the optimized pose graph
-  std::cout << "Optimized pose graph saved" << std::endl;
 }
 
 void BuildGraphNode::buildGraph() {}
