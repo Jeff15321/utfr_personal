@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 
 ██████  ██    ██ ██████  ██   ██
@@ -47,9 +48,9 @@ from std_srvs.srv import Trigger
 from std_srvs.srv import Trigger
 
 # Import deep and classical process functions
-from .submodules.deep import deep_process
-from .submodules.deep import bounding_boxes_to_cone_detections
-from .submodules.deep import check_for_cuda
+from perception.submodules.deep import deep_process
+from perception.submodules.deep import bounding_boxes_to_cone_detections
+from perception.submodules.deep import check_for_cuda
 
 
 class PerceptionNode(Node):

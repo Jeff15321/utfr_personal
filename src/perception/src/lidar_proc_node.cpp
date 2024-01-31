@@ -133,7 +133,7 @@ void LidarProcNode::initSubscribers() {
       this->create_subscription<sensor_msgs::msg::PointCloud2>(
           "/ouster/points", 10,
           std::bind(&LidarProcNode::pointCloudCallback, this, _1));
-}
+} //TODO - check topic name
 
 void LidarProcNode::initPublishers() {
   pub_filtered = this->create_publisher<sensor_msgs::msg::PointCloud2>(
@@ -183,9 +183,9 @@ void LidarProcNode::publishPointCloud(
 PointCloud LidarProcNode::convertToCustomPointCloud(
     const sensor_msgs::msg::PointCloud2::SharedPtr &input) {
   PointCloud custom_cloud;
-
   for (uint32_t i = 0; i < input->height * input->width; ++i) {
     Point pt;
+    
 
     // Offsets for x, y, z fields in PointCloud2 data
     int x_offset = input->fields[0].offset;
@@ -211,7 +211,6 @@ void LidarProcNode::timerCB() {
   publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 
   if (latest_point_cloud){
-
     PointCloud custom_cloud = convertToCustomPointCloud(latest_point_cloud);
 
     // Filtering
@@ -246,6 +245,7 @@ void LidarProcNode::timerCB() {
       publishPointCloud(cluster_centers, pub_clustered_center);
     }
   }
+  RCLCPP_INFO(this->get_logger(), "Published Processed Point Clouds");
 }
 
 sensor_msgs::msg::PointCloud2 LidarProcNode::convertToPointCloud2(

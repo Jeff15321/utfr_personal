@@ -33,13 +33,13 @@ endforeach()
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
 ## Add Executables
-add_executable(perception src/lidar_proc.cpp)
-target_link_libraries(perception perception_library ${PCL_LIBRARIES})
+add_executable(lidar_proc src/lidar_proc.cpp)
+target_link_libraries(lidar_proc perception_library ${PCL_LIBRARIES})
 # Set Target Dependencies  
-ament_target_dependencies(perception ${THIS_PACKAGE_INCLUDE_DEPENDS})
+ament_target_dependencies(lidar_proc ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
 ## Add Headers to executables
-target_include_directories(perception
+target_include_directories(lidar_proc
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
@@ -59,6 +59,15 @@ target_include_directories(perception_library
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
 
+# Install Python modules
+ament_python_install_package(${PROJECT_NAME})
+
+# Install Python executables
+install(PROGRAMS
+  perception/perception_node.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 #############
 ## Install ##
 #############
@@ -77,7 +86,7 @@ install(TARGETS perception_library
     INCLUDES DESTINATION include/${PROJECT_NAME})
 
 ## Install Executables
-install(TARGETS perception 
+install(TARGETS lidar_proc 
     DESTINATION lib/${PROJECT_NAME})
 
 ## Install Launch file
@@ -95,3 +104,4 @@ install(
 #############
 
 ament_package()
+
