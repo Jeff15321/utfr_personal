@@ -34,7 +34,7 @@ ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
 ## Add Executables
 add_executable(perception src/lidar_proc.cpp)
-target_link_libraries(perception perception_library)
+target_link_libraries(perception perception_library ${PCL_LIBRARIES})
 # Set Target Dependencies  
 ament_target_dependencies(perception ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
