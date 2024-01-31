@@ -462,9 +462,6 @@ void BuildGraphNode::graphSLAM() {
   // Save the optimized pose graph
   std::cout << "Optimized pose graph saved" << std::endl;
 }
-  // Save the optimized pose graph
-  std::cout << "Optimized pose graph saved" << std::endl;
-}
 
 void BuildGraphNode::buildGraph() {}
 
