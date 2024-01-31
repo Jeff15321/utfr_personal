@@ -14,3 +14,6 @@
 	path = src/drivers/ouster-ros
 	url = git@github.com:ouster-lidar/ouster-ros.git
 	branch = ros2
+[submodule "src/planning/external/spline"]
+	path = src/planning/external/spline
+	url = https://github.com/ttk592/spline.git
