@@ -449,7 +449,7 @@ void BuildGraphNode::graphSLAM() {
             g2o::VertexSE2* v = static_cast<g2o::VertexSE2*>(vertex);
             if (se2Vertex) {
                 const g2o::SE2& se2 = se2Vertex->estimate();
-                double x = se2.trasnlation().x();  // Extract the x component
+                double x = se2.translation().x();  // Extract the x component
                 double y = se2.translation().y();  // Extract the y component
 
                 utfr_msgs::msg::Cone cone;
