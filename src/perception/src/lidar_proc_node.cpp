@@ -169,38 +169,82 @@ void LidarProcNode::publishHeartbeat(const int status) {
 
 void LidarProcNode::pointCloudCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr input) {
-  PointCloud custom_cloud = convertToCustomPointCloud(input);
+      latest_point_cloud = input;
+}
 
-  // Filtering
-  std::tuple<PointCloud, Grid> filtered_cloud_and_grid =
-      filter.view_filter(custom_cloud);
-  PointCloud filtered_cloud = std::get<0>(filtered_cloud_and_grid);
-  Grid min_points_grid = std::get<1>(filtered_cloud_and_grid);
-  publishPointCloud(filtered_cloud, pub_filtered);
+void LidarProcNode::publishPointCloud(
+    const PointCloud &cloud,
+    const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub) {
+  sensor_msgs::msg::PointCloud2 output =
+      convertToPointCloud2(cloud, "velodyne");
+  pub->publish(output);
+}
 
-  // Clustering and reconstruction
-  std::tuple<PointCloud, std::vector<PointCloud>> cluster_results =
-      clusterer.clean_and_cluster(filtered_cloud, min_points_grid);
-  PointCloud no_ground_cloud = std::get<0>(cluster_results);
-  std::vector<PointCloud> reconstructed_clusters = std::get<1>(cluster_results);
+PointCloud LidarProcNode::convertToCustomPointCloud(
+    const sensor_msgs::msg::PointCloud2::SharedPtr &input) {
+  PointCloud custom_cloud;
 
-  publishPointCloud(no_ground_cloud, pub_no_ground);
+  for (uint32_t i = 0; i < input->height * input->width; ++i) {
+    Point pt;
 
-  // Publishing each reconstructed cluster in a loop
+    // Offsets for x, y, z fields in PointCloud2 data
+    int x_offset = input->fields[0].offset;
+    int y_offset = input->fields[1].offset;
+    int z_offset = input->fields[2].offset;
 
-  PointCloud combined_clusters;
-  for (int i = 0; i < reconstructed_clusters.size(); i++) {
-    for (int j = 0; j < reconstructed_clusters[i].size(); j++) {
-      combined_clusters.push_back(reconstructed_clusters[i][j]);
-    }
+    // Extract x, y, z from the data
+    pt[0] = *reinterpret_cast<const float *>(
+        &input->data[i * input->point_step + x_offset]);
+    pt[1] = *reinterpret_cast<const float *>(
+        &input->data[i * input->point_step + y_offset]);
+    pt[2] = *reinterpret_cast<const float *>(
+        &input->data[i * input->point_step + z_offset]);
+
+    custom_cloud.push_back(pt);
   }
-  publishPointCloud(combined_clusters, pub_clustered);
 
-  // Gather the cluster centers into a single point cloud
-  PointCloud cluster_centers =
-      cone_filter.filter_clusters(reconstructed_clusters);
-  if (cluster_centers.size() > 0) {
-    publishPointCloud(cluster_centers, pub_clustered_center);
+  return custom_cloud;
+}
+
+void LidarProcNode::timerCB() {
+  const std::string function_name{"timerCB"};
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+
+  if (latest_point_cloud){
+
+    PointCloud custom_cloud = convertToCustomPointCloud(latest_point_cloud);
+
+    // Filtering
+    std::tuple<PointCloud, Grid> filtered_cloud_and_grid =
+        filter.view_filter(custom_cloud);
+    PointCloud filtered_cloud = std::get<0>(filtered_cloud_and_grid);
+    Grid min_points_grid = std::get<1>(filtered_cloud_and_grid);
+    publishPointCloud(filtered_cloud, pub_filtered);
+
+    // Clustering and reconstruction
+    std::tuple<PointCloud, std::vector<PointCloud>> cluster_results =
+        clusterer.clean_and_cluster(filtered_cloud, min_points_grid);
+    PointCloud no_ground_cloud = std::get<0>(cluster_results);
+    std::vector<PointCloud> reconstructed_clusters = std::get<1>(cluster_results);
+
+    publishPointCloud(no_ground_cloud, pub_no_ground);
+
+    // Publishing each reconstructed cluster in a loop
+
+    PointCloud combined_clusters;
+    for (int i = 0; i < reconstructed_clusters.size(); i++) {
+      for (int j = 0; j < reconstructed_clusters[i].size(); j++) {
+        combined_clusters.push_back(reconstructed_clusters[i][j]);
+      }
+    }
+    publishPointCloud(combined_clusters, pub_clustered);
+
+    // Gather the cluster centers into a single point cloud
+    PointCloud cluster_centers =
+        cone_filter.filter_clusters(reconstructed_clusters);
+    if (cluster_centers.size() > 0) {
+      publishPointCloud(cluster_centers, pub_clustered_center);
+    }
   }
 }
 
@@ -246,45 +290,7 @@ sensor_msgs::msg::PointCloud2 LidarProcNode::convertToPointCloud2(
   }
 
   return cloud;
-}
 
-void LidarProcNode::publishPointCloud(
-    const PointCloud &cloud,
-    const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub) {
-  sensor_msgs::msg::PointCloud2 output =
-      convertToPointCloud2(cloud, "velodyne");
-  pub->publish(output);
-}
-
-PointCloud LidarProcNode::convertToCustomPointCloud(
-    const sensor_msgs::msg::PointCloud2::SharedPtr &input) {
-  PointCloud custom_cloud;
-
-  for (uint32_t i = 0; i < input->height * input->width; ++i) {
-    Point pt;
-
-    // Offsets for x, y, z fields in PointCloud2 data
-    int x_offset = input->fields[0].offset;
-    int y_offset = input->fields[1].offset;
-    int z_offset = input->fields[2].offset;
-
-    // Extract x, y, z from the data
-    pt[0] = *reinterpret_cast<const float *>(
-        &input->data[i * input->point_step + x_offset]);
-    pt[1] = *reinterpret_cast<const float *>(
-        &input->data[i * input->point_step + y_offset]);
-    pt[2] = *reinterpret_cast<const float *>(
-        &input->data[i * input->point_step + z_offset]);
-
-    custom_cloud.push_back(pt);
-  }
-
-  return custom_cloud;
-}
-
-void LidarProcNode::timerCB() {
-  const std::string function_name{"timerCB"};
-  publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 }
 
 } // namespace lidar_proc
