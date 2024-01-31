@@ -31,13 +31,8 @@ jobs:
                     [
                       "arena_camera_node",
                       "bluespace_ai_xsens_mti_driver",
-                      "ouster_msgs",
-                      "ros2_ouster",
-                      "velodyne",
-                      "velodyne_driver",
-                      "velodyne_laserscan",
-                      "velodyne_msgs",
-                      "velodyne_pointcloud",
+                      "ouster_sensor_msgs",
+                      "ouster_ros",
                       "launcher"
                     ]
                 },
@@ -47,13 +42,8 @@ jobs:
                     [
                       "arena_camera_node",
                       "bluespace_ai_xsens_mti_driver",
-                      "ouster_msgs",
-                      "ros2_ouster",
-                      "velodyne",
-                      "velodyne_driver",
-                      "velodyne_laserscan",
-                      "velodyne_msgs",
-                      "velodyne_pointcloud",
+                      "ouster_sensor_msgs",
+                      "ouster_ros",
                       "launcher"
                     ]
                 }
