@@ -82,7 +82,6 @@ void BuildGraphNode::initParams() {
   g2o::OptimizationAlgorithm* optimizer = new g2o::OptimizationAlgorithmLevenberg(
       std::make_unique<SlamBlockSolver>(std::move(linearSolverLM)));
   optimizer_.setAlgorithm(optimizer);
-
 }
 
 void BuildGraphNode::initSubscribers() {
@@ -192,11 +191,10 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
     // Iterating through all detected cones
     for (const auto& newCone : all_cones) {
         // Updating detected position to global frame
-        double ego_x = current_state_.pose.pose.position.x;
-        double ego_y = current_state_.pose.pose.position.y;
+        double ego_x = temp_current_state_.pose.pose.position.x;
+        double ego_y = temp_current_state_.pose.pose.position.y;
         double position_x_ = ego_x + newCone.pos.x * cos(yaw) - newCone.pos.y * sin(yaw);
         double position_y_ = ego_y + newCone.pos.x * sin(yaw) + newCone.pos.y * cos(yaw);
-
 
         // Check if the KD tree is not created, and create it
         if (globalKDTreePtr == nullptr) {
@@ -296,6 +294,8 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                         g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, newCone.pos.x, newCone.pos.y);
                         pose_to_cone_edges_.push_back(edge);
                         Point newPoint(position_x_,position_y_, cones_found_);
+
+                        // std::cout << "Cone x: " << position_x_ << " Cone y: " << position_y_ << " Cone id: " << cones_found_ << std::endl;
                         past_detections_.emplace_back(cones_found_,newCone);
                         globalKDTreePtr->insert(newPoint);
                         cones_found_ += 1;
@@ -377,7 +377,6 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           out_of_frame_ = -1;
           first_detection_pose_id_ = 0;
           loop_closed_ = false;
-          graphSLAM();
         }
       }
     }
@@ -502,7 +501,7 @@ void BuildGraphNode::graphSLAM() {
   cone_map_publisher_->publish(cone_map_);
 
   // Save the optimized pose graph
-  // optimizer_.save("optimized_graph.g2o");
+  optimizer_.save("optimized_graph.g2o");
   // std::cout << "Optimized pose graph saved" << std::endl;
 }
 

@@ -376,6 +376,8 @@ public:
       cone_detection_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       state_estimation_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
+      state_estimation_subscriber_2_;
 
   // Global variables
   std::vector<std::pair<float, utfr_msgs::msg::Cone>>
