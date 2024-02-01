@@ -501,7 +501,6 @@ void BuildGraphNode::graphSLAM() {
   cone_map_publisher_->publish(cone_map_);
 
   // Save the optimized pose graph
-  optimizer_.save("optimized_graph.g2o");
   // std::cout << "Optimized pose graph saved" << std::endl;
 }
 
