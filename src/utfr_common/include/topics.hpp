@@ -31,6 +31,7 @@ const std::string kPerceptionHeartbeat{"perception/heartbeat"};
 
 // EKF
 const std::string kEgoState{"ekf/ego_state"};
+const std::string kPose{"ekf/pose"};
 const std::string kEKFHeartbeat{"ekf/heartbeat"};
 
 // Mapping
