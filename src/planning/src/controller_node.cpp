@@ -18,11 +18,14 @@ namespace utfr_dv {
 namespace controller {
 
 ControllerNode::ControllerNode() : Node("controller_node") {
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
   this->initParams();
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
   this->initHeartbeat();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+
 }
 
 void ControllerNode::initParams() {
@@ -203,109 +206,133 @@ void ControllerNode::lapCounterCB(const utfr_msgs::msg::Heartbeat &msg) {
 void ControllerNode::timerCBAccel() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (!path_ || !velocity_profile_) {
+  try {
+    if (!path_ || !velocity_profile_) {
+      RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                  "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+    double cur_s_ = 0;
+
+    // Controller
+    utfr_msgs::msg::TargetState target = purePursuitController(
+        max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
+        baselink_location_, *ego_state_, base_lookahead_distance_,
+        lookahead_distance_scaling_factor_);
+
+    target_ = target;
+
+    // print target state
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Data not published or initialized yet. Using defaults.");
-    return;
+                "Target steering: %f \n Target velocity: %f",
+                target.steering_angle, target.speed);
+
+    // publish target state
+    target_state_publisher_->publish(target_);
+
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+  } catch (const std::exception &e) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
-  double cur_s_ = 0;
-
-  // Controller
-  utfr_msgs::msg::TargetState target = purePursuitController(
-      max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
-      baselink_location_, *ego_state_, base_lookahead_distance_,
-      lookahead_distance_scaling_factor_);
-
-  target_ = target;
-
-  // print target state
-  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-              "Target steering: %f \n Target velocity: %f",
-              target.steering_angle, target.speed);
-
-  // publish target state
-  target_state_publisher_->publish(target_);
 }
 
 void ControllerNode::timerCBSkidpad() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (!path_ || !velocity_profile_) {
+  try {
+    if (!path_ || !velocity_profile_) {
+      RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                  "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+    double cur_s_ = 0;
+
+    // Controller
+    utfr_msgs::msg::TargetState target = purePursuitController(
+        max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
+        baselink_location_, *ego_state_, base_lookahead_distance_,
+        lookahead_distance_scaling_factor_);
+
+    target_ = target;
+
+    // print target state
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Data not published or initialized yet. Using defaults.");
-    return;
+                "Target steering: %f \n Target velocity: %f",
+                target.steering_angle, target.speed);
+
+    // publish target state
+    target_state_publisher_->publish(target_);
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+  } catch (const std::exception &e) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
-  double cur_s_ = 0;
-
-  // Controller
-  utfr_msgs::msg::TargetState target = purePursuitController(
-      max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
-      baselink_location_, *ego_state_, base_lookahead_distance_,
-      lookahead_distance_scaling_factor_);
-
-  target_ = target;
-
-  // print target state
-  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-              "Target steering: %f \n Target velocity: %f",
-              target.steering_angle, target.speed);
-
-  // publish target state
-  target_state_publisher_->publish(target_);
 }
 
 void ControllerNode::timerCBAutocross() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (!path_ || !velocity_profile_) {
+  try {
+
+    if (!path_ || !velocity_profile_) {
+      RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                  "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+    double cur_s_ = 0;
+
+    // Controller
+    utfr_msgs::msg::TargetState target = purePursuitController(
+        max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
+        baselink_location_, *ego_state_, base_lookahead_distance_,
+        lookahead_distance_scaling_factor_);
+
+    target_ = target;
+
+    // print target state
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Data not published or initialized yet. Using defaults.");
-    return;
+                "Target steering: %f \n Target velocity: %f",
+                target.steering_angle, target.speed);
+
+    // publish target state
+    target_state_publisher_->publish(target_);
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+  } catch (const std::exception &e) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
-  double cur_s_ = 0;
-
-  // Controller
-  utfr_msgs::msg::TargetState target = purePursuitController(
-      max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
-      baselink_location_, *ego_state_, base_lookahead_distance_,
-      lookahead_distance_scaling_factor_);
-
-  target_ = target;
-
-  // print target state
-  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-              "Target steering: %f \n Target velocity: %f",
-              target.steering_angle, target.speed);
-
-  // publish target state
-  target_state_publisher_->publish(target_);
 }
 
 void ControllerNode::timerCBTrackdrive() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (!path_ || !velocity_profile_) {
+  try {
+
+    if (!path_ || !velocity_profile_) {
+      RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                  "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+    double cur_s_ = 0;
+
+    // Controller
+    utfr_msgs::msg::TargetState target = purePursuitController(
+        max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
+        baselink_location_, *ego_state_, base_lookahead_distance_,
+        lookahead_distance_scaling_factor_);
+
+    target_ = target;
+
+    // print target state
     RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Data not published or initialized yet. Using defaults.");
-    return;
+                "Target steering: %f \n Target velocity: %f",
+                target.steering_angle, target.speed);
+
+    // publish target state
+    target_state_publisher_->publish(target_);
+
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+  } catch (const std::exception &e) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
-  double cur_s_ = 0;
-
-  // Controller
-  utfr_msgs::msg::TargetState target = purePursuitController(
-      max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
-      baselink_location_, *ego_state_, base_lookahead_distance_,
-      lookahead_distance_scaling_factor_);
-
-  target_ = target;
-
-  // print target state
-  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-              "Target steering: %f \n Target velocity: %f",
-              target.steering_angle, target.speed);
-
-  // publish target state
-  target_state_publisher_->publish(target_);
 }
 
 geometry_msgs::msg::Pose
