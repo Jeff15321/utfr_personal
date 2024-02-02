@@ -7,7 +7,6 @@
 cleanup() {
     echo "Killing all ros2 processes"
     kill $PID_RECORD
-    sleep 1
     kill $PID_LAUNCH
     exit
 }

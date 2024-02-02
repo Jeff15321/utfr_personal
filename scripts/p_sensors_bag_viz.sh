@@ -8,7 +8,6 @@ cleanup() {
     echo "Killing all ros2 processes"
     kill $PID_RECORD
     kill $PID_BRIDGE
-    kill $PID_VISUALIZATION
     kill $PID_LAUNCH
     exit
 }
@@ -19,8 +18,6 @@ cd ~/dv24
 source install/setup.bash
 ros2 launch launcher p_sensors.launch.py &
 PID_LAUNCH=$!
-ros2 launch visualization visualization.launch.py &
-PID_VISUALIZATION=$!
 ros2 launch foxglove_bridge foxglove_bridge_launch.xml &
 PID_BRIDGE=$!
 
