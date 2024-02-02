@@ -6,18 +6,18 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     ld = LaunchDescription()
-    config = os.path.join(
+    config_path = os.path.join(
         get_package_share_directory("perception"), "config", "config.yaml"
     )
 
-    node = Node(
+    lidar_proc_node = Node(
         package="perception",
-        executable="perception_node.py",
-        name="perception_node",
+        executable="lidar_proc",
+        name="lidar_proc_node",
         output="screen",
         emulate_tty=True,
-        parameters=[config],
+        parameters=[config_path],
     )
 
-    ld.add_action(node)
+    ld.add_action(lidar_proc_node)
     return ld
