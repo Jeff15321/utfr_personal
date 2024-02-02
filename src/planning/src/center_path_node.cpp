@@ -20,12 +20,15 @@ using Point32 = geometry_msgs::msg::Point32;
 using PointTuple = std::tuple<Point32, Point32, Point32, Point32>;
 
 CenterPathNode::CenterPathNode() : Node("center_path_node") {
-  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
+  RCLCPP_INFO(this->get_logger(), "Center Path Node Launched");
+  
   this->initParams();
+  this->initHeartbeat();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
+  
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
-  this->initHeartbeat();
   this->initSector();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
 }
@@ -68,10 +71,7 @@ void CenterPathNode::initPublishers() {
   center_path_publisher_ =
       this->create_publisher<utfr_msgs::msg::ParametricSpline>(
           topics::kCenterPath, 10);
-
-  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-      topics::kCenterPathHeartbeat, 10);
-
+  
   accel_path_publisher_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kAccelPath, 10);
@@ -133,6 +133,9 @@ void CenterPathNode::initSector() {
 }
 
 void CenterPathNode::initHeartbeat() {
+  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
+      topics::kCenterPathHeartbeat, 10);
+
   heartbeat_.module.data = "center_path_node";
   heartbeat_.update_rate = update_rate_;
 }

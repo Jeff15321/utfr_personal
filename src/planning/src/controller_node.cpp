@@ -18,12 +18,14 @@ namespace utfr_dv {
 namespace controller {
 
 ControllerNode::ControllerNode() : Node("controller_node") {
-  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
+  RCLCPP_INFO(this->get_logger(), "Center Path Node Launched");
   this->initParams();
+  this->initHeartbeat();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
+  
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
-  this->initHeartbeat();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
 
 }
@@ -92,9 +94,6 @@ void ControllerNode::initSubscribers() {
 }
 
 void ControllerNode::initPublishers() {
-  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-      topics::kControllerHeartbeat, 10);
-
   target_state_publisher_ = this->create_publisher<utfr_msgs::msg::TargetState>(
       topics::kTargetState, 10);
 
@@ -131,6 +130,8 @@ void ControllerNode::initTimers() {
 }
 
 void ControllerNode::initHeartbeat() {
+  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
+      topics::kControllerHeartbeat, 10);
   heartbeat_.module.data = "controller_node";
   heartbeat_.update_rate = update_rate_;
 }
@@ -230,7 +231,8 @@ void ControllerNode::timerCBAccel() {
     // publish target state
     target_state_publisher_->publish(target_);
 
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    if (!finished_and_stopped_) publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    else publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
   } catch (const std::exception &e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -262,7 +264,8 @@ void ControllerNode::timerCBSkidpad() {
 
     // publish target state
     target_state_publisher_->publish(target_);
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    if (!finished_and_stopped_) publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    else publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
   } catch (const std::exception &e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -295,7 +298,8 @@ void ControllerNode::timerCBAutocross() {
 
     // publish target state
     target_state_publisher_->publish(target_);
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    if (!finished_and_stopped_) publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    else publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
   } catch (const std::exception &e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -329,7 +333,8 @@ void ControllerNode::timerCBTrackdrive() {
     // publish target state
     target_state_publisher_->publish(target_);
 
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    if (!finished_and_stopped_) publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    else publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
   } catch (const std::exception &e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -499,6 +504,7 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
 
   if (abs((curr_time - start_time_).seconds()) > 5.0 && finished_event_) {
     desired_velocity = 0.0;
+    finished_and_stopped_ = true;
   }
 
   if (desired_velocity != 0.0 && desired_velocity < 2.0) {
