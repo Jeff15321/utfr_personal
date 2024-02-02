@@ -437,20 +437,18 @@ void BuildGraphNode::graphSLAM() {
   optimizer_.initializeOptimization();
   optimizer_.optimize(10);
 
-  for (g2o::SparseOptimizer::VertexIDMap::iterator it = _vertices().begin(); it != _vertices().end(); ++it) {
-        g2o::SparseOptimizer::Vertex* vertex = static_cast<g2o::SparseOptimizer::Vertex*>(it->second);
-        if (vertex) {
-            g2o::VertexSE2* v = static_cast<g2o::VertexSE2*>(vertex);
-            if (se2Vertex) {
-                const g2o::SE2& se2 = v->estimate();
-                double x = se2.translation().x();  // Extract the x component
-                double y = se2.translation().y();  // Extract the y component
+  cone_map_.left_cones.clear();
 
-                utfr_msgs::msg::Cone cone;
-                cone.pos.x = x;
-                cone.pos.y = y;
-                output_cone_locations.push_back(cone);
-            }
+  for (auto v : optimizer_.vertices()) {
+        g2o::VertexPointXY* vertex = dynamic_cast<g2o::VertexPointXY*>(v.second);
+        if (vertex) {
+            double x = vertex->estimate()(0);
+            double y = vertex->estimate()(1);
+
+            utfr_msgs::msg::Cone cone;
+            cone.pos.x = x;
+            cone.pos.y = y;
+            cone_map_.left_cones.push_back(cone);
         }
     }
   // Save the optimized pose graph
