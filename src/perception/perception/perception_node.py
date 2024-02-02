@@ -430,7 +430,6 @@ class PerceptionNode(Node):
         """
         Callback function for left_cam_subscriber_
         """
-        self.get_logger().warn("Recieved left camera message")
         try:
             self.left_img_header = msg.header
             self.left_img_ = self.bridge.imgmsg_to_cv2(
@@ -451,7 +450,6 @@ class PerceptionNode(Node):
         """
         Callback function for right_cam_subscriber_
         """
-        self.get_logger().warn("Recieved right camera message")
         try:
             self.right_img_header = msg.header
             self.right_img_ = self.bridge.imgmsg_to_cv2(

@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Author: Daniel Asadi
-# Description: Record full perception + sensors with viz
-# Usage: bash scripts/p_full_bag_viz.sh <bag_name>
+# Description: Playback sensor data rosbag against perception node and viz
+# Usage: bash scripts/p_viz_playback.sh <bag_name>
 
 cleanup() {
     echo "Killing all ros2 processes"
-    kill $PID_RECORD
+    # kill $PID_RECORD
     kill $PID_BRIDGE
     kill $PID_VISUALIZATION
     kill $PID_LAUNCH
@@ -24,10 +24,10 @@ PID_VISUALIZATION=$!
 ros2 launch foxglove_bridge foxglove_bridge_launch.xml &
 PID_BRIDGE=$!
 
-sleep 30
+# sleep 30
 
-cd "/media/utfr-dv/1tb ssd/rosbags"
-ros2 bag record -s mcap /ouster/points /right_camera_node/images /left_camera_node/images -o "$1" &
-PID_RECORD=$!
+# cd "/media/utfr-dv/1tb ssd/rosbags"
+# ros2 bag record -s mcap /ouster/points /right_camera_node/images /left_camera_node/images -o "$1" &
+# PID_RECORD=$!
 
 wait

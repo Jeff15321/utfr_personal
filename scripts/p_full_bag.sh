@@ -2,7 +2,7 @@
 
 # Author: Daniel Asadi
 # Description: Record full perception + sensors
-# Usage: bash scripts/p_sensors_bag.sh <bag_name>
+# Usage: bash scripts/p_full_bag.sh <bag_name>
 
 cleanup() {
     echo "Killing all ros2 processes"
