@@ -21,7 +21,7 @@ PID_LAUNCH=$!
 
 sleep 30
 
-cd # TODO: ssd location
+cd "/media/utfr-dv/1tb ssd/rosbags"
 ros2 bag record -a -o "$1" &
 PID_RECORD=$!
 

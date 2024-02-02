@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Author: Daniel Asadi
-# Description: Record cameras + LIDAR data
+# Description: Record full perception + sensors
 # Usage: bash scripts/p_sensors_bag.sh <bag_name>
 
 cleanup() {
@@ -15,7 +15,7 @@ trap cleanup SIGINT
 
 cd ~/dv24
 source install/setup.bash
-ros2 launch launcher p_sensors.launch.py &
+ros2 launch launcher perception.launch.py &
 PID_LAUNCH=$!
 
 sleep 30
