@@ -20,8 +20,9 @@ def generate_launch_description():
     lidar_dir = get_package_share_directory("ouster_ros")
     lidar_launch = IncludeLaunchDescription(
         launch_description_sources.PythonLaunchDescriptionSource(
-            lidar_dir + "/launch/driver.launch.py viz:=False"
-        )
+            lidar_dir + "/launch/driver.launch.py"
+        ),
+        launch_arguments=[("viz", "False")],
     )
 
     ld.add_action(cam_launch)
