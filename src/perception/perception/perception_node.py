@@ -51,6 +51,7 @@ from std_srvs.srv import Trigger
 from perception.submodules.deep import deep_process
 from perception.submodules.deep import bounding_boxes_to_cone_detections
 from perception.submodules.deep import check_for_cuda
+from perception.submodules.deep import labelColor
 
 
 class PerceptionNode(Node):
@@ -348,8 +349,12 @@ class PerceptionNode(Node):
             Heartbeat, self.heartbeat_topic_, 1
         )
 
-        self.perception_debug_publisher_ = self.create_publisher(
-            PerceptionDebug, self.perception_debug_topic_, 1
+        self.perception_debug_publisher_left_ = self.create_publisher(
+            PerceptionDebug, self.perception_debug_topic_ + "_left", 1
+        )
+
+        self.perception_debug_publisher_right_ = self.create_publisher(
+            PerceptionDebug, self.perception_debug_topic_ + "_right", 1
         )
 
     def initServices(self):
@@ -427,6 +432,7 @@ class PerceptionNode(Node):
         """
         self.get_logger().warn("Recieved left camera message")
         try:
+            self.left_img_header = msg.header
             self.left_img_ = self.bridge.imgmsg_to_cv2(
                 msg, desired_encoding="passthrough"
             )
@@ -447,6 +453,7 @@ class PerceptionNode(Node):
         """
         self.get_logger().warn("Recieved right camera message")
         try:
+            self.right_img_header = msg.header
             self.right_img_ = self.bridge.imgmsg_to_cv2(
                 msg, desired_encoding="passthrough"
             )
@@ -495,14 +502,14 @@ class PerceptionNode(Node):
           cone_detections: array of 3d cone detections using stereo ([x, y, z, color])
         """
 
-        left_bounding_boxes, left_classes, left_image = deep_process(
+        left_bounding_boxes, left_classes, left_scores, left_image = deep_process(
             left_img_,
             self.translation,
             self.intrinsics_left,
             self.session,
             self.confidence_,
         )
-        right_bounding_boxes, right_classes, right_image = deep_process(
+        right_bounding_boxes, right_classes, right_scores, right_image = deep_process(
             right_img_,
             self.translation,
             self.intrinsics_left,
@@ -528,7 +535,15 @@ class PerceptionNode(Node):
             left_img_,
             right_img_,
         )
-        return left_bounding_boxes, right_bounding_boxes, cone_detections
+        return (
+            left_bounding_boxes,
+            left_classes,
+            left_scores,
+            right_bounding_boxes,
+            right_classes,
+            right_scores,
+            cone_detections,
+        )
 
     def timerCB(self):
         """
@@ -538,6 +553,7 @@ class PerceptionNode(Node):
         """
 
         # initialize detection msg
+        # TODO - make 1 detections message and combine them at the end
         self.detections_msg = ConeDetections()
         self.detections_msg.header.frame_id = "left_camera"
 
@@ -583,9 +599,9 @@ class PerceptionNode(Node):
         # code to resize the image (for faster fps)
 
         """
-    frame_left_60, frame_right_60 = self.resize_img(undist_left, undist_right, 60)
-    frame_left = undist_left
-    frame_right = undist_right
+        frame_left_60, frame_right_60 = self.resize_img(undist_left, undist_right, 60)
+        frame_left = frame_left_60
+        frame_right = frame_right_70
     
     if self.save_pic == "True":
       timestamp = int(time.time())
@@ -595,9 +611,9 @@ class PerceptionNode(Node):
 
         # equalize histogram
         """
-    frame_left = self.equalize_hist(frame_left)
-    frame_right = self.equalize_hist(frame_right)
-    """
+        frame_left = self.equalize_hist(frame_left)
+        frame_right = self.equalize_hist(frame_right)
+        """
 
         frame_left = undist_left
         frame_right = undist_right
@@ -625,9 +641,15 @@ class PerceptionNode(Node):
             return
         # get the detections
 
-        results_left, results_right, cone_detections = self.process(
-            frame_left, frame_right
-        )
+        (
+            results_left,
+            classes_left,
+            scores_left,
+            results_right,
+            classes_right,
+            scores_right,
+            cone_detections,
+        ) = self.process(frame_left, frame_right)
 
         # TODO - use tf to convert results_left, results_right to lidar frame
         # transpose to lidar coordinates
@@ -646,31 +668,47 @@ class PerceptionNode(Node):
         # choose the min distance one and remove from cone detections array
         # when you remove it, you need to add it to a new array with the updated
         # 3d point of the cluster
-
         # self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
 
         # perception debug msg
-        self.perception_debug_msg = PerceptionDebug()
 
-        self.perception_debug_msg.header.stamp = self.get_clock().now().to_msg()
+        if len(results_left) == 0:
+            pass
+        else:
+            self.perception_debug_msg_left = PerceptionDebug()
+            self.perception_debug_msg_left.header.stamp = self.left_img_header.stamp
+            for i in range(len(results_left)):
+                bounding_box_left = BoundingBox()
+                bounding_box_left.x = int(results_left[i][0])
+                bounding_box_left.y = int(results_left[i][1])
+                bounding_box_left.width = int(results_left[i][2])
+                bounding_box_left.height = int(results_left[i][3])
+                bounding_box_left.type = labelColor(classes_left[i])
+                bounding_box_left.score = scores_left[i]
+                self.perception_debug_msg_left.left.append(bounding_box_left)
 
-        for i in range(len(results_left)):
-            bounding_box_left = BoundingBox()
-            bounding_box_left.x = int(results_left[i][0])
-            bounding_box_left.y = int(results_left[i][1])
-            bounding_box_left.width = int(results_left[i][2])
-            bounding_box_left.height = int(results_left[i][3])
-            self.perception_debug_msg.left.append(bounding_box_left)
+            self.perception_debug_publisher_left_.publish(
+                self.perception_debug_msg_left
+            )
 
-        for i in range(len(results_right)):
-            bounding_box_right = BoundingBox()
-            bounding_box_right.x = int(results_right[i][0])
-            bounding_box_right.y = int(results_right[i][1])
-            bounding_box_right.width = int(results_right[i][2])
-            bounding_box_right.height = int(results_right[i][3])
-            self.perception_debug_msg.right.append(bounding_box_right)
+        if len(results_right) == 0:
+            pass
+        else:
+            self.perception_debug_msg_right = PerceptionDebug()
+            self.perception_debug_msg_right.header.stamp = self.right_img_header.stamp
+            for i in range(len(results_right)):
+                bounding_box_right = BoundingBox()
+                bounding_box_right.x = int(results_right[i][0])
+                bounding_box_right.y = int(results_right[i][1])
+                bounding_box_right.width = int(results_right[i][2])
+                bounding_box_right.height = int(results_right[i][3])
+                bounding_box_right.type = labelColor(classes_right[i])
+                bounding_box_right.score = scores_right[i]
+                self.perception_debug_msg_right.right.append(bounding_box_right)
 
-        self.perception_debug_publisher_.publish(self.perception_debug_msg)
+            self.perception_debug_publisher_right_.publish(
+                self.perception_debug_msg_right
+            )
 
         # imshow for opencv
         """
@@ -680,34 +718,36 @@ class PerceptionNode(Node):
     cv2.imshow('right_camera', frame_right)
     cv2.waitKey(1)
     """
+        if cone_detections == []:
+            pass
+        else:
+            # order cones by distance
+            cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
 
-        # order cones by distance
-        cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
+            # publish cone detections
+            self.detections_msg.header.stamp = self.get_clock().now().to_msg()
 
-        # publish cone detections
-        self.detections_msg.header.stamp = self.get_clock().now().to_msg()
+            for i in range(len(cone_detections)):
+                self.cone_template = Cone()
+                self.cone_template.pos.y = -1.0 * float(cone_detections[i][0])  # left
+                self.cone_template.pos.z = -1.0 * float(cone_detections[i][1])  # up
+                self.cone_template.pos.x = float(cone_detections[i][2])  # front
+                self.cone_template.type = int(cone_detections[i][3])
 
-        for i in range(len(cone_detections)):
-            self.cone_template = Cone()
-            self.cone_template.pos.y = -1.0 * float(cone_detections[i][0])  # left
-            self.cone_template.pos.z = -1.0 * float(cone_detections[i][1])  # up
-            self.cone_template.pos.x = float(cone_detections[i][2])  # front
-            self.cone_template.type = int(cone_detections[i][3])
+                if self.cone_template.type == 1:  # blue
+                    self.detections_msg.left_cones.append(self.cone_template)
+                elif self.cone_template.type == 2:  # yellow
+                    self.detections_msg.right_cones.append(self.cone_template)
+                elif self.cone_template.type == 3:
+                    self.detections_msg.small_orange_cones.append(self.cone_template)
+                elif self.cone_template.type == 4:
+                    self.detections_msg.large_orange_cones.append(self.cone_template)
+                else:  # unknown cones cone template type == 0
+                    self.detections_msg.unknown_cones.append(self.cone_template)
 
-            if self.cone_template.type == 1:  # blue
-                self.detections_msg.left_cones.append(self.cone_template)
-            elif self.cone_template.type == 2:  # yellow
-                self.detections_msg.right_cones.append(self.cone_template)
-            elif self.cone_template.type == 3:
-                self.detections_msg.small_orange_cones.append(self.cone_template)
-            elif self.cone_template.type == 4:
-                self.detections_msg.large_orange_cones.append(self.cone_template)
-            else:  # unknown cones cone template type == 0
-                self.detections_msg.unknown_cones.append(self.cone_template)
+            self.detections_msg.header.stamp = self.get_clock().now().to_msg()
 
-        self.detections_msg.header.stamp = self.get_clock().now().to_msg()
-
-        self.cone_detections_publisher_.publish(self.detections_msg)
+            self.cone_detections_publisher_.publish(self.detections_msg)
 
         self.left_img_recieved_ = False
         self.right_img_recieved_ = False
