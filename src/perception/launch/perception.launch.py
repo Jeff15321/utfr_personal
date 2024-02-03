@@ -12,7 +12,7 @@ def generate_launch_description():
 
     node = Node(
         package="perception",
-        executable="perception",
+        executable="perception_node.py",
         name="perception_node",
         output="screen",
         emulate_tty=True,

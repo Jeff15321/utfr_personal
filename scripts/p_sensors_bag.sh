@@ -7,7 +7,6 @@
 cleanup() {
     echo "Killing all ros2 processes"
     kill $PID_RECORD
-    sleep 1
     kill $PID_LAUNCH
     exit
 }
@@ -21,7 +20,7 @@ PID_LAUNCH=$!
 
 sleep 30
 
-cd # TODO: ssd location
+cd "/media/utfr-dv/1tb ssd/rosbags"
 ros2 bag record -s mcap /ouster/points /right_camera_node/images /left_camera_node/images -o "$1" &
 PID_RECORD=$!
 

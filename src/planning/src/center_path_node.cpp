@@ -91,7 +91,7 @@ void CenterPathNode::initPublishers() {
   skidpad_path_publisher_2_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kSkidpadFitting2, 10);
-  
+
   skidpad_path_publisher_avg_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kSkidpadFittingavg, 10);
@@ -239,14 +239,17 @@ void CenterPathNode::timerCBSkidpad() {
 
   try {
     try {
-        if (cone_detections_ == nullptr || ego_state_ == nullptr) {
-            RCLCPP_WARN(get_logger(), "%s Either cone detections or ego state is empty.", function_name.c_str());
-            return; 
-        }
-        skidPadFit(*cone_detections_, *ego_state_);
+      if (cone_detections_ == nullptr || ego_state_ == nullptr) {
+        RCLCPP_WARN(get_logger(),
+                    "%s Either cone detections or ego state is empty.",
+                    function_name.c_str());
+        return;
+      }
+      skidPadFit(*cone_detections_, *ego_state_);
 
-    } catch (const std::exception& e) {
-        RCLCPP_ERROR(get_logger(), "%s Exception: %s", function_name.c_str(), e.what());
+    } catch (const std::exception &e) {
+      RCLCPP_ERROR(get_logger(), "%s Exception: %s", function_name.c_str(),
+                   e.what());
     }
 
     skidpadLapCounter();
@@ -824,7 +827,8 @@ void CenterPathNode::skidPadFit(
     int ind1, ind2;
 
     for (int i = 0; i < cone_detections_->small_orange_cones.size() - 1; i++) {
-      for (int j = i + 1; j < cone_detections_->small_orange_cones.size(); j++) {
+      for (int j = i + 1; j < cone_detections_->small_orange_cones.size();
+           j++) {
         if (i != j) {
           utfr_msgs::msg::ConeMap cur_test;
           cur_test.small_orange_cones.push_back(
@@ -882,7 +886,8 @@ void CenterPathNode::skidPadFit(
     int ind1, ind2;
 
     for (int i = 0; i < cone_detections_->large_orange_cones.size() - 1; i++) {
-      for (int j = i + 1; j < cone_detections_->large_orange_cones.size(); j++) {
+      for (int j = i + 1; j < cone_detections_->large_orange_cones.size();
+           j++) {
         if (i != j) {
           utfr_msgs::msg::ConeMap cur_test;
           cur_test.large_orange_cones.push_back(
@@ -931,15 +936,15 @@ void CenterPathNode::skidPadFit(
         c_right = c_left - 3;
       }
     }
-     
+
     publishLine(m_left, m_right, c_left, c_right, 0, 5, 0.02);
 
   } else if (curr_sector_ == 12 || curr_sector_ == 13) {
     std::tuple<double, double, double, double, double, double> circle;
-    if (cone_detections_->large_orange_cones.size() > 0 || cone_detections_->small_orange_cones.size() > 0) {
+    if (cone_detections_->large_orange_cones.size() > 0 ||
+        cone_detections_->small_orange_cones.size() > 0) {
       circle = skidpadRight();
-    }
-    else{
+    } else {
       circle = skidpadMain();
     }
 
@@ -950,7 +955,8 @@ void CenterPathNode::skidPadFit(
     yc2 = std::get<4>(circle);
     r2 = std::get<5>(circle);
 
-    geometry_msgs::msg::PolygonStamped circle1_stamped, circle2_stamped, circleavg;
+    geometry_msgs::msg::PolygonStamped circle1_stamped, circle2_stamped,
+        circleavg;
 
     circle1_stamped.header.frame_id = "base_footprint";
     circle2_stamped.header.frame_id = "base_footprint";
@@ -969,8 +975,11 @@ void CenterPathNode::skidPadFit(
       point1.x = xc1 + small_radius_ * cos(angle);
       point1.y = (yc1 + small_radius_ * sin(angle)) * -1;
       point1.z = 0;
-      pointavg.x = (xc1 + xc2) / 2.0 + (small_radius_ + big_radius_) / 2.0 * cos(angle);
-      pointavg.y = ((yc1 + yc2) / 2.0 + (small_radius_ + big_radius_) / 2.0 * sin(angle)) * -1;
+      pointavg.x =
+          (xc1 + xc2) / 2.0 + (small_radius_ + big_radius_) / 2.0 * cos(angle);
+      pointavg.y = ((yc1 + yc2) / 2.0 +
+                    (small_radius_ + big_radius_) / 2.0 * sin(angle)) *
+                   -1;
       pointavg.z = 0;
 
       point2.x = xc2 + big_radius_ * cos(angle);
@@ -994,18 +1003,19 @@ void CenterPathNode::skidPadFit(
     avg_circle_msg.header.frame_id = "base_footprint";
     avg_circle_msg.header.stamp = this->get_clock()->now();
 
-    avg_circle_msg.x_params = {0,0,0,0,1,0};
-    avg_circle_msg.y_params = {0,0,0,1/(2*r),-b/r, k-r+b*b/(2*r)};
+    avg_circle_msg.x_params = {0, 0, 0, 0, 1, 0};
+    avg_circle_msg.y_params = {0,           0,      0,
+                               1 / (2 * r), -b / r, k - r + b * b / (2 * r)};
 
     center_path_publisher_->publish(avg_circle_msg);
   }
 
   else if (curr_sector_ == 14 || curr_sector_ == 15) {
     std::tuple<double, double, double, double, double, double> circle;
-    if (cone_detections_->large_orange_cones.size() > 0 || cone_detections_->small_orange_cones.size() > 0) {
+    if (cone_detections_->large_orange_cones.size() > 0 ||
+        cone_detections_->small_orange_cones.size() > 0) {
       circle = skidpadLeft();
-    }
-    else{
+    } else {
       circle = skidpadMain();
     }
 
@@ -1016,7 +1026,8 @@ void CenterPathNode::skidPadFit(
     yc2 = std::get<4>(circle);
     r2 = std::get<5>(circle);
 
-    geometry_msgs::msg::PolygonStamped circle1_stamped, circle2_stamped, circleavg;
+    geometry_msgs::msg::PolygonStamped circle1_stamped, circle2_stamped,
+        circleavg;
 
     circle1_stamped.header.frame_id = "base_footprint";
     circle2_stamped.header.frame_id = "base_footprint";
@@ -1035,8 +1046,10 @@ void CenterPathNode::skidPadFit(
       point1.y = -1 * (yc1 + small_radius_ * sin(angle));
       point1.z = 0;
 
-      pointavg.x = (xc1 + xc2) / 2.0 + (small_radius_ + big_radius_) / 2.0 * cos(angle);
-      pointavg.y = -1 * ((yc1 + yc2) / 2.0 + (small_radius_ + big_radius_) / 2.0 * sin(angle));
+      pointavg.x =
+          (xc1 + xc2) / 2.0 + (small_radius_ + big_radius_) / 2.0 * cos(angle);
+      pointavg.y = -1 * ((yc1 + yc2) / 2.0 +
+                         (small_radius_ + big_radius_) / 2.0 * sin(angle));
       pointavg.z = 0;
 
       point2.x = xc2 + big_radius_ * cos(angle);
@@ -1060,8 +1073,9 @@ void CenterPathNode::skidPadFit(
     avg_circle_msg.header.frame_id = "base_footprint";
     avg_circle_msg.header.stamp = this->get_clock()->now();
 
-    avg_circle_msg.x_params = {0,0,0,0,1,0};
-    avg_circle_msg.y_params = {0,0,0,-1/(2*r),b/r, k+r-b*b/(2*r)};
+    avg_circle_msg.x_params = {0, 0, 0, 0, 1, 0};
+    avg_circle_msg.y_params = {
+        0, 0, 0, -1 / (2 * r), b / r, k + r - b * b / (2 * r)};
 
     center_path_publisher_->publish(avg_circle_msg);
   }
@@ -1070,7 +1084,8 @@ void CenterPathNode::skidPadFit(
     bool find = false;
     int ind1, ind2;
     for (int i = 0; i < cone_detections_->small_orange_cones.size() - 1; i++) {
-      for (int j = i + 1; j < cone_detections_->small_orange_cones.size(); j++) {
+      for (int j = i + 1; j < cone_detections_->small_orange_cones.size();
+           j++) {
         if (i != j) {
           utfr_msgs::msg::ConeMap cur_test;
           cur_test.small_orange_cones.push_back(
@@ -1099,7 +1114,8 @@ void CenterPathNode::skidPadFit(
     find = false;
 
     for (int k = 0; k < cone_detections_->small_orange_cones.size() - 1; k++) {
-      for (int l = k + 1; l < cone_detections_->small_orange_cones.size(); l++) {
+      for (int l = k + 1; l < cone_detections_->small_orange_cones.size();
+           l++) {
         if (k != l && k != ind1 && k != ind2 && l != ind1 && l != ind2) {
           utfr_msgs::msg::ConeMap cur_test_other;
           cur_test_other.small_orange_cones.push_back(
@@ -1128,9 +1144,9 @@ void CenterPathNode::skidPadFit(
   }
 }
 
-void CenterPathNode::publishLine(
-  double m_left, double m_right, double c_left, double c_right, double x_min, 
-  double x_max, double thickness) {
+void CenterPathNode::publishLine(double m_left, double m_right, double c_left,
+                                 double c_right, double x_min, double x_max,
+                                 double thickness) {
 
   utfr_msgs::msg::ParametricSpline avg_line_msg;
 
@@ -1178,260 +1194,34 @@ void CenterPathNode::publishLine(
   skidpad_path_publisher_->publish(line1_stamped);
   skidpad_path_publisher_2_->publish(line2_stamped);
   skidpad_path_publisher_avg_->publish(lineavg);
-  
+
   avg_line_msg.header.frame_id = "base_footprint";
   avg_line_msg.header.stamp = this->get_clock()->now();
-  avg_line_msg.x_params = {0, 0, 0, 0, 1, 0}; 
+  avg_line_msg.x_params = {0, 0, 0, 0, 1, 0};
   avg_line_msg.y_params = {
-    0, 0, 0, 0, (m_left + m_right) / 2.0, (c_left + c_right) / 2.0}; 
+      0, 0, 0, 0, (m_left + m_right) / 2.0, (c_left + c_right) / 2.0};
 
   center_path_publisher_->publish(avg_line_msg);
 }
 
-std::tuple<double, double, double, double, double, double> CenterPathNode::skidpadMain(){
+std::tuple<double, double, double, double, double, double>
+CenterPathNode::skidpadMain() {
   int left_size = cone_detections_->left_cones.size();
   int right_size = cone_detections_->right_cones.size();
   bool leftFind = false;
   bool rightFind = false;
   double xc1, yc1, xc2, yc2, r1, r2;
   int turning;
-  if (curr_sector_ == 12 || curr_sector_ == 13){
+  if (curr_sector_ == 12 || curr_sector_ == 13) {
     turning = 1;
-  }
-  else{
+  } else {
     turning = 0;
   }
-  if (left_size > 2 && right_size > 2)
-  {
-    for (int i = 0; i < left_size - 2; i++)
-    {
-      for (int j = i + 1; j < left_size - 1; j++)
-      {
-        for (int k = j + 1; k < left_size; k++)
-        {
-          if (i != j && j != k && i != k)
-          {
-            utfr_msgs::msg::ConeMap cur_test_left;
-            utfr_msgs::msg::Cone cur_test_cone;
-            cur_test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
-
-            int insideThresholdLeft = 0;
-            std::tuple<double, double, double, double> circle;
-
-            cur_test_cone.pos.x = 
-                cone_detections_->left_cones[i].pos.x;
-            cur_test_cone.pos.y = 
-                cone_detections_->left_cones[i].pos.y;
-            (cur_test_left.left_cones).push_back(cur_test_cone);
-            cur_test_cone.pos.x = 
-                cone_detections_->left_cones[j].pos.x;
-            cur_test_cone.pos.y = 
-                cone_detections_->left_cones[j].pos.y;
-            (cur_test_left.left_cones).push_back(cur_test_cone);
-            cur_test_cone.pos.x = 
-                cone_detections_->left_cones[k].pos.x;
-            cur_test_cone.pos.y = 
-                cone_detections_->left_cones[k].pos.y;
-            (cur_test_left.left_cones).push_back(cur_test_cone);
-            if (turning == 0){
-              circle = util::ransacCircleLSF(cur_test_left.left_cones,small_radius_);
-            }
-            else if (turning == 1){
-              circle = util::ransacCircleLSF(cur_test_left.left_cones,big_radius_);
-            }
-            r1 = std::get<2>(circle);
-            yc1 = std::get<1>(circle);
-            xc1 = std::get<0>(circle);
-            double outer_threshold_left = r1 + threshold_radius_;
-            double inner_threshold_left = r1 - threshold_radius_;
-            for (int a = 0; a < left_size; a++)
-            {
-              if (inner_threshold_left < sqrt(pow((xc1 -
-                  cone_detections_->left_cones[a].pos.x), 2) +
-                  pow((yc1 - cone_detections_->left_cones[a].pos.y), 2)) &&
-                  outer_threshold_left > sqrt(pow((xc1 -
-                  cone_detections_->left_cones[a].pos.x),2) +
-                  pow((yc1 - cone_detections_->left_cones[a].pos.y),2)))
-              {
-                insideThresholdLeft += 1;
-              }
-            }
-            if (((turning == 0 && insideThresholdLeft >= threshold_cones_ && yc1<0)
-                || (insideThresholdLeft >= threshold_cones_ && yc1>0 && turning == 1)) 
-                && xc1<3.0){
-              leftFind = true;
-            }
-          }
-          if (leftFind == true)
-          {
-            break;
-          }
-        }
-        if (leftFind == true)
-        {
-          break;
-        }
-      }
-      if (leftFind == true)
-      {
-        break;
-      }
-    } 
-      for (int i = 0; i < right_size - 2; i++)
-      {
-        for (int j = i + 1; j < right_size - 1; j++)
-        {
-          for (int k = j + 1; k < right_size; k++)
-          {
-            if (i != j && j != k && i != k)
-            {
-              utfr_msgs::msg::ConeMap cur_test_right;
-              utfr_msgs::msg::Cone cur_test_cone;
-              cur_test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
-
-              int insideThresholdRight = 0;
-              std::tuple<double, double, double, double> circle;
-              
-              cur_test_cone.pos.x = cone_detections_->right_cones[i].pos.x;
-              cur_test_cone.pos.y = cone_detections_->right_cones[i].pos.y;
-              (cur_test_right.right_cones).push_back(cur_test_cone);
-              cur_test_cone.pos.x = cone_detections_->right_cones[j].pos.x;
-              cur_test_cone.pos.y = cone_detections_->right_cones[j].pos.y;
-              (cur_test_right.right_cones).push_back(cur_test_cone);
-              cur_test_cone.pos.x = cone_detections_->right_cones[k].pos.x;
-              cur_test_cone.pos.y = cone_detections_->right_cones[k].pos.y;
-              (cur_test_right.right_cones).push_back(cur_test_cone);
-              if (turning == 1){
-                circle = util::ransacCircleLSF(cur_test_right.right_cones, small_radius_);
-              }
-              else if (turning == 0){
-                circle = util::ransacCircleLSF(cur_test_right.right_cones, big_radius_);
-              }
-              r2 = std::get<2>(circle);
-              xc2 = std::get<0>(circle);
-              yc2 = std::get<1>(circle);
-              double outer_threshold_right = r2 + threshold_radius_;
-              double inner_threshold_right = r2 - threshold_radius_;
-              for (int a = 0; a < right_size; a++)
-              {
-                if (inner_threshold_right < sqrt(pow((xc2 -
-                    cone_detections_->right_cones[a].pos.x),2) +
-                    pow((yc2 - cone_detections_->right_cones[a].pos.y),2)) &&
-                    outer_threshold_right > sqrt(pow((xc2 -
-                    cone_detections_->right_cones[a].pos.x),2) +
-                    pow((yc2 - cone_detections_->right_cones[a].pos.y),2)))
-                {
-                  insideThresholdRight += 1;
-                }
-              }
-              if (((turning == 0 && insideThresholdRight >= threshold_cones_ && yc2<0)
-                  || (insideThresholdRight >= threshold_cones_ && yc2>0 && turning == 1)) 
-                  && xc2<3.0){
-                rightFind = true;
-              }
-            }
-            if (rightFind == true)
-            {
-              break;
-            }
-          }
-          if (rightFind == true)
-          {
-            break;
-          }
-        }
-      if (rightFind == true)
-      {
-        break;
-      }
-    }
-  }
-  else if (right_size > 2 && left_size < 3)
-  {
-    for (int i = 0; i < right_size - 2; i++)
-    {
-      for (int j = i + 1; j < right_size - 1; j++)
-      {
-        for (int k = j + 1; k < right_size; k++)
-        {
-          if (i != j && j != k && i != k)
-          {
-            utfr_msgs::msg::ConeMap cur_test_right;
-            utfr_msgs::msg::Cone cur_test_cone;
-            cur_test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
-
-            int insideThresholdRight = 0;
-            std::tuple<double, double, double, double> circle;
-            cur_test_cone.pos.x = cone_detections_->right_cones[i].pos.x;
-            cur_test_cone.pos.y = cone_detections_->right_cones[i].pos.y;
-            (cur_test_right.right_cones).push_back(cur_test_cone);
-            cur_test_cone.pos.x = cone_detections_->right_cones[j].pos.x;
-            cur_test_cone.pos.y = cone_detections_->right_cones[j].pos.y;
-            (cur_test_right.right_cones).push_back(cur_test_cone);
-            cur_test_cone.pos.x = cone_detections_->right_cones[k].pos.x;
-            cur_test_cone.pos.y = cone_detections_->right_cones[k].pos.y;
-            (cur_test_right.right_cones).push_back(cur_test_cone);
-            
-            if (turning == 1){
-              circle = util::ransacCircleLSF(cur_test_right.right_cones, small_radius_);
-              r1 = std::get<2>(circle);
-              r2 = r1+3.0;
-            }
-            else if (turning == 0){
-              circle = util::ransacCircleLSF(cur_test_right.right_cones, big_radius_);
-              r1 = std::get<2>(circle);
-              r2 = r1-3.0;
-            }
-            yc1 = std::get<1>(circle);
-            yc2 = std::get<1>(circle);
-            xc1 = std::get<0>(circle);
-            xc2 = std::get<0>(circle);
-              
-            double outer_threshold_right = r1 + threshold_radius_;
-            double inner_threshold_right = r1 - threshold_radius_;
-            for (int a = 0; a < right_size; a++)
-            {
-              if (inner_threshold_right < sqrt(pow((yc1 -
-                  cone_detections_->right_cones[a].pos.y), 2) +
-                  pow((xc1 - cone_detections_->right_cones[a].pos.x), 2)) &&
-                  outer_threshold_right > sqrt(pow((xc1 -
-                  cone_detections_->right_cones[a].pos.x),2) +
-                  pow((yc1 - cone_detections_->right_cones[a].pos.y),2)))
-              {
-                insideThresholdRight += 1;
-              }
-            }
-            if (insideThresholdRight >= threshold_cones_ && xc1<=3.0)
-            {
-              rightFind = true;
-            }
-          }
-          if (rightFind == true)
-          {
-            break;
-          }
-        }
-        if (rightFind == true)
-        {
-          break;
-        }
-      }
-      if (rightFind == true)
-      {
-        break;
-      }
-    }
-  }
-  else if (right_size < 3 && left_size > 2)
-  {
-    for (int i = 0; i < left_size - 2; i++)
-    {
-      for (int j = i + 1; j < left_size - 1; j++)
-      {
-        for (int k = j + 1; k < left_size; k++)
-        {
-          if (i != j && j != k && i != k)
-          {
+  if (left_size > 2 && right_size > 2) {
+    for (int i = 0; i < left_size - 2; i++) {
+      for (int j = i + 1; j < left_size - 1; j++) {
+        for (int k = j + 1; k < left_size; k++) {
+          if (i != j && j != k && i != k) {
             utfr_msgs::msg::ConeMap cur_test_left;
             utfr_msgs::msg::Cone cur_test_cone;
             cur_test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
@@ -1448,7 +1238,210 @@ std::tuple<double, double, double, double, double, double> CenterPathNode::skidp
             cur_test_cone.pos.x = cone_detections_->left_cones[k].pos.x;
             cur_test_cone.pos.y = cone_detections_->left_cones[k].pos.y;
             (cur_test_left.left_cones).push_back(cur_test_cone);
-            circle = util::ransacCircleLSF(cur_test_left.left_cones, small_radius_);
+            if (turning == 0) {
+              circle = util::ransacCircleLSF(cur_test_left.left_cones,
+                                             small_radius_);
+            } else if (turning == 1) {
+              circle =
+                  util::ransacCircleLSF(cur_test_left.left_cones, big_radius_);
+            }
+            r1 = std::get<2>(circle);
+            yc1 = std::get<1>(circle);
+            xc1 = std::get<0>(circle);
+            double outer_threshold_left = r1 + threshold_radius_;
+            double inner_threshold_left = r1 - threshold_radius_;
+            for (int a = 0; a < left_size; a++) {
+              if (inner_threshold_left <
+                      sqrt(pow((xc1 - cone_detections_->left_cones[a].pos.x),
+                               2) +
+                           pow((yc1 - cone_detections_->left_cones[a].pos.y),
+                               2)) &&
+                  outer_threshold_left >
+                      sqrt(pow((xc1 - cone_detections_->left_cones[a].pos.x),
+                               2) +
+                           pow((yc1 - cone_detections_->left_cones[a].pos.y),
+                               2))) {
+                insideThresholdLeft += 1;
+              }
+            }
+            if (((turning == 0 && insideThresholdLeft >= threshold_cones_ &&
+                  yc1 < 0) ||
+                 (insideThresholdLeft >= threshold_cones_ && yc1 > 0 &&
+                  turning == 1)) &&
+                xc1 < 3.0) {
+              leftFind = true;
+            }
+          }
+          if (leftFind == true) {
+            break;
+          }
+        }
+        if (leftFind == true) {
+          break;
+        }
+      }
+      if (leftFind == true) {
+        break;
+      }
+    }
+    for (int i = 0; i < right_size - 2; i++) {
+      for (int j = i + 1; j < right_size - 1; j++) {
+        for (int k = j + 1; k < right_size; k++) {
+          if (i != j && j != k && i != k) {
+            utfr_msgs::msg::ConeMap cur_test_right;
+            utfr_msgs::msg::Cone cur_test_cone;
+            cur_test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
+
+            int insideThresholdRight = 0;
+            std::tuple<double, double, double, double> circle;
+
+            cur_test_cone.pos.x = cone_detections_->right_cones[i].pos.x;
+            cur_test_cone.pos.y = cone_detections_->right_cones[i].pos.y;
+            (cur_test_right.right_cones).push_back(cur_test_cone);
+            cur_test_cone.pos.x = cone_detections_->right_cones[j].pos.x;
+            cur_test_cone.pos.y = cone_detections_->right_cones[j].pos.y;
+            (cur_test_right.right_cones).push_back(cur_test_cone);
+            cur_test_cone.pos.x = cone_detections_->right_cones[k].pos.x;
+            cur_test_cone.pos.y = cone_detections_->right_cones[k].pos.y;
+            (cur_test_right.right_cones).push_back(cur_test_cone);
+            if (turning == 1) {
+              circle = util::ransacCircleLSF(cur_test_right.right_cones,
+                                             small_radius_);
+            } else if (turning == 0) {
+              circle = util::ransacCircleLSF(cur_test_right.right_cones,
+                                             big_radius_);
+            }
+            r2 = std::get<2>(circle);
+            xc2 = std::get<0>(circle);
+            yc2 = std::get<1>(circle);
+            double outer_threshold_right = r2 + threshold_radius_;
+            double inner_threshold_right = r2 - threshold_radius_;
+            for (int a = 0; a < right_size; a++) {
+              if (inner_threshold_right <
+                      sqrt(pow((xc2 - cone_detections_->right_cones[a].pos.x),
+                               2) +
+                           pow((yc2 - cone_detections_->right_cones[a].pos.y),
+                               2)) &&
+                  outer_threshold_right >
+                      sqrt(pow((xc2 - cone_detections_->right_cones[a].pos.x),
+                               2) +
+                           pow((yc2 - cone_detections_->right_cones[a].pos.y),
+                               2))) {
+                insideThresholdRight += 1;
+              }
+            }
+            if (((turning == 0 && insideThresholdRight >= threshold_cones_ &&
+                  yc2 < 0) ||
+                 (insideThresholdRight >= threshold_cones_ && yc2 > 0 &&
+                  turning == 1)) &&
+                xc2 < 3.0) {
+              rightFind = true;
+            }
+          }
+          if (rightFind == true) {
+            break;
+          }
+        }
+        if (rightFind == true) {
+          break;
+        }
+      }
+      if (rightFind == true) {
+        break;
+      }
+    }
+  } else if (right_size > 2 && left_size < 3) {
+    for (int i = 0; i < right_size - 2; i++) {
+      for (int j = i + 1; j < right_size - 1; j++) {
+        for (int k = j + 1; k < right_size; k++) {
+          if (i != j && j != k && i != k) {
+            utfr_msgs::msg::ConeMap cur_test_right;
+            utfr_msgs::msg::Cone cur_test_cone;
+            cur_test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
+
+            int insideThresholdRight = 0;
+            std::tuple<double, double, double, double> circle;
+            cur_test_cone.pos.x = cone_detections_->right_cones[i].pos.x;
+            cur_test_cone.pos.y = cone_detections_->right_cones[i].pos.y;
+            (cur_test_right.right_cones).push_back(cur_test_cone);
+            cur_test_cone.pos.x = cone_detections_->right_cones[j].pos.x;
+            cur_test_cone.pos.y = cone_detections_->right_cones[j].pos.y;
+            (cur_test_right.right_cones).push_back(cur_test_cone);
+            cur_test_cone.pos.x = cone_detections_->right_cones[k].pos.x;
+            cur_test_cone.pos.y = cone_detections_->right_cones[k].pos.y;
+            (cur_test_right.right_cones).push_back(cur_test_cone);
+
+            if (turning == 1) {
+              circle = util::ransacCircleLSF(cur_test_right.right_cones,
+                                             small_radius_);
+              r1 = std::get<2>(circle);
+              r2 = r1 + 3.0;
+            } else if (turning == 0) {
+              circle = util::ransacCircleLSF(cur_test_right.right_cones,
+                                             big_radius_);
+              r1 = std::get<2>(circle);
+              r2 = r1 - 3.0;
+            }
+            yc1 = std::get<1>(circle);
+            yc2 = std::get<1>(circle);
+            xc1 = std::get<0>(circle);
+            xc2 = std::get<0>(circle);
+
+            double outer_threshold_right = r1 + threshold_radius_;
+            double inner_threshold_right = r1 - threshold_radius_;
+            for (int a = 0; a < right_size; a++) {
+              if (inner_threshold_right <
+                      sqrt(pow((yc1 - cone_detections_->right_cones[a].pos.y),
+                               2) +
+                           pow((xc1 - cone_detections_->right_cones[a].pos.x),
+                               2)) &&
+                  outer_threshold_right >
+                      sqrt(pow((xc1 - cone_detections_->right_cones[a].pos.x),
+                               2) +
+                           pow((yc1 - cone_detections_->right_cones[a].pos.y),
+                               2))) {
+                insideThresholdRight += 1;
+              }
+            }
+            if (insideThresholdRight >= threshold_cones_ && xc1 <= 3.0) {
+              rightFind = true;
+            }
+          }
+          if (rightFind == true) {
+            break;
+          }
+        }
+        if (rightFind == true) {
+          break;
+        }
+      }
+      if (rightFind == true) {
+        break;
+      }
+    }
+  } else if (right_size < 3 && left_size > 2) {
+    for (int i = 0; i < left_size - 2; i++) {
+      for (int j = i + 1; j < left_size - 1; j++) {
+        for (int k = j + 1; k < left_size; k++) {
+          if (i != j && j != k && i != k) {
+            utfr_msgs::msg::ConeMap cur_test_left;
+            utfr_msgs::msg::Cone cur_test_cone;
+            cur_test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
+
+            int insideThresholdLeft = 0;
+            std::tuple<double, double, double, double> circle;
+
+            cur_test_cone.pos.x = cone_detections_->left_cones[i].pos.x;
+            cur_test_cone.pos.y = cone_detections_->left_cones[i].pos.y;
+            (cur_test_left.left_cones).push_back(cur_test_cone);
+            cur_test_cone.pos.x = cone_detections_->left_cones[j].pos.x;
+            cur_test_cone.pos.y = cone_detections_->left_cones[j].pos.y;
+            (cur_test_left.left_cones).push_back(cur_test_cone);
+            cur_test_cone.pos.x = cone_detections_->left_cones[k].pos.x;
+            cur_test_cone.pos.y = cone_detections_->left_cones[k].pos.y;
+            (cur_test_left.left_cones).push_back(cur_test_cone);
+            circle =
+                util::ransacCircleLSF(cur_test_left.left_cones, small_radius_);
             r1 = std::get<2>(circle);
             r2 = r1 + 3.0;
             yc1 = std::get<1>(circle);
@@ -1458,36 +1451,34 @@ std::tuple<double, double, double, double, double, double> CenterPathNode::skidp
 
             double outer_threshold_left = r1 + threshold_radius_;
             double inner_threshold_left = r1 - threshold_radius_;
-            for (int a = 0; a < left_size; a++)
-            {
-              if (inner_threshold_left < sqrt(pow((xc1 - 
-                  cone_detections_->left_cones[a].pos.x),2) + 
-                  pow((yc1 - cone_detections_->left_cones[a].pos.y),2)) &&
-                  outer_threshold_left > sqrt(pow((xc1 -
-                  cone_detections_->left_cones[a].pos.x),2) + 
-                  pow((yc1 - cone_detections_->left_cones[a].pos.y),2)))
-              {
+            for (int a = 0; a < left_size; a++) {
+              if (inner_threshold_left <
+                      sqrt(pow((xc1 - cone_detections_->left_cones[a].pos.x),
+                               2) +
+                           pow((yc1 - cone_detections_->left_cones[a].pos.y),
+                               2)) &&
+                  outer_threshold_left >
+                      sqrt(pow((xc1 - cone_detections_->left_cones[a].pos.x),
+                               2) +
+                           pow((yc1 - cone_detections_->left_cones[a].pos.y),
+                               2))) {
                 insideThresholdLeft += 1;
               }
             }
-            if (insideThresholdLeft >= threshold_cones_ && xc1<=3.0)
-            {
+            if (insideThresholdLeft >= threshold_cones_ && xc1 <= 3.0) {
               leftFind = true;
             }
           }
-          if (leftFind == true)
-          {
+          if (leftFind == true) {
             break;
           }
         }
-        if (leftFind == true)
-        {
-            break;
+        if (leftFind == true) {
+          break;
         }
       }
-      if (leftFind == true)
-      {
-          break;
+      if (leftFind == true) {
+        break;
       }
     }
   }
@@ -1497,43 +1488,34 @@ std::tuple<double, double, double, double, double, double> CenterPathNode::skidp
   return std::make_tuple(xc1, yc1, r1, xc2, yc2, r2);
 }
 
-std::tuple<double, double, double, double, double, double> CenterPathNode::skidpadRight(){
+std::tuple<double, double, double, double, double, double>
+CenterPathNode::skidpadRight() {
   int right_size = cone_detections_->right_cones.size();
   bool rightFind = false;
   double xc1, yc1, xc2, yc2, r1, r2;
   double best_xc1, best_yc1, best_r1, best_xc2, best_yc2, best_r2;
   int best_cones = 0;
-  
-  for (int i = 0; i < right_size - 2; i++)
-  {
-    for (int j = i + 1; j < right_size - 1; j++)
-    {
-      for (int k = j + 1; k < right_size; k++)
-      {
-        if (i != j && j != k && i != k)
-        {
+
+  for (int i = 0; i < right_size - 2; i++) {
+    for (int j = i + 1; j < right_size - 1; j++) {
+      for (int k = j + 1; k < right_size; k++) {
+        if (i != j && j != k && i != k) {
           utfr_msgs::msg::ConeMap cur_test_right;
           utfr_msgs::msg::Cone cur_test_cone;
           cur_test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
 
-          cur_test_cone.pos.x = 
-              cone_detections_->right_cones[i].pos.x;
-          cur_test_cone.pos.y = 
-              cone_detections_->right_cones[i].pos.y;
+          cur_test_cone.pos.x = cone_detections_->right_cones[i].pos.x;
+          cur_test_cone.pos.y = cone_detections_->right_cones[i].pos.y;
           (cur_test_right.right_cones).push_back(cur_test_cone);
-          cur_test_cone.pos.x = 
-              cone_detections_->right_cones[j].pos.x;
-          cur_test_cone.pos.y = 
-              cone_detections_->right_cones[j].pos.y;
+          cur_test_cone.pos.x = cone_detections_->right_cones[j].pos.x;
+          cur_test_cone.pos.y = cone_detections_->right_cones[j].pos.y;
           (cur_test_right.right_cones).push_back(cur_test_cone);
-          cur_test_cone.pos.x = 
-              cone_detections_->right_cones[k].pos.x;
-          cur_test_cone.pos.y = 
-              cone_detections_->right_cones[k].pos.y;
+          cur_test_cone.pos.x = cone_detections_->right_cones[k].pos.x;
+          cur_test_cone.pos.y = cone_detections_->right_cones[k].pos.y;
           (cur_test_right.right_cones).push_back(cur_test_cone);
 
           int insideThresholdRight = 0;
-          std::tuple<double, double, double, double>circle = 
+          std::tuple<double, double, double, double> circle =
               util::ransacCircleLSF(cur_test_right.right_cones, small_radius_);
 
           xc1 = std::get<0>(circle);
@@ -1544,24 +1526,25 @@ std::tuple<double, double, double, double, double, double> CenterPathNode::skidp
           r2 = r1 + 3.0;
           double outer_threshold_right = r1 + threshold_radius_;
           double inner_threshold_right = r1 - threshold_radius_;
-          for (int a = 0; a < right_size; a++)
-          {
-            if (inner_threshold_right < sqrt(pow((yc1 -
-                cone_detections_->right_cones[a].pos.y), 2) +
-                pow((xc1 - cone_detections_->right_cones[a].pos.x), 2)) &&
-                outer_threshold_right > sqrt(pow((xc1 -
-                cone_detections_->right_cones[a].pos.x),2) +
-                pow((yc1 - cone_detections_->right_cones[a].pos.y),2)))
-            {
+          for (int a = 0; a < right_size; a++) {
+            if (inner_threshold_right <
+                    sqrt(
+                        pow((yc1 - cone_detections_->right_cones[a].pos.y), 2) +
+                        pow((xc1 - cone_detections_->right_cones[a].pos.x),
+                            2)) &&
+                outer_threshold_right >
+                    sqrt(
+                        pow((xc1 - cone_detections_->right_cones[a].pos.x), 2) +
+                        pow((yc1 - cone_detections_->right_cones[a].pos.y),
+                            2))) {
               insideThresholdRight += 1;
             }
           }
-          if (insideThresholdRight >= threshold_cones_ && yc1>=0 && xc1<=3.0)
-          {
+          if (insideThresholdRight >= threshold_cones_ && yc1 >= 0 &&
+              xc1 <= 3.0) {
             rightFind = true;
-          }
-          else{
-            if (insideThresholdRight>best_cones){
+          } else {
+            if (insideThresholdRight > best_cones) {
               best_cones = insideThresholdRight;
               best_xc1 = xc1;
               best_yc1 = yc1;
@@ -1572,23 +1555,20 @@ std::tuple<double, double, double, double, double, double> CenterPathNode::skidp
             }
           }
         }
-        if (rightFind == true)
-        {
+        if (rightFind == true) {
           break;
         }
       }
-      if (rightFind == true)
-      {
+      if (rightFind == true) {
         break;
       }
     }
-    if (rightFind == true)
-    {
+    if (rightFind == true) {
       break;
     }
   }
 
-  if (rightFind == false){
+  if (rightFind == false) {
     xc1 = best_xc1;
     xc2 = best_xc2;
     yc1 = best_yc1;
@@ -1600,43 +1580,34 @@ std::tuple<double, double, double, double, double, double> CenterPathNode::skidp
   return std::make_tuple(xc1, yc1, r1, xc2, yc2, r2);
 }
 
-std::tuple<double, double, double, double, double, double> CenterPathNode::skidpadLeft(){
+std::tuple<double, double, double, double, double, double>
+CenterPathNode::skidpadLeft() {
   int left_size = cone_detections_->left_cones.size();
   bool leftFind = false;
   double xc1, yc1, xc2, yc2, r1, r2;
   double best_xc1, best_yc1, best_r1, best_xc2, best_yc2, best_r2;
   int best_cones = 0;
-  
-  for (int i = 0; i < left_size - 2; i++)
-  {
-    for (int j = i + 1; j < left_size - 1; j++)
-    {
-      for (int k = j + 1; k < left_size; k++)
-      {
-        if (i != j && j != k && i != k)
-        {
+
+  for (int i = 0; i < left_size - 2; i++) {
+    for (int j = i + 1; j < left_size - 1; j++) {
+      for (int k = j + 1; k < left_size; k++) {
+        if (i != j && j != k && i != k) {
           utfr_msgs::msg::ConeMap cur_test_left;
           utfr_msgs::msg::Cone cur_test_cone;
           cur_test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
 
-          cur_test_cone.pos.x = 
-              cone_detections_->left_cones[i].pos.x;
-          cur_test_cone.pos.y = 
-              cone_detections_->left_cones[i].pos.y;
+          cur_test_cone.pos.x = cone_detections_->left_cones[i].pos.x;
+          cur_test_cone.pos.y = cone_detections_->left_cones[i].pos.y;
           (cur_test_left.left_cones).push_back(cur_test_cone);
-          cur_test_cone.pos.x = 
-              cone_detections_->left_cones[j].pos.x;
-          cur_test_cone.pos.y = 
-              cone_detections_->left_cones[j].pos.y;
+          cur_test_cone.pos.x = cone_detections_->left_cones[j].pos.x;
+          cur_test_cone.pos.y = cone_detections_->left_cones[j].pos.y;
           (cur_test_left.left_cones).push_back(cur_test_cone);
-          cur_test_cone.pos.x = 
-              cone_detections_->left_cones[k].pos.x;
-          cur_test_cone.pos.y = 
-              cone_detections_->left_cones[k].pos.y;
+          cur_test_cone.pos.x = cone_detections_->left_cones[k].pos.x;
+          cur_test_cone.pos.y = cone_detections_->left_cones[k].pos.y;
           (cur_test_left.left_cones).push_back(cur_test_cone);
 
           int insideThresholdLeft = 0;
-          std::tuple<double, double, double, double>circle = 
+          std::tuple<double, double, double, double> circle =
               util::ransacCircleLSF(cur_test_left.left_cones, small_radius_);
 
           xc1 = std::get<0>(circle);
@@ -1647,24 +1618,23 @@ std::tuple<double, double, double, double, double, double> CenterPathNode::skidp
           r2 = r1 + 3.0;
           double outer_threshold_left = r1 + threshold_radius_;
           double inner_threshold_left = r1 - threshold_radius_;
-          for (int a = 0; a < left_size; a++)
-          {
-            if (inner_threshold_left < sqrt(pow((yc1 -
-                cone_detections_->left_cones[a].pos.y), 2) +
-                pow((xc1 - cone_detections_->left_cones[a].pos.x), 2)) &&
-                outer_threshold_left > sqrt(pow((xc1 -
-                cone_detections_->left_cones[a].pos.x),2) +
-                pow((yc1 - cone_detections_->left_cones[a].pos.y),2)))
-            {
+          for (int a = 0; a < left_size; a++) {
+            if (inner_threshold_left <
+                    sqrt(pow((yc1 - cone_detections_->left_cones[a].pos.y), 2) +
+                         pow((xc1 - cone_detections_->left_cones[a].pos.x),
+                             2)) &&
+                outer_threshold_left >
+                    sqrt(pow((xc1 - cone_detections_->left_cones[a].pos.x), 2) +
+                         pow((yc1 - cone_detections_->left_cones[a].pos.y),
+                             2))) {
               insideThresholdLeft += 1;
             }
           }
-           if (insideThresholdLeft >= threshold_cones_ && yc1<=0 && xc1 <= 3.0)
-          {
+          if (insideThresholdLeft >= threshold_cones_ && yc1 <= 0 &&
+              xc1 <= 3.0) {
             leftFind = true;
-          }
-          else{
-            if (insideThresholdLeft>best_cones){
+          } else {
+            if (insideThresholdLeft > best_cones) {
               best_cones = insideThresholdLeft;
               best_xc1 = xc1;
               best_yc1 = yc1;
@@ -1675,23 +1645,20 @@ std::tuple<double, double, double, double, double, double> CenterPathNode::skidp
             }
           }
         }
-        if (leftFind == true)
-        {
+        if (leftFind == true) {
           break;
         }
       }
-      if (leftFind == true)
-      {
-          break;
+      if (leftFind == true) {
+        break;
       }
     }
-    if (leftFind == true)
-    {
-        break;
+    if (leftFind == true) {
+      break;
     }
   }
 
-  if (leftFind == false){
+  if (leftFind == false) {
     xc1 = best_xc1;
     xc2 = best_xc2;
     yc1 = best_yc1;

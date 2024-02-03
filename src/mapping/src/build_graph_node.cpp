@@ -64,6 +64,7 @@ void BuildGraphNode::initParams() {
   cones_potential_= 0;
   globalKDTreePtr = nullptr;
 
+
   // Will have to tune these later depending on the accuracy of our sensors
   Eigen::DiagonalMatrix<double, 3> P2P;
   Eigen::DiagonalMatrix<double, 2> P2C;
@@ -436,22 +437,22 @@ void BuildGraphNode::graphSLAM() {
   optimizer_.initializeOptimization();
   optimizer_.optimize(10);
 
-  // for (g2o::SparseOptimizer::VertexIDMap::const_iterator it = optimizer_.vertices().begin(); it != optimizer_.vertices().end(); ++it) {
-  //       g2o::SparseOptimizer::Vertex* vertex = dynamic_cast<g2o::SparseOptimizer::Vertex*>(it->second);
-  //       if (vertex) {
-  //           g2o::VertexSE2* se2Vertex = dynamic_cast<g2o::VertexSE2*>(vertex);
-  //           if (se2Vertex) {
-  //               const g2o::SE2& se2 = se2Vertex->estimate();
-  //               double x = se2.toVector()[0];  // Extract the x component
-  //               double y = se2.toVector()[1];  // Extract the y component
+  cone_map_.left_cones.clear();
 
-  //               utfr_msgs::msg::Cone cone;
-  //               cone.pos.x = x;
-  //               cone.pos.y = y;
-  //               cone_map_.left_cones.push_back(cone);
-  //           }
-  //       }
-  //   }
+  for (auto v : optimizer_.vertices()) {
+        g2o::VertexPointXY* vertex = dynamic_cast<g2o::VertexPointXY*>(v.second);
+        if (vertex) {
+            double x = vertex->estimate()(0);
+            double y = vertex->estimate()(1);
+
+            utfr_msgs::msg::Cone cone;
+            cone.pos.x = x;
+            cone.pos.y = y;
+            cone_map_.left_cones.push_back(cone);
+        }
+    }
+  // Save the optimized pose graph
+  std::cout << "Optimized pose graph saved" << std::endl;
 }
 
 void BuildGraphNode::buildGraph() {}

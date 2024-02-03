@@ -26,9 +26,9 @@
 #include <vector>
 
 // Message Requirements
-#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/polygon.hpp>
+#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <rclcpp/time.hpp>
 #include <utfr_msgs/msg/cone_detections.hpp>
@@ -155,9 +155,8 @@ private:
 
   /*! Publish Fitted Skidpad Path Lines:
    */
-  void publishLine(
-    double m_left, double m_right, double c_left, double c_right, double x_min, 
-    double x_max, double thickness);
+  void publishLine(double m_left, double m_right, double c_left, double c_right,
+                   double x_min, double x_max, double thickness);
 
   std::tuple<std::vector<CGAL::Point_2<CGAL::Epick>>, std::vector<double>,
              std::vector<double>>
