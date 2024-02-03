@@ -37,6 +37,7 @@ const std::string kLidarProcHeartbeat{"/lidar_pipeline/heartbeat"};
 
 // EKF
 const std::string kEgoState{"ekf/ego_state"};
+const std::string kPose{"ekf/pose"};
 const std::string kEKFHeartbeat{"ekf/heartbeat"};
 
 // Mapping

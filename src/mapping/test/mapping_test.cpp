@@ -32,6 +32,7 @@ TEST(BuildGraphNodeTest, kNNTest1)
     ego.pose.pose.position.z = 0;
     ego.pose.pose.orientation = utfr_dv::util::yawToQuaternion(0);
     node.current_state_ = ego;
+    node.stateEstimationCB(ego);
 
     // Custom failure message
     ASSERT_EQ(0, node.current_state_.pose.pose.position.x);
@@ -120,6 +121,8 @@ TEST(BuildGraphNodeTest, kNNTest1)
     ASSERT_EQ(0,node.potential_cones_.size());
 
     ASSERT_EQ(3, node.past_detections_.size());
+
+    node.graphSLAM();
 
 
     // Detect a new cone

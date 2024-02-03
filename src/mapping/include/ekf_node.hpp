@@ -138,13 +138,16 @@ public:
   /* Given a GPS message, perform a measurement update step
    *  @param[in] double x: x position of car, in meters
    *  @param[in] double y: y position of car, in meters
+   *  @param[in] double yaw: yaw angle of car, in radians
    *  @returns utfr_msgs::msg::EgoState of vehicle's estimated state
    */
-  utfr_msgs::msg::EgoState updateState(const double x, const double y);
+  utfr_msgs::msg::EgoState updateState(const double x, const double y, const double yaw);
   
   // Publishers
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr
       state_estimation_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr
+      pose_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::TimerBase::SharedPtr heartbeat_timer_;
 
