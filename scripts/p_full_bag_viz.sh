@@ -27,7 +27,7 @@ PID_BRIDGE=$!
 sleep 30
 
 cd "/media/utfr-dv/1tb ssd/rosbags"
-ros2 bag record -s mcap /ouster/points /right_camera_node/images /left_camera_node/images -o "$1" &
+ros2 bag record -s mcap /ouster/points /right_camera_node/images /right_camera_node/ready /left_camera_node/images /left_camera_node/ready -o "$1" &
 PID_RECORD=$!
 
 wait
