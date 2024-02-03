@@ -83,13 +83,16 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
     Applies object detection on each frame from a camera using a deep learning model.
     """
 
+    if frame == []:
+        return [], [], [], []
+
     # Define class names and colors
     names = [
         "blue_cone",
         "large_orange_cone",
         "orange_cone",
-        "unknown_cone",
         "yellow_cone",
+        "unknown_cone",
     ]
     colors = {
         name: [np.random.randint(0, 255) for _ in range(3)]
@@ -119,6 +122,7 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
     ori_images = [im_copy]
     bounding_boxes = []
     classes = []
+    scores = []
 
     for i, (batch_id, x0, y0, x1, y1, cls_id, score) in enumerate(outputs):
         if score < confidence:
@@ -143,6 +147,7 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
         # TODO: Modify bounding_box datastructure to include class and scoring information. Discuss with downstream.
         bounding_boxes.append(box)
         classes.append(name)
+        scores.append(score)
 
         if visualize == True:
             color = colors[name]
@@ -159,7 +164,7 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
                 thickness=2,
             )
 
-    return bounding_boxes, classes, image
+    return bounding_boxes, classes, scores, image
 
 
 def bounding_boxes_to_cone_detections(
