@@ -158,6 +158,7 @@ private:
   double lookahead_distance_scaling_factor_;
   int lap_count_;
   bool finished_event_ = false;
+  bool finished_and_stopped_ = false;
   rclcpp::Time start_time_;
   bool start_finish_time = true;
   int last_lap_count_;

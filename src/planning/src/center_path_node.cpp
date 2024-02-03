@@ -20,12 +20,17 @@ using Point32 = geometry_msgs::msg::Point32;
 using PointTuple = std::tuple<Point32, Point32, Point32, Point32>;
 
 CenterPathNode::CenterPathNode() : Node("center_path_node") {
+  RCLCPP_INFO(this->get_logger(), "Center Path Node Launched");
+  
   this->initParams();
+  this->initHeartbeat();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
+  
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
-  this->initHeartbeat();
   this->initSector();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
 }
 
 void CenterPathNode::initParams() {
@@ -66,10 +71,7 @@ void CenterPathNode::initPublishers() {
   center_path_publisher_ =
       this->create_publisher<utfr_msgs::msg::ParametricSpline>(
           topics::kCenterPath, 10);
-
-  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-      topics::kCenterPathHeartbeat, 10);
-
+  
   accel_path_publisher_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kAccelPath, 10);
@@ -131,6 +133,9 @@ void CenterPathNode::initSector() {
 }
 
 void CenterPathNode::initHeartbeat() {
+  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
+      topics::kCenterPathHeartbeat, 10);
+
   heartbeat_.module.data = "center_path_node";
   heartbeat_.update_rate = update_rate_;
 }
@@ -189,39 +194,43 @@ void CenterPathNode::coneDetectionsCB(
 }
 
 void CenterPathNode::timerCBAccel() {
-  const std::string function_name{"center_path_timerCB:"};
+  try {
+    const std::string function_name{"center_path_timerCB:"};
 
-  if (!cone_detections_) {
-    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Data not published or initialized yet. Using defaults.");
-    return;
-  }
+    if (!cone_detections_) {
+      RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                  "Data not published or initialized yet. Using defaults.");
+      return;
+    }
 
-  std::vector<double> accel_path = getAccelPath();
+    std::vector<double> accel_path = getAccelPath();
 
-  utfr_msgs::msg::ParametricSpline center_path_msg;
+    utfr_msgs::msg::ParametricSpline center_path_msg;
 
-  double m = accel_path[0];
-  double c = accel_path[1];
+    double m = accel_path[0];
+    double c = accel_path[1];
 
-  std::vector<double> x = {0, 0, 0, 0, 1, 0};
-  std::vector<double> y = {0, 0, 0, 0, m, c};
+    std::vector<double> x = {0, 0, 0, 0, 1, 0};
+    std::vector<double> y = {0, 0, 0, 0, m, c};
 
-  center_path_msg.x_params = x;
-  center_path_msg.y_params = y;
+    center_path_msg.x_params = x;
+    center_path_msg.y_params = y;
 
-  center_path_publisher_->publish(center_path_msg);
+    center_path_publisher_->publish(center_path_msg);
 
-  publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    int left_size = cone_detections_->left_cones.size();
+    int right_size = cone_detections_->right_cones.size();
+    int large_orange_size = cone_detections_->large_orange_cones.size();
 
-  int left_size = cone_detections_->left_cones.size();
-  int right_size = cone_detections_->right_cones.size();
-  int large_orange_size = cone_detections_->large_orange_cones.size();
+    if (!accel_sector_increase && left_size == 0 && right_size == 0 &&
+        large_orange_size == 0) {
+      accel_sector_increase = true;
+      curr_sector_ += 1;
+    }
 
-  if (!accel_sector_increase && left_size == 0 && right_size == 0 &&
-      large_orange_size == 0) {
-    accel_sector_increase = true;
-    curr_sector_ += 1;
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+  } catch (const std::exception &e) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
 
@@ -229,132 +238,144 @@ void CenterPathNode::timerCBSkidpad() {
   const std::string function_name{"center_path_timerCB:"};
 
   try {
-    if (cone_detections_ == nullptr || ego_state_ == nullptr) {
-      RCLCPP_WARN(get_logger(),
-                  "%s Either cone detections or ego state is empty.",
-                  function_name.c_str());
-      return;
+    try {
+      if (cone_detections_ == nullptr || ego_state_ == nullptr) {
+        RCLCPP_WARN(get_logger(),
+                    "%s Either cone detections or ego state is empty.",
+                    function_name.c_str());
+        return;
+      }
+      skidPadFit(*cone_detections_, *ego_state_);
+
+    } catch (const std::exception &e) {
+      RCLCPP_ERROR(get_logger(), "%s Exception: %s", function_name.c_str(),
+                   e.what());
     }
-    skidPadFit(*cone_detections_, *ego_state_);
 
+    skidpadLapCounter();
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    RCLCPP_WARN(this->get_logger(), "Skidpad lap count: %d", curr_sector_);
   } catch (const std::exception &e) {
-    RCLCPP_ERROR(get_logger(), "%s Exception: %s", function_name.c_str(),
-                 e.what());
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
-
-  skidpadLapCounter();
-  publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  RCLCPP_WARN(this->get_logger(), "Skidpad lap count: %d", curr_sector_);
 }
 
 void CenterPathNode::timerCBAutocross() {
   const std::string function_name{"center_path_timerCB:"};
 
-  if (!cone_detections_) {
-    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Data not published or initialized yet. Using defaults.");
-    return;
+  try {  
+    if (!cone_detections_) {
+      RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                  "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+
+    std::vector<Point> midpoints = Midpoints(cone_detections_);
+    std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>>
+        result = BezierPoints(midpoints);
+    std::vector<Point> bezier_curve = std::get<0>(result);
+    std::vector<double> xoft = std::get<1>(result);
+    std::vector<double> yoft = std::get<2>(result);
+
+    // Bezier Curve Drawing
+    geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
+    geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
+
+    delaunay_midpoints_stamped.header.frame_id = "base_footprint";
+    delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
+    first_midpoint_stamped.header.frame_id = "base_footprint";
+    first_midpoint_stamped.header.stamp = this->get_clock()->now();
+    geometry_msgs::msg::Point32 midpoint_pt32;
+
+    for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
+      midpoint_pt32.x = bezier_curve[i].x();
+      midpoint_pt32.y = bezier_curve[i].y() * -1;
+      midpoint_pt32.z = 0.0;
+
+      delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
+    }
+
+    for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
+      midpoint_pt32.x = bezier_curve[i].x();
+      midpoint_pt32.y = bezier_curve[i].y() * -1;
+      midpoint_pt32.z = 0.0;
+
+      delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
+    }
+
+    delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
+
+    utfr_msgs::msg::ParametricSpline center_path;
+    center_path.header.stamp = this->get_clock()->now();
+    center_path.x_params = xoft;
+    center_path.y_params = yoft;
+    center_path_publisher_->publish(center_path);
+
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+
+    trackdriveLapCounter();
+  } catch (const std::exception &e) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
-
-  std::vector<Point> midpoints = Midpoints(cone_detections_);
-  std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>>
-      result = BezierPoints(midpoints);
-  std::vector<Point> bezier_curve = std::get<0>(result);
-  std::vector<double> xoft = std::get<1>(result);
-  std::vector<double> yoft = std::get<2>(result);
-
-  // Bezier Curve Drawing
-  geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
-  geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
-
-  delaunay_midpoints_stamped.header.frame_id = "base_footprint";
-  delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
-  first_midpoint_stamped.header.frame_id = "base_footprint";
-  first_midpoint_stamped.header.stamp = this->get_clock()->now();
-  geometry_msgs::msg::Point32 midpoint_pt32;
-
-  for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
-    midpoint_pt32.x = bezier_curve[i].x();
-    midpoint_pt32.y = bezier_curve[i].y() * -1;
-    midpoint_pt32.z = 0.0;
-
-    delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
-  }
-
-  for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
-    midpoint_pt32.x = bezier_curve[i].x();
-    midpoint_pt32.y = bezier_curve[i].y() * -1;
-    midpoint_pt32.z = 0.0;
-
-    delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
-  }
-
-  delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
-
-  utfr_msgs::msg::ParametricSpline center_path;
-  center_path.header.stamp = this->get_clock()->now();
-  center_path.x_params = xoft;
-  center_path.y_params = yoft;
-  center_path_publisher_->publish(center_path);
-
-  publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-
-  trackdriveLapCounter();
 }
 
 void CenterPathNode::timerCBTrackdrive() {
   const std::string function_name{"center_path_timerCB:"};
 
-  if (!cone_detections_) {
-    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Data not published or initialized yet. Using defaults.");
-    return;
+  try {
+    if (!cone_detections_) {
+      RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                  "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+
+    std::vector<Point> midpoints = Midpoints(cone_detections_);
+    std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>>
+        result = BezierPoints(midpoints);
+    std::vector<Point> bezier_curve = std::get<0>(result);
+    std::vector<double> xoft = std::get<1>(result);
+    std::vector<double> yoft = std::get<2>(result);
+
+    // Bezier Curve Drawing
+    geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
+    geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
+
+    delaunay_midpoints_stamped.header.frame_id = "base_footprint";
+    delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
+    first_midpoint_stamped.header.frame_id = "base_footprint";
+    first_midpoint_stamped.header.stamp = this->get_clock()->now();
+    geometry_msgs::msg::Point32 midpoint_pt32;
+
+    for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
+      midpoint_pt32.x = bezier_curve[i].x();
+      midpoint_pt32.y = bezier_curve[i].y() * -1;
+      midpoint_pt32.z = 0.0;
+
+      delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
+    }
+
+    for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
+      midpoint_pt32.x = bezier_curve[i].x();
+      midpoint_pt32.y = bezier_curve[i].y() * -1;
+      midpoint_pt32.z = 0.0;
+
+      delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
+    }
+
+    delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
+
+    utfr_msgs::msg::ParametricSpline center_path;
+    center_path.header.stamp = this->get_clock()->now();
+    center_path.x_params = xoft;
+    center_path.y_params = yoft;
+    center_path_publisher_->publish(center_path);
+
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+
+    trackdriveLapCounter();
+  } catch (const std::exception &e) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
-
-  std::vector<Point> midpoints = Midpoints(cone_detections_);
-  std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>>
-      result = BezierPoints(midpoints);
-  std::vector<Point> bezier_curve = std::get<0>(result);
-  std::vector<double> xoft = std::get<1>(result);
-  std::vector<double> yoft = std::get<2>(result);
-
-  // Bezier Curve Drawing
-  geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
-  geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
-
-  delaunay_midpoints_stamped.header.frame_id = "base_footprint";
-  delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
-  first_midpoint_stamped.header.frame_id = "base_footprint";
-  first_midpoint_stamped.header.stamp = this->get_clock()->now();
-  geometry_msgs::msg::Point32 midpoint_pt32;
-
-  for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
-    midpoint_pt32.x = bezier_curve[i].x();
-    midpoint_pt32.y = bezier_curve[i].y() * -1;
-    midpoint_pt32.z = 0.0;
-
-    delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
-  }
-
-  for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
-    midpoint_pt32.x = bezier_curve[i].x();
-    midpoint_pt32.y = bezier_curve[i].y() * -1;
-    midpoint_pt32.z = 0.0;
-
-    delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
-  }
-
-  delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
-
-  utfr_msgs::msg::ParametricSpline center_path;
-  center_path.header.stamp = this->get_clock()->now();
-  center_path.x_params = xoft;
-  center_path.y_params = yoft;
-  center_path_publisher_->publish(center_path);
-
-  publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-
-  trackdriveLapCounter();
 }
 
 bool CenterPathNode::coneDistComparitor(const utfr_msgs::msg::Cone &a,
