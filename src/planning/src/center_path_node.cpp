@@ -940,7 +940,15 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
             });
 
   if (!all_paths.empty()) {
-    const std::vector<int> &best_path_indices = all_paths[0];
+    int best = 0;
+    double costO = midpointCostFunction(all_paths[0], midpoints, points, cone_map_->right_cones, cone_map_->left_cones, midpoint_index_to_cone_indices);
+    for(int i = 1; i < all_paths.size(); i++){
+      double costN = midpointCostFunction(all_paths[i], midpoints, points, cone_map_->right_cones, cone_map_->left_cones, midpoint_index_to_cone_indices);
+      if(abs(1-costN/costO) <= 0.25 && all_paths[best].size() < all_paths[i].size()){
+        best = i;
+      }
+    }
+    const std::vector<int> &best_path_indices = all_paths[best];
 
     std::vector<Point> best_path_points;
     best_path_points.reserve(best_path_indices.size());
