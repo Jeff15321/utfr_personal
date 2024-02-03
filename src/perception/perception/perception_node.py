@@ -20,6 +20,7 @@ import matplotlib.pyplot as plot
 import onnxruntime as ort
 import time
 
+from scipy.spatial.distance import cdist
 
 # ROS2 Requirements
 import rclpy
@@ -34,6 +35,7 @@ from tf2_ros.transform_listener import TransformListener
 # Message Requirements
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2
+from sensor_msgs import point_cloud2
 from std_msgs.msg import Bool
 from utfr_msgs.msg import ConeDetections
 from utfr_msgs.msg import Heartbeat
@@ -52,6 +54,7 @@ from perception.submodules.deep import deep_process
 from perception.submodules.deep import bounding_boxes_to_cone_detections
 from perception.submodules.deep import check_for_cuda
 from perception.submodules.deep import labelColor
+from perception.submodules.deep import transform_det_lidar
 
 
 class PerceptionNode(Node):
@@ -290,7 +293,6 @@ class PerceptionNode(Node):
         right_cam_subscriber_ :
           msg: sensor_msgs::Image, topic: kRightImage
 
-        TODO
         mapping_debug_subscriber_ :
           msg: sensor_msgs::PointCloud2, topic:
         """
@@ -515,7 +517,7 @@ class PerceptionNode(Node):
             self.confidence_,
         )
 
-        # TODO - change bounding_boxes_to_cone_detections to return 3d cone
+        # change bounding_boxes_to_cone_detections to return 3d cone
         # detections using camera intrinsics and simple triangulation depth
         # need to refactor this: make cone detections separately
         # use the left_bounding_boxes, right_bounding_boxes to get depth measurements
@@ -523,16 +525,17 @@ class PerceptionNode(Node):
         # ALSO: need to split cone_detections into left and right detections and return them
         # dont need to return the bounding boxes
 
-        cone_detections, left_image, right_image = bounding_boxes_to_cone_detections(
-            left_bounding_boxes,
-            left_classes,
+        left_cone_detections = bounding_boxes_to_cone_detections(
+            left_bounding_boxes, left_classes, self.intrinsics_left, self.cone_heights
+        )
+
+        right_cone_detections = bounding_boxes_to_cone_detections(
             right_bounding_boxes,
             right_classes,
-            self.translation,
-            self.intrinsics_left,
-            left_img_,
-            right_img_,
+            self.intrinsics_right,
+            self.cone_heights,
         )
+
         return (
             left_bounding_boxes,
             left_classes,
@@ -540,7 +543,8 @@ class PerceptionNode(Node):
             right_bounding_boxes,
             right_classes,
             right_scores,
-            cone_detections,
+            left_cone_detections,
+            right_cone_detections
         )
 
     def timerCB(self):
@@ -627,7 +631,7 @@ class PerceptionNode(Node):
             )
 
             # tf from right_cam to lidar
-            self.tf_rightcam_lidar = self.tf_buffer.lookup_transform(
+            tf_rightcam_lidar = self.tf_buffer.lookup_transform(
                 self.lidar_frame,
                 self.right_camera_frame,
                 rclpy.time.Time(),
@@ -646,18 +650,29 @@ class PerceptionNode(Node):
             results_right,
             classes_right,
             scores_right,
-            cone_detections,
+            left_cone_detections,
+            right_cone_detections
         ) = self.process(frame_left, frame_right)
 
-        # TODO - use tf to convert results_left, results_right to lidar frame
+        # use tf to convert results_left, results_right to lidar frame
         # transpose to lidar coordinates
         # Syntax: self.tf_leftcam_lidar.transform.translation.y
         #        self.tf_leftcam_lidar.transform.rotation.x, y, z, w (quaternion)
         # or just use doTransform function
 
-        # TODO - lidar camera fusion logic
+        left_detections_lidar_frame = transform_det_lidar(
+            left_cone_detections, tf_leftcam_lidar
+        )
+        right_detections_lidar_frame = transform_det_lidar(
+            right_cone_detections, tf_rightcam_lidar
+        )
+
+        # lidar camera fusion logic
         # make some logic for the clusters that are received from lidar node
         # all of the 3d camera detections are now in the lidar frame
+        # MAKE SURE TO PASS ONLY FIRST 3 ELEMENTS OF EACH CONE DETECTION,
+        # THE 4TH IS THE LABEL
+        # x y z = detection[:3]
 
         # get the lidar point cloud
         # for each single cluster point in the point cloud:
@@ -666,6 +681,49 @@ class PerceptionNode(Node):
         # choose the min distance one and remove from cone detections array
         # when you remove it, you need to add it to a new array with the updated
         # 3d point of the cluster
+
+        # Extract point cloud data
+        # TODO - check self.lidar_msg when lidar callback is updated
+        lidar_point_cloud_data = point_cloud2.read_points_numpy(
+            self.lidar_msg, field_names=["x", "y", "z", "intensity"], skip_nans=True
+        )
+
+        # Create a dictionary to track the best match for each cluster
+        best_matches = {}
+
+        # Concatenate transformed detections
+        all_transformed_detections = np.vstack(
+            left_detections_lidar_frame, right_detections_lidar_frame
+        )
+
+        # Associate camera detections to Lidar clusters
+        for detection in all_transformed_detections:
+            distances = cdist([detection[:3]], lidar_point_cloud_data)
+            min_distance = np.min(distances)
+            # TODO - set distance threshold as parameter
+            if min_distance < self.distance_threshold:
+                cluster_index = np.argmin(distances)
+
+                # Check if the cluster is already in best_matches
+                if (
+                    cluster_index not in best_matches
+                    or min_distance < best_matches[cluster_index][1]
+                ):
+                    best_matches[cluster_index] = (detection, min_distance)
+
+        # Convert the best_matches dictionary to a list of associations
+        associations = [
+            (detection, cluster_index)
+            for cluster_index, (detection, _) in best_matches.items()
+        ]
+
+        '''
+        TODO - create cone_detections array from associations array
+        print("Associations:")
+        for detection, cluster_index in associations:
+            print(f"Detection: {detection}, Lidar Cluster Index: {cluster_index}")
+        '''
+
         # self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
 
         # perception debug msg
@@ -751,22 +809,6 @@ class PerceptionNode(Node):
         self.right_img_recieved_ = False
 
     # Helper functions:
-
-    def find_depth_mono_tri(
-        self, vertical_mm, height_bound_box, focal_length, height_cone, image_height_px
-    ):
-        """
-        function to find the monocular depth using similar triangles
-        focal_length / height_box_mm = depth / height_cone
-        get height_cone from fsg rules
-        """
-        # find the height of the bounding box first using ratio of height
-        # of bounding box in px and total image height in px multiplied by
-        # the total vertical height of the sensor in mm
-        height_box_mm = (height_bound_box / image_height_px) * vertical_mm
-        # calculate depth in mm using similar triangles
-        depth = height_cone * (focal_length / height_box_mm)
-        return depth
 
     def save_image(self, left_img_, right_img_, rosbag_name):
         left_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"
