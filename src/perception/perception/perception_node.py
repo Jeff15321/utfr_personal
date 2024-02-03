@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 
 ██████  ██    ██ ██████  ██   ██
@@ -19,6 +20,7 @@ import matplotlib.pyplot as plot
 import onnxruntime as ort
 import time
 
+from scipy.spatial.distance import cdist
 
 # ROS2 Requirements
 import rclpy
@@ -33,6 +35,7 @@ from tf2_ros.transform_listener import TransformListener
 # Message Requirements
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2
+from sensor_msgs import point_cloud2
 from std_msgs.msg import Bool
 from utfr_msgs.msg import ConeDetections
 from utfr_msgs.msg import Heartbeat
@@ -47,9 +50,11 @@ from std_srvs.srv import Trigger
 from std_srvs.srv import Trigger
 
 # Import deep and classical process functions
-from .submodules.deep import deep_process
-from .submodules.deep import bounding_boxes_to_cone_detections
-from .submodules.deep import check_for_cuda
+from perception.submodules.deep import deep_process
+from perception.submodules.deep import bounding_boxes_to_cone_detections
+from perception.submodules.deep import check_for_cuda
+from perception.submodules.deep import labelColor
+from perception.submodules.deep import transform_det_lidar
 
 
 class PerceptionNode(Node):
@@ -288,7 +293,6 @@ class PerceptionNode(Node):
         right_cam_subscriber_ :
           msg: sensor_msgs::Image, topic: kRightImage
 
-        TODO
         mapping_debug_subscriber_ :
           msg: sensor_msgs::PointCloud2, topic:
         """
@@ -347,8 +351,12 @@ class PerceptionNode(Node):
             Heartbeat, self.heartbeat_topic_, 1
         )
 
-        self.perception_debug_publisher_ = self.create_publisher(
-            PerceptionDebug, self.perception_debug_topic_, 1
+        self.perception_debug_publisher_left_ = self.create_publisher(
+            PerceptionDebug, self.perception_debug_topic_ + "_left", 1
+        )
+
+        self.perception_debug_publisher_right_ = self.create_publisher(
+            PerceptionDebug, self.perception_debug_topic_ + "_right", 1
         )
 
     def initServices(self):
@@ -426,6 +434,7 @@ class PerceptionNode(Node):
         """
         self.get_logger().warn("Recieved left camera message")
         try:
+            self.left_img_header = msg.header
             self.left_img_ = self.bridge.imgmsg_to_cv2(
                 msg, desired_encoding="passthrough"
             )
@@ -446,6 +455,7 @@ class PerceptionNode(Node):
         """
         self.get_logger().warn("Recieved right camera message")
         try:
+            self.right_img_header = msg.header
             self.right_img_ = self.bridge.imgmsg_to_cv2(
                 msg, desired_encoding="passthrough"
             )
@@ -494,14 +504,14 @@ class PerceptionNode(Node):
           cone_detections: array of 3d cone detections using stereo ([x, y, z, color])
         """
 
-        left_bounding_boxes, left_classes, left_image = deep_process(
+        left_bounding_boxes, left_classes, left_scores, left_image = deep_process(
             left_img_,
             self.translation,
             self.intrinsics_left,
             self.session,
             self.confidence_,
         )
-        right_bounding_boxes, right_classes, right_image = deep_process(
+        right_bounding_boxes, right_classes, right_scores, right_image = deep_process(
             right_img_,
             self.translation,
             self.intrinsics_left,
@@ -509,7 +519,7 @@ class PerceptionNode(Node):
             self.confidence_,
         )
 
-        # TODO - change bounding_boxes_to_cone_detections to return 3d cone
+        # change bounding_boxes_to_cone_detections to return 3d cone
         # detections using camera intrinsics and simple triangulation depth
         # need to refactor this: make cone detections separately
         # use the left_bounding_boxes, right_bounding_boxes to get depth measurements
@@ -517,17 +527,27 @@ class PerceptionNode(Node):
         # ALSO: need to split cone_detections into left and right detections and return them
         # dont need to return the bounding boxes
 
-        cone_detections, left_image, right_image = bounding_boxes_to_cone_detections(
-            left_bounding_boxes,
-            left_classes,
+        left_cone_detections = bounding_boxes_to_cone_detections(
+            left_bounding_boxes, left_classes, self.intrinsics_left, self.cone_heights
+        )
+
+        right_cone_detections = bounding_boxes_to_cone_detections(
             right_bounding_boxes,
             right_classes,
-            self.translation,
-            self.intrinsics_left,
-            left_img_,
-            right_img_,
+            self.intrinsics_right,
+            self.cone_heights,
         )
-        return left_bounding_boxes, right_bounding_boxes, cone_detections
+
+        return (
+            left_bounding_boxes,
+            left_classes,
+            left_scores,
+            right_bounding_boxes,
+            right_classes,
+            right_scores,
+            left_cone_detections,
+            right_cone_detections
+        )
 
     def timerCB(self):
         """
@@ -537,6 +557,7 @@ class PerceptionNode(Node):
         """
 
         # initialize detection msg
+        # TODO - make 1 detections message and combine them at the end
         self.detections_msg = ConeDetections()
         self.detections_msg.header.frame_id = "left_camera"
 
@@ -582,9 +603,9 @@ class PerceptionNode(Node):
         # code to resize the image (for faster fps)
 
         """
-    frame_left_60, frame_right_60 = self.resize_img(undist_left, undist_right, 60)
-    frame_left = undist_left
-    frame_right = undist_right
+        frame_left_60, frame_right_60 = self.resize_img(undist_left, undist_right, 60)
+        frame_left = frame_left_60
+        frame_right = frame_right_70
     
     if self.save_pic == "True":
       timestamp = int(time.time())
@@ -594,9 +615,9 @@ class PerceptionNode(Node):
 
         # equalize histogram
         """
-    frame_left = self.equalize_hist(frame_left)
-    frame_right = self.equalize_hist(frame_right)
-    """
+        frame_left = self.equalize_hist(frame_left)
+        frame_right = self.equalize_hist(frame_right)
+        """
 
         frame_left = undist_left
         frame_right = undist_right
@@ -612,7 +633,7 @@ class PerceptionNode(Node):
             )
 
             # tf from right_cam to lidar
-            self.tf_rightcam_lidar = self.tf_buffer.lookup_transform(
+            tf_rightcam_lidar = self.tf_buffer.lookup_transform(
                 self.lidar_frame,
                 self.right_camera_frame,
                 rclpy.time.Time(),
@@ -624,19 +645,36 @@ class PerceptionNode(Node):
             return
         # get the detections
 
-        results_left, results_right, cone_detections = self.process(
-            frame_left, frame_right
-        )
+        (
+            results_left,
+            classes_left,
+            scores_left,
+            results_right,
+            classes_right,
+            scores_right,
+            left_cone_detections,
+            right_cone_detections
+        ) = self.process(frame_left, frame_right)
 
-        # TODO - use tf to convert results_left, results_right to lidar frame
+        # use tf to convert results_left, results_right to lidar frame
         # transpose to lidar coordinates
         # Syntax: self.tf_leftcam_lidar.transform.translation.y
         #        self.tf_leftcam_lidar.transform.rotation.x, y, z, w (quaternion)
         # or just use doTransform function
 
-        # TODO - lidar camera fusion logic
+        left_detections_lidar_frame = transform_det_lidar(
+            left_cone_detections, tf_leftcam_lidar
+        )
+        right_detections_lidar_frame = transform_det_lidar(
+            right_cone_detections, tf_rightcam_lidar
+        )
+
+        # lidar camera fusion logic
         # make some logic for the clusters that are received from lidar node
         # all of the 3d camera detections are now in the lidar frame
+        # MAKE SURE TO PASS ONLY FIRST 3 ELEMENTS OF EACH CONE DETECTION,
+        # THE 4TH IS THE LABEL
+        # x y z = detection[:3]
 
         # get the lidar point cloud
         # for each single cluster point in the point cloud:
@@ -646,30 +684,89 @@ class PerceptionNode(Node):
         # when you remove it, you need to add it to a new array with the updated
         # 3d point of the cluster
 
+        # Extract point cloud data
+        # TODO - check self.lidar_msg when lidar callback is updated
+        lidar_point_cloud_data = point_cloud2.read_points_numpy(
+            self.lidar_msg, field_names=["x", "y", "z", "intensity"], skip_nans=True
+        )
+
+        # Create a dictionary to track the best match for each cluster
+        best_matches = {}
+
+        # Concatenate transformed detections
+        all_transformed_detections = np.vstack(
+            left_detections_lidar_frame, right_detections_lidar_frame
+        )
+
+        # Associate camera detections to Lidar clusters
+        for detection in all_transformed_detections:
+            distances = cdist([detection[:3]], lidar_point_cloud_data)
+            min_distance = np.min(distances)
+            # TODO - set distance threshold as parameter
+            if min_distance < self.distance_threshold:
+                cluster_index = np.argmin(distances)
+
+                # Check if the cluster is already in best_matches
+                if (
+                    cluster_index not in best_matches
+                    or min_distance < best_matches[cluster_index][1]
+                ):
+                    best_matches[cluster_index] = (detection, min_distance)
+
+        # Convert the best_matches dictionary to a list of associations
+        associations = [
+            (detection, cluster_index)
+            for cluster_index, (detection, _) in best_matches.items()
+        ]
+
+        '''
+        TODO - create cone_detections array from associations array
+        print("Associations:")
+        for detection, cluster_index in associations:
+            print(f"Detection: {detection}, Lidar Cluster Index: {cluster_index}")
+        '''
+
         # self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
 
         # perception debug msg
-        self.perception_debug_msg = PerceptionDebug()
 
-        self.perception_debug_msg.header.stamp = self.get_clock().now().to_msg()
+        if len(results_left) == 0:
+            pass
+        else:
+            self.perception_debug_msg_left = PerceptionDebug()
+            self.perception_debug_msg_left.header.stamp = self.left_img_header.stamp
+            for i in range(len(results_left)):
+                bounding_box_left = BoundingBox()
+                bounding_box_left.x = int(results_left[i][0])
+                bounding_box_left.y = int(results_left[i][1])
+                bounding_box_left.width = int(results_left[i][2])
+                bounding_box_left.height = int(results_left[i][3])
+                bounding_box_left.type = labelColor(classes_left[i])
+                bounding_box_left.score = scores_left[i]
+                self.perception_debug_msg_left.left.append(bounding_box_left)
 
-        for i in range(len(results_left)):
-            bounding_box_left = BoundingBox()
-            bounding_box_left.x = int(results_left[i][0])
-            bounding_box_left.y = int(results_left[i][1])
-            bounding_box_left.width = int(results_left[i][2])
-            bounding_box_left.height = int(results_left[i][3])
-            self.perception_debug_msg.left.append(bounding_box_left)
+            self.perception_debug_publisher_left_.publish(
+                self.perception_debug_msg_left
+            )
 
-        for i in range(len(results_right)):
-            bounding_box_right = BoundingBox()
-            bounding_box_right.x = int(results_right[i][0])
-            bounding_box_right.y = int(results_right[i][1])
-            bounding_box_right.width = int(results_right[i][2])
-            bounding_box_right.height = int(results_right[i][3])
-            self.perception_debug_msg.right.append(bounding_box_right)
+        if len(results_right) == 0:
+            pass
+        else:
+            self.perception_debug_msg_right = PerceptionDebug()
+            self.perception_debug_msg_right.header.stamp = self.right_img_header.stamp
+            for i in range(len(results_right)):
+                bounding_box_right = BoundingBox()
+                bounding_box_right.x = int(results_right[i][0])
+                bounding_box_right.y = int(results_right[i][1])
+                bounding_box_right.width = int(results_right[i][2])
+                bounding_box_right.height = int(results_right[i][3])
+                bounding_box_right.type = labelColor(classes_right[i])
+                bounding_box_right.score = scores_right[i]
+                self.perception_debug_msg_right.right.append(bounding_box_right)
 
-        self.perception_debug_publisher_.publish(self.perception_debug_msg)
+            self.perception_debug_publisher_right_.publish(
+                self.perception_debug_msg_right
+            )
 
         # imshow for opencv
         """
@@ -679,55 +776,41 @@ class PerceptionNode(Node):
     cv2.imshow('right_camera', frame_right)
     cv2.waitKey(1)
     """
+        if cone_detections == []:
+            pass
+        else:
+            # order cones by distance
+            cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
 
-        # order cones by distance
-        cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
+            # publish cone detections
+            self.detections_msg.header.stamp = self.get_clock().now().to_msg()
 
-        # publish cone detections
-        self.detections_msg.header.stamp = self.get_clock().now().to_msg()
+            for i in range(len(cone_detections)):
+                self.cone_template = Cone()
+                self.cone_template.pos.y = -1.0 * float(cone_detections[i][0])  # left
+                self.cone_template.pos.z = -1.0 * float(cone_detections[i][1])  # up
+                self.cone_template.pos.x = float(cone_detections[i][2])  # front
+                self.cone_template.type = int(cone_detections[i][3])
 
-        for i in range(len(cone_detections)):
-            self.cone_template = Cone()
-            self.cone_template.pos.y = -1.0 * float(cone_detections[i][0])  # left
-            self.cone_template.pos.z = -1.0 * float(cone_detections[i][1])  # up
-            self.cone_template.pos.x = float(cone_detections[i][2])  # front
-            self.cone_template.type = int(cone_detections[i][3])
+                if self.cone_template.type == 1:  # blue
+                    self.detections_msg.left_cones.append(self.cone_template)
+                elif self.cone_template.type == 2:  # yellow
+                    self.detections_msg.right_cones.append(self.cone_template)
+                elif self.cone_template.type == 3:
+                    self.detections_msg.small_orange_cones.append(self.cone_template)
+                elif self.cone_template.type == 4:
+                    self.detections_msg.large_orange_cones.append(self.cone_template)
+                else:  # unknown cones cone template type == 0
+                    self.detections_msg.unknown_cones.append(self.cone_template)
 
-            if self.cone_template.type == 1:  # blue
-                self.detections_msg.left_cones.append(self.cone_template)
-            elif self.cone_template.type == 2:  # yellow
-                self.detections_msg.right_cones.append(self.cone_template)
-            elif self.cone_template.type == 3:
-                self.detections_msg.small_orange_cones.append(self.cone_template)
-            elif self.cone_template.type == 4:
-                self.detections_msg.large_orange_cones.append(self.cone_template)
-            else:  # unknown cones cone template type == 0
-                self.detections_msg.unknown_cones.append(self.cone_template)
+            self.detections_msg.header.stamp = self.get_clock().now().to_msg()
 
-        self.detections_msg.header.stamp = self.get_clock().now().to_msg()
-
-        self.cone_detections_publisher_.publish(self.detections_msg)
+            self.cone_detections_publisher_.publish(self.detections_msg)
 
         self.left_img_recieved_ = False
         self.right_img_recieved_ = False
 
     # Helper functions:
-
-    def find_depth_mono_tri(
-        self, vertical_mm, height_bound_box, focal_length, height_cone, image_height_px
-    ):
-        """
-        function to find the monocular depth using similar triangles
-        focal_length / height_box_mm = depth / height_cone
-        get height_cone from fsg rules
-        """
-        # find the height of the bounding box first using ratio of height
-        # of bounding box in px and total image height in px multiplied by
-        # the total vertical height of the sensor in mm
-        height_box_mm = (height_bound_box / image_height_px) * vertical_mm
-        # calculate depth in mm using similar triangles
-        depth = height_cone * (focal_length / height_box_mm)
-        return depth
 
     def save_image(self, left_img_, right_img_, rosbag_name):
         left_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"

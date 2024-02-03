@@ -25,6 +25,7 @@ setup(
     entry_points={
         "console_scripts": [
             "perception = perception.perception_node:main",
+            "lidar_proc = lidar_proc.lidar_proc_node:main",
         ],
     },
 )
