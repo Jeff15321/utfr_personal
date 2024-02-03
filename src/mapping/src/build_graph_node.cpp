@@ -64,6 +64,7 @@ void BuildGraphNode::initParams() {
   cones_potential_= 0;
   globalKDTreePtr = nullptr;
 
+
   // Will have to tune these later depending on the accuracy of our sensors
   Eigen::DiagonalMatrix<double, 3> P2P;
   Eigen::DiagonalMatrix<double, 2> P2C;
@@ -499,7 +500,6 @@ void BuildGraphNode::graphSLAM() {
   }
 
   cone_map_publisher_->publish(cone_map_);
-
   // Save the optimized pose graph
   // std::cout << "Optimized pose graph saved" << std::endl;
 }

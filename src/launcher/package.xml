@@ -11,8 +11,7 @@
 
   <depend>arena_camera_node</depend>
   <depend>bluespace_ai_xsens_mti_driver</depend>
-  <depend>ros2_ouster</depend>
-  <depend>velodyne</depend>
+  <depend>ouster_ros</depend>
 
   <depend>perception</depend>
   <depend>mapping</depend>
