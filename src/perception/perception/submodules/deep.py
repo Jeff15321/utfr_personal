@@ -16,6 +16,13 @@ import time
 import numpy as np
 import onnxruntime as ort
 import os
+import rclpy
+import tf2_ros
+from geometry_msgs.msg import PointStamped, TransformStamped, Point
+from tf2_geometry_msgs import PointStamped as TFPointStamped
+import tf2_geometry_msgs
+import numpy as np
+from tf2_ros import TransformException
 
 # cuda = False
 
@@ -161,134 +168,68 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
 
 
 def bounding_boxes_to_cone_detections(
-    left_bounding_boxes,
-    left_classes,
-    right_bounding_boxes,
-    right_classes,
-    translation,
-    intrinsics_left,
-    left_img_,
-    right_img_,
+    bounding_boxes,
+    classes,
+    intrinsics,
+    cone_heights,
 ):
-    if left_img_ == [] or right_img_ == []:
-        return [], left_img_, right_img_
-
-    coneDetections = np.zeros((np.shape(left_bounding_boxes)[0], 4))
-    baseline = abs(translation[0] / 10)  # distance between cameras
-    f = intrinsics_left[0][0]  # focal length in pixels from camera matrix
+    coneDetections = np.zeros((np.shape(bounding_boxes)[0], 4))
+    f = intrinsics[0][0]  # focal length in pixels from camera matrix
     i = 0
-    left_width_ = int(left_img_.shape[1])
-    leftright_frame_start = time.time()
-    matched_array = []
-    for x, y, w, h in left_bounding_boxes:
-        color = labelColor(left_classes[i])  # int for color
+    for x, y, w, h in bounding_boxes:
+        color = labelColor(classes[i])  # int for color
 
-        right_x, right_y, index = find_cone_other_frame_closest(
-            x, y, right_bounding_boxes, left_classes[i], right_classes, matched_array
-        )
-        matched_array.append(index)
-
-        disparity = abs(right_x - x)
-
-        depth = find_depth(
-            (right_x, right_y), (x, y), right_img_, left_img_, baseline, f
-        )
+        # 3.73mm height of sensor, 1080 px height of image
+        depth = find_depth_mono_tri(3.73, h, f, cone_heights[color], 1080)
 
         # 3d coordinate mapping
-
-        f_u = intrinsics_left[0][0]
-        f_v = intrinsics_left[1][1]
-        c_u = int((np.shape(left_img_)[1]) / 2)
-        c_v = int((np.shape(left_img_)[0]) / 2)
 
         (
             coneDetections[i][0],
             coneDetections[i][1],
             coneDetections[i][2],
-        ) = project3DPoints(
-            ((x + int(w / 2)), y + int(h / 2)),
-            f_u,
-            f_v,
-            c_u,
-            c_v,
-            disparity,
-            baseline,
-            depth,
-        )
+        ) = image_to_3d_point([(x + int(w / 2)), y + int(h / 2)], intrinsics, depth)
 
         coneDetections[i][3] = color
 
         i += 1
-    return coneDetections, left_img_, right_img_
+    return coneDetections
 
 
-def project3DPoints(pointLeft, f_u, f_v, c_u, c_v, disparity, baseline, depth):
-    u_l, v_l = pointLeft[0], pointLeft[1]
+def image_to_3d_point(image_point, camera_matrix, depth):
+    # Add a homogeneous coordinate to the 2D image point
+    image_point_homogeneous = np.array([image_point[0], image_point[1], 1])
 
-    # coordinates in [m]
+    # Invert the camera matrix
+    inv_camera_matrix = np.linalg.inv(camera_matrix)
 
-    x = ((baseline / disparity) * (u_l - c_u)) / 100
-    y = ((baseline / disparity) * (f_u / f_v) * (v_l - c_v)) / 100
-    z = depth / 100
+    # Transform to normalized camera coordinates
+    normalized_coords = np.dot(inv_camera_matrix, image_point_homogeneous)
 
-    return (x, y, z)
+    # 3D point with unit depth
+    point_3d = normalized_coords / normalized_coords[2]
+
+    # 3D point multiplied by monocular depth
+    point_3d *= depth
+
+    return point_3d
 
 
-def find_cone_other_frame(
-    initialFrame, frameWidth, fX, fY, fW, fH, uncertainty, otherFrame
+def find_depth_mono_tri(
+    vertical_mm, height_bound_box, focal_length, height_cone, image_height_px
 ):
-    search_area = crop_image(
-        0, fY - uncertainty, frameWidth, fH + 2 * uncertainty, otherFrame
-    )
-    template_im = crop_image(fX, fY, fW, fH, initialFrame)
-    result = cv2.matchTemplate(search_area, template_im, 0)
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-    top_left = min_loc
-    result_x = top_left[0]
-    result_y = top_left[1] + fY - uncertainty
-    # top left coordinates of other frame, x, y
-    return result_x, result_y
-
-
-def find_cone_other_frame_closest(
-    left_cone_x, left_cone_y, right_detections, left_class, right_classes, matched_array
-):
-    curr_min_dist = 1000
-    curr_min_detection_x = 0
-    curr_min_detection_y = 0
-    curr_detection = 0
-    i = 0
-    for x, y, w, h in right_detections:
-        if (
-            (euclidean_distance(left_cone_x, x, left_cone_y, y)) < curr_min_dist
-            and left_class == right_classes[i]
-            and i not in matched_array
-            and x >= left_cone_x
-        ):
-            curr_min_detection_x = x
-            curr_min_detection_y = y
-            curr_min_dist = euclidean_distance(left_cone_x, x, left_cone_y, y)
-            curr_detection = i
-        i += 1
-
-    return curr_min_detection_x, curr_min_detection_y, curr_detection
-
-
-def find_depth(right_point, left_point, frame_right, frame_left, baseline, f_pixel):
-    # Convert focal length, f, from [mm] to [pixel]
-    height_right, width_right, depth_right = frame_right.shape
-    height_left, width_left, depth_left = frame_left.shape
-
-    x_right = right_point[0]
-    x_left = left_point[0]
-
-    # Calculate the disparity
-    disparity = x_left - x_right  # Displacement between left and right frames [pixels]
-
-    # Calculate depth, z
-    zDepth = abs((baseline * f_pixel) / disparity)  # Depth in [cm]
-
-    return zDepth
+    """
+    function to find the monocular depth using similar triangles
+    focal_length / height_box_mm = depth / height_cone
+    get height_cone from fsg rules
+    """
+    # find the height of the bounding box first using ratio of height
+    # of bounding box in px and total image height in px multiplied by
+    # the total vertical height of the sensor in mm
+    height_box_mm = (height_bound_box / image_height_px) * vertical_mm
+    # calculate depth in mm using similar triangles
+    depth = height_cone * (focal_length / height_box_mm)
+    return depth
 
 
 def crop_image(fX, fY, fW, fH, image_in):
@@ -312,5 +253,27 @@ def labelColor(class_string):
         return 0
 
 
-def euclidean_distance(x1, x2, y1, y2):
-    return np.sqrt(abs(x1 - x2) ** 2 + (2 * abs(y1 - y2) ** 2))
+def transform_det_lidar(detections, transform):
+    transformed_points = []
+    for point in detections:
+        # Create a PointStamped message
+        point_stamped = Point()
+        point_stamped.x = point[0]
+        point_stamped.y = point[1]
+        point_stamped.z = point[2]
+
+        try:
+            transformed_point_stamped = tf2_geometry_msgs.do_transform_point(
+                PointStamped(point=point_stamped), transform
+            ).point
+            transformed_point = [
+                transformed_point_stamped.x,
+                transformed_point_stamped.y,
+                transformed_point_stamped.z,
+            ]
+            transformed_points.append(transformed_point)
+
+        except TransformException as ex:
+            print(ex)
+            return
+    return np.array(transformed_points)
