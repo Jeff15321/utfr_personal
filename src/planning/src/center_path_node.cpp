@@ -239,7 +239,7 @@ void CenterPathNode::timerCBSkidpad() {
 
   try {
     try {
-      if (cone_detections_ == nullptr || ego_state_ == nullptr) {
+      if (cone_detections_ == nullptr || ego_state_ == nullptr || cone_map_ == nullptr) {
         RCLCPP_WARN(get_logger(),
                     "%s Either cone detections or ego state is empty.",
                     function_name.c_str());
@@ -264,7 +264,7 @@ void CenterPathNode::timerCBAutocross() {
   const std::string function_name{"center_path_timerCB:"};
 
   try {  
-    if (!cone_detections_) {
+    if (!cone_detections_ || cone_map_ == nullptr || ego_state_ == nullptr) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
       return;
@@ -323,7 +323,7 @@ void CenterPathNode::timerCBTrackdrive() {
   const std::string function_name{"center_path_timerCB:"};
 
   try {
-    if (!cone_detections_) {
+    if (!cone_detections_ || cone_map_ == nullptr || ego_state_ == nullptr) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
       return;
@@ -953,8 +953,8 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
       double local_x = translated_x * cos(-yaw) - translated_y * sin(-yaw);
       double local_y = translated_x * sin(-yaw) + translated_y * cos(-yaw);
       best_path_points.push_back(Point(local_x, local_y));
-      RCLCPP_INFO(this->get_logger(), "Midpoint %d: %f, %f", index, local_x,
-                  local_y);
+      // RCLCPP_INFO(this->get_logger(), "Midpoint %d: %f, %f", index, local_x,
+      //             local_y);
     }
 
     return best_path_points;
