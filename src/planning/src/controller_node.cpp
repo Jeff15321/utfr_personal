@@ -224,9 +224,9 @@ void ControllerNode::timerCBAccel() {
     target_ = target;
 
     // print target state
-    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Target steering: %f \n Target velocity: %f",
-                target.steering_angle, target.speed);
+    // RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+    //             "Target steering: %f \n Target velocity: %f",
+    //             target.steering_angle, target.speed);
 
     // publish target state
     target_state_publisher_->publish(target_);
@@ -258,9 +258,9 @@ void ControllerNode::timerCBSkidpad() {
     target_ = target;
 
     // print target state
-    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Target steering: %f \n Target velocity: %f",
-                target.steering_angle, target.speed);
+    // RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+    //             "Target steering: %f \n Target velocity: %f",
+    //             target.steering_angle, target.speed);
 
     // publish target state
     target_state_publisher_->publish(target_);
@@ -292,9 +292,9 @@ void ControllerNode::timerCBAutocross() {
     target_ = target;
 
     // print target state
-    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Target steering: %f \n Target velocity: %f",
-                target.steering_angle, target.speed);
+    // RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+    //             "Target steering: %f \n Target velocity: %f",
+    //             target.steering_angle, target.speed);
 
     // publish target state
     target_state_publisher_->publish(target_);
@@ -326,9 +326,9 @@ void ControllerNode::timerCBTrackdrive() {
     target_ = target;
 
     // print target state
-    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Target steering: %f \n Target velocity: %f",
-                target.steering_angle, target.speed);
+    // RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+    //             "Target steering: %f \n Target velocity: %f",
+    //             target.steering_angle, target.speed);
 
     // publish target state
     target_state_publisher_->publish(target_);

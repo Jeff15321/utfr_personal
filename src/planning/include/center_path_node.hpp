@@ -24,6 +24,9 @@
 #include <stdexcept> // std::runtime_error
 #include <string>
 #include <vector>
+#include <queue>
+#include <deque>
+#include <algorithm>
 
 // Message Requirements
 #include <geometry_msgs/msg/point.hpp>
@@ -142,11 +145,16 @@ private:
    */
   std::vector<double> getAccelPath();
 
-  /*! Midpoints using Delaunay Triangulation:
-   */
-  std::vector<CGAL::Point_2<CGAL::Epick>>
-  Midpoints(utfr_msgs::msg::ConeDetections_<std::allocator<void>>::SharedPtr
-                cone_detections_);
+  double midpointCostFunction(
+                    std::vector<int> nodes,
+                    const std::vector<CGAL::Point_2<CGAL::Epick>> &midpoints,
+                    std::vector<std::pair<CGAL::Point_2<CGAL::Epick>, unsigned int>>
+                        all_cones,
+                    std::vector<utfr_msgs::msg::Cone> yellow_cones,
+                    std::vector<utfr_msgs::msg::Cone> blue_cones,
+                    std::vector<std::pair<int, int>> midpoint_index_to_cone_indices);
+
+  std::vector<CGAL::Point_2<CGAL::Epick>> getBestPath();
 
   /*! SkidPad Fit Function:
    */
