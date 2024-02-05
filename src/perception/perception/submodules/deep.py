@@ -83,8 +83,8 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
     Applies object detection on each frame from a camera using a deep learning model.
     """
 
-    if frame == []:
-        return [], [], [], []
+    # if frame == []:
+    # return [], [], [], []
 
     # Define class names and colors
     names = [

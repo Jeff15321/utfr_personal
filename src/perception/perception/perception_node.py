@@ -265,12 +265,15 @@ class PerceptionNode(Node):
 
         # create session for onnxruntime ofr detections
         cuda = check_for_cuda()
-        cuda = False
-        print(cuda)
-        providers = ["CUDAExecutionProvider"] if cuda else ["CPUExecutionProvider"]
-        self.session = ort.InferenceSession(
-            "src/perception/perception/best.onnx", providers=providers
-        )
+        print("Check for cuda:", cuda)
+        # providers = ["AzureExecutionProvider"] if cuda else ["CPUExecutionProvider"]
+        providers = ort.get_available_providers()
+        print("Available Providers:", providers)
+
+        # Get the current device for inference
+        device = ort.get_device()
+        print("Current Device for Inference:", device)
+        self.session = ort.InferenceSession("src/perception/perception/best.onnx")
 
         # create transform frame variables
         self.lidar_frame = "lidar"
@@ -502,7 +505,6 @@ class PerceptionNode(Node):
           right_bounding_boxes: array of right camera detections
           cone_detections: array of 3d cone detections using stereo ([x, y, z, color])
         """
-        print("into process")
 
         left_bounding_boxes, left_classes, left_scores, left_image = deep_process(
             left_img_,
@@ -518,7 +520,6 @@ class PerceptionNode(Node):
             self.session,
             self.confidence_,
         )
-        print("finished deep process")
 
         # change bounding_boxes_to_cone_detections to return 3d cone
         # detections using camera intrinsics and simple triangulation depth
@@ -538,7 +539,6 @@ class PerceptionNode(Node):
             self.intrinsics_right,
             self.cone_heights,
         )
-        print("finished bounding boxes")
 
         return (
             left_bounding_boxes,
@@ -557,7 +557,6 @@ class PerceptionNode(Node):
         Send Asynchronous Trigger to both cameras at once, and process
         incoming frames.
         """
-        print("into timercb")
 
         # initialize detection msg
         # TODO - make 1 detections message and combine them at the end
