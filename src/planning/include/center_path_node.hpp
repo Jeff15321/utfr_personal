@@ -24,11 +24,14 @@
 #include <stdexcept> // std::runtime_error
 #include <string>
 #include <vector>
+#include <queue>
+#include <deque>
+#include <algorithm>
 
 // Message Requirements
-#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/polygon.hpp>
+#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <rclcpp/time.hpp>
 #include <utfr_msgs/msg/cone_detections.hpp>
@@ -142,11 +145,16 @@ private:
    */
   std::vector<double> getAccelPath();
 
-  /*! Midpoints using Delaunay Triangulation:
-   */
-  std::vector<CGAL::Point_2<CGAL::Epick>>
-  Midpoints(utfr_msgs::msg::ConeDetections_<std::allocator<void>>::SharedPtr
-                cone_detections_);
+  double midpointCostFunction(
+                    std::vector<int> nodes,
+                    const std::vector<CGAL::Point_2<CGAL::Epick>> &midpoints,
+                    std::vector<std::pair<CGAL::Point_2<CGAL::Epick>, unsigned int>>
+                        all_cones,
+                    std::vector<utfr_msgs::msg::Cone> yellow_cones,
+                    std::vector<utfr_msgs::msg::Cone> blue_cones,
+                    std::vector<std::pair<int, int>> midpoint_index_to_cone_indices);
+
+  std::vector<CGAL::Point_2<CGAL::Epick>> getBestPath();
 
   /*! SkidPad Fit Function:
    */
@@ -155,9 +163,8 @@ private:
 
   /*! Publish Fitted Skidpad Path Lines:
    */
-  void publishLine(
-    double m_left, double m_right, double c_left, double c_right, double x_min, 
-    double x_max, double thickness);
+  void publishLine(double m_left, double m_right, double c_left, double c_right,
+                   double x_min, double x_max, double thickness);
 
   std::tuple<std::vector<CGAL::Point_2<CGAL::Epick>>, std::vector<double>,
              std::vector<double>>

@@ -14,7 +14,6 @@
 
 #include <build_graph_node.hpp>
 #include <kd_tree_knn.hpp>
-
 #include "g2o/core/factory.h"
 #include "g2o/core/optimization_algorithm_factory.h"
 #include "g2o/core/sparse_optimizer.h"
@@ -65,6 +64,7 @@ void BuildGraphNode::initParams() {
   count_ = 0;
   cones_potential_= 0;
   globalKDTreePtr_ = nullptr;
+
 
 
   // Will have to tune these later depending on the accuracy of our sensors
@@ -161,13 +161,13 @@ void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
   pose_to_pose_edges_.push_back(edge);
 }
 
+
 kd_tree_knn::KDTree generateKDTree(std::vector < std::tuple < double, double, double >> points_tuple) {
   // Convert tuples to points
   std::vector < kd_tree_knn::Point > points;
   for (const auto & tuple: points_tuple) {
     points.emplace_back(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
   }
-
   // Create a KD tree
   kd_tree_knn::KDTree globalKDTree(points);
 
@@ -208,7 +208,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
           g2o::VertexPointXY* vertex = createConeVertex(cones_found_, position_x_, position_y_);
           cone_nodes_.push_back(vertex);
           g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, newCone.pos.x, newCone.pos.y);
-          pose_to_cone_edges_.push_back(edge);
+          pose_to_cone_edges_.push_back(edge);        
           globalKDTreePtr_ = std::make_unique<kd_tree_knn::KDTree>(generateKDTree({std::make_tuple(position_x_, position_y_, cones_found_)}));
           cones_found_ += 1;
           continue;
@@ -224,24 +224,21 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
           cone_nodes_.push_back(vertex);
           g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, newCone.pos.x, newCone.pos.y);
           pose_to_cone_edges_.push_back(edge);
-          
           kd_tree_knn::Point newPoint(position_x_,position_y_, cones_found_);
           globalKDTreePtr_ -> insert(newPoint);
-
           cones_found_ += 1;
           continue;
         }
 
         // Use KNN search to find the nearest cone
-
         kd_tree_knn::Point knnResult = globalKDTreePtr_ -> KNN(kd_tree_knn::Point(position_x_, position_y_, 0));
 
         const kd_tree_knn::Point& nearestCone = knnResult;
 
         // Check the result of the nearest neighbour search and calculate displacement
         if (knnResult != kd_tree_knn::Point(0.0, 0.0, 0.0)){
-        // Use the nearest point
-
+        
+          // Use the nearest point
             double displacement = utfr_dv::util::euclidianDistance2D(position_x_, nearestCone.x, position_y_, nearestCone.y);
 
             // Do not add if its within 0.3 of an already seen cone
@@ -290,6 +287,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                             potential_cones_.erase(key_number_);
                         }
                         keys.clear();
+                      
                         // Update cone_id_list_ and past_detections_ and KD tree
                         cones_id_list_.push_back(cones_found_);
                         cone_id_to_color_map_[cones_found_] = newCone.type;
@@ -298,7 +296,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                         g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, newCone.pos.x, newCone.pos.y);
                         pose_to_cone_edges_.push_back(edge);
                         kd_tree_knn::Point newPoint(position_x_,position_y_, cones_found_);
-
+                      
                         // std::cout << "Cone x: " << position_x_ << " Cone y: " << position_y_ << " Cone id: " << cones_found_ << std::endl;
                         past_detections_.emplace_back(cones_found_,newCone);
                         globalKDTreePtr_ -> insert(newPoint);

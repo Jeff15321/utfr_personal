@@ -208,7 +208,6 @@ public:
   int current_pose_id_;
   int first_detection_pose_id_;
   std::unique_ptr<kd_tree_knn::KDTree> globalKDTreePtr_;
-
   double heartbeat_rate_;
 
   // Lists for poses, cones, and edges

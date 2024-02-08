@@ -30,10 +30,10 @@ ComputeGraphNode::ComputeGraphNode() : Node("compute_graph_node") {
 }
 
 void ComputeGraphNode::initParams() {
-  this->declare_parameter("slam_timer_", 100);
+  this->declare_parameter("slam_timer_", 100.0);
 
   slam_rate_ =
-      this->get_parameter("slam_timer").get_parameter_value().get<double>();
+      this->get_parameter("slam_timer_").get_parameter_value().get<double>();
 }
 
 void ComputeGraphNode::initSubscribers() {
@@ -57,6 +57,7 @@ void ComputeGraphNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kMappingComputeHeartbeat, 10);
 }
+
 
 void ComputeGraphNode::poseGraphCB(const utfr_msgs::msg::PoseGraph msg) {}
 

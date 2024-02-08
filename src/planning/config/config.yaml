@@ -1,7 +1,7 @@
 center_path_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    event: 'skidpad' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    event: 'autocross' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
 
@@ -15,7 +15,7 @@ center_path_node: # Name of Module
 path_optimization_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    event: 'skidpad' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    event: 'autocross' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
     skip_path_opt: True #Skip if you don't want to do path optimization
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
@@ -29,7 +29,7 @@ path_optimization_node: # Name of Module
 controller_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    event: 'skidpad' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    event: 'autocross' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
     controller: 'pure_pursuit' #['stanley', 'pure_pursuit', 'mpc']
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
