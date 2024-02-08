@@ -59,7 +59,7 @@ TEST(KNNSearchNodeTest, kNNTest1)
 
     // check to see that map works
 
-    ASSERT_EQ(1, node.cone_id_to_col_[0]);
+    ASSERT_EQ(1, node.cone_id_to_color_map_[0]);
 
     cones = empty;
 
@@ -125,7 +125,7 @@ TEST(KNNSearchNodeTest, kNNTest1)
 
     ASSERT_EQ(3, node.past_detections_.size());
 
-    ASSERT_EQ(2, node.cone_id_to_col_[2]);
+    ASSERT_EQ(2, node.cone_id_to_color_map_[2]);
 
 
     // Detect a new cone
