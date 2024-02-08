@@ -13,7 +13,6 @@
 */
 
 #include <ekf_node.hpp>
-#include <iostream>
 #include <cmath>
 #include <vector>
 
@@ -196,7 +195,7 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
 
   return state_msg;
 }
-std::vector<double> origin_lla={181.1,0,0};
+std::vector<double> datum_lla={std::nan(""),std::nan(""),std::nan("")};
 std::vector<double> EkfNode::lla2ecr(std::vector<double>& inputVector){
   double lat = inputVector[0];
   double lon = inputVector[1];
@@ -219,11 +218,11 @@ std::vector<double> EkfNode::lla2ecr(std::vector<double>& inputVector){
 
 
 
-void EkfNode::ecr2enu(double& x, double& y, double& z, std::vector<double>& origin_lla) {
-    double lat = origin_lla[0];
-    double lon = origin_lla[1];
-    double h = origin_lla[2];
-
+void EkfNode::ecr2enu(double& x, double& y, double& z, std::vector<double>& datum_lla) {
+    double lat = datum_lla[0];
+    double lon = datum_lla[1];
+    double h = datum_lla[2];
+  
     std::vector<std::vector<double>> T = {
         {-std::sin(lon), std::cos(lon), 0.0},
         {-std::sin(lat) * std::cos(lon), -std::sin(lat) * std::sin(lon), std::cos(lat)},
@@ -231,7 +230,7 @@ void EkfNode::ecr2enu(double& x, double& y, double& z, std::vector<double>& orig
     };
 
     // Assuming transform function returns radar_ecr
-    std::vector<double> radar_ecr = lla2ecr(origin_lla);
+    std::vector<double> radar_ecr = lla2ecr(datum_lla);
 
     // Matrix multiplication T * radar_ecr
     std::vector<double> radar_rrc(3, 0.0);
@@ -258,9 +257,9 @@ void EkfNode::ecr2enu(double& x, double& y, double& z, std::vector<double>& orig
 std::vector<double> EkfNode::lla2enu(std::vector<double>& inputVector){
 
   std::vector<double> resultVector = {0,0,0};
-  if (origin_lla[0] == 181.1){
+  if (std::isnan(datum_lla[0])){
     for(int i = 0; i <3; i++){
-      origin_lla[i] = inputVector[i];
+      datum_lla[i] = inputVector[i];
       
     }
 
@@ -275,7 +274,7 @@ std::vector<double> EkfNode::lla2enu(std::vector<double>& inputVector){
   double z = inputECR[2];
 
   
-  ecr2enu(x,y,z,origin_lla);//now x y z is in enu
+  ecr2enu(x,y,z,datum_lla);//now x y z is in enu
 
   resultVector[0] = x;
   resultVector[1] = y;

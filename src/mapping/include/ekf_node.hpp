@@ -24,7 +24,6 @@
 #include <stdexcept> // std::runtime_error
 #include <string>
 #include <vector>
-#include <iostream>
 #include <cmath>
 
 // Message Requirements
@@ -136,9 +135,23 @@ public:
   utfr_msgs::msg::EgoState updateState(const double x, const double y);
 
   std::vector<double> lla2ecr(std::vector<double>& inputVector);
-  
-  void ecr2enu(double& x, double& y, double& z, std::vector<double>& origin_lla);
+  /*  Helper function for lla2enu: converts lla to ecr
+   *  @param[in] std::vector<double>& inputVector: vector with 3 elements: Lat, Lon, Alt in RADIANS, RADIANS, meters
+   *  @returns std::vector<double> a vector with 3 elements in ecr
+   */
+  void ecr2enu(double& x, double& y, double& z, std::vector<double>& datum_lla);
+  /*  Helper function for lla2enu: modifys x y and z to their enu value relative to the datum
+   *  @param[in] std::vector<double>& datum_lla position vector with 3 elements: Lat, Lon, Alt in RADIANS, RADIANS, meters
+   *  @param[in] double& x ecr x value
+   *  @param[in] double& y ecr y value
+   *  @param[in] double& z ecr z value
+   */
   std::vector<double> lla2enu(std::vector<double>& inputVector);
+  /* Given an lla input returns enu relative to datum_lla
+   * The first call sets datum_lla and returns {0,0,0}
+   *  @param[in] std::vector<double>& inputVector: vector with 3 elements: Lat, Lon, Alt in RADIANS, RADIANS, meters
+   *  @returns std::vector<double> a vector with 3 elements east north up all in meters
+   */
   
   // Publishers
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr
