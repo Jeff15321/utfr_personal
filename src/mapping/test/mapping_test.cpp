@@ -189,6 +189,26 @@ TEST(BuildGraphNodeTest, loopClosureTest1)
    ASSERT_EQ(2, node.landmarkedID_);
    ASSERT_EQ(true, node.landmarked_);
 }
+TEST(EkfNodeTest, converlatlonalt2){
+  //utfr_dv::build_graph::BuildGraphNode node;
+    utfr_dv::ekf::EkfNode node;
+    std::vector<double> resultPose = {2,3,100};
+    std::vector<double> resultVector = {0,0,0};
+    std::vector<double> vec2 = {4,2,70};
+    std::vector<double> vec3 = {2.01,2.99,101};
+    std::vector<double> vec2a = {-3514822.991557160,-4035041.925221907,9789303.558496917};
+    std::vector<double> vec3a = {-27194.83195880818,-63755.89178277459,376.98191554099};
+    ASSERT_EQ(resultVector,node.lla2enu(resultPose));
+    ASSERT_EQ(resultVector,node.lla2enu(resultPose));
+    std::vector<double> res1 = node.lla2enu(vec2);
+    ASSERT_NEAR(vec2a[0],res1[0],100);
+    ASSERT_NEAR(vec2a[1],res1[1],100);
+    ASSERT_NEAR(vec2a[2],res1[2],100);
+    std::vector<double> res2 = node.lla2enu(vec3);
+    ASSERT_NEAR(vec3a[0],res2[0],1e-8);
+    ASSERT_NEAR(vec3a[1],res2[1],1e-8);
+    ASSERT_NEAR(vec3a[2],res2[2],1e-8);
+}
 
 int main(int argc, char **argv)
 {

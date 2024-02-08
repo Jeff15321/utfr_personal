@@ -13,6 +13,10 @@
 */
 
 #include <ekf_node.hpp>
+#include <iostream>
+#include <cmath>
+#include <vector>
+
 
 namespace utfr_dv {
 namespace ekf {
@@ -192,6 +196,94 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
 
   return state_msg;
 }
+std::vector<double> origin_lla={181.1,0,0};
+std::vector<double> EkfNode::lla2ecr(std::vector<double>& inputVector){
+  double lat = inputVector[0];
+  double lon = inputVector[1];
+  double h = inputVector[2];
+  double Re = 6378137;       // Earth_Equatorial_Radius, in m
+  double Rp = 6356752;       // Earth_Polar_Radius, in m
+  double f  = static_cast<double>(Re-Rp)/Re;    // Earth_Flattening Coefficient
+
+  // Compute the ECR coordinates
+  double temp = Re / std::sqrt(1 + std::pow((1 - f) * std::tan(lat), 2));
+  
+
+
+  double x = (temp + h * std::cos(lat)) * std::cos(lon);
+  double y = (temp + h * std::cos(lat)) * std::sin(lon);
+  double z = temp * (std::pow((1 - f), 2) * std::tan(lat)) + h * std::sin(lat);
+  std::vector<double> resultVector ={x,y,z};
+  return resultVector;
+}
+
+
+
+void EkfNode::ecr2enu(double& x, double& y, double& z, std::vector<double>& origin_lla) {
+    double lat = origin_lla[0];
+    double lon = origin_lla[1];
+    double h = origin_lla[2];
+
+    std::vector<std::vector<double>> T = {
+        {-std::sin(lon), std::cos(lon), 0.0},
+        {-std::sin(lat) * std::cos(lon), -std::sin(lat) * std::sin(lon), std::cos(lat)},
+        {std::cos(lat) * std::cos(lon), std::cos(lat) * std::sin(lon), std::sin(lat)}
+    };
+
+    // Assuming transform function returns radar_ecr
+    std::vector<double> radar_ecr = lla2ecr(origin_lla);
+
+    // Matrix multiplication T * radar_ecr
+    std::vector<double> radar_rrc(3, 0.0);
+    for (size_t i = 0; i < 3; i++) {
+        for (size_t j = 0; j < 3; j++) {
+            radar_rrc[i] += T[i][j] * radar_ecr[j];
+        }
+    }
+
+    // Matrix multiplication T * [x, y, z]
+    std::vector<double> flat_xyz = {x, y, z}; // assuming x, y, z are individual float variables
+    std::vector<double> out(3, 0.0);
+    for (size_t i = 0; i < 3; i++) {
+        for (size_t j = 0; j < 3; j++) {
+            out[i] += T[i][j] * flat_xyz[j];
+        }
+    }
+
+    // Adjust x, y, z
+    x = out[0] - radar_rrc[0];
+    y = out[1] - radar_rrc[1];
+    z = out[2] - radar_rrc[2];
+}
+std::vector<double> EkfNode::lla2enu(std::vector<double>& inputVector){
+
+  std::vector<double> resultVector = {0,0,0};
+  if (origin_lla[0] == 181.1){
+    for(int i = 0; i <3; i++){
+      origin_lla[i] = inputVector[i];
+      
+    }
+
+    return resultVector;
+
+  }
+
+  
+  std::vector<double> inputECR = lla2ecr(inputVector);
+  double x = inputECR[0];
+  double y = inputECR[1];
+  double z = inputECR[2];
+
+  
+  ecr2enu(x,y,z,origin_lla);//now x y z is in enu
+
+  resultVector[0] = x;
+  resultVector[1] = y;
+  resultVector[2] = z;
+  return resultVector;
+
+}
 
 } // namespace ekf
 } // namespace utfr_dv
+ 

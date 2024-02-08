@@ -24,6 +24,8 @@
 #include <stdexcept> // std::runtime_error
 #include <string>
 #include <vector>
+#include <iostream>
+#include <cmath>
 
 // Message Requirements
 #include <nav_msgs/msg/occupancy_grid.hpp>
@@ -101,6 +103,7 @@ public:
    *  @param[out] state geometry_msgs::msg::EgoState&, estimated state via the
    * vehicle model
    */
+   
   void vehicleModel(const float &throttle, const float &brake,
                     const float &steering_angle);
 
@@ -131,6 +134,11 @@ public:
    *  @returns utfr_msgs::msg::EgoState of vehicle's estimated state
    */
   utfr_msgs::msg::EgoState updateState(const double x, const double y);
+
+  std::vector<double> lla2ecr(std::vector<double>& inputVector);
+  
+  void ecr2enu(double& x, double& y, double& z, std::vector<double>& origin_lla);
+  std::vector<double> lla2enu(std::vector<double>& inputVector);
   
   // Publishers
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr
