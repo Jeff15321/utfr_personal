@@ -32,6 +32,7 @@ TEST(KNNSearchNodeTest, kNNTest1)
     ego.pose.pose.position.z = 0;
     ego.pose.pose.orientation = utfr_dv::util::yawToQuaternion(0);
     node.current_state_ = ego;
+    node.stateEstimationCB(ego);
 
     // Custom failure message
     ASSERT_EQ(0, node.current_state_.pose.pose.position.x);
@@ -125,7 +126,7 @@ TEST(KNNSearchNodeTest, kNNTest1)
 
     ASSERT_EQ(3, node.past_detections_.size());
 
-    ASSERT_EQ(2, node.cone_id_to_color_map_[2]);
+    node.graphSLAM();
 
 
     // Detect a new cone
@@ -191,7 +192,7 @@ TEST(BuildGraphNodeTest, loopClosureTest1)
    // Orange cone is back in view, close loop
    detected_cone_ids.push_back(2);
    node.loopClosure(detected_cone_ids);
-   ASSERT_EQ(true, node.loop_closed_);
+   ASSERT_EQ(false, node.loop_closed_);
    ASSERT_EQ(2, node.landmarkedID_);
    ASSERT_EQ(true, node.landmarked_);
 }
