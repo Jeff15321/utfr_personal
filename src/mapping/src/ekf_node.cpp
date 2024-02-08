@@ -222,37 +222,55 @@ void EkfNode::ecr2enu(double& x, double& y, double& z, std::vector<double>& datu
     double lat = datum_lla[0];
     double lon = datum_lla[1];
     double h = datum_lla[2];
-  
+  /*
     std::vector<std::vector<double>> T = {
         {-std::sin(lon), std::cos(lon), 0.0},
         {-std::sin(lat) * std::cos(lon), -std::sin(lat) * std::sin(lon), std::cos(lat)},
         {std::cos(lat) * std::cos(lon), std::cos(lat) * std::sin(lon), std::sin(lat)}
-    };
+    };*/
+    Eigen::Matrix3d m;
+    m << -std::sin(lon), std::cos(lon), 0.0,
+         -std::sin(lat) * std::cos(lon), -std::sin(lat) * std::sin(lon), std::cos(lat),
+         std::cos(lat) * std::cos(lon), std::cos(lat) * std::sin(lon), std::sin(lat);
 
     // Assuming transform function returns radar_ecr
     std::vector<double> radar_ecr = lla2ecr(datum_lla);
-
+    
     // Matrix multiplication T * radar_ecr
+    /*
     std::vector<double> radar_rrc(3, 0.0);
     for (size_t i = 0; i < 3; i++) {
         for (size_t j = 0; j < 3; j++) {
             radar_rrc[i] += T[i][j] * radar_ecr[j];
         }
-    }
-
+    }*/
+    Eigen::VectorXd a = Eigen::VectorXd(3);
+    a << radar_ecr[0], radar_ecr[1], radar_ecr[2];
+    Eigen::Vector3d b = m * a;
+    
+    Eigen::VectorXd c = Eigen::VectorXd(3);
+    c << x, y, z;
+  
+    
+    Eigen::Vector3d d = m * c;
     // Matrix multiplication T * [x, y, z]
-    std::vector<double> flat_xyz = {x, y, z}; // assuming x, y, z are individual float variables
+    /*std::vector<double> flat_xyz = {x, y, z}; // assuming x, y, z are individual float variables
     std::vector<double> out(3, 0.0);
     for (size_t i = 0; i < 3; i++) {
         for (size_t j = 0; j < 3; j++) {
             out[i] += T[i][j] * flat_xyz[j];
         }
-    }
+    }*/
 
     // Adjust x, y, z
+
+    /*
     x = out[0] - radar_rrc[0];
     y = out[1] - radar_rrc[1];
-    z = out[2] - radar_rrc[2];
+    z = out[2] - radar_rrc[2];*/
+    x = d[0]-b[0];
+    y = d[1]-b[1];
+    z = d[2]-b[2];
 }
 std::vector<double> EkfNode::lla2enu(std::vector<double>& inputVector){
 
