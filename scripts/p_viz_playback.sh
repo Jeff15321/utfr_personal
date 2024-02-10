@@ -17,7 +17,7 @@ trap cleanup SIGINT
 
 cd ~/dv24
 source install/setup.bash
-ros2 launch launcher percepiton.launch.py &
+ros2 launch launcher p_stack.launch.py &
 PID_LAUNCH=$!
 ros2 launch visualization visualization.launch.py &
 PID_VISUALIZATION=$!
@@ -27,7 +27,7 @@ PID_BRIDGE=$!
 sleep 30
 
 cd "/media/utfr-dv/1tb ssd/rosbags"
-ros2 bag play -l "$1" &
+ros2 bag play -s mcap -l "$1" &
 PID_PLAYBACK=$!
 
 wait
