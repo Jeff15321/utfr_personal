@@ -40,9 +40,9 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
   
   this->initHeartbeat();
   this->publishHeartbeat(); 
-  this->initParams();
   this->initSubscribers();
   this->initPublishers();
+  this->initParams();
 
   // set heartbeat state to active
   heartbeat_state_ = HeartBeatState::ACTIVE;
@@ -83,6 +83,25 @@ void BuildGraphNode::initParams() {
   g2o::OptimizationAlgorithm* optimizer = new g2o::OptimizationAlgorithmLevenberg(
       std::make_unique<SlamBlockSolver>(std::move(linearSolverLM)));
   optimizer_.setAlgorithm(optimizer);
+
+  geometry_msgs::msg::TransformStamped transformStamped;
+
+  transformStamped.header.stamp = this->get_clock()->now();
+  transformStamped.header.frame_id = "world";
+  transformStamped.child_frame_id = "map";
+
+  // Set the translation and rotation of the transform
+  transformStamped.transform.translation.x = 0;
+  transformStamped.transform.translation.y = 0;
+  transformStamped.transform.translation.z = 0;
+
+  transformStamped.transform.rotation.x = 0;
+  transformStamped.transform.rotation.y = 0;
+  transformStamped.transform.rotation.z = 0;
+  transformStamped.transform.rotation.w = 0;
+
+  // Broadcast the transform
+  broadcaster_->sendTransform(transformStamped);
 }
 
 void BuildGraphNode::initSubscribers() {
@@ -105,6 +124,8 @@ void BuildGraphNode::initPublishers() {
 
   cone_map_publisher_ =
       this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
+
+  broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 }
 
 void BuildGraphNode::initTimers() {
@@ -466,6 +487,10 @@ void BuildGraphNode::graphSLAM() {
   // optimizer_.optimize(10);
 
   cone_map_.left_cones.clear();
+  cone_map_.right_cones.clear();
+  cone_map_.small_orange_cones.clear();
+  cone_map_.large_orange_cones.clear();
+  cone_map_.header.frame_id = "map";
 
   for (auto v : optimizer_.vertices()) {
       g2o::VertexPointXY* vertexPointXY = dynamic_cast<g2o::VertexPointXY*>(v.second);
@@ -481,7 +506,7 @@ void BuildGraphNode::graphSLAM() {
           // Create a cone object then add it to the cone map
           utfr_msgs::msg::Cone cone;
           cone.pos.x = x;
-          cone.pos.y = y;
+          cone.pos.y = -y;
 
           if (color == 1) {
             cone.type = utfr_msgs::msg::Cone::BLUE;

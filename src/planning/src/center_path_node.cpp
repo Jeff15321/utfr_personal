@@ -611,7 +611,7 @@ double CenterPathNode::midpointCostFunction(
   double Z = 0.1;
 
   double MAX_MAX_ANGLE = 3.3141592653589793;
-  double MAX_MAX_MIDPOINT_TO_CONE_DIST = 20.0;
+  double MAX_MAX_MIDPOINT_TO_CONE_DIST = 2.5;
   double MAX_SQUARED_RANGE_PATH_LENGTH_DIFF =
       pow(MAX_MAX_MIDPOINT_TO_CONE_DIST, 2);
   int MAX_POINT_COUNT_COST = 5;
@@ -941,13 +941,13 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
 
   if (!all_paths.empty()) {
     int best = 0;
-    double costO = midpointCostFunction(all_paths[0], midpoints, points, cone_map_->right_cones, cone_map_->left_cones, midpoint_index_to_cone_indices);
-    for(int i = 1; i < all_paths.size(); i++){
-      double costN = midpointCostFunction(all_paths[i], midpoints, points, cone_map_->right_cones, cone_map_->left_cones, midpoint_index_to_cone_indices);
-      if(abs(1-costN/costO) <= 0.25 && all_paths[best].size() < all_paths[i].size()){
-        best = i;
-      }
-    }
+    // double costO = midpointCostFunction(all_paths[0], midpoints, points, cone_map_->right_cones, cone_map_->left_cones, midpoint_index_to_cone_indices);
+    // for(int i = 1; i < all_paths.size(); i++){
+    //   double costN = midpointCostFunction(all_paths[i], midpoints, points, cone_map_->right_cones, cone_map_->left_cones, midpoint_index_to_cone_indices);
+    //   if(abs(1-costN/costO) <= 0.25 && all_paths[best].size() < all_paths[i].size()){
+    //     best = i;
+    //   }
+    // }
     const std::vector<int> &best_path_indices = all_paths[best];
 
     std::vector<Point> best_path_points;

@@ -33,6 +33,7 @@
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/pose_graph.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
+#include "tf2_ros/transform_broadcaster.h"
 
 // Import G2O 2D Slam types
 #include <g2o/types/slam2d/vertex_se2.h>
@@ -401,6 +402,7 @@ public:
   int first_detection_pose_id_;
   std::unique_ptr<KDTree> globalKDTreePtr;
   double heartbeat_rate_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> broadcaster_;
 
   // Lists for poses, cones, and edges
   std::vector<g2o::VertexSE2*> pose_nodes_;
