@@ -70,7 +70,6 @@ function(add_node NODE_NAME)
 endfunction()
 
 # Add nodes
-add_node(path_optimization)
 add_node(controller)
 add_node(center_path)
 
@@ -124,17 +123,6 @@ if(BUILD_TESTING)
   target_sources(controller_test PRIVATE src/controller_node.cpp)
   install(TARGETS controller_test DESTINATION test/${PROJECT_NAME})
 
-  ament_add_gtest(path_optimization_test
-    test/path_optimization_test.cpp
-  )
-  ament_target_dependencies(path_optimization_test ${THIS_PACKAGE_INCLUDE_DEPENDS})
-  target_include_directories(path_optimization_test
-    PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include>)
-  target_sources(path_optimization_test PRIVATE src/path_optimization_node.cpp)
-  install(TARGETS path_optimization_test DESTINATION test/${PROJECT_NAME})
-  
 endif()
 
 ament_package()

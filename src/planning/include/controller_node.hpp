@@ -15,6 +15,7 @@
 
 // ROS2 Requirements
 #include <rclcpp/rclcpp.hpp>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 // System Requirements
 #include <chrono>
@@ -57,6 +58,17 @@ public:
    */
   ControllerNode();
 
+  std::vector<double> calculateVelocities(
+    utfr_msgs::msg::ParametricSpline &spline, double L, int n,
+    double a_lateral);
+
+  std::vector<double> filterVelocities(
+    std::vector<double> &max_velocities, double current_velocity,
+    double distance, double max_velocity, double max_acceleration,
+    double min_acceleration);
+
+  double getMaxLongAccelGGV(double velocity, double a_lateral);
+
 private:
   /*! Initialize and load params from config.yaml:
    */
@@ -73,6 +85,12 @@ private:
   /*! Initialize Timers:
    */
   void initTimers();
+
+  /*! Initialize GGV data:
+  * NOTE: assumes that the lateral acceleration data is in
+  * decreasing order.
+  */
+  void initGGV(std::string filename);
 
   /*! Initialize Heartbeat:
    */
@@ -163,6 +181,11 @@ private:
   bool start_finish_time = true;
   int last_lap_count_;
 
+  
+  bool skip_path_opt_;
+  double lookahead_distance_;
+  double a_lateral_max_;
+
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
   utfr_msgs::msg::ParametricSpline::SharedPtr path_{nullptr};
@@ -173,8 +196,8 @@ private:
   rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ParametricSpline>::SharedPtr
       path_subscriber_;
-  rclcpp::Subscription<utfr_msgs::msg::VelocityProfile>::SharedPtr
-      velocity_profile_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr
+      center_path_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr
       lap_counter_subscriber_;
 
@@ -193,6 +216,13 @@ private:
   utfr_msgs::msg::TargetState target_;
   utfr_msgs::msg::SystemStatus::SharedPtr status_{nullptr};
   utfr_msgs::msg::Heartbeat heartbeat_;
+
+    
+  // map of GGV data. keys are velocity, values are array of lat. accel
+  std::unordered_map<double, std::vector<double>> GGV_vel_to_lat_accel_;
+  // map of GGV data. keys are velocity, values are array of long. accel
+  std::unordered_map<double, std::vector<double>> GGV_vel_to_long_accel_;
+  std::set<double> GGV_velocities_;
 };
 } // namespace controller
 } // namespace utfr_dv
