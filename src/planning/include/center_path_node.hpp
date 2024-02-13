@@ -134,6 +134,10 @@ private:
    */
   void timerCBTrackdrive();
 
+  void timerCBEBS();
+
+  void timerCBAS();
+
   /*! Function for sorting cones
    */
   bool coneDistComparitor(const utfr_msgs::msg::Cone &a,

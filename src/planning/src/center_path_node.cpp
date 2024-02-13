@@ -114,6 +114,14 @@ void CenterPathNode::initTimers() {
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&CenterPathNode::timerCBTrackdrive, this));
+  } else if (event_ == "EBSTest") {
+    main_timer_ = this->create_wall_timer(
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&CenterPathNode::timerCBEBS, this));
+  } else if (event_ == "ASTest") {
+    main_timer_ = this->create_wall_timer(
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&CenterPathNode::timerCBAS, this));
   }
 }
 
@@ -126,6 +134,8 @@ void CenterPathNode::initSector() {
     curr_sector_ = 20;
   } else if (event_ == "trackdrive") {
     curr_sector_ = 30;
+  } else{
+    curr_sector_ = 0;
   }
   last_time = this->get_clock()->now();
   lock_sector_ = true;
@@ -376,6 +386,45 @@ void CenterPathNode::timerCBTrackdrive() {
   } catch (const std::exception &e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
+}
+
+void CenterPathNode::timerCBEBS() {
+  try {
+    const std::string function_name{"center_path_timerCB:"};
+
+    if (!cone_detections_) {
+      RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                  "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+
+    std::vector<double> accel_path = getAccelPath();
+
+    utfr_msgs::msg::ParametricSpline center_path_msg;
+
+    double m = accel_path[0];
+    double c = accel_path[1];
+
+    std::vector<double> x = {0, 0, 0, 0, 1, 0};
+    std::vector<double> y = {0, 0, 0, 0, m, c};
+
+    center_path_msg.x_params = x;
+    center_path_msg.y_params = y;
+
+    center_path_publisher_->publish(center_path_msg);
+
+    int left_size = cone_detections_->left_cones.size();
+    int right_size = cone_detections_->right_cones.size();
+    int large_orange_size = cone_detections_->large_orange_cones.size();
+
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+  } catch (const std::exception &e) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
+  }
+}
+
+void CenterPathNode::timerCBAS() {
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 }
 
 bool CenterPathNode::coneDistComparitor(const utfr_msgs::msg::Cone &a,

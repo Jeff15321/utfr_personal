@@ -136,6 +136,10 @@ private:
    */
   void timerCBTrackdrive();
 
+  void timerCBEBS();
+
+  void timerCBAS();
+
   /*! Discretize point on a path
    */
   geometry_msgs::msg::Pose
