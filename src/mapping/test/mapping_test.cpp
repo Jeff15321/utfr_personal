@@ -22,7 +22,7 @@ using namespace utfr_dv::build_graph;
 using namespace utfr_dv::compute_graph;
 using namespace utfr_dv::ekf;
 
-TEST(BuildGraphNodeTest, kNNTest1)
+TEST(KNNSearchNodeTest, kNNTest1)
 {
     // Setup
     utfr_dv::build_graph::BuildGraphNode node;
@@ -53,10 +53,14 @@ TEST(BuildGraphNodeTest, kNNTest1)
     node.KNN(cones);
 
     // check if tree created
-    ASSERT_EQ(false, node.globalKDTreePtr == nullptr);
+    ASSERT_EQ(false, node.globalKDTreePtr_ == nullptr);
 
     // check is added to past_detections_
     ASSERT_EQ(1, node.past_detections_.size());
+
+    // check to see that map works
+
+    ASSERT_EQ(1, node.cone_id_to_color_map_[0]);
 
     cones = empty;
 
