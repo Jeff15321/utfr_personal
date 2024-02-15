@@ -266,7 +266,7 @@ std::vector<double> EkfNode::lla2ecr(std::vector<double>& inputVector){
   double h = inputVector[2];
   double Re = 6378137;       // Earth_Equatorial_Radius, in m
   double Rp = 6356752;       // Earth_Polar_Radius, in m
-  double f  = static_cast<double>(Re-Rp)/Re;    // Earth_Flattening Coefficient
+  double f  = (Re-Rp)/Re;    // Earth_Flattening Coefficient
 
   // Compute the ECR coordinates
   double temp = Re / std::sqrt(1 + std::pow((1 - f) * std::tan(lat), 2));
