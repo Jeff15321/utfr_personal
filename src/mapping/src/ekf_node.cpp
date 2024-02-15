@@ -42,6 +42,7 @@ void EkfNode::initParams() {
   prev_time_ = this->now();
   current_state_.pose.pose.position.x = 0.0;
   current_state_.pose.pose.position.y = 0.0;
+  std::vector<double> datum_lla={std::nan(""),std::nan(""),std::nan("")};
 }
 
 void EkfNode::initSubscribers() {
@@ -259,7 +260,7 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
 
   return state_msg;
 }
-std::vector<double> datum_lla={std::nan(""),std::nan(""),std::nan("")};
+
 std::vector<double> EkfNode::lla2ecr(std::vector<double>& inputVector){
   double lat = inputVector[0];
   double lon = inputVector[1];
