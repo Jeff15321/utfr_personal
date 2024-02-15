@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Author: Arthur Xu
+# Description: Setup Github Codespaces for remote development
+
 # Ask for the user's email
 read -p "Enter your email for the SSH key: " user_email
 

@@ -441,6 +441,7 @@ float egoHelper(utfr_msgs::msg::EgoState egs,const std::string& infoWanted){
     return -10000000000000000;
   }
 }
+
 bool isLargeOrangeCone(const uint coneID) { return coneID == 4; }
 
 } // namespace util

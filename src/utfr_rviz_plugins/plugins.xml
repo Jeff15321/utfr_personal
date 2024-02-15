@@ -14,5 +14,10 @@
             Displays cone detections from perception.
         </description>
     </class>
+    <class name="utfr_rviz_plugins/ConeMap" type="utfr_rviz_plugins::displays::ConeMapDisplay" base_class_type="rviz_common::Display">
+        <description>
+            Displays cone maps from mapping.
+        </description>
+    </class>
 
 </library>

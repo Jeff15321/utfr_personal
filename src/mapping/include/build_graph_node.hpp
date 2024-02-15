@@ -33,6 +33,7 @@
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/pose_graph.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
+#include "tf2_ros/transform_broadcaster.h"
 
 // Import G2O 2D Slam types
 #include <g2o/types/slam2d/vertex_se2.h>
@@ -57,8 +58,9 @@ namespace build_graph {
 struct Point {
     double x;
     double y;
+    double id;
 
-    Point(double x_val, double y_val) : x(x_val), y(y_val) {}
+    Point(double x_val, double y_val, double id_val) : x(x_val), y(y_val), id(id_val){}
 
     // Define the operator!= for Point class
     bool operator!=(const Point& other) const {
@@ -130,7 +132,7 @@ private:
    // Function to find the nearest neighbor and return its x, y coordinates
     Point findNearestNeighbor(KDNode* node, const Point& target, int depth, KDTree* globalKDTreePtr) {
     if (node == nullptr) {
-        return Point(0.0, 0.0);
+        return Point(0.0, 0.0, 0.0);
     }
 
     int axis = node->axis;
@@ -367,6 +369,7 @@ public:
   // Publisher
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::PoseGraph>::SharedPtr pose_graph_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_publisher_;
   rclcpp::TimerBase::SharedPtr heartbeat_timer_;
 
   // Subscribers
@@ -374,6 +377,8 @@ public:
       cone_detection_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       state_estimation_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
+      state_estimation_subscriber_2_;
 
   // Global variables
   std::vector<std::pair<float, utfr_msgs::msg::Cone>>
@@ -383,6 +388,7 @@ public:
   utfr_msgs::msg::EgoState current_state_;   // Current state estimate
   std::map<int, utfr_msgs::msg::Cone> id_to_cone_map_; // Maps cone detection to id
   std::map<int, utfr_msgs::msg::EgoState> id_to_ego_map_; // Maps state estimate to id
+  std::map<int, int> cone_id_to_color_map_; // Maps cone id to color
   std::map<int, g2o::VertexSE2*> id_to_pose_map_; // Maps state estimate to pose node
   std::map<int, std::tuple<double, double>> potential_cones_;
   int cones_potential_;
@@ -396,6 +402,7 @@ public:
   int first_detection_pose_id_;
   std::unique_ptr<KDTree> globalKDTreePtr;
   double heartbeat_rate_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> broadcaster_;
 
   // Lists for poses, cones, and edges
   std::vector<g2o::VertexSE2*> pose_nodes_;

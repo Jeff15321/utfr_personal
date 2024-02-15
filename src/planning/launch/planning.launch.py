@@ -19,15 +19,6 @@ def generate_launch_description():
         parameters=[config_path],
     )
 
-    path_optimization_node = Node(
-        package="planning",
-        executable="path_optimization",
-        name="path_optimization_node",
-        output="screen",
-        emulate_tty=True,
-        parameters=[config_path],
-    )
-
     controller_node = Node(
         package="planning",
         executable="controller",
@@ -38,6 +29,5 @@ def generate_launch_description():
     )
 
     ld.add_action(center_path_node)
-    ld.add_action(path_optimization_node)
     ld.add_action(controller_node)
     return ld

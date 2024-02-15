@@ -20,6 +20,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     nav_msgs
     geometry_msgs
     utfr_common
+    tf2_ros
 )
 
 ## Find Dependencies

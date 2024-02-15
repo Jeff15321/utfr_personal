@@ -40,9 +40,9 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
   
   this->initHeartbeat();
   this->publishHeartbeat(); 
-  this->initParams();
   this->initSubscribers();
   this->initPublishers();
+  this->initParams();
 
   // set heartbeat state to active
   heartbeat_state_ = HeartBeatState::ACTIVE;
@@ -64,6 +64,7 @@ void BuildGraphNode::initParams() {
   cones_potential_= 0;
   globalKDTreePtr = nullptr;
 
+
   // Will have to tune these later depending on the accuracy of our sensors
   Eigen::DiagonalMatrix<double, 3> P2P;
   Eigen::DiagonalMatrix<double, 2> P2C;
@@ -83,6 +84,24 @@ void BuildGraphNode::initParams() {
       std::make_unique<SlamBlockSolver>(std::move(linearSolverLM)));
   optimizer_.setAlgorithm(optimizer);
 
+  geometry_msgs::msg::TransformStamped transformStamped;
+
+  transformStamped.header.stamp = this->get_clock()->now();
+  transformStamped.header.frame_id = "world";
+  transformStamped.child_frame_id = "map";
+
+  // Set the translation and rotation of the transform
+  transformStamped.transform.translation.x = 0;
+  transformStamped.transform.translation.y = 0;
+  transformStamped.transform.translation.z = 0;
+
+  transformStamped.transform.rotation.x = 0;
+  transformStamped.transform.rotation.y = 0;
+  transformStamped.transform.rotation.z = 0;
+  transformStamped.transform.rotation.w = 0;
+
+  // Broadcast the transform
+  broadcaster_->sendTransform(transformStamped);
 }
 
 void BuildGraphNode::initSubscribers() {
@@ -94,7 +113,7 @@ void BuildGraphNode::initSubscribers() {
 
   state_estimation_subscriber_ =
       this->create_subscription<utfr_msgs::msg::EgoState>(
-          topics::kEgoState, 1,
+          topics::kPose, 1,
           std::bind(&BuildGraphNode::stateEstimationCB, this,
                     std::placeholders::_1));
 }
@@ -102,6 +121,11 @@ void BuildGraphNode::initSubscribers() {
 void BuildGraphNode::initPublishers() {
   pose_graph_publisher_ =
       this->create_publisher<utfr_msgs::msg::PoseGraph>(topics::kPoseGraph, 10);
+
+  cone_map_publisher_ =
+      this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
+
+  broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 }
 
 void BuildGraphNode::initTimers() {
@@ -128,6 +152,9 @@ void BuildGraphNode::publishHeartbeat() {
 void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
   std::vector<int> cones = KNN(msg);
   loopClosure(cones);
+  if (cones_found_ > 10) {
+    graphSLAM();
+  }
 }
 
 void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
@@ -152,11 +179,11 @@ void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
   pose_to_pose_edges_.push_back(edge);
 }
 
-KDTree generateKDTree(std::vector<std::tuple<double, double>> points_tuple) {
+KDTree generateKDTree(std::vector<std::tuple<double, double, double>> points_tuple) {
     // Convert tuples to points
     std::vector<Point> points;
     for (const auto& tuple : points_tuple) {
-        points.emplace_back(std::get<0>(tuple), std::get<1>(tuple));
+        points.emplace_back(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
     }
 
     // Create a KD tree
@@ -175,6 +202,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
 
     // Create a temp current state so current state doesn't get modified while we're using it
     utfr_msgs::msg::EgoState temp_current_state_ = current_state_;
+    float yaw = utfr_dv::util::quaternionToYaw(temp_current_state_.pose.pose.orientation);
     int temp_current_pose_id_ = current_pose_id_;
     //adding all cones to one vector
     all_cones.insert(all_cones.end(), cones.left_cones.begin(), cones.left_cones.end());
@@ -185,19 +213,23 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
     // Iterating through all detected cones
     for (const auto& newCone : all_cones) {
         // Updating detected position to global frame
-        double ego_x = current_state_.pose.pose.position.x;
-        double ego_y = current_state_.pose.pose.position.y;
-        double position_x_ = newCone.pos.x + ego_x;
-        double position_y_ = newCone.pos.y + ego_y;
-
+        double ego_x = temp_current_state_.pose.pose.position.x;
+        double ego_y = temp_current_state_.pose.pose.position.y;
+        double position_x_ = ego_x + newCone.pos.x * cos(yaw) - newCone.pos.y * sin(yaw);
+        double position_y_ = ego_y + newCone.pos.x * sin(yaw) + newCone.pos.y * cos(yaw);
 
         // Check if the KD tree is not created, and create it
         if (globalKDTreePtr == nullptr) {
         // Update vars
           past_detections_.emplace_back(cones_found_,newCone);
           cones_id_list_.push_back(cones_found_);
+          cone_id_to_color_map_[cones_found_] = newCone.type;
+          g2o::VertexPointXY* vertex = createConeVertex(cones_found_, position_x_, position_y_);
+          cone_nodes_.push_back(vertex);
+          g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, newCone.pos.x, newCone.pos.y);
+          pose_to_cone_edges_.push_back(edge);
+          globalKDTreePtr = std::make_unique<KDTree>(generateKDTree({std::make_tuple(position_x_, position_y_, cones_found_)}));
           cones_found_ += 1;
-          globalKDTreePtr = std::make_unique<KDTree>(generateKDTree({std::make_tuple(position_x_, position_y_)}));
           continue;
         }
         int number_cones = globalKDTreePtr->getNumberOfCones();
@@ -205,30 +237,35 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
         if (number_cones == 1){
           past_detections_.emplace_back(cones_found_,newCone);
           cones_id_list_.push_back(cones_found_);
-          cones_found_ += 1;
-          Point newPoint(position_x_,position_y_);
+          cone_id_to_color_map_[cones_found_] = newCone.type;
+          g2o::VertexPointXY* vertex = createConeVertex(cones_found_, position_x_, position_y_);
+          cone_nodes_.push_back(vertex);
+          g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, newCone.pos.x, newCone.pos.y);
+          pose_to_cone_edges_.push_back(edge);
+          
+          Point newPoint(position_x_,position_y_, cones_found_);
           globalKDTreePtr->insert(newPoint);
+
+          cones_found_ += 1;
           continue;
         }
 
         // Use KNN search to find the nearest cone
 
-        std::cout << "POS X" << position_x_ << " " << "POS Y" << position_y_ << std::endl;
-
-        Point knnResult = globalKDTreePtr->KNN(Point(position_x_, position_y_));
+        Point knnResult = globalKDTreePtr->KNN(Point(position_x_, position_y_, 0));
 
         const Point& nearestCone = knnResult;
 
-        std::cout << "RESULT X" << nearestCone.x << " " << "RESULT Y" << nearestCone.y << std::endl;
-
         // Check the result of the nearest neighbour search and calculate displacement
-        if (knnResult != Point(0.0, 0.0)){
+        if (knnResult != Point(0.0, 0.0, 0.0)){
         // Use the nearest point
 
             double displacement = utfr_dv::util::euclidianDistance2D(position_x_, nearestCone.x, position_y_, nearestCone.y);
 
             // Do not add if its within 0.3 of an already seen cone
             if (displacement <= 0.3) {
+                // Add the ID to the list
+                cones_id_list_.push_back(nearestCone.id);
                 continue;
             }
 
@@ -273,10 +310,16 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
                         keys.clear();
                         // Update cone_id_list_ and past_detections_ and KD tree
                         cones_id_list_.push_back(cones_found_);
-                        Point newPoint(position_x_,position_y_);
+                        cone_id_to_color_map_[cones_found_] = newCone.type;
+                        g2o::VertexPointXY* vertex = createConeVertex(cones_found_, position_x_, position_y_);
+                        cone_nodes_.push_back(vertex);
+                        g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, newCone.pos.x, newCone.pos.y);
+                        pose_to_cone_edges_.push_back(edge);
+                        Point newPoint(position_x_,position_y_, cones_found_);
+
+                        // std::cout << "Cone x: " << position_x_ << " Cone y: " << position_y_ << " Cone id: " << cones_found_ << std::endl;
                         past_detections_.emplace_back(cones_found_,newCone);
                         globalKDTreePtr->insert(newPoint);
-                        std::cout << "ADDED" << std::endl;
                         cones_found_ += 1;
                         break;
                         }
@@ -288,6 +331,7 @@ std::vector<int> BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones
       }
     return cones_id_list_;
   }
+
 
 void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
   // Loop hasn't been completed yet
@@ -332,11 +376,13 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
         // If cone in frame again
         if (seen_status != cones.end()) {
           // Car has returned back to landmark cone position, made full loop
-          double dx = id_to_ego_map_[first_detection_pose_id_].pose.pose.position.x - 
-          	      id_to_ego_map_[current_pose_id_].pose.pose.position.x;
-          double dy = id_to_ego_map_[first_detection_pose_id_].pose.pose.position.y-
-          	      id_to_ego_map_[current_pose_id_].pose.pose.position.y;
-          double dtheta = current_state_.pose.pose.orientation.z;
+
+          double dx = id_to_ego_map_[current_pose_id_].pose.pose.position.x - 
+                      id_to_ego_map_[first_detection_pose_id_].pose.pose.position.x;
+          double dy = id_to_ego_map_[current_pose_id_].pose.pose.position.y-
+                      id_to_ego_map_[first_detection_pose_id_].pose.pose.position.y;
+          double dtheta = utfr_dv::util::quaternionToYaw(id_to_ego_map_[current_pose_id_].pose.pose.orientation) - 
+                          utfr_dv::util::quaternionToYaw(id_to_ego_map_[first_detection_pose_id_].pose.pose.orientation);
           loop_closed_ = true;
           // Create node objects for each pose
           // Get the state estimate at a pose using id_to_state_map_[pose_id_]
@@ -347,14 +393,12 @@ void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
           // add an edge using the pose ids at initial detection and loop closure detection
           g2o::EdgeSE2* edge = addPoseToPoseEdge(first_pose_node, second_pose_node, dx, dy, dtheta, loop_closed_);
           pose_to_pose_edges_.push_back(edge);
-          std::cout << "Loop closure edge added" << std::endl;
 
           landmarked_ = false;
           landmarkedID_ = -1;
           out_of_frame_ = -1;
           first_detection_pose_id_ = 0;
           loop_closed_ = false;
-          graphSLAM();
         }
       }
     }
@@ -440,26 +484,49 @@ void BuildGraphNode::graphSLAM() {
   }
   
   optimizer_.initializeOptimization();
-  optimizer_.optimize(10);
+  // optimizer_.optimize(10);
 
-  // for (g2o::SparseOptimizer::VertexIDMap::const_iterator it = optimizer_.vertices().begin(); it != optimizer_.vertices().end(); ++it) {
-  //       g2o::SparseOptimizer::Vertex* vertex = dynamic_cast<g2o::SparseOptimizer::Vertex*>(it->second);
-  //       if (vertex) {
-  //           g2o::VertexSE2* se2Vertex = dynamic_cast<g2o::VertexSE2*>(vertex);
-  //           if (se2Vertex) {
-  //               const g2o::SE2& se2 = se2Vertex->estimate();
-  //               double x = se2.toVector()[0];  // Extract the x component
-  //               double y = se2.toVector()[1];  // Extract the y component
+  cone_map_.left_cones.clear();
+  cone_map_.right_cones.clear();
+  cone_map_.small_orange_cones.clear();
+  cone_map_.large_orange_cones.clear();
+  cone_map_.header.frame_id = "map";
 
-  //               utfr_msgs::msg::Cone cone;
-  //               cone.pos.x = x;
-  //               cone.pos.y = y;
-  //               cone_map_.left_cones.push_back(cone);
-  //           }
-  //       }
-  //   }
+  for (auto v : optimizer_.vertices()) {
+      g2o::VertexPointXY* vertexPointXY = dynamic_cast<g2o::VertexPointXY*>(v.second);
+      if (vertexPointXY) {
+          // Extract the x and y coordinates
+          double x = vertexPointXY->estimate()(0);
+          double y = vertexPointXY->estimate()(1);
+
+          // Get the ID
+          int id = vertexPointXY->id();
+          int color = cone_id_to_color_map_[id];
+
+          // Create a cone object then add it to the cone map
+          utfr_msgs::msg::Cone cone;
+          cone.pos.x = x;
+          cone.pos.y = -y;
+
+          if (color == 1) {
+            cone.type = utfr_msgs::msg::Cone::BLUE;
+            cone_map_.left_cones.push_back(cone);
+          } else if (color == 2) {
+            cone.type = utfr_msgs::msg::Cone::YELLOW;
+            cone_map_.right_cones.push_back(cone);
+          } else if (color == 3) {
+            cone.type = utfr_msgs::msg::Cone::SMALL_ORANGE;
+            cone_map_.small_orange_cones.push_back(cone);
+          } else if (color == 4) {
+            cone.type = utfr_msgs::msg::Cone::LARGE_ORANGE;
+            cone_map_.large_orange_cones.push_back(cone);
+          }
+      }
+  }
+
+  cone_map_publisher_->publish(cone_map_);
   // Save the optimized pose graph
-  std::cout << "Optimized pose graph saved" << std::endl;
+  // std::cout << "Optimized pose graph saved" << std::endl;
 }
 
 void BuildGraphNode::buildGraph() {}
