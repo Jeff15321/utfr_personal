@@ -187,6 +187,7 @@ public:
   // Global variables
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
   Eigen::MatrixXd P_;
+  std::vector<double> datum_lla;
 
   rclcpp::Time prev_time_;
 };

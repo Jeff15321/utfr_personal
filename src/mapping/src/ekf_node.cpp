@@ -42,7 +42,7 @@ void EkfNode::initParams() {
   prev_time_ = this->now();
   current_state_.pose.pose.position.x = 0.0;
   current_state_.pose.pose.position.y = 0.0;
-  std::vector<double> datum_lla={std::nan(""),std::nan(""),std::nan("")};
+  datum_lla={std::nan(""),std::nan(""),std::nan("")};
 }
 
 void EkfNode::initSubscribers() {
