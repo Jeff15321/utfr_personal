@@ -13,6 +13,9 @@
 */
 
 #include <ekf_node.hpp>
+#include <cmath>
+#include <vector>
+
 
 namespace utfr_dv {
 namespace ekf {
@@ -39,6 +42,7 @@ void EkfNode::initParams() {
   prev_time_ = this->now();
   current_state_.pose.pose.position.x = 0.0;
   current_state_.pose.pose.position.y = 0.0;
+  datum_lla={std::nan(""),std::nan(""),std::nan("")};
 }
 
 void EkfNode::initSubscribers() {
@@ -257,5 +261,80 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
   return state_msg;
 }
 
+std::vector<double> EkfNode::lla2ecr(std::vector<double>& inputVector){
+  double lat = inputVector[0];
+  double lon = inputVector[1];
+  double h = inputVector[2];
+  double Re = 6378137;       // Earth_Equatorial_Radius, in m
+  double Rp = 6356752;       // Earth_Polar_Radius, in m
+  double f  = (Re-Rp)/Re;    // Earth_Flattening Coefficient
+
+  // Compute the ECR coordinates
+  double temp = Re / std::sqrt(1 + std::pow((1 - f) * std::tan(lat), 2));
+  
+
+
+  double x = (temp + h * std::cos(lat)) * std::cos(lon);
+  double y = (temp + h * std::cos(lat)) * std::sin(lon);
+  double z = temp * (std::pow((1 - f), 2) * std::tan(lat)) + h * std::sin(lat);
+  std::vector<double> resultVector ={x,y,z};
+  return resultVector;
+}
+
+
+
+void EkfNode::ecr2enu(double& x, double& y, double& z, std::vector<double>& datum_lla) {
+    double lat = datum_lla[0];
+    double lon = datum_lla[1];
+    double h = datum_lla[2];
+
+    Eigen::Matrix3d m;
+    m << -std::sin(lon), std::cos(lon), 0.0,
+         -std::sin(lat) * std::cos(lon), -std::sin(lat) * std::sin(lon), std::cos(lat),
+         std::cos(lat) * std::cos(lon), std::cos(lat) * std::sin(lon), std::sin(lat);
+
+    std::vector<double> radar_ecr = lla2ecr(datum_lla);
+    Eigen::VectorXd a = Eigen::VectorXd(3);
+    a << radar_ecr[0], radar_ecr[1], radar_ecr[2];
+    Eigen::Vector3d b = m * a;
+    Eigen::VectorXd c = Eigen::VectorXd(3);
+    c << x, y, z;     
+    Eigen::Vector3d d = m * c; 
+    
+    // Adjust x, y, z
+    x = d[0]-b[0];
+    y = d[1]-b[1];
+    z = d[2]-b[2];
+}
+std::vector<double> EkfNode::lla2enu(std::vector<double>& inputVector){
+
+  std::vector<double> resultVector = {0,0,0};
+  if (std::isnan(datum_lla[0])){
+    for(int i = 0; i <3; i++){
+      datum_lla[i] = inputVector[i];
+      
+    }
+
+    return resultVector;
+
+  }
+
+  
+  std::vector<double> inputECR = lla2ecr(inputVector);
+  double x = inputECR[0];
+  double y = inputECR[1];
+  double z = inputECR[2];
+
+  
+  ecr2enu(x,y,z,datum_lla);//now x y z is in enu
+
+  resultVector[0] = x;
+  resultVector[1] = y;
+  resultVector[2] = z;
+  return resultVector;
+
+}
+
 } // namespace ekf
 } // namespace utfr_dv
+ 

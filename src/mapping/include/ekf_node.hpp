@@ -24,6 +24,7 @@
 #include <stdexcept> // std::runtime_error
 #include <string>
 #include <vector>
+#include <cmath>
 #include <random>
 
 // Message Requirements
@@ -111,6 +112,7 @@ public:
    *  @param[out] state geometry_msgs::msg::EgoState&, estimated state via the
    * vehicle model
    */
+   
   void vehicleModel(const float &throttle, const float &brake,
                     const float &steering_angle);
 
@@ -141,6 +143,26 @@ public:
    *  @param[in] double yaw: yaw angle of car, in radians
    *  @returns utfr_msgs::msg::EgoState of vehicle's estimated state
    */
+
+  std::vector<double> lla2ecr(std::vector<double>& inputVector);
+  /*  Helper function for lla2enu: converts lla to ecr
+   *  @param[in] std::vector<double>& inputVector: vector with 3 elements: Lat, Lon, Alt in RADIANS, RADIANS, meters
+   *  @returns std::vector<double> a vector with 3 elements in ecr
+   */
+  void ecr2enu(double& x, double& y, double& z, std::vector<double>& datum_lla);
+  /*  Helper function for lla2enu: modifys x y and z to their enu value relative to the datum
+   *  @param[in] std::vector<double>& datum_lla position vector with 3 elements: Lat, Lon, Alt in RADIANS, RADIANS, meters
+   *  @param[in] double& x ecr x value
+   *  @param[in] double& y ecr y value
+   *  @param[in] double& z ecr z value
+   */
+  std::vector<double> lla2enu(std::vector<double>& inputVector);
+  /* Given an lla input returns enu relative to datum_lla
+   * The first call sets datum_lla and returns {0,0,0}
+   *  @param[in] std::vector<double>& inputVector: vector with 3 elements: Lat, Lon, Alt in RADIANS, RADIANS, meters
+   *  @returns std::vector<double> a vector with 3 elements east north up all in meters
+   */
+  
   utfr_msgs::msg::EgoState updateState(const double x, const double y, const double yaw);
   
   // Publishers
@@ -165,6 +187,7 @@ public:
   // Global variables
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
   Eigen::MatrixXd P_;
+  std::vector<double> datum_lla;
 
   rclcpp::Time prev_time_;
 };
