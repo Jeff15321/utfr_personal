@@ -20,7 +20,7 @@ import matplotlib.pyplot as plot
 import onnxruntime as ort
 import time
 
-from scipy.spatial.distance import cdist
+# from scipy.spatial.distance import cdist
 
 # ROS2 Requirements
 import rclpy
@@ -35,7 +35,7 @@ from tf2_ros.transform_listener import TransformListener
 # Message Requirements
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2
-from sensor_msgs import point_cloud2
+from sensor_msgs_py import point_cloud2
 from std_msgs.msg import Bool
 from utfr_msgs.msg import ConeDetections
 from utfr_msgs.msg import Heartbeat
@@ -265,11 +265,15 @@ class PerceptionNode(Node):
 
         # create session for onnxruntime ofr detections
         cuda = check_for_cuda()
-        print(cuda)
-        providers = ["CUDAExecutionProvider"] if cuda else ["CPUExecutionProvider"]
-        self.session = ort.InferenceSession(
-            "src/perception/perception/best.onnx", providers=providers
-        )
+        print("Check for cuda:", cuda)
+        # providers = ["AzureExecutionProvider"] if cuda else ["CPUExecutionProvider"]
+        providers = ort.get_available_providers()
+        print("Available Providers:", providers)
+
+        # Get the current device for inference
+        device = ort.get_device()
+        print("Current Device for Inference:", device)
+        self.session = ort.InferenceSession("src/perception/perception/best.onnx")
 
         # create transform frame variables
         self.lidar_frame = "lidar"
@@ -432,7 +436,6 @@ class PerceptionNode(Node):
         """
         Callback function for left_cam_subscriber_
         """
-        self.get_logger().warn("Recieved left camera message")
         try:
             self.left_img_header = msg.header
             self.left_img_ = self.bridge.imgmsg_to_cv2(
@@ -453,7 +456,6 @@ class PerceptionNode(Node):
         """
         Callback function for right_cam_subscriber_
         """
-        self.get_logger().warn("Recieved right camera message")
         try:
             self.right_img_header = msg.header
             self.right_img_ = self.bridge.imgmsg_to_cv2(
@@ -546,7 +548,7 @@ class PerceptionNode(Node):
             right_classes,
             right_scores,
             left_cone_detections,
-            right_cone_detections
+            right_cone_detections,
         )
 
     def timerCB(self):
@@ -621,7 +623,7 @@ class PerceptionNode(Node):
 
         frame_left = undist_left
         frame_right = undist_right
-
+        """
         try:
             # tf from left_cam to lidar
 
@@ -643,6 +645,7 @@ class PerceptionNode(Node):
         except TransformException as ex:
             self.get_logger().info(f"{ex}")
             return
+        """
         # get the detections
 
         (
@@ -653,7 +656,7 @@ class PerceptionNode(Node):
             classes_right,
             scores_right,
             left_cone_detections,
-            right_cone_detections
+            right_cone_detections,
         ) = self.process(frame_left, frame_right)
 
         # use tf to convert results_left, results_right to lidar frame
@@ -662,12 +665,14 @@ class PerceptionNode(Node):
         #        self.tf_leftcam_lidar.transform.rotation.x, y, z, w (quaternion)
         # or just use doTransform function
 
+        """
         left_detections_lidar_frame = transform_det_lidar(
             left_cone_detections, tf_leftcam_lidar
         )
         right_detections_lidar_frame = transform_det_lidar(
             right_cone_detections, tf_rightcam_lidar
         )
+        """
 
         # lidar camera fusion logic
         # make some logic for the clusters that are received from lidar node
@@ -686,6 +691,7 @@ class PerceptionNode(Node):
 
         # Extract point cloud data
         # TODO - check self.lidar_msg when lidar callback is updated
+        '''
         lidar_point_cloud_data = point_cloud2.read_points_numpy(
             self.lidar_msg, field_names=["x", "y", "z", "intensity"], skip_nans=True
         )
@@ -719,11 +725,12 @@ class PerceptionNode(Node):
             for cluster_index, (detection, _) in best_matches.items()
         ]
 
-        '''
+        """
         TODO - create cone_detections array from associations array
         print("Associations:")
         for detection, cluster_index in associations:
             print(f"Detection: {detection}, Lidar Cluster Index: {cluster_index}")
+        """
         '''
 
         # self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
@@ -776,11 +783,12 @@ class PerceptionNode(Node):
     cv2.imshow('right_camera', frame_right)
     cv2.waitKey(1)
     """
+        cone_detections = [[1, 2, 3, 4]]
         if cone_detections == []:
             pass
         else:
             # order cones by distance
-            cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
+            # cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
 
             # publish cone detections
             self.detections_msg.header.stamp = self.get_clock().now().to_msg()

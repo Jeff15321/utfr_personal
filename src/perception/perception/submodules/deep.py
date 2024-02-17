@@ -36,7 +36,7 @@ def check_for_cuda():
     # NOTE: This is a bit superficial. There might be a better way to do this check.
     # 11.5 for dv computer, 11.4 for jetson agx xavier
     output = os.popen("nvcc --version").read()
-    if "cuda_11.5" in output:
+    if "cuda_12.2" in output:
         return True
     else:
         return False
@@ -83,8 +83,8 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
     Applies object detection on each frame from a camera using a deep learning model.
     """
 
-    if frame == []:
-        return [], [], [], []
+    # if frame == []:
+    # return [], [], [], []
 
     # Define class names and colors
     names = [
