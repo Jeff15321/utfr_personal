@@ -730,37 +730,75 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   return target; // Return the target state.
 }
 
+double evaluate(std::vector<double> c, double s) {
+  return c[0] * pow(s, 5) + c[1] * pow(s, 4) + c[2] * pow(s, 3) +
+         c[3] * pow(s, 2) + c[4] * s + c[5];
+}
+
+double first_derivative(std::vector<double> c, double s) {
+  double delta = 0.0000000001;
+  if (s <= 0.0){
+    double t_0 = 0.0;
+    double t_1 = 0.0 + delta;
+    double f_0 = evaluate(c, t_0);
+    double f_1 = evaluate(c, t_1);
+    return (f_1 - f_0) / (t_1 - t_0);
+  }
+  double t_0 = s - delta;
+  double t_1 = s + delta;
+  double f_0 = evaluate(c, t_0);
+  double f_1 = evaluate(c, t_1);
+  return (f_1 - f_0) / (t_1 - t_0);
+}
+
+double second_derivative(std::vector<double> c, double s) {
+  double delta = 0.0000000001;
+  if (s <= 0.0){
+    double t_0 = 0.0;
+    double t_1 = 0.0 + delta;
+    double f_0 = first_derivative(c, t_0);
+    double f_1 = first_derivative(c, t_1);
+    return (f_1 - f_0) / (t_1 - t_0);
+  }
+  double t_0 = s - delta;
+  double t_1 = s + delta;
+  double f_0 = first_derivative(c, t_0);
+  double f_1 = first_derivative(c, t_1);
+  return (f_1 - f_0) / (t_1 - t_0);
+}
+
+double k(std::vector<double> x, std::vector<double> y, double s) {
+  double x_first_derivative = first_derivative(x, s);
+  double x_second_derivative = second_derivative(x, s);
+  double y_first_derivative = first_derivative(y, s);
+  double y_second_derivative = second_derivative(y, s);
+  double numerator = x_first_derivative * y_second_derivative -
+                     x_second_derivative * y_first_derivative;
+  double val = x_first_derivative * x_first_derivative +
+               y_first_derivative * y_first_derivative;
+  double denominator = val * sqrt(val);
+  return abs(numerator / denominator);
+}
+
 std::vector<double> ControllerNode::calculateVelocities(
     utfr_msgs::msg::ParametricSpline &spline, double L, int n,
     double a_lateral) {
   if (n <= 1)
     return {};
-  auto first_derivative = [](std::vector<double> &c, double s, double s2,
-                             double s3, double s4) {
-    return 5 * c[0] * s4 + 4 * c[1] * s3 + 3 * c[2] * s2 + 2 * c[3] * s + c[4];
-  };
-  auto second_derivative = [](std::vector<double> &c, double s, double s2,
-                              double s3) {
-    return 20 * c[0] * s3 + 12 * c[1] * s2 + 6 * c[2] * s + 2 * c[3];
-  };
-  std::vector<double> &x = spline.x_params;
-  std::vector<double> &y = spline.y_params;
-  auto k = [&x, &y, &first_derivative, &second_derivative](double s) {
-    double s2 = s * s, s3 = s2 * s, s4 = s3 * s;
-    double x_first_derivative = first_derivative(x, s, s2, s3, s4);
-    double x_second_derivative = second_derivative(x, s, s2, s3);
-    double y_first_derivative = first_derivative(y, s, s2, s3, s4);
-    double y_second_derivative = second_derivative(y, s, s2, s3);
-    double numerator = x_first_derivative * y_second_derivative -
-                       x_second_derivative * y_first_derivative;
-    double val = x_first_derivative * x_first_derivative +
-                 y_first_derivative * y_first_derivative;
-    double denominator = val * sqrt(val);
-    return abs(numerator / denominator);
-  };
+  // auto first_derivative = [](std::vector<double> &c, double s, double s2,
+  //                            double s3, double s4) {
+  //   return 5 * c[0] * s4 + 4 * c[1] * s3 + 3 * c[2] * s2 + 2 * c[3] * s + c[4];
+  // };
+  // auto second_derivative = [](std::vector<double> &c, double s, double s2,
+  //                             double s3) {
+  //   return 20 * c[0] * s3 + 12 * c[1] * s2 + 6 * c[2] * s + 2 * c[3];
+  // };
+
+  std::vector<double> x = spline.x_params;
+  std::vector<double> y = spline.y_params;
   std::vector<double> velocities;
   for (double s = 0; s <= L; s += L / (n - 1)) {
-    velocities.push_back(sqrt(a_lateral / k(s)));
+    velocities.push_back(sqrt(a_lateral / k(x, y, s)));
   }
   return velocities;
 }
