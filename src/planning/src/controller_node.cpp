@@ -279,7 +279,7 @@ void ControllerNode::timerCBAccel() {
   const std::string function_name{"controller_timerCB:"};
 
   try {
-    if (!path_) {
+    if (!path_ || !ego_state_) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
       return;
@@ -329,7 +329,7 @@ void ControllerNode::timerCBSkidpad() {
   const std::string function_name{"controller_timerCB:"};
 
   try {
-    if (!path_) {
+    if (!path_ || !ego_state_) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
       return;
@@ -380,7 +380,7 @@ void ControllerNode::timerCBAutocross() {
 
   try {
 
-    if (!path_) {
+    if (!path_ || !ego_state_) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
       return;
@@ -431,7 +431,7 @@ void ControllerNode::timerCBTrackdrive() {
 
   try {
 
-    if (!path_) {
+    if (!path_ || !ego_state_) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
       return;
@@ -626,6 +626,14 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
     path_stamped.polygon.points.push_back(point);
   }
 
+  for (int i = discretized_points.size() - 1; i > -1; i--){
+    geometry_msgs::msg::Point32 point;
+    point.x = discretized_points[i].position.x;
+    point.y = -discretized_points[i].position.y;
+    point.z = 0.0;
+    path_stamped.polygon.points.push_back(point);
+  }
+
   path_publisher_->publish(path_stamped);
 
   double lookahead_distance = 0;
@@ -691,7 +699,7 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   // Reduce speed if turning sharply or near max steering.
   if (abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
       abs(delta) > max_steering_angle) {
-    desired_velocity = 1.0;
+    desired_velocity = std::max(desired_velocity - 2, 1.0);
   }
 
   rclcpp::Time curr_time = this->get_clock()->now();

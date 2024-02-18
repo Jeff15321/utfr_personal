@@ -274,7 +274,7 @@ void CenterPathNode::timerCBAutocross() {
   const std::string function_name{"center_path_timerCB:"};
 
   try {  
-    if (!cone_detections_ || cone_map_ == nullptr || ego_state_ == nullptr) {
+    if (cone_detections_ == nullptr || cone_map_ == nullptr || ego_state_ == nullptr) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
       return;
@@ -660,11 +660,11 @@ double CenterPathNode::midpointCostFunction(
   double Z = 0.1;
 
   double MAX_MAX_ANGLE = 3.3141592653589793;
-  double MAX_MAX_MIDPOINT_TO_CONE_DIST = 2.5;
-  double MAX_SQUARED_RANGE_PATH_LENGTH_DIFF =
+  double MAX_MAX_MIDPOINT_TO_CONE_DIST = 25.0;
+  double MAX_SQUARED_RANGE_PATH_LENGTH_DIFF = 
       pow(MAX_MAX_MIDPOINT_TO_CONE_DIST, 2);
-  int MAX_POINT_COUNT_COST = 5;
-  double MAX_INTERPOLATED_MIDPOINT_TO_CONE_DISTANCE_COST = 1.2 / 2.0;
+  int MAX_POINT_COUNT_COST = 10;
+  double MAX_INTERPOLATED_MIDPOINT_TO_CONE_DISTANCE_COST = 1.2 / 2.0 * 4.0;
   double MAX_STD_DEV = 1.2;
 
   double car_tip_x =
@@ -791,7 +791,7 @@ double CenterPathNode::midpointCostFunction(
   double sq_sum = std::inner_product(track_widths.begin(), track_widths.end(),
                                      track_widths.begin(), 0.0);
   double std_dev = std::sqrt(sq_sum / track_widths.size() - mean * mean);
-
+  
   double sum =
       A * pow((max_angle / MAX_MAX_ANGLE), 2) +
       B * pow((squared_range_path_length_diff /
@@ -905,6 +905,7 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
     point32.z = 0.0;
     midpoint_viz.polygon.points.push_back(point32);
   }
+
   skidpad_path_publisher_->publish(midpoint_viz);
 
   std::vector<int> midpoint_indices_by_dist(midpoints.size());
@@ -936,7 +937,7 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
     q.push_back({midpoint_indices_by_dist[i]});
   }
 
-  for (int i = 0; i < 8; ++i) {
+  for (int i = 0; i < 3; ++i) {
     std::deque<std::vector<int>> nextQ;
     while (!q.empty()) {
       std::vector<int> path = q.front();
@@ -1447,8 +1448,8 @@ void CenterPathNode::skidPadFit(
     avg_circle_msg.header.stamp = this->get_clock()->now();
 
     avg_circle_msg.x_params = {0, 0, 0, 0, 1, 0};
-    avg_circle_msg.y_params = {
-        0, 0, 0, -1 / (2 * r), b / r, k + r - b * b / (2 * r)};
+    avg_circle_msg.y_params = {0,           0,      0,
+                               - 1 / (2 * r), b / r, k + r - b * b / (2 * r)};
 
     center_path_publisher_->publish(avg_circle_msg);
   }

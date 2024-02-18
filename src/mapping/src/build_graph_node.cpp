@@ -509,7 +509,7 @@ void BuildGraphNode::graphSLAM() {
           // Create a cone object then add it to the cone map
           utfr_msgs::msg::Cone cone;
           cone.pos.x = x;
-          cone.pos.y = -y;
+          cone.pos.y = y;
 
           if (color == 1) {
             cone.type = utfr_msgs::msg::Cone::BLUE;

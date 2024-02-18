@@ -258,6 +258,7 @@ void ConeMapDisplay::setMarkerArray(
     setConeMarker(cone, msg->header, id_, &blue_cone_marker_);
     setCovarianceMarker(cone, msg->header, id_);
     auto marker = getColoredMarker(blue_cone_marker_);
+    marker.pose.position.y = -marker.pose.position.y;
     marker_array_.markers.push_back(marker);
     marker_array_.markers.push_back(covariance_marker_);
     id_++;
@@ -266,6 +267,7 @@ void ConeMapDisplay::setMarkerArray(
     setConeMarker(cone, msg->header, id_, &yellow_cone_marker_);
     setCovarianceMarker(cone, msg->header, id_);
     auto marker = getColoredMarker(yellow_cone_marker_);
+    marker.pose.position.y = -marker.pose.position.y;
     marker_array_.markers.push_back(marker);
     marker_array_.markers.push_back(covariance_marker_);
     id_++;
@@ -274,6 +276,7 @@ void ConeMapDisplay::setMarkerArray(
     setConeMarker(cone, msg->header, id_, &orange_cone_marker_);
     setCovarianceMarker(cone, msg->header, id_);
     auto marker = getColoredMarker(orange_cone_marker_);
+    marker.pose.position.y = -marker.pose.position.y;
     marker_array_.markers.push_back(marker);
     marker_array_.markers.push_back(covariance_marker_);
     id_++;
@@ -282,6 +285,7 @@ void ConeMapDisplay::setMarkerArray(
     setConeMarker(cone, msg->header, id_, &big_orange_cone_marker_);
     setCovarianceMarker(cone, msg->header, id_);
     auto marker = getColoredMarker(big_orange_cone_marker_);
+    marker.pose.position.y = -marker.pose.position.y;
     marker_array_.markers.push_back(marker);
     marker_array_.markers.push_back(covariance_marker_);
     id_++;
