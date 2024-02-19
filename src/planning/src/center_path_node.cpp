@@ -129,7 +129,7 @@ void CenterPathNode::initSector() {
   if (event_ == "accel") {
     curr_sector_ = 1;
   } else if (event_ == "skidpad") {
-    curr_sector_ = 10;
+    curr_sector_ = 12;
   } else if (event_ == "autocross") {
     curr_sector_ = 20;
   } else if (event_ == "trackdrive") {
@@ -246,7 +246,6 @@ void CenterPathNode::timerCBAccel() {
 
 void CenterPathNode::timerCBSkidpad() {
   const std::string function_name{"center_path_timerCB:"};
-
   try {
     try {
       if (cone_detections_ == nullptr || ego_state_ == nullptr || cone_map_ == nullptr) {
@@ -264,7 +263,6 @@ void CenterPathNode::timerCBSkidpad() {
 
     skidpadLapCounter();
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-    RCLCPP_WARN(this->get_logger(), "Skidpad lap count: %d", curr_sector_);
   } catch (const std::exception &e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -1194,7 +1192,6 @@ void CenterPathNode::skidPadFit(
   circle1.points.reserve(75);
   circle2.points.reserve(75);
 
-  std::cout << "curr_sector_: " << curr_sector_ << std::endl;
   float y_0 = 0;
   if (curr_sector_ == 10) {
     bool find = false;
@@ -1329,57 +1326,45 @@ void CenterPathNode::skidPadFit(
     yc2 = std::get<4>(circle);
     r2 = std::get<5>(circle);
 
-    geometry_msgs::msg::PolygonStamped circle1_stamped, circle2_stamped,
-        circleavg;
+    geometry_msgs::msg::PolygonStamped circleavg;
 
-    circle1_stamped.header.frame_id = "base_footprint";
-    circle2_stamped.header.frame_id = "base_footprint";
     circleavg.header.frame_id = "base_footprint";
 
-    circle1_stamped.header.stamp = this->get_clock()->now();
-    circle2_stamped.header.stamp = this->get_clock()->now();
     circleavg.header.stamp = this->get_clock()->now();
-
-    for (int i = 0; i < 75; ++i) {
-      Point32 point1;
-      Point32 point2;
-      Point32 pointavg;
-
-      double angle = 2.0 * M_PI * static_cast<double>(i) / 75.0;
-      point1.x = xc1 + small_radius_ * cos(angle);
-      point1.y = (yc1 + small_radius_ * sin(angle)) * -1;
-      point1.z = 0;
-      pointavg.x =
-          (xc1 + xc2) / 2.0 + (small_radius_ + big_radius_) / 2.0 * cos(angle);
-      pointavg.y = ((yc1 + yc2) / 2.0 +
-                    (small_radius_ + big_radius_) / 2.0 * sin(angle)) *
-                   -1;
-      pointavg.z = 0;
-
-      point2.x = xc2 + big_radius_ * cos(angle);
-      point2.y = (yc2 + big_radius_ * sin(angle)) * -1;
-      point2.z = 0;
-
-      circle1_stamped.polygon.points.push_back(point1);
-      circle2_stamped.polygon.points.push_back(point2);
-      circleavg.polygon.points.push_back(pointavg);
-    }
-
-    skidpad_path_publisher_->publish(circle1_stamped);
-    skidpad_path_publisher_2_->publish(circle2_stamped);
-    skidpad_path_publisher_avg_->publish(circleavg);
 
     double b = (xc1 + xc2) / 2.0;
     double k = (yc1 + yc2) / 2.0;
     double r = (small_radius_ + big_radius_) / 2.0;
 
+    Point32 pointavg;
+
+    for (int i = 0; i < 50; i++){
+      double cur_ang = static_cast<double>(i) / 50 * 3.1415 / 2;
+      double cur_x = b + r * cos(cur_ang);
+      double cur_y = k - r * sin(cur_ang);
+      pointavg.x = cur_x;
+      pointavg.y = -cur_y;
+      pointavg.z = 0;
+      circleavg.polygon.points.push_back(pointavg);
+    }
+
+    for (int i = 50; i >= 0; i--){
+      double cur_ang = static_cast<double>(i) / 50 * 3.1415 / 2;
+      double cur_x = b + r * cos(cur_ang);
+      double cur_y = k - r * sin(cur_ang);
+      pointavg.x = cur_x;
+      pointavg.y = -cur_y;
+      pointavg.z = 0;
+      circleavg.polygon.points.push_back(pointavg);
+    }
+
+    skidpad_path_publisher_avg_->publish(circleavg);
+
     utfr_msgs::msg::ParametricSpline avg_circle_msg;
     avg_circle_msg.header.frame_id = "base_footprint";
     avg_circle_msg.header.stamp = this->get_clock()->now();
 
-    avg_circle_msg.x_params = {0, 0, 0, 0, 1, 0};
-    avg_circle_msg.y_params = {0,           0,      0,
-                               1 / (2 * r), -b / r, k - r + b * b / (2 * r)};
+    avg_circle_msg.skidpad_params = {b, k, r};
 
     center_path_publisher_->publish(avg_circle_msg);
   }
@@ -1400,56 +1385,44 @@ void CenterPathNode::skidPadFit(
     yc2 = std::get<4>(circle);
     r2 = std::get<5>(circle);
 
-    geometry_msgs::msg::PolygonStamped circle1_stamped, circle2_stamped,
-        circleavg;
+    geometry_msgs::msg::PolygonStamped circleavg;
 
-    circle1_stamped.header.frame_id = "base_footprint";
-    circle2_stamped.header.frame_id = "base_footprint";
     circleavg.header.frame_id = "base_footprint";
-    circle1_stamped.header.stamp = this->get_clock()->now();
-    circle2_stamped.header.stamp = this->get_clock()->now();
     circleavg.header.stamp = this->get_clock()->now();
-
-    for (int i = 0; i < 75; ++i) {
-      Point32 point1;
-      Point32 point2;
-      Point32 pointavg;
-
-      double angle = 2.0 * M_PI * static_cast<double>(i) / 75.0;
-      point1.x = xc1 + small_radius_ * cos(angle);
-      point1.y = -1 * (yc1 + small_radius_ * sin(angle));
-      point1.z = 0;
-
-      pointavg.x =
-          (xc1 + xc2) / 2.0 + (small_radius_ + big_radius_) / 2.0 * cos(angle);
-      pointavg.y = -1 * ((yc1 + yc2) / 2.0 +
-                         (small_radius_ + big_radius_) / 2.0 * sin(angle));
-      pointavg.z = 0;
-
-      point2.x = xc2 + big_radius_ * cos(angle);
-      point2.y = -1 * (yc2 + big_radius_ * sin(angle));
-      point2.z = 0;
-
-      circle1_stamped.polygon.points.push_back(point1);
-      circle2_stamped.polygon.points.push_back(point2);
-      circleavg.polygon.points.push_back(pointavg);
-    }
-
-    skidpad_path_publisher_->publish(circle1_stamped);
-    skidpad_path_publisher_2_->publish(circle2_stamped);
-    skidpad_path_publisher_avg_->publish(circleavg);
 
     double b = (xc1 + xc2) / 2.0;
     double k = (yc1 + yc2) / 2.0;
     double r = (small_radius_ + big_radius_) / 2.0;
 
+    Point32 pointavg;
+
+    for (int i = 0; i < 50; i++){
+      double cur_ang = static_cast<double>(i) / 50 * 3.1415 / 2;
+      double cur_x = b + r * cos(cur_ang);
+      double cur_y = k + r * sin(cur_ang);
+      pointavg.x = cur_x;
+      pointavg.y = -cur_y;
+      pointavg.z = 0;
+      circleavg.polygon.points.push_back(pointavg);
+    }
+
+    for (int i = 50; i >= 0; i--){
+      double cur_ang = static_cast<double>(i) / 50 * 3.1415 / 2;
+      double cur_x = b + r * cos(cur_ang);
+      double cur_y = k + r * sin(cur_ang);
+      pointavg.x = cur_x;
+      pointavg.y = -cur_y;
+      pointavg.z = 0;
+      circleavg.polygon.points.push_back(pointavg);
+    }
+
+    skidpad_path_publisher_avg_->publish(circleavg);
+
     utfr_msgs::msg::ParametricSpline avg_circle_msg;
     avg_circle_msg.header.frame_id = "base_footprint";
     avg_circle_msg.header.stamp = this->get_clock()->now();
 
-    avg_circle_msg.x_params = {0, 0, 0, 0, 1, 0};
-    avg_circle_msg.y_params = {0,           0,      0,
-                               - 1 / (2 * r), b / r, k + r - b * b / (2 * r)};
+    avg_circle_msg.skidpad_params = {b, k, r};
 
     center_path_publisher_->publish(avg_circle_msg);
   }
