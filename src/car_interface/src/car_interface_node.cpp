@@ -60,6 +60,14 @@ void CarInterface::initSubscribers() {
           topics::kTargetState, 10,
           std::bind(&CarInterface::TargetStateCB, this, _1));
 
+  cone_detection_subscriber_ =
+      this->create_subscription<utfr_msgs::msg::ConeDetections>(
+          topics::kConeDetections, 10,
+          std::bind(&CarInterface::coneDetectionCB, this, _1));
+
+  cone_map_subscriber_ = this->create_subscription<utfr_msgs::msg::ConeMap>(
+      topics::kConeMap, 10, std::bind(&CarInterface::coneMapCB, this, _1));
+
   for (const auto &module_name : heartbeat_modules_) {
 
     auto search = heartbeat_topics_map_.find(module_name);
@@ -162,6 +170,20 @@ void CarInterface::EgoStateCB(const utfr_msgs::msg::EgoState &msg) {
 void CarInterface::TargetStateCB(const utfr_msgs::msg::TargetState &msg) {
   system_status_.speed_target = msg.speed * 3.6;
   system_status_.steering_angle_target = -msg.steering_angle;
+}
+
+void CarInterface::coneDetectionCB(const utfr_msgs::msg::ConeDetections &msg) {
+  system_status_.cones_count_actual =
+      msg.left_cones.size() + msg.right_cones.size() +
+      msg.large_orange_cones.size() + msg.small_orange_cones.size() +
+      msg.unknown_cones.size();
+}
+
+void CarInterface::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
+  system_status_.cones_count_all =
+      msg.left_cones.size() + msg.right_cones.size() +
+      msg.large_orange_cones.size() + msg.small_orange_cones.size() +
+      msg.unknown_cones.size();
 }
 
 void CarInterface::setDVLogs() {

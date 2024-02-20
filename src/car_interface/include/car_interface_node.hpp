@@ -197,6 +197,10 @@ private:
       ego_state_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::TargetState>::SharedPtr
       target_state_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
+      cone_detection_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
+      cone_map_subscriber_;
 
   rclcpp::Publisher<utfr_msgs::msg::SensorCan>::SharedPtr sensor_can_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::SystemStatus>::SharedPtr
@@ -212,9 +216,11 @@ private:
   std::vector<std::string> heartbeat_modules_;
 
   // Callback Variables
-  utfr_msgs::msg::ControlCmd control_cmd_;
-  utfr_msgs::msg::EgoState ego_state_;
-  utfr_msgs::msg::TargetState target_state_;
+  // utfr_msgs::msg::ControlCmd control_cmd_;
+  // utfr_msgs::msg::EgoState ego_state_;
+  // utfr_msgs::msg::TargetState target_state_;
+  // utfr_msgs::msg::ConeDetections cone_detections_;
+  // utfr_msgs::msg::ConeMap cone_map_;
 
   // Published messages
   utfr_msgs::msg::SensorCan sensor_can_;
