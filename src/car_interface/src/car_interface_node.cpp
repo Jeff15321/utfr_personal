@@ -232,10 +232,8 @@ void CarInterface::setDVLogs() {
     dv_system_status |= (system_status_.steering_state & 0x1) << 8;
     dv_system_status |= (system_status_.service_brake_state & 0x3) << 9;
     dv_system_status |= (system_status_.lap_counter & 0x15) << 11;
-    dv_system_status |= (system_status_.cones_count_actual & 0xFF)
-                        << 15; // TODO: Get from perception
-    dv_system_status |= (system_status_.cones_count_all & 0x1FFFF)
-                        << 23; // TODO: Get from perception
+    dv_system_status |= (system_status_.cones_count_actual & 0xFF) << 15;
+    dv_system_status |= (system_status_.cones_count_all & 0x1FFFF) << 23;
 
     system_status_.header.stamp = this->get_clock()->now();
     system_status_publisher_->publish(system_status_);
@@ -343,7 +341,7 @@ void CarInterface::setDVStateAndCommand() {
           ((long)steering_cmd_)
               << 32); // can use different mode to command speed/accel
     }
-    // Need to always send dv command so RC always knows DC status
+    // Need to always send dv command so RC always knows DVPC status
     can1_->write_can(dv_can_msg::DV_COMMAND, dv_command);
 
   } catch (int e) {
