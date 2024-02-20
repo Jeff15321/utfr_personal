@@ -125,31 +125,68 @@ private:
    */
   void TargetStateCB(const utfr_msgs::msg::TargetState &msg);
 
-  void getSteeringAngleSensorData(); // TODO: function desc.
+  /**
+   * @brief Get the steering angle sensor data.
+   */
+  void getSteeringAngleSensorData();
 
-  void getMotorSpeedData(); // TODO: function desc.
+  /**
+   * @brief Get the motor speed data.
+   */
+  void getMotorSpeedData();
 
-  void getMotorTorqueData(); // TODO: function desc.
+  /**
+   * @brief Get the motor torque data.
+   */
+  void getMotorTorqueData();
 
-  void getServiceBrakeData(); // TODO: function desc.
+  /**
+   * @brief Get the service brake data.
+   */
+  void getServiceBrakeData();
 
-  void getWheelspeedSensorData(); // TODO: function desc.
+  /**
+   * @brief Get the wheelspeed sensor data.
+   */
+  void getWheelspeedSensorData();
 
-  void getIMUData(); // TODO: function desc.
+  /**
+   * @brief Get the IMU data.
+   */
+  void getIMUData();
 
-  void getSensorCan(); // TODO: function desc.
+  /**
+   * @brief Get the sensor CAN data.
+   */
+  void getSensorCan();
 
-  void getDVState(); // TODO: function desc.
+  /**
+   * @brief Get the DV state.
+   */
+  void getDVState();
 
-  void setDVLogs(); // TODO: function desc.
+  /**
+   * @brief Set the DV logs.
+   */
+  void setDVLogs();
 
-  void setDVStateAndCommand(); // TODO: function desc.
+  /**
+   * @brief Set the DV state and command.
+   */
+  void setDVStateAndCommand();
 
-  void launchMission(); // TODO: function desc.
+  /**
+   * @brief Launch the mission.
+   */
+  void launchMission();
 
-  void shutdownNodes(); // TODO: function desc.
+  /**
+   * @brief Shutdown the nodes.
+   */
+  void shutdownNodes();
 
-  /*! Callback function for timer
+  /**
+   * @brief Callback function for the timer.
    */
   void timerCB();
 
@@ -207,7 +244,6 @@ private:
 
   // CAN objects
   CanInterfaceUPtr can1_{nullptr};
-
   rclcpp::TimerBase::SharedPtr can_timer_;
 
   // Heartbeat object

@@ -27,7 +27,6 @@ HeartbeatMonitor::HeartbeatMonitor(const std::vector<std::string> &module_names,
                                                                    curr_time};
 
   for (const auto &name : module_names) {
-
     last_heartbeats_[name] = unintitalized_values;
   }
 }
