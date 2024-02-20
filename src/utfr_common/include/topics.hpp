@@ -22,9 +22,6 @@ namespace topics {
 // Example
 const std::string kExample{"example/topic"};
 
-// Drivers
-// TODO
-
 // Perception
 const std::string kConeDetections{"perception/cone_detections"};
 const std::string kPerceptionHeartbeat{"perception/heartbeat"};
@@ -43,13 +40,10 @@ const std::string kMappingComputeHeartbeat{"mapping/compute/heartbeat"};
 const std::string kTargetState{"planning/target_state"};
 const std::string kWaypointPath{"planning/waypoint_path"};
 const std::string kPlanningDebug{"planning/debug"};
-const std::string kPlanningHeartbeat{"planning/heartbeat"};
 const std::string kCenterPath{"planning/center_path"};
 const std::string kOptimizedCenterPath{"planning/optimized_center_path"};
 const std::string kVelocityProfile{"planning/velocity_profile"};
 const std::string kCenterPathHeartbeat{"planning/center_path/heartbeat"};
-const std::string kPathOptimizationHeartbeat{
-    "planning/path_optimization/heartbeat"};
 const std::string kControllerHeartbeat{"planning/controller/heartbeat"};
 const std::string kAccelPath{"planning/accel_path"};
 const std::string kDelaunayWaypoints{"planning/delaunay_waypoints"};
@@ -58,7 +52,6 @@ const std::string kPurePursuitPoint{"planning/pure_pursuit_point"};
 const std::string kSkidpadFitting{"planning/skidpad_fitting"};
 const std::string kSkidpadFitting2{"planning/skidpad_fitting_2"};
 const std::string kSkidpadFittingavg{"planning/skidpad_fitting_avg"};
-// TODO: add heartbeat for each planning node
 
 // Controls
 const std::string kControlCmd{"controls/control_cmd"};
@@ -73,7 +66,7 @@ const std::string kEUFSConeMap{"ground_truth/cones_map"};
 
 // Car interface
 const std::string kSystemStatus("car_interface/system_status");
-const std::string kSensorCan{"interface/sensor_can"};
+const std::string kSensorCan{"car_interface/sensor_can"};
 
 } // namespace topics
 } // namespace utfr_dv

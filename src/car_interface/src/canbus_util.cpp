@@ -37,7 +37,8 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
 
     {(uint8_t)dv_can_msg::DV_COMMAND, 0x506}, // DV PC state + control cmd
 
-    {(uint8_t)dv_can_msg::SetSTRMotorPos, 0x0000040F}, // Set Pos on Steering motor
+    {(uint8_t)dv_can_msg::SetSTRMotorPos,
+     0x0000040F}, // Set Pos on Steering motor
     {(uint8_t)dv_can_msg::SetSTRMotorOrigin,
      0x0000050F}, // Set Origin on Steering motor
     {(uint8_t)dv_can_msg::SetSTRMotorPosSpeedAcc,
@@ -91,7 +92,7 @@ int CanInterface::get_can(dv_can_msg msgName) {
   } else if (msgName == dv_can_msg::APPS) {
     result = (int)((messages[dv_can_msg_map[(int)msgName]].data[0]) |
                    (((messages[dv_can_msg_map[(int)msgName]].data[1]) << 8)));
-  } else if (msgName == dv_can_msg::StrMotorStatus) { 
+  } else if (msgName == dv_can_msg::StrMotorStatus) {
     result = (int)((messages[dv_can_msg_map[(int)msgName]].data[1]) |
                    (((messages[dv_can_msg_map[(int)msgName]].data[0]) << 8)));
   } else {
@@ -116,13 +117,12 @@ static void *thread_read(void *node) {
     }
     read(canNode->sock, &recieved, sizeof(struct canfd_frame));
     pthread_mutex_unlock(&(canNode->readlock));
-    if (recieved.can_id  & CAN_EFF_FLAG) {
+    if (recieved.can_id & CAN_EFF_FLAG) {
       canNode->messages[recieved.can_id & CAN_EFF_MASK] = recieved;
-    } 
-    else {
+    } else {
       canNode->messages[recieved.can_id] = recieved;
     }
-  } 
+  }
   pthread_mutex_unlock(&(canNode->lock));
   return NULL;
 }
@@ -155,7 +155,7 @@ void CanInterface::write_can(dv_can_msg msgName, long long data) {
   for (uint8_t i = 0; i < 8; i++) {
     to_write.data[i] = signalArray[i];
   }
-  
+
   ssize_t bytes = write(sock, &to_write, sizeof(can_frame));
 
   if (bytes < 0)

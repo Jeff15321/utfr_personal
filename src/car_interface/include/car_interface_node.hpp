@@ -40,7 +40,7 @@
 
 #define MAX_BRK_PRS 1600 // PSI
 #define MAX_THROTTLE 200 // Nm, from kProcessedTHrottleMax variable in FC code
-#define MAX_STR 19 // angle to be sent to motor is this *4.5
+#define MAX_STR 19       // angle to be sent to motor is this *4.5
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
 
@@ -220,7 +220,8 @@ private:
       {"ekf", topics::kEKFHeartbeat},
       {"mapping_build", topics::kMappingBuildHeartbeat},
       {"mapping_compute", topics::kMappingComputeHeartbeat},
-      {"planning", topics::kPlanningHeartbeat},
+      {"planning_cp", topics::kCenterPathHeartbeat},
+      {"planning_controller", topics::kControllerHeartbeat},
       {"controls", topics::kControlsHeartbeat},
   };
 };
