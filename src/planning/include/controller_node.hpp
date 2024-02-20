@@ -58,6 +58,16 @@ public:
    */
   ControllerNode();
 
+  double k(std::vector<double> c, double s);
+
+  std::vector<double> calculateSkidpadVelocities(
+    utfr_msgs::msg::ParametricSpline &spline, double L, int n,
+    double a_lateral);
+
+  std::vector<geometry_msgs::msg::Pose> discretizeCircle(
+    const utfr_msgs::msg::ParametricSpline &spline_params, double cur_s,
+    double ds, int num_points);
+
   std::vector<double> calculateVelocities(
     utfr_msgs::msg::ParametricSpline &spline, double L, int n,
     double a_lateral);
