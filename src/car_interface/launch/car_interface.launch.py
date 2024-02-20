@@ -17,6 +17,7 @@ def generate_launch_description():
         output="screen",
         emulate_tty=True,
         parameters=[config],
+        respawn=True,
     )
 
     ld.add_action(node)
