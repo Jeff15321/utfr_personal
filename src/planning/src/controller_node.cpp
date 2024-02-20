@@ -269,6 +269,7 @@ void ControllerNode::pathCB(const utfr_msgs::msg::ParametricSpline &msg) {
   path_->header = msg.header;
   path_->x_params = msg.x_params;
   path_->y_params = msg.y_params;
+  path_->skidpad_params = msg.skidpad_params;
 }
 
 void ControllerNode::lapCounterCB(const utfr_msgs::msg::Heartbeat &msg) {
@@ -342,12 +343,20 @@ void ControllerNode::timerCBSkidpad() {
         template_velocity_profile);
     }
 
-    std::vector<double> velocities = calculateVelocities(
+    std::vector<double> velocities;
+    if (lap_count_ > 11 && lap_count_ < 16){
+      velocities = calculateSkidpadVelocities(
         *path_, lookahead_distance_, num_points_, a_lateral_max_);
+    }
+    else {
+      velocities = calculateVelocities(
+        *path_, lookahead_distance_, num_points_, a_lateral_max_);
+    }
+
     std::vector<double> filtered_velocities =
         filterVelocities(velocities, ego_state_->vel.twist.linear.x,
                         lookahead_distance_, max_velocity_, 10, -10);
-    
+
     velocity_profile_->velocities = filtered_velocities;
     velocity_profile_->header.stamp = this->get_clock()->now();
 
@@ -587,6 +596,56 @@ ControllerNode::discretizePoint(const utfr_msgs::msg::ParametricSpline &spline,
   return res;
 }
 
+std::vector<geometry_msgs::msg::Pose> ControllerNode::discretizeCircle(
+    const utfr_msgs::msg::ParametricSpline &spline_params, double cur_s,
+    double ds, int num_points) {
+  std::vector<geometry_msgs::msg::Pose> discretized_points;
+
+  double s = cur_s;
+  double x0 = spline_params.skidpad_params[0];
+  double y0 = spline_params.skidpad_params[1];
+  double r = spline_params.skidpad_params[2];
+
+  if (lap_count_ == 12 || lap_count_ == 13){
+    for (int i = num_points - 1; i > -1; i--) {
+      double cur_ang = static_cast<double>(i) / num_points * 3.1415 / 2;
+      double x = x0 + r * cos(cur_ang);
+      double y = y0 - r * sin(cur_ang);
+      double next_cur_ang = cur_ang + 0.00000001;
+      double next_x = x0 + r * cos(next_cur_ang);
+      double next_y = y0 - r * sin(next_cur_ang);
+      double last_cur_ang = cur_ang - 0.00000001;
+      double last_x = x0 + r * cos(last_cur_ang);
+      double last_y = y0 - r * sin(last_cur_ang);
+      double heading = atan2(next_y - last_y, next_x - last_x);
+      geometry_msgs::msg::Pose point;
+      point.position.x = x;
+      point.position.y = y;
+      point.orientation = util::yawToQuaternion(heading);
+      discretized_points.push_back(point);
+    }
+  } else if (lap_count_ == 14 || lap_count_ == 15){
+    for (int i = num_points - 1; i > -1; i--) {
+      double cur_ang = static_cast<double>(i) / num_points * 3.1415 / 2;
+      double x = x0 + r * cos(cur_ang);
+      double y = y0 + r * sin(cur_ang);
+      double next_cur_ang = cur_ang + 0.00000001;
+      double next_x = x0 + r * cos(next_cur_ang);
+      double next_y = y0 - r * sin(next_cur_ang);
+      double last_cur_ang = cur_ang - 0.00000001;
+      double last_x = x0 + r * cos(last_cur_ang);
+      double last_y = y0 - r * sin(last_cur_ang);
+      double heading = atan2(next_y - last_y, next_x - last_x);
+      geometry_msgs::msg::Pose point;
+      point.position.x = x;
+      point.position.y = y;
+      point.orientation = util::yawToQuaternion(heading);
+      discretized_points.push_back(point);
+    }
+  }
+  return discretized_points;
+}
+
 std::vector<geometry_msgs::msg::Pose> ControllerNode::discretizeParametric(
     const utfr_msgs::msg::ParametricSpline &spline_params, double cur_s,
     double ds, int num_points) {
@@ -609,8 +668,14 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
     double cur_s, double ds, utfr_msgs::msg::VelocityProfile velocity_profile,
     double baselink_location, utfr_msgs::msg::EgoState ego_state,
     double base_lookahead_distance, double lookahead_distance_scaling_factor) {
-  std::vector<geometry_msgs::msg::Pose> discretized_points =
-      discretizeParametric(spline_params, cur_s, ds, num_points_);
+
+  
+  std::vector<geometry_msgs::msg::Pose> discretized_points;
+  if (lap_count_ < 16 && lap_count_ > 11){
+    discretized_points = discretizeCircle(spline_params, cur_s, ds, num_points_);
+  } else {
+    discretized_points = discretizeParametric(spline_params, cur_s, ds, num_points_);
+  }
 
   geometry_msgs::msg::PolygonStamped path_stamped;
 
@@ -652,7 +717,7 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
                                                velocity_profile.velocities[1],
                  5.0);
     double distance = sqrt(dx * dx + dy * dy);
-    if (distance > lookahead_distance) {
+    if (distance > lookahead_distance && dx > 0.0) {
       lookahead_point = wp;
       found_lookahead = true;
       break;
@@ -695,10 +760,10 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
 
   // Limit steering angle within bounds.
   delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
-
+  
   // Reduce speed if turning sharply or near max steering.
-  if (abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
-      abs(delta) > max_steering_angle) {
+  if ((abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
+      abs(delta) > max_steering_angle) && (lap_count_ > 15 || lap_count_ < 12)) {
     desired_velocity = std::max(desired_velocity - 2, 1.0);
   }
 
@@ -728,6 +793,29 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   target.steering_angle = -delta;
 
   return target; // Return the target state.
+}
+
+double ControllerNode::k(std::vector<double> c, double s){
+  return 1 / c[2];
+}
+
+std::vector<double> ControllerNode::calculateSkidpadVelocities(
+  utfr_msgs::msg::ParametricSpline &spline, double L, int n, double a_lateral) {
+  if (n <= 1)
+    return {};
+
+  std::vector<double> params = spline.skidpad_params;
+  std::vector<double> velocities;
+  
+  for (int s = 0; s <= num_points_; s++){
+    double angle = s / num_points_ * 3.1415 / 2;
+    try{velocities.push_back(sqrt(a_lateral / k(params, angle)));}
+    catch (const std::exception &e) {
+      velocities.push_back(100.0);
+    }
+    
+  }
+  return velocities;
 }
 
 std::vector<double> ControllerNode::calculateVelocities(
