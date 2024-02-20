@@ -65,11 +65,9 @@ private:
   visualization_msgs::msg::Marker
   getColoredMarker(visualization_msgs::msg::Marker cone_marker);
 
-  void
-  setMarkerArray(const utfr_msgs::msg::ConeMap::ConstSharedPtr &msg);
+  void setMarkerArray(const utfr_msgs::msg::ConeMap::ConstSharedPtr &msg);
 
-  void
-  processMessage(utfr_msgs::msg::ConeMap::ConstSharedPtr msg) override;
+  void processMessage(utfr_msgs::msg::ConeMap::ConstSharedPtr msg) override;
 
   int id_;
 

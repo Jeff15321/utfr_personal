@@ -221,9 +221,8 @@ void ControlsNode::timerCB() {
     ros_time_ = this->now();
 
     control_cmd_.str_cmd =
-          utfr_dv::util::radToDeg(target_state_->steering_angle);
+        utfr_dv::util::radToDeg(target_state_->steering_angle);
     std::clamp(steering_cmd_, MAX_STR, -MAX_STR);
-
 
     // //*****   Throttle & Brake  *****
     current_velocity = ego_state_->vel.twist.linear.x; // TODO: review

@@ -22,14 +22,13 @@ ControllerNode::ControllerNode() : Node("controller_node") {
   this->initParams();
   this->initHeartbeat();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
-  
+
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
   this->initGGV(ament_index_cpp::get_package_share_directory("planning") +
                 "/GGV.csv");
   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
-
 }
 
 void ControllerNode::initParams() {
@@ -76,7 +75,7 @@ void ControllerNode::initParams() {
   skip_path_opt_ = this->get_parameter("skip_path_opt").as_bool();
   lookahead_distance_ = this->get_parameter("lookahead_distance").as_double();
   a_lateral_max_ = this->get_parameter("a_lateral").as_double();
-  
+
   start_time_ = this->get_clock()->now();
 }
 
@@ -206,11 +205,11 @@ void ControllerNode::initGGV(std::string filename) {
 
   // Reverse the arrays in the hashmap because they are sorted high to low
   for (auto it = GGV_vel_to_lat_accel_.begin();
-      it != GGV_vel_to_lat_accel_.end(); it++) {
+       it != GGV_vel_to_lat_accel_.end(); it++) {
     std::reverse(it->second.begin(), it->second.end());
   }
   for (auto it = GGV_vel_to_long_accel_.begin();
-      it != GGV_vel_to_long_accel_.end(); it++) {
+       it != GGV_vel_to_long_accel_.end(); it++) {
     std::reverse(it->second.begin(), it->second.end());
   }
 }
@@ -286,10 +285,10 @@ void ControllerNode::timerCBAccel() {
       return;
     }
     if (velocity_profile_ == nullptr) {
-    // first initialization:
-    utfr_msgs::msg::VelocityProfile template_velocity_profile;
-    velocity_profile_ = std::make_shared<utfr_msgs::msg::VelocityProfile>(
-        template_velocity_profile);
+      // first initialization:
+      utfr_msgs::msg::VelocityProfile template_velocity_profile;
+      velocity_profile_ = std::make_shared<utfr_msgs::msg::VelocityProfile>(
+          template_velocity_profile);
     }
 
     double cur_s_ = 0;
@@ -298,8 +297,8 @@ void ControllerNode::timerCBAccel() {
         *path_, lookahead_distance_, num_points_, a_lateral_max_);
     std::vector<double> filtered_velocities =
         filterVelocities(velocities, ego_state_->vel.twist.linear.x,
-                        lookahead_distance_, max_velocity_, 10, -10);
-    
+                         lookahead_distance_, max_velocity_, 10, -10);
+
     velocity_profile_->velocities = filtered_velocities;
     velocity_profile_->header.stamp = this->get_clock()->now();
 
@@ -319,8 +318,10 @@ void ControllerNode::timerCBAccel() {
     // publish target state
     target_state_publisher_->publish(target_);
 
-    if (!finished_and_stopped_) publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-    else publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
+    if (!finished_and_stopped_)
+      publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    else
+      publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
   } catch (const std::exception &e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -337,25 +338,24 @@ void ControllerNode::timerCBSkidpad() {
     }
 
     if (velocity_profile_ == nullptr) {
-    // first initialization:
-    utfr_msgs::msg::VelocityProfile template_velocity_profile;
-    velocity_profile_ = std::make_shared<utfr_msgs::msg::VelocityProfile>(
-        template_velocity_profile);
+      // first initialization:
+      utfr_msgs::msg::VelocityProfile template_velocity_profile;
+      velocity_profile_ = std::make_shared<utfr_msgs::msg::VelocityProfile>(
+          template_velocity_profile);
     }
 
     std::vector<double> velocities;
-    if (lap_count_ > 11 && lap_count_ < 16){
-      velocities = calculateSkidpadVelocities(
-        *path_, lookahead_distance_, num_points_, a_lateral_max_);
-    }
-    else {
-      velocities = calculateVelocities(
-        *path_, lookahead_distance_, num_points_, a_lateral_max_);
+    if (lap_count_ > 11 && lap_count_ < 16) {
+      velocities = calculateSkidpadVelocities(*path_, lookahead_distance_,
+                                              num_points_, a_lateral_max_);
+    } else {
+      velocities = calculateVelocities(*path_, lookahead_distance_, num_points_,
+                                       a_lateral_max_);
     }
 
     std::vector<double> filtered_velocities =
         filterVelocities(velocities, ego_state_->vel.twist.linear.x,
-                        lookahead_distance_, max_velocity_, 10, -10);
+                         lookahead_distance_, max_velocity_, 10, -10);
 
     velocity_profile_->velocities = filtered_velocities;
     velocity_profile_->header.stamp = this->get_clock()->now();
@@ -377,8 +377,10 @@ void ControllerNode::timerCBSkidpad() {
 
     // publish target state
     target_state_publisher_->publish(target_);
-    if (!finished_and_stopped_) publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-    else publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
+    if (!finished_and_stopped_)
+      publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    else
+      publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
   } catch (const std::exception &e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -396,18 +398,18 @@ void ControllerNode::timerCBAutocross() {
     }
 
     if (velocity_profile_ == nullptr) {
-    // first initialization:
-    utfr_msgs::msg::VelocityProfile template_velocity_profile;
-    velocity_profile_ = std::make_shared<utfr_msgs::msg::VelocityProfile>(
-        template_velocity_profile);
+      // first initialization:
+      utfr_msgs::msg::VelocityProfile template_velocity_profile;
+      velocity_profile_ = std::make_shared<utfr_msgs::msg::VelocityProfile>(
+          template_velocity_profile);
     }
 
     std::vector<double> velocities = calculateVelocities(
         *path_, lookahead_distance_, num_points_, a_lateral_max_);
     std::vector<double> filtered_velocities =
         filterVelocities(velocities, ego_state_->vel.twist.linear.x,
-                        lookahead_distance_, max_velocity_, 10, -10);
-    
+                         lookahead_distance_, max_velocity_, 10, -10);
+
     velocity_profile_->velocities = filtered_velocities;
     velocity_profile_->header.stamp = this->get_clock()->now();
 
@@ -428,8 +430,10 @@ void ControllerNode::timerCBAutocross() {
 
     // publish target state
     target_state_publisher_->publish(target_);
-    if (!finished_and_stopped_) publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-    else publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
+    if (!finished_and_stopped_)
+      publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    else
+      publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
   } catch (const std::exception &e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -447,18 +451,18 @@ void ControllerNode::timerCBTrackdrive() {
     }
 
     if (velocity_profile_ == nullptr) {
-    // first initialization:
-    utfr_msgs::msg::VelocityProfile template_velocity_profile;
-    velocity_profile_ = std::make_shared<utfr_msgs::msg::VelocityProfile>(
-        template_velocity_profile);
+      // first initialization:
+      utfr_msgs::msg::VelocityProfile template_velocity_profile;
+      velocity_profile_ = std::make_shared<utfr_msgs::msg::VelocityProfile>(
+          template_velocity_profile);
     }
 
     std::vector<double> velocities = calculateVelocities(
         *path_, lookahead_distance_, num_points_, a_lateral_max_);
     std::vector<double> filtered_velocities =
         filterVelocities(velocities, ego_state_->vel.twist.linear.x,
-                        lookahead_distance_, max_velocity_, 10, -10);
-    
+                         lookahead_distance_, max_velocity_, 10, -10);
+
     velocity_profile_->velocities = filtered_velocities;
     velocity_profile_->header.stamp = this->get_clock()->now();
 
@@ -480,8 +484,10 @@ void ControllerNode::timerCBTrackdrive() {
     // publish target state
     target_state_publisher_->publish(target_);
 
-    if (!finished_and_stopped_) publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-    else publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
+    if (!finished_and_stopped_)
+      publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    else
+      publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
   } catch (const std::exception &e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -497,10 +503,10 @@ void ControllerNode::timerCBEBS() {
       return;
     }
     if (velocity_profile_ == nullptr) {
-    // first initialization:
-    utfr_msgs::msg::VelocityProfile template_velocity_profile;
-    velocity_profile_ = std::make_shared<utfr_msgs::msg::VelocityProfile>(
-        template_velocity_profile);
+      // first initialization:
+      utfr_msgs::msg::VelocityProfile template_velocity_profile;
+      velocity_profile_ = std::make_shared<utfr_msgs::msg::VelocityProfile>(
+          template_velocity_profile);
     }
 
     double cur_s_ = 0;
@@ -509,8 +515,8 @@ void ControllerNode::timerCBEBS() {
         *path_, lookahead_distance_, num_points_, a_lateral_max_);
     std::vector<double> filtered_velocities =
         filterVelocities(velocities, ego_state_->vel.twist.linear.x,
-                        lookahead_distance_, max_velocity_, 10, -10);
-    
+                         lookahead_distance_, max_velocity_, 10, -10);
+
     velocity_profile_->velocities = filtered_velocities;
     velocity_profile_->header.stamp = this->get_clock()->now();
 
@@ -540,7 +546,7 @@ void ControllerNode::timerCBAS() {
   double curr_time = this->now().seconds();
   double time_diff = curr_time - start_time_.seconds();
 
-  if (time_diff < 30.0){
+  if (time_diff < 30.0) {
     target_.speed = 5.0;
     target_.steering_angle = sin(time_diff * 3.1415);
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
@@ -606,7 +612,7 @@ std::vector<geometry_msgs::msg::Pose> ControllerNode::discretizeCircle(
   double y0 = spline_params.skidpad_params[1];
   double r = spline_params.skidpad_params[2];
 
-  if (lap_count_ == 12 || lap_count_ == 13){
+  if (lap_count_ == 12 || lap_count_ == 13) {
     for (int i = num_points - 1; i > -1; i--) {
       double cur_ang = static_cast<double>(i) / num_points * 3.1415 / 2;
       double x = x0 + r * cos(cur_ang);
@@ -624,7 +630,7 @@ std::vector<geometry_msgs::msg::Pose> ControllerNode::discretizeCircle(
       point.orientation = util::yawToQuaternion(heading);
       discretized_points.push_back(point);
     }
-  } else if (lap_count_ == 14 || lap_count_ == 15){
+  } else if (lap_count_ == 14 || lap_count_ == 15) {
     for (int i = num_points - 1; i > -1; i--) {
       double cur_ang = static_cast<double>(i) / num_points * 3.1415 / 2;
       double x = x0 + r * cos(cur_ang);
@@ -669,12 +675,13 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
     double baselink_location, utfr_msgs::msg::EgoState ego_state,
     double base_lookahead_distance, double lookahead_distance_scaling_factor) {
 
-  
   std::vector<geometry_msgs::msg::Pose> discretized_points;
-  if (lap_count_ < 16 && lap_count_ > 11){
-    discretized_points = discretizeCircle(spline_params, cur_s, ds, num_points_);
+  if (lap_count_ < 16 && lap_count_ > 11) {
+    discretized_points =
+        discretizeCircle(spline_params, cur_s, ds, num_points_);
   } else {
-    discretized_points = discretizeParametric(spline_params, cur_s, ds, num_points_);
+    discretized_points =
+        discretizeParametric(spline_params, cur_s, ds, num_points_);
   }
 
   geometry_msgs::msg::PolygonStamped path_stamped;
@@ -691,7 +698,7 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
     path_stamped.polygon.points.push_back(point);
   }
 
-  for (int i = discretized_points.size() - 1; i > -1; i--){
+  for (int i = discretized_points.size() - 1; i > -1; i--) {
     geometry_msgs::msg::Point32 point;
     point.x = discretized_points[i].position.x;
     point.y = -discretized_points[i].position.y;
@@ -760,10 +767,11 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
 
   // Limit steering angle within bounds.
   delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
-  
+
   // Reduce speed if turning sharply or near max steering.
   if ((abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
-      abs(delta) > max_steering_angle) && (lap_count_ > 15 || lap_count_ < 12)) {
+       abs(delta) > max_steering_angle) &&
+      (lap_count_ > 15 || lap_count_ < 12)) {
     desired_velocity = std::max(desired_velocity - 2, 1.0);
   }
 
@@ -795,32 +803,31 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   return target; // Return the target state.
 }
 
-double ControllerNode::k(std::vector<double> c, double s){
-  return 1 / c[2];
-}
+double ControllerNode::k(std::vector<double> c, double s) { return 1 / c[2]; }
 
 std::vector<double> ControllerNode::calculateSkidpadVelocities(
-  utfr_msgs::msg::ParametricSpline &spline, double L, int n, double a_lateral) {
+    utfr_msgs::msg::ParametricSpline &spline, double L, int n,
+    double a_lateral) {
   if (n <= 1)
     return {};
 
   std::vector<double> params = spline.skidpad_params;
   std::vector<double> velocities;
-  
-  for (int s = 0; s <= num_points_; s++){
+
+  for (int s = 0; s <= num_points_; s++) {
     double angle = s / num_points_ * 3.1415 / 2;
-    try{velocities.push_back(sqrt(a_lateral / k(params, angle)));}
-    catch (const std::exception &e) {
+    try {
+      velocities.push_back(sqrt(a_lateral / k(params, angle)));
+    } catch (const std::exception &e) {
       velocities.push_back(100.0);
     }
-    
   }
   return velocities;
 }
 
-std::vector<double> ControllerNode::calculateVelocities(
-    utfr_msgs::msg::ParametricSpline &spline, double L, int n,
-    double a_lateral) {
+std::vector<double>
+ControllerNode::calculateVelocities(utfr_msgs::msg::ParametricSpline &spline,
+                                    double L, int n, double a_lateral) {
   if (n <= 1)
     return {};
   auto first_derivative = [](std::vector<double> &c, double s, double s2,
@@ -853,10 +860,11 @@ std::vector<double> ControllerNode::calculateVelocities(
   return velocities;
 }
 
-std::vector<double> ControllerNode::filterVelocities(
-    std::vector<double> &max_velocities, double current_velocity,
-    double distance, double max_velocity, double max_acceleration,
-    double min_acceleration) {
+std::vector<double>
+ControllerNode::filterVelocities(std::vector<double> &max_velocities,
+                                 double current_velocity, double distance,
+                                 double max_velocity, double max_acceleration,
+                                 double min_acceleration) {
   if (max_velocities.empty()) { // Not possible to filter
     return {};
   }
@@ -905,8 +913,7 @@ std::vector<double> ControllerNode::filterVelocities(
   return velocities;
 }
 
-double ControllerNode::getMaxLongAccelGGV(double velocity,
-                                                double a_lateral) {
+double ControllerNode::getMaxLongAccelGGV(double velocity, double a_lateral) {
   velocity = std::max(velocity, 0.0);
   double rounded_vel = velocity;
   // get the closest velocity in the GGV data
@@ -933,7 +940,7 @@ double ControllerNode::getMaxLongAccelGGV(double velocity,
       idx--;
     }
   }
-  if (idx > (int) lat_accels.size() - 1) {
+  if (idx > (int)lat_accels.size() - 1) {
     idx = lat_accels.size() - 1;
   }
 

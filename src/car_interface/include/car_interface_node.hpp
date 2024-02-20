@@ -213,10 +213,10 @@ private:
   // Heartbeat object
   HeartbeatMonitorUPtr heartbeat_monitor_{nullptr};
 
-  // TODO: Add drivers and other nodes and multiple planning nodes
   // Heartbeat map
   std::unordered_map<std::string, std::string> heartbeat_topics_map_{
       {"perception", topics::kPerceptionHeartbeat},
+      {"lidar_proc", topics::kLidarProcHeartbeat},
       {"ekf", topics::kEKFHeartbeat},
       {"mapping_build", topics::kMappingBuildHeartbeat},
       {"mapping_compute", topics::kMappingComputeHeartbeat},

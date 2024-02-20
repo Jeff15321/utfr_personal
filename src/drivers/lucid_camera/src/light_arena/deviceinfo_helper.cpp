@@ -8,7 +8,7 @@ size_t DeviceInfoHelper::get_index_of_serial(
     std::vector<Arena::DeviceInfo> device_infos, std::string serial) {
   auto itr = std::find_if(
       device_infos.begin(),
-      device_infos.end(), [=](Arena::DeviceInfo & itr_) -> auto {
+      device_infos.end(), [=](Arena::DeviceInfo & itr_) -> auto{
         auto curr_serial = std::string(itr_.SerialNumber().c_str());
         // std::cout << curr_serial << '\n';
         return serial == curr_serial;

@@ -1,7 +1,7 @@
 center_path_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    event: 'skidpad' #['accel', 'skidpad', 'autocross', 'trackdrive', 'EBSTest', 'ASTest'] add testing ones here if needed
+    event: "skidpad" #['accel', 'skidpad', 'autocross', 'trackdrive', 'EBSTest', 'ASTest'] add testing ones here if needed
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
 
@@ -15,8 +15,8 @@ center_path_node: # Name of Module
 controller_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    event: 'skidpad' #['accel', 'skidpad', 'autocross', 'trackdrive', 'EBSTest', 'ASTest'] add testing ones here if needed
-    controller: 'pure_pursuit' #['stanley', 'pure_pursuit', 'mpc']
+    event: "skidpad" #['accel', 'skidpad', 'autocross', 'trackdrive', 'EBSTest', 'ASTest'] add testing ones here if needed
+    controller: "pure_pursuit" #['stanley', 'pure_pursuit', 'mpc']
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
 

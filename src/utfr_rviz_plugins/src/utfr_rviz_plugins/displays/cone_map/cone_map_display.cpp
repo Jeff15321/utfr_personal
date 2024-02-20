@@ -191,25 +191,26 @@ void ConeMapDisplay::initMarkers() {
   covariance_marker_.ns = "covariance";
 }
 
-void ConeMapDisplay::setConeMarker(
-    const utfr_msgs::msg::Cone &cone, const std_msgs::msg::Header &header,
-    const int &id, visualization_msgs::msg::Marker *marker) {
+void ConeMapDisplay::setConeMarker(const utfr_msgs::msg::Cone &cone,
+                                   const std_msgs::msg::Header &header,
+                                   const int &id,
+                                   visualization_msgs::msg::Marker *marker) {
   // Assuming input is in FRD frame
   marker->id = id;
   marker->header = header;
   marker->pose.position.x = cone.pos.x;
-  marker->pose.position.y = - cone.pos.y;
+  marker->pose.position.y = -cone.pos.y;
   marker->pose.position.z = 0;
 }
 
-void ConeMapDisplay::setCovarianceMarker(
-    const utfr_msgs::msg::Cone &cone, const std_msgs::msg::Header &header,
-    const int &id) {
+void ConeMapDisplay::setCovarianceMarker(const utfr_msgs::msg::Cone &cone,
+                                         const std_msgs::msg::Header &header,
+                                         const int &id) {
   // https://www.visiondummy.com/2014/04/draw-error-ellipse-representing-covariance-matrix/
   covariance_marker_.id = id;
   covariance_marker_.header = header;
   covariance_marker_.pose.position.x = cone.pos.x;
-  covariance_marker_.pose.position.y = - cone.pos.y;
+  covariance_marker_.pose.position.y = -cone.pos.y;
   covariance_marker_.pose.position.z = -cone.pos.z;
 
   // Convert the covariance message to a matrix
@@ -236,8 +237,8 @@ void ConeMapDisplay::setCovarianceMarker(
   covariance_marker_.pose.orientation.w = std::cos(angle * 0.5);
 }
 
-visualization_msgs::msg::Marker ConeMapDisplay::getColoredMarker(
-    visualization_msgs::msg::Marker cone_marker) {
+visualization_msgs::msg::Marker
+ConeMapDisplay::getColoredMarker(visualization_msgs::msg::Marker cone_marker) {
   visualization_msgs::msg::Marker marker = cone_marker;
   switch (cone_color_option_) {
   case FLAT: {

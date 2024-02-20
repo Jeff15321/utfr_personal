@@ -133,7 +133,7 @@ void LidarProcNode::initSubscribers() {
       this->create_subscription<sensor_msgs::msg::PointCloud2>(
           "/ouster/points", 10,
           std::bind(&LidarProcNode::pointCloudCallback, this, _1));
-} //TODO - check topic name
+} // TODO - check topic name
 
 void LidarProcNode::initPublishers() {
   pub_filtered = this->create_publisher<sensor_msgs::msg::PointCloud2>(
@@ -169,7 +169,7 @@ void LidarProcNode::publishHeartbeat(const int status) {
 
 void LidarProcNode::pointCloudCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr input) {
-      latest_point_cloud = input;
+  latest_point_cloud = input;
 }
 
 void LidarProcNode::publishPointCloud(
@@ -185,7 +185,6 @@ PointCloud LidarProcNode::convertToCustomPointCloud(
   PointCloud custom_cloud;
   for (uint32_t i = 0; i < input->height * input->width; ++i) {
     Point pt;
-    
 
     // Offsets for x, y, z fields in PointCloud2 data
     int x_offset = input->fields[0].offset;
@@ -210,7 +209,7 @@ void LidarProcNode::timerCB() {
   const std::string function_name{"timerCB"};
   publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 
-  if (latest_point_cloud){
+  if (latest_point_cloud) {
     PointCloud custom_cloud = convertToCustomPointCloud(latest_point_cloud);
 
     // Filtering
@@ -224,7 +223,8 @@ void LidarProcNode::timerCB() {
     std::tuple<PointCloud, std::vector<PointCloud>> cluster_results =
         clusterer.clean_and_cluster(filtered_cloud, min_points_grid);
     PointCloud no_ground_cloud = std::get<0>(cluster_results);
-    std::vector<PointCloud> reconstructed_clusters = std::get<1>(cluster_results);
+    std::vector<PointCloud> reconstructed_clusters =
+        std::get<1>(cluster_results);
 
     publishPointCloud(no_ground_cloud, pub_no_ground);
 
@@ -290,7 +290,6 @@ sensor_msgs::msg::PointCloud2 LidarProcNode::convertToPointCloud2(
   }
 
   return cloud;
-
 }
 
 } // namespace lidar_proc
