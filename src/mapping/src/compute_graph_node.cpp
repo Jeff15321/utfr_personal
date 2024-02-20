@@ -23,10 +23,12 @@ namespace compute_graph {
 
 ComputeGraphNode::ComputeGraphNode() : Node("compute_graph_node") {
   this->initParams();
+  this->initHeartbeat();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
-  this->initHeartbeat();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
 }
 
 void ComputeGraphNode::initParams() {
@@ -56,6 +58,14 @@ void ComputeGraphNode::initTimers() {
 void ComputeGraphNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kMappingComputeHeartbeat, 10);
+  heartbeat_.module.data = "compute_graph_node";
+  heartbeat_.update_rate = update_rate_;
+}
+
+void ComputeGraphNode::publishHeartbeat(const int status) {
+  heartbeat_.status = status;
+  heartbeat_.header.stamp = this->get_clock()->now();
+  heartbeat_publisher_->publish(heartbeat_);
 }
 
 void ComputeGraphNode::poseGraphCB(const utfr_msgs::msg::PoseGraph msg) {}

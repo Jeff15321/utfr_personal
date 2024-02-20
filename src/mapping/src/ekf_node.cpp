@@ -20,20 +20,13 @@ namespace utfr_dv {
 namespace ekf {
 
 EkfNode::EkfNode() : Node("ekf_node") {
-
-  // set heartbeat state to not ready
-  HeartBeatState heartbeat_state_ = HeartBeatState::NOT_READY;
-  heartbeat_rate_ = 1;
-  this->initTimers();
-
-  this->initHeartbeat();
-  this->publishHeartbeat();
   this->initParams();
+  this->initHeartbeat();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
   this->initSubscribers();
   this->initPublishers();
-
-  // set heartbeat state to active
-  heartbeat_state_ = HeartBeatState::ACTIVE;
+  this->initTimers();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
 }
 
 void EkfNode::initParams() {
@@ -74,6 +67,14 @@ void EkfNode::initTimers() {
 void EkfNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kEKFHeartbeat, 10);
+  heartbeat_.module.data = "ekf_node";
+  heartbeat_.update_rate = update_rate_;
+}
+
+void EkfNode::publishHeartbeat(const int status) {
+  heartbeat_.status = status;
+  heartbeat_.header.stamp = this->get_clock()->now();
+  heartbeat_publisher_->publish(heartbeat_);
 }
 
 void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
@@ -100,14 +101,6 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
 
   // Publish the state estimation
   // ...
-}
-
-void EkfNode::publishHeartbeat() {
-  utfr_msgs::msg::Heartbeat heartbeat_msg;
-  heartbeat_msg.status = static_cast<uint8_t>(heartbeat_state_);
-  heartbeat_msg.header.stamp = this->now();
-
-  heartbeat_publisher_->publish(heartbeat_msg);
 }
 
 void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {

@@ -186,7 +186,6 @@ private:
   int current_setpoint_ = 0;
   std::vector<int> setpoints_;
   double update_rate_;
-  int status_;
   uint8_t testing_;
   int brake_inc_;
   int steer_inc_;

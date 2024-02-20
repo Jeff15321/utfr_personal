@@ -17,11 +17,12 @@ namespace controls {
 
 ControlsNode::ControlsNode() : Node("controls_node") {
   this->initParams();
-  this->initPublishers();
-  this->initController();
-  this->initSubscribers();
-  this->initTimers();
   this->initHeartbeat();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
+  this->initSubscribers();
+  this->initPublishers();
+  this->initTimers();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
 }
 
 void ControlsNode::initParams() {
@@ -43,23 +44,16 @@ void ControlsNode::initParams() {
   // testing_
   this->declare_parameter("testing", 0);
   testing_ = this->get_parameter("testing").as_int();
-
   ros_time_ = this->now();
-
   brake_inc_ = 0;
-
   steer_inc_ = 0;
-
   throttle_inc_ = 0;
-
   setpoints_ = {-30, 0, 30};
 }
 
 void ControlsNode::initPublishers() {
   control_cmd_publisher_ = this->create_publisher<utfr_msgs::msg::ControlCmd>(
       topics::kControlCmd, 1);
-  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-      topics::kControlsHeartbeat, 1);
 }
 
 void ControlsNode::initSubscribers() {
@@ -92,7 +86,9 @@ void ControlsNode::initController() {
 }
 
 void ControlsNode::initHeartbeat() {
-  heartbeat_.module.data = "controls";
+  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
+      topics::kControlsHeartbeat, 10);
+  heartbeat_.module.data = "controls_node";
   heartbeat_.update_rate = update_rate_;
 }
 
@@ -177,9 +173,6 @@ void ControlsNode::throttleTesting() {
 }
 
 void ControlsNode::timerCB() {
-  status_ = utfr_msgs::msg::Heartbeat::ACTIVE;
-  RCLCPP_INFO(this->get_logger(), "Controls");
-
   // Check if testing is in place
   if (testing_) {
     // Init all params to zero
@@ -201,7 +194,7 @@ void ControlsNode::timerCB() {
 
     // Publish messages
     control_cmd_publisher_->publish(control_cmd_);
-    this->publishHeartbeat(status_);
+    this->publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
     return;
   }
 
@@ -211,8 +204,7 @@ void ControlsNode::timerCB() {
       RCLCPP_INFO(this->get_logger(), "No EGO states");
     if (ego_state_)
       RCLCPP_INFO(this->get_logger(), "No Target states");
-    status_ = utfr_msgs::msg::Heartbeat::NOT_READY;
-    this->publishHeartbeat(status_);
+    this->publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
     return;
   }
 
@@ -251,12 +243,10 @@ void ControlsNode::timerCB() {
     // Publish message
     control_cmd_publisher_->publish(control_cmd_);
 
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
   } catch (int e) {
-    // RCLCPP_INFO(this->get_logger(), "timerCB: Error occured, error #%d", e);
-    status_ = utfr_msgs::msg::Heartbeat::ERROR;
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
-
-  this->publishHeartbeat(status_);
 }
 
 } // namespace controls

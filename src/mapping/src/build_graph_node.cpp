@@ -31,20 +31,13 @@ namespace utfr_dv {
 namespace build_graph {
 
 BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
-
-  // set heartbeat state to not ready
-  HeartBeatState heartbeat_state_ = HeartBeatState::NOT_READY;
-  heartbeat_rate_ = 1;
-  this->initTimers();
-
+  this->initParams();
   this->initHeartbeat();
-  this->publishHeartbeat();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
   this->initSubscribers();
   this->initPublishers();
-  this->initParams();
-
-  // set heartbeat state to active
-  heartbeat_state_ = HeartBeatState::ACTIVE;
+  this->initTimers();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
 }
 
 using SlamBlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1>>;
@@ -135,14 +128,14 @@ void BuildGraphNode::initTimers() {
 void BuildGraphNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kMappingBuildHeartbeat, 10);
+  heartbeat_.module.data = "build_graph_node";
+  heartbeat_.update_rate = update_rate_;
 }
 
-void BuildGraphNode::publishHeartbeat() {
-  utfr_msgs::msg::Heartbeat heartbeat_msg;
-  heartbeat_msg.status = static_cast<uint8_t>(heartbeat_state_);
-  heartbeat_msg.header.stamp = this->now();
-
-  heartbeat_publisher_->publish(heartbeat_msg);
+void BuildGraphNode::publishHeartbeat(const int status) {
+  heartbeat_.status = status;
+  heartbeat_.header.stamp = this->get_clock()->now();
+  heartbeat_publisher_->publish(heartbeat_);
 }
 
 void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {

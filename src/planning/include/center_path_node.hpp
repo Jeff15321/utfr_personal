@@ -98,11 +98,13 @@ private:
    */
   void initSector();
 
-  /*! Initialize Heartbeat:
+  /*! Setup Heartbeat message with appropriate module name and update rate.
    */
   void initHeartbeat();
 
-  /*! Publish Heartbeat:
+  /*! Send Heartbeat on every timer loop.
+   *
+   *  @param[in] status current module status, using Heartbeat status enum.
    */
   void publishHeartbeat(const int status);
 

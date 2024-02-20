@@ -20,12 +20,10 @@ using Point32 = geometry_msgs::msg::Point32;
 using PointTuple = std::tuple<Point32, Point32, Point32, Point32>;
 
 CenterPathNode::CenterPathNode() : Node("center_path_node") {
-  RCLCPP_INFO(this->get_logger(), "Center Path Node Launched");
-
+  // RCLCPP_INFO(this->get_logger(), "Center Path Node Launched");
   this->initParams();
   this->initHeartbeat();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
-
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
@@ -145,7 +143,6 @@ void CenterPathNode::initSector() {
 void CenterPathNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kCenterPathHeartbeat, 10);
-
   heartbeat_.module.data = "center_path_node";
   heartbeat_.update_rate = update_rate_;
 }
@@ -239,7 +236,7 @@ void CenterPathNode::timerCBAccel() {
     }
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -257,14 +254,14 @@ void CenterPathNode::timerCBSkidpad() {
       }
       skidPadFit(*cone_detections_, *ego_state_);
 
-    } catch (const std::exception &e) {
+    } catch (int e) {
       RCLCPP_ERROR(get_logger(), "%s Exception: %s", function_name.c_str(),
                    e.what());
     }
 
     skidpadLapCounter();
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -324,7 +321,7 @@ void CenterPathNode::timerCBAutocross() {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 
     trackdriveLapCounter();
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -383,7 +380,7 @@ void CenterPathNode::timerCBTrackdrive() {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 
     trackdriveLapCounter();
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -418,7 +415,7 @@ void CenterPathNode::timerCBEBS() {
     int large_orange_size = cone_detections_->large_orange_cones.size();
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }

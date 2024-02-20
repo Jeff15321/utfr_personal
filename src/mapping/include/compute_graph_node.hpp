@@ -66,9 +66,15 @@ public:
    */
   void initTimers();
 
-  /*! Initialize Heartbeat:
+  /*! Setup Heartbeat message with appropriate module name and update rate.
    */
   void initHeartbeat();
+
+  /*! Send Heartbeat on every timer loop.
+   *
+   *  @param[in] status current module status, using Heartbeat status enum.
+   */
+  void publishHeartbeat(const int status);
 
   /*! Pose Graph callback function
    */

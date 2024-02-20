@@ -11,7 +11,7 @@
 * desc: Sensor data parsing over canbus
 */
 
-#include <canbus_util.hpp>
+#include <sensor_util.hpp>
 
 namespace utfr_dv {
 namespace car_interface {

@@ -68,10 +68,6 @@ void CarInterface::getSensorCan();
  * @brief Retrieves the DV state.
  */
 void CarInterface::getDVState();
-};
-
-using CanInterfaceUPtr = std::unique_ptr<CanInterface>;
-using CanInterfaceSPtr = std::shared_ptr<CanInterface>;
 
 } // namespace car_interface
 } // namespace utfr_dv

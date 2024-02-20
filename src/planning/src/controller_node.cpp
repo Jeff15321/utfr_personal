@@ -18,11 +18,10 @@ namespace utfr_dv {
 namespace controller {
 
 ControllerNode::ControllerNode() : Node("controller_node") {
-  RCLCPP_INFO(this->get_logger(), "Center Path Node Launched");
+  // RCLCPP_INFO(this->get_logger(), "Center Path Node Launched");
   this->initParams();
   this->initHeartbeat();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
-
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
@@ -223,7 +222,7 @@ void ControllerNode::initHeartbeat() {
 
 void ControllerNode::publishHeartbeat(const int status) {
   heartbeat_.status = status;
-  heartbeat_.header.stamp = this->now();
+  heartbeat_.header.stamp = this->get_clock()->now();
   heartbeat_publisher_->publish(heartbeat_);
 }
 
@@ -322,7 +321,7 @@ void ControllerNode::timerCBAccel() {
       publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
     else
       publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -381,7 +380,7 @@ void ControllerNode::timerCBSkidpad() {
       publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
     else
       publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -434,7 +433,7 @@ void ControllerNode::timerCBAutocross() {
       publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
     else
       publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -488,7 +487,7 @@ void ControllerNode::timerCBTrackdrive() {
       publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
     else
       publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -537,7 +536,7 @@ void ControllerNode::timerCBEBS() {
     target_state_publisher_->publish(target_);
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -818,7 +817,7 @@ std::vector<double> ControllerNode::calculateSkidpadVelocities(
     double angle = s / num_points_ * 3.1415 / 2;
     try {
       velocities.push_back(sqrt(a_lateral / k(params, angle)));
-    } catch (const std::exception &e) {
+    } catch (int e) {
       velocities.push_back(100.0);
     }
   }

@@ -13,6 +13,7 @@
 */
 
 #include <car_interface_node.hpp>
+#include <sensor_util.hpp>
 
 namespace utfr_dv {
 namespace car_interface {
@@ -27,8 +28,11 @@ CarInterface::CarInterface() : Node("car_interface_node") {
 }
 
 void CarInterface::initParams() {
-  std::vector<std::string> default_modules = {"perception", "mapping", "ekf",
-                                              "planning", "controls"};
+  std::vector<std::string> default_modules = {
+      "perception",          "lidar_proc",      "ekf",
+      "mapping_build",       "mapping_compute", "planning_cp",
+      "planning_controller", "controls",
+  };
 
   this->declare_parameter("update_rate", 33.33);
   this->declare_parameter("heartbeat_tolerance", 1.5);
@@ -151,8 +155,8 @@ void CarInterface::EgoStateCB(const utfr_msgs::msg::EgoState &msg) {
   system_status_.acceleration_longitudinal = msg.accel.accel.linear.x;
   system_status_.acceleration_lateral = -msg.accel.accel.linear.y;
   system_status_.yaw_rate = -msg.vel.twist.angular.z;
-  system_status_.lap_counter = msg.lap_count; // TODO: Should this be in
-                                              // ego state or in a planning msg
+  // system_status_.lap_counter = msg.lap_count; // TODO: Should this be in
+  //  ego state or in a planning msg
 }
 
 void CarInterface::TargetStateCB(const utfr_msgs::msg::TargetState &msg) {
