@@ -32,10 +32,12 @@ set(dependencies
 
 set(sources
         src/utfr_rviz_plugins/displays/cone_detections/cone_detections_display.cpp
+        src/utfr_rviz_plugins/displays/cone_map/cone_map_display.cpp
 )
 
-qt5_wrap_cpp(qt_moc_files "include/utfr_rviz_plugins/displays/cone_detections/cone_detections_display.hpp") 
-
+qt5_wrap_cpp(qt_moc_files
+    "include/utfr_rviz_plugins/displays/cone_detections/cone_detections_display.hpp"
+    "include/utfr_rviz_plugins/displays/cone_map/cone_map_display.hpp") 
 
 add_library(${PROJECT_NAME} SHARED
         ${qt_moc_files}

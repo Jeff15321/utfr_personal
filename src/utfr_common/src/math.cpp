@@ -17,6 +17,7 @@
 #include <math.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
+#include <string>
 
 namespace utfr_dv {
 namespace util {
@@ -403,6 +404,42 @@ double quaternionToYaw(const geometry_msgs::msg::Quaternion &q) {
   yaw =
       atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z));
   return yaw;
+}
+
+float egoHelper(utfr_msgs::msg::EgoState egs,const std::string& infoWanted){
+  if (infoWanted=="pos_x"){
+    if (!egs.pose.pose.position.x){
+      return -10000000000000000;
+    }
+    return egs.pose.pose.position.x;
+  }
+  if (infoWanted=="pos_y"){
+    if (!egs.pose.pose.position.y){
+      return -10000000000000000;
+    }
+    return egs.pose.pose.position.y;
+  }
+  if (infoWanted=="vel_x"){
+    if (!egs.vel.twist.linear.x){
+      return -10000000000000000;
+    }
+    return egs.vel.twist.linear.x;
+  }
+  if (infoWanted=="vel_y"){
+    if (!egs.vel.twist.linear.y){
+      return -10000000000000000;
+    }
+    return egs.vel.twist.linear.y;
+  }
+  if (infoWanted=="steering_angle"){
+    if (!egs.steering_angle){
+      return -10000000000000000;
+    }
+    return egs.steering_angle;
+  }
+  else{
+    return -10000000000000000;
+  }
 }
 
 bool isLargeOrangeCone(const uint coneID) { return coneID == 4; }

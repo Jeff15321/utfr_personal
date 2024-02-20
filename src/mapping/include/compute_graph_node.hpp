@@ -69,6 +69,7 @@ public:
   /*! Initialize Heartbeat:
    */
   void initHeartbeat();
+  
 
   /*! Pose Graph callback function
    */
@@ -88,6 +89,7 @@ public:
   // Subscribers
   rclcpp::Subscription<utfr_msgs::msg::PoseGraph>::SharedPtr
       pose_graph_subscriber_;
+      
 
   utfr_msgs::msg::PoseGraph pose_graph_;
   double slam_rate_;

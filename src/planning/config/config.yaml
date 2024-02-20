@@ -1,42 +1,28 @@
 center_path_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    event: 'skidpad' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    event: 'trackdrive' #['accel', 'skidpad', 'autocross', 'trackdrive', 'EBSTest', 'ASTest'] add testing ones here if needed
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
 
-    ds: 0.01 # [m] discretization step
-    max_velocity: 10.0 # [m/s]
-    num_points: 500 # number of points to discretize the path
+    ds: 0.025 # [m] discretization step
+    max_velocity: 15.0 # [m/s]
+    num_points: 50 # number of points to discretize the path
 
     threshold_radius: 0.5 #[m]
     threshold_cones: 3 # number of cones to check for radius
 
-path_optimization_node: # Name of Module
-  ros__parameters:
-    update_rate: 33.33 #[ms]
-    event: 'skidpad' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
-    skip_path_opt: True #Skip if you don't want to do path optimization
-    baselink_location: 0.79 # [m]
-    wheel_base: 1.58 # [m]
-    lookahead_distance: 1.0 # [m]
-    a_lateral: 15.0 # [m/s^2]
-
-    ds: 0.01 # [m] discretization step
-    max_velocity: 10.0 # [m/s]
-    num_points: 500 # number of points to discretize the path
-
 controller_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
-    event: 'skidpad' #['accel', 'skidpad', 'autocross', 'trackdrive'] add testing ones here if needed
+    event: 'trackdrive' #['accel', 'skidpad', 'autocross', 'trackdrive', 'EBSTest', 'ASTest'] add testing ones here if needed
     controller: 'pure_pursuit' #['stanley', 'pure_pursuit', 'mpc']
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
 
-    ds: 0.01 # [m] discretization step
-    max_velocity: 10.0 # [m/s]
-    num_points: 500 # number of points to discretize the path
+    ds: 0.025 # [m] discretization step
+    max_velocity: 7.0 # [m/s]
+    num_points: 50 # number of points to discretize the path
 
     # Stanley Controller Parameters
     discretized_points: 5000
@@ -47,5 +33,5 @@ controller_node: # Name of Module
     max_steering_angle: 0.34
 
     # Pure Pursuit Controller Parameters
-    base_lookahead_distance: 1.5 # [m]
-    lookahead_scaling_factor: 0.5 # [m]
+    base_lookahead_distance: 0.5 # [m]
+    lookahead_scaling_factor: 0.25 # [m]

@@ -26,8 +26,15 @@ const std::string kExample{"example/topic"};
 const std::string kConeDetections{"perception/cone_detections"};
 const std::string kPerceptionHeartbeat{"perception/heartbeat"};
 
+const std::string kFiltered{"/lidar_pipeline/filtered"};
+const std::string kNoGround{"/lidar_pipeline/no_ground"};
+const std::string kClustered{"/lidar_pipeline/clustered"};
+const std::string kDetected{"/lidar_pipeline/detected"};
+const std::string kLidarProcHeartbeat{"/lidar_pipeline/heartbeat"};
+
 // EKF
 const std::string kEgoState{"ekf/ego_state"};
+const std::string kPose{"ekf/pose"};
 const std::string kEKFHeartbeat{"ekf/heartbeat"};
 
 // Mapping

@@ -33,15 +33,21 @@
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/pose_graph.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
+#include "tf2_ros/transform_broadcaster.h"
 
 // Import G2O 2D Slam types
 #include <g2o/types/slam2d/vertex_se2.h>
 #include <g2o/types/slam2d/types_slam2d.h>
 
+//KD Tree Requirement
+#include <kd_tree_knn.hpp>
+
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
 #include <utfr_common/math.hpp>
 #include <utfr_common/topics.hpp>
+
+#include <g2o/core/sparse_optimizer.h>
 
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
@@ -74,6 +80,10 @@ public:
   /*! Initialize Heartbeat:
    */
   void initHeartbeat();
+  
+  /*! Publish Heartbeat:
+   */
+  void publishHeartbeat();
 
   /*! Cone detection callback function
    */
@@ -96,7 +106,7 @@ public:
 
   /*! Implement functionalty to detect loop closures
    *  @param[in] cones std::vector<int>&, ids of detected cones
-   *  @param[out] loop_closed boolean&, true if loop is closed
+   *  @param[out] cones_id_list std::vector<int> of cones found
    */
   void loopClosure(const std::vector<int> &cones);
 
@@ -147,15 +157,36 @@ public:
    */
   void buildGraph();
 
+  /*! Graph SLAM function
+   *   @param[in] pose_graph utfr_msgs::msg::PoseGraph Pose graph message
+   *   @param[out] cone_map utfr_msgs::msg::ConeMap Cone map message
+   */
+  void graphSLAM();
+  
+  /*! States for hearbeat publisher */
+  enum class HeartBeatState{ 
+    NOT_READY = 1, 
+    READY = 2, 
+    ACTIVE = 3, 
+    ERROR = 4, 
+    FINISH = 5
+  };
+
+  HeartBeatState heartbeat_state_;
+
   // Publisher
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::PoseGraph>::SharedPtr pose_graph_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_publisher_;
+  rclcpp::TimerBase::SharedPtr heartbeat_timer_;
 
   // Subscribers
   rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
       cone_detection_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       state_estimation_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
+      state_estimation_subscriber_2_;
 
   // Global variables
   std::vector<std::pair<float, utfr_msgs::msg::Cone>>
@@ -165,14 +196,21 @@ public:
   utfr_msgs::msg::EgoState current_state_;   // Current state estimate
   std::map<int, utfr_msgs::msg::Cone> id_to_cone_map_; // Maps cone detection to id
   std::map<int, utfr_msgs::msg::EgoState> id_to_ego_map_; // Maps state estimate to id
+  std::map<int, int> cone_id_to_color_map_; // Maps cone id to color
   std::map<int, g2o::VertexSE2*> id_to_pose_map_; // Maps state estimate to pose node
+  std::map<int, std::tuple<double, double>> potential_cones_;
+  int cones_potential_;
+  int count_;
   bool loop_closed_;                         // True if loop is closed
   bool landmarked_;
   int landmarkedID_;
-  bool out_of_frame_;
+  int out_of_frame_;
   int cones_found_;
   int current_pose_id_;
   int first_detection_pose_id_;
+  std::unique_ptr<kd_tree_knn::KDTree> globalKDTreePtr_;
+  double heartbeat_rate_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> broadcaster_;
 
   // Lists for poses, cones, and edges
   std::vector<g2o::VertexSE2*> pose_nodes_;
@@ -184,6 +222,9 @@ public:
   Eigen::Matrix3d P2PInformationMatrix_;
   Eigen::Matrix2d P2CInformationMatrix_;
   Eigen::Matrix3d LoopClosureInformationMatrix_;
+
+  g2o::SparseOptimizer optimizer_;
+  utfr_msgs::msg::ConeMap cone_map_;
 };
 } // namespace build_graph
 } // namespace utfr_dv
