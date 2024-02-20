@@ -129,7 +129,7 @@ void CenterPathNode::initSector() {
   if (event_ == "accel") {
     curr_sector_ = 1;
   } else if (event_ == "skidpad") {
-    curr_sector_ = 12;
+    curr_sector_ = 10;
   } else if (event_ == "autocross") {
     curr_sector_ = 20;
   } else if (event_ == "trackdrive") {
@@ -1365,6 +1365,8 @@ void CenterPathNode::skidPadFit(
     avg_circle_msg.header.stamp = this->get_clock()->now();
 
     avg_circle_msg.skidpad_params = {b, k, r};
+    avg_circle_msg.x_params = {0, 0, 0, 0, 0, 0};
+    avg_circle_msg.y_params = {0, 0, 0, 0, 0, 0};
 
     center_path_publisher_->publish(avg_circle_msg);
   }
@@ -1423,6 +1425,8 @@ void CenterPathNode::skidPadFit(
     avg_circle_msg.header.stamp = this->get_clock()->now();
 
     avg_circle_msg.skidpad_params = {b, k, r};
+    avg_circle_msg.x_params = {0, 0, 0, 0, 0, 0};
+    avg_circle_msg.y_params = {0, 0, 0, 0, 0, 0};
 
     center_path_publisher_->publish(avg_circle_msg);
   }
@@ -1547,6 +1551,7 @@ void CenterPathNode::publishLine(double m_left, double m_right, double c_left,
   avg_line_msg.x_params = {0, 0, 0, 0, 1, 0};
   avg_line_msg.y_params = {
       0, 0, 0, 0, (m_left + m_right) / 2.0, (c_left + c_right) / 2.0};
+  avg_line_msg.skidpad_params = {0, 0, 0};
 
   center_path_publisher_->publish(avg_line_msg);
 }

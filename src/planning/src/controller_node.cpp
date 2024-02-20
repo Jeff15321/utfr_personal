@@ -760,10 +760,10 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
 
   // Limit steering angle within bounds.
   delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
-
+  
   // Reduce speed if turning sharply or near max steering.
-  if (abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
-      abs(delta) > max_steering_angle) {
+  if ((abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
+      abs(delta) > max_steering_angle) && (lap_count_ > 15 || lap_count_ < 12)) {
     desired_velocity = std::max(desired_velocity - 2, 1.0);
   }
 
@@ -795,47 +795,8 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   return target; // Return the target state.
 }
 
-double firstDerivativeX(std::vector<double> c, double s){
-  return -c[2] * sin(s);
-}
-
-double secondDerivativeX(std::vector<double> c, double s){
-  return -c[2] * cos(s);
-}
-
-double firstDerivativeYRight(std::vector<double> c, double s){
-  return -c[2] * cos(s);
-}
-
-double secondDerivativeYRight(std::vector<double> c, double s){
-  return c[2] * sin(s);
-}
-
-double firstDerivativeYLeft(std::vector<double> c, double s){
-  return c[2] * cos(s);
-}
-
-double secondDerivativeYLeft(std::vector<double> c, double s){
-  return -c[2] * sin(s);
-}
-
 double ControllerNode::k(std::vector<double> c, double s){
-  double x_first_derivative = firstDerivativeX(c, s);
-  double x_second_derivative = secondDerivativeX(c, s);
-  double y_first_derivative, y_second_derivative;
-  if (lap_count_ == 12 || lap_count_ == 13){
-    y_first_derivative = firstDerivativeYRight(c, s);
-    y_second_derivative = secondDerivativeYRight(c, s);
-  } else if (lap_count_ == 14 || lap_count_ == 15) {
-    y_first_derivative = firstDerivativeYLeft(c, s);
-    y_second_derivative = secondDerivativeYLeft(c, s);
-  }
-  double numerator = x_first_derivative * y_second_derivative -
-                     x_second_derivative * y_first_derivative;
-  double val = x_first_derivative * x_first_derivative +
-               y_first_derivative * y_first_derivative;
-  double denominator = val * sqrt(val);
-  return abs(numerator / denominator);
+  return 1 / c[2];
 }
 
 std::vector<double> ControllerNode::calculateSkidpadVelocities(
