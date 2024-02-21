@@ -265,8 +265,7 @@ void CarInterface::setDVStateAndCommand() {
                          utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION,
                          utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS) &&
           !launched_) {
-        launchMission(); // Launch other dv nodes
-        launched_ = true;
+        launched_ = launchMission(); // Launch other dv nodes
       } else if (heartbeat_status) {
         dv_pc_state_ = DV_PC_STATE::READY;
         cmd_ = false;
@@ -304,8 +303,7 @@ void CarInterface::setDVStateAndCommand() {
       dv_pc_state_ = DV_PC_STATE::EMERGENCY;
       cmd_ = false;
       if (!shutdown_) {
-        shutdownNodes();
-        shutdown_ = true;
+        shutdown_ = shutdownNodes();
       }
       break;
     }
@@ -313,9 +311,7 @@ void CarInterface::setDVStateAndCommand() {
       dv_pc_state_ = DV_PC_STATE::FINISH; // Should already be finish
       cmd_ = false;                       // Should already be false
       if (!shutdown_) {
-
-        shutdownNodes();
-        shutdown_ = true;
+        shutdown_ = shutdownNodes();
       }
       break;
     }
@@ -323,8 +319,7 @@ void CarInterface::setDVStateAndCommand() {
       dv_pc_state_ = DV_PC_STATE::OFF;
       cmd_ = false;
       if (!shutdown_) {
-        shutdownNodes();
-        shutdown_ = true;
+        shutdown_ = shutdownNodes();
       }
       break;
     }
@@ -354,9 +349,10 @@ void CarInterface::setDVStateAndCommand() {
   }
 }
 
-void CarInterface::launchMission() {
+bool CarInterface::launchMission() {
   const std::string function_name{"launchMission"};
-
+  RCLCPP_INFO(this->get_logger(), "%s: Laucnhing all nodes",
+              function_name.c_str());
   std::string launchCmd = "ros2 launch launcher dv.launch.py";
   // Execute the launch command
   int result = std::system(launchCmd.c_str());
@@ -364,14 +360,24 @@ void CarInterface::launchMission() {
   if (result != 0) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occurred",
                  function_name.c_str());
+    return false;
+  } else {
+    return true;
   }
 }
 
-void CarInterface::shutdownNodes() {
+bool CarInterface::shutdownNodes() {
   const std::string function_name{"shutdownNodes"};
-  rclcpp::shutdown();
-  RCLCPP_INFO(this->get_logger(), "%s: Shutting down car_interface node",
-              function_name.c_str());
+  try {
+    RCLCPP_INFO(this->get_logger(), "%s: Shutting down car_interface node",
+                function_name.c_str());
+    rclcpp::shutdown();
+  } catch (int e) {
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occurred",
+                 function_name.c_str());
+    return false;
+  }
+  return true;
 }
 
 void CarInterface::timerCB() {
