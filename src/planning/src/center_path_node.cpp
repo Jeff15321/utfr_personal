@@ -166,8 +166,6 @@ void CenterPathNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
   ego_state_->vel = msg.vel;
   ego_state_->accel = msg.accel;
   ego_state_->steering_angle = msg.steering_angle;
-  ego_state_->lap_count = msg.lap_count;
-  ego_state_->finished = msg.finished;
 }
 
 void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
@@ -244,21 +242,14 @@ void CenterPathNode::timerCBAccel() {
 void CenterPathNode::timerCBSkidpad() {
   const std::string function_name{"center_path_timerCB:"};
   try {
-    try {
-      if (cone_detections_ == nullptr || ego_state_ == nullptr ||
-          cone_map_ == nullptr) {
-        RCLCPP_WARN(get_logger(),
-                    "%s Either cone detections or ego state is empty.",
-                    function_name.c_str());
-        return;
-      }
-      skidPadFit(*cone_detections_, *ego_state_);
-
-    } catch (int e) {
-      RCLCPP_ERROR(get_logger(), "%s Exception: %s", function_name.c_str(),
-                   e.what());
+    if (cone_detections_ == nullptr || ego_state_ == nullptr ||
+        cone_map_ == nullptr) {
+      RCLCPP_WARN(get_logger(),
+                  "%s Either cone detections or ego state is empty.",
+                  function_name.c_str());
+      return;
     }
-
+    skidPadFit(*cone_detections_, *ego_state_);
     skidpadLapCounter();
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
   } catch (int e) {

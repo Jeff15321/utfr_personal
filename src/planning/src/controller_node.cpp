@@ -223,6 +223,12 @@ void ControllerNode::initHeartbeat() {
 void ControllerNode::publishHeartbeat(const int status) {
   heartbeat_.status = status;
   heartbeat_.header.stamp = this->get_clock()->now();
+  if (lap_count_ <= 25){
+    heartbeat_.lap_count = 0;
+  }
+  else {
+    heartbeat_.lap_count = lap_count_ - 29;
+  }
   heartbeat_publisher_->publish(heartbeat_);
 }
 
@@ -238,8 +244,6 @@ void ControllerNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
   ego_state_->vel = msg.vel;
   ego_state_->accel = msg.accel;
   ego_state_->steering_angle = msg.steering_angle;
-  ego_state_->lap_count = msg.lap_count;
-  ego_state_->finished = msg.finished;
 }
 
 void ControllerNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
