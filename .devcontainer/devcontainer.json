@@ -1,5 +1,5 @@
 {
-  "dockerFile": "Dockerfile",
+	"dockerFile": "Dockerfile",
 	"build": {
 		"args": {
 			"WORKSPACE": "${containerWorkspaceFolder}"

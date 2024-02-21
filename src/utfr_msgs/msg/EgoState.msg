@@ -14,7 +14,3 @@ geometry_msgs/TwistWithCovariance vel # Body frame
 # Units: m, °, m/s, m/s^2, °/s, 
 
 float64 steering_angle # +ve cw about north
-
-uint8 lap_count # lap count from planning
-
-bool finished # finish signal from planning

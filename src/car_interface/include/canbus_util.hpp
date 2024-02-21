@@ -60,7 +60,12 @@ enum dv_can_msg {
   // DV command + state sent from pc
   DV_COMMAND = 15,
 
-  COUNT = 16
+  SetSTRMotorPos = 16,
+  SetSTRMotorOrigin = 17,
+  SetSTRMotorPosSpeedAcc = 18,
+  StrMotorStatus = 19,
+
+  COUNT = 20
 };
 
 typedef struct CAN_message_t {
@@ -98,6 +103,18 @@ typedef struct CAN_message_t {
     array[5] = (num >> 40) & 0xFF;                                             \
     array[6] = (num >> 48) & 0xFF;                                             \
     array[7] = (num >> 56) & 0xFF;                                             \
+  } while (0)
+
+#define INT64_TO_ARRAY_REVERSE(num, array)                                     \
+  do {                                                                         \
+    array[7] = num & 0xFF;                                                     \
+    array[6] = (num >> 8) & 0xFF;                                              \
+    array[5] = (num >> 16) & 0xFF;                                             \
+    array[4] = (num >> 24) & 0xFF;                                             \
+    array[3] = (num >> 32) & 0xFF;                                             \
+    array[2] = (num >> 40) & 0xFF;                                             \
+    array[1] = (num >> 48) & 0xFF;                                             \
+    array[0] = (num >> 56) & 0xFF;                                             \
   } while (0)
 
 #endif

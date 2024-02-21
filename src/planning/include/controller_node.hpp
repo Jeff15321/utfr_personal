@@ -14,8 +14,8 @@
 #pragma once
 
 // ROS2 Requirements
-#include <rclcpp/rclcpp.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include <rclcpp/rclcpp.hpp>
 
 // System Requirements
 #include <chrono>
@@ -60,22 +60,23 @@ public:
 
   double k(std::vector<double> c, double s);
 
-  std::vector<double> calculateSkidpadVelocities(
-    utfr_msgs::msg::ParametricSpline &spline, double L, int n,
-    double a_lateral);
+  std::vector<double>
+  calculateSkidpadVelocities(utfr_msgs::msg::ParametricSpline &spline, double L,
+                             int n, double a_lateral);
 
-  std::vector<geometry_msgs::msg::Pose> discretizeCircle(
-    const utfr_msgs::msg::ParametricSpline &spline_params, double cur_s,
-    double ds, int num_points);
+  std::vector<geometry_msgs::msg::Pose>
+  discretizeCircle(const utfr_msgs::msg::ParametricSpline &spline_params,
+                   double cur_s, double ds, int num_points);
 
-  std::vector<double> calculateVelocities(
-    utfr_msgs::msg::ParametricSpline &spline, double L, int n,
-    double a_lateral);
+  std::vector<double>
+  calculateVelocities(utfr_msgs::msg::ParametricSpline &spline, double L, int n,
+                      double a_lateral);
 
-  std::vector<double> filterVelocities(
-    std::vector<double> &max_velocities, double current_velocity,
-    double distance, double max_velocity, double max_acceleration,
-    double min_acceleration);
+  std::vector<double> filterVelocities(std::vector<double> &max_velocities,
+                                       double current_velocity, double distance,
+                                       double max_velocity,
+                                       double max_acceleration,
+                                       double min_acceleration);
 
   double getMaxLongAccelGGV(double velocity, double a_lateral);
 
@@ -97,16 +98,18 @@ private:
   void initTimers();
 
   /*! Initialize GGV data:
-  * NOTE: assumes that the lateral acceleration data is in
-  * decreasing order.
-  */
+   * NOTE: assumes that the lateral acceleration data is in
+   * decreasing order.
+   */
   void initGGV(std::string filename);
 
-  /*! Initialize Heartbeat:
+  /*! Setup Heartbeat message with appropriate module name and update rate.
    */
   void initHeartbeat();
 
-  /*! Publish Heartbeat:
+  /*! Send Heartbeat on every timer loop.
+   *
+   *  @param[in] status current module status, using Heartbeat status enum.
    */
   void publishHeartbeat(const int status);
 
@@ -195,7 +198,6 @@ private:
   bool start_finish_time = true;
   int last_lap_count_;
 
-  
   bool skip_path_opt_;
   double lookahead_distance_;
   double a_lateral_max_;
@@ -231,7 +233,6 @@ private:
   utfr_msgs::msg::SystemStatus::SharedPtr status_{nullptr};
   utfr_msgs::msg::Heartbeat heartbeat_;
 
-    
   // map of GGV data. keys are velocity, values are array of lat. accel
   std::unordered_map<double, std::vector<double>> GGV_vel_to_lat_accel_;
   // map of GGV data. keys are velocity, values are array of long. accel

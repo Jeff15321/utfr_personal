@@ -46,6 +46,7 @@ target_include_directories(car_interface
 add_library(car_interface_library
    src/car_interface_node.cpp
    src/canbus_util.cpp
+   src/sensor_util.cpp
    src/heartbeat_monitor.cpp)
 # Set Target Dependencies  
 ament_target_dependencies(car_interface_library ${THIS_PACKAGE_INCLUDE_DEPENDS})

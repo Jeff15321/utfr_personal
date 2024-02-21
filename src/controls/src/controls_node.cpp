@@ -17,24 +17,20 @@ namespace controls {
 
 ControlsNode::ControlsNode() : Node("controls_node") {
   this->initParams();
-  this->initPublishers();
-  this->initController();
-  this->initSubscribers();
-  this->initTimers();
   this->initHeartbeat();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
+  this->initSubscribers();
+  this->initPublishers();
+  this->initTimers();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
 }
 
 void ControlsNode::initParams() {
-  // steering_controller_params
-  std::vector<double> default_pid;
-  this->declare_parameter("steering_controller_params", default_pid);
-  str_ctrl_params_ =
-      this->get_parameter("steering_controller_params").as_double_array();
-
+  std::vector<double> default_pid = {0.0, 0.0, 0.0, 0.0, 0.0};
   // throttle_controller_params
-  this->declare_parameter("throttle_controller_params", default_pid);
-  thr_ctrl_params_ =
-      this->get_parameter("throttle_controller_params").as_double_array();
+  // this->declare_parameter("throttle_controller_params", default_pid);
+  // thr_ctrl_params_ =
+  //     this->get_parameter("throttle_controller_params").as_double_array();
 
   // braking_controller_params
   this->declare_parameter("braking_controller_params", default_pid);
@@ -42,27 +38,22 @@ void ControlsNode::initParams() {
       this->get_parameter("braking_controller_params").as_double_array();
 
   // update_rate_
-  this->declare_parameter("update_rate", 1000.0);
+  this->declare_parameter("update_rate", 33.33);
   update_rate_ = this->get_parameter("update_rate").as_double();
 
   // testing_
   this->declare_parameter("testing", 0);
   testing_ = this->get_parameter("testing").as_int();
-
   ros_time_ = this->now();
-
   brake_inc_ = 0;
-
   steer_inc_ = 0;
-
   throttle_inc_ = 0;
+  setpoints_ = {-30, 0, 30};
 }
 
 void ControlsNode::initPublishers() {
   control_cmd_publisher_ = this->create_publisher<utfr_msgs::msg::ControlCmd>(
       topics::kControlCmd, 1);
-  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-      topics::kControlsHeartbeat, 1);
 }
 
 void ControlsNode::initSubscribers() {
@@ -85,17 +76,19 @@ void ControlsNode::initTimers() {
 }
 
 void ControlsNode::initController() {
-  steering_pid_ = std::make_unique<PIDController>();
-  throttle_pid_ = std::make_unique<PIDController>();
+  // steering_pid_ = std::make_unique<PIDController>();
+  // throttle_pid_ = std::make_unique<PIDController>();
   braking_pid_ = std::make_unique<PIDController>();
 
-  steering_pid_->initController(str_ctrl_params_, "steering controller");
-  throttle_pid_->initController(thr_ctrl_params_, "throttle controller");
+  // steering_pid_->initController(str_ctrl_params_, "steering controller");
+  // throttle_pid_->initController(thr_ctrl_params_, "throttle controller");
   braking_pid_->initController(brk_ctrl_params_, "braking controller");
 }
 
 void ControlsNode::initHeartbeat() {
-  heartbeat_.module.data = "controls";
+  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
+      topics::kControlsHeartbeat, 10);
+  heartbeat_.module.data = "controls_node";
   heartbeat_.update_rate = update_rate_;
 }
 
@@ -117,41 +110,58 @@ void ControlsNode::sensorCanCB(const utfr_msgs::msg::SensorCan &msg) {
   sensor_can_ = msg;
 }
 
+bool max_vel = false;
+float current_velocity = 0.0;
+float target_velocity = 0.0;
 void ControlsNode::brakeTesting() {
-  int current_velocity = 0.0;
-  int target_velocity = 0.0;
 
-  //If targets are available get them
+  // If targets are available get them
   if (ego_state_ == nullptr || target_state_ == nullptr) {
-    control_cmd_.brk_cmd = 255 - (brake_inc_/10)*15;
+    control_cmd_.brk_cmd = 255 - (brake_inc_ / 10) * 15;
     brake_inc_++;
     if (brake_inc_ >= 179) {
       brake_inc_ = 0;
     }
+  } else { // TODO: review
+    if (ego_state_ != nullptr) {
+      current_velocity = ego_state_->vel.twist.linear.x;
+
+      target_velocity = 5.0;
+
+      if (!max_vel && (ego_state_->vel.twist.linear.x > target_velocity)) {
+        max_vel = true;
+      }
+
+      if (max_vel) {
+        target_velocity = 0.0;
+        if (ego_state_->vel.twist.linear.x == target_velocity) {
+          max_vel = false;
+        }
+      }
+
+      RCLCPP_INFO(this->get_logger(), "Current speed: %fm/s", current_velocity);
+      RCLCPP_INFO(this->get_logger(), "Target speed: %fm/s", target_velocity);
+
+      control_cmd_.brk_cmd = (target_velocity > current_velocity) ? 0 : 255;
+    }
   }
-  else {
-    current_velocity = ego_state_->vel.twist.linear.x;
-    target_velocity = target_state_->speed;            // TODO: review
 
-    RCLCPP_INFO(this->get_logger(), "Current speed: %dm/s", current_velocity);
-    RCLCPP_INFO(this->get_logger(), "Target speed: %dm/s", target_velocity);
-
-    control_cmd_.brk_cmd = (target_velocity > current_velocity) ? 0 : 255;
-  }
-
-
-  
-  RCLCPP_INFO(this->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
-
-  RCLCPP_INFO(this->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
+  RCLCPP_INFO(this->get_logger(), "PWM: %f", control_cmd_.brk_cmd);
 }
 
 void ControlsNode::steerTesting() {
-  control_cmd_.str_cmd = -4095 + (steer_inc_)*10;
   steer_inc_++;
-  if (steer_inc_ >= 820) {
-    steer_inc_ = 0;
+  if (steer_inc_ >= 20) {
+    steer_inc_ = -20;
+  } else if (steer_inc_ >= 0) {
+    control_cmd_.str_cmd = 85;
+  } else if (steer_inc_ < 0) {
+    control_cmd_.str_cmd = -85;
   }
+
+  RCLCPP_INFO(this->get_logger(), "STR Cmd: %d", control_cmd_.str_cmd);
+
+  control_cmd_.thr_cmd = 0.2;
 }
 
 void ControlsNode::throttleTesting() {
@@ -163,8 +173,6 @@ void ControlsNode::throttleTesting() {
 }
 
 void ControlsNode::timerCB() {
-  status_ = utfr_msgs::msg::Heartbeat::ACTIVE;
-
   // Check if testing is in place
   if (testing_) {
     // Init all params to zero
@@ -186,52 +194,47 @@ void ControlsNode::timerCB() {
 
     // Publish messages
     control_cmd_publisher_->publish(control_cmd_);
-    this->publishHeartbeat(status_);
+    this->publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
     return;
   }
 
   // Check if other nodes are sending correct messages
   if (ego_state_ == nullptr || target_state_ == nullptr) {
-    status_ = utfr_msgs::msg::Heartbeat::NOT_READY;
-    this->publishHeartbeat(status_);
+    if (target_state_)
+      RCLCPP_INFO(this->get_logger(), "No EGO states");
+    if (ego_state_)
+      RCLCPP_INFO(this->get_logger(), "No Target states");
+    this->publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
     return;
   }
 
   try {
-    double target_velocity;
-    double current_velocity;
-    int16_t target_sa;
-    int16_t current_sa;
-
     double dt = (this->now() - ros_time_).seconds();
     ros_time_ = this->now();
 
-    //*****   Steering   *****
-    current_sa = (ego_state_->steering_angle) / 4.5; // TODO: review
-    target_sa = target_state_->steering_angle;       // TODO: review
-
     control_cmd_.str_cmd =
-        steering_pid_->getCommand(target_sa, current_sa, dt);
+        std::clamp((int)utfr_dv::util::radToDeg(target_state_->steering_angle),
+                   MAX_STR, -MAX_STR);
 
-    RCLCPP_INFO(this->get_logger(), "Target Steering: %d \n Steering cmd: %d", target_state_->steering_angle, control_cmd_.str_cmd);
-
-    //*****   Throttle & Brake  *****
+    // //*****   Throttle & Brake  *****
     current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
     target_velocity = target_state_->speed;            // TODO: review
-    RCLCPP_INFO(this->get_logger(), "Current speed: %fm/s", current_velocity);
-
-    control_cmd_.thr_cmd =
-        throttle_pid_->getCommand(target_velocity, current_velocity, dt);
-
-    control_cmd_.brk_cmd = braking_pid_->getCommand(
-        target_velocity, current_velocity, dt);
 
     if (current_velocity < target_velocity) {
-      RCLCPP_INFO(this->get_logger(), "Accelerating to reach: %fm/s", target_velocity);
+      // RCLCPP_INFO(this->get_logger(), "Accelerating to reach: %fm/s",
+      // target_velocity);
+      // control_cmd_.thr_cmd =
+      //     throttle_pid_->getCommand(target_velocity, current_velocity, dt);
+      // TODO: add RPM cap
+      control_cmd_.thr_cmd =
+          target_velocity * 60 / (2 * M_PI * WHEEL_RADIUS) * GEAR_RATIO;
       control_cmd_.brk_cmd = 0;
     } else {
-      RCLCPP_INFO(this->get_logger(), "Braking to reach: %fm/s", target_velocity);
+      // RCLCPP_INFO(this->get_logger(), "Braking to reach: %fm/s",
+      // target_velocity);
       control_cmd_.thr_cmd = 0;
+      control_cmd_.brk_cmd =
+          braking_pid_->getCommand(target_velocity, current_velocity, dt);
     }
 
     control_cmd_.header.stamp = this->get_clock()->now();
@@ -239,12 +242,10 @@ void ControlsNode::timerCB() {
     // Publish message
     control_cmd_publisher_->publish(control_cmd_);
 
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
   } catch (int e) {
-    RCLCPP_INFO(this->get_logger(), "timerCB: Error occured, error #%d", e);
-    status_ = utfr_msgs::msg::Heartbeat::ERROR;
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
-
-  this->publishHeartbeat(status_);
 }
 
 } // namespace controls

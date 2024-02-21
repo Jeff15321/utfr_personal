@@ -28,9 +28,11 @@ CarInterface::CarInterface() : Node("car_interface_node") {
 
 void CarInterface::initParams() {
   std::vector<std::string> default_modules = {
-    "perception", "mapping", "ekf", "planning", "controls"}; 
+      "perception",          "lidar_proc",      "ekf",
+      "mapping_build",       "mapping_compute", "planning_cp",
+      "planning_controller", "controls",
+  };
 
-  // Initialize Params with default values
   this->declare_parameter("update_rate", 33.33);
   this->declare_parameter("heartbeat_tolerance", 1.5);
   this->declare_parameter("heartbeat_modules", default_modules);
@@ -38,7 +40,8 @@ void CarInterface::initParams() {
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   heartbeat_tolerance_ = this->get_parameter("heartbeat_tolerance").as_double();
-  heartbeat_modules_ = this->get_parameter("heartbeat_modules").as_string_array();
+  heartbeat_modules_ =
+      this->get_parameter("heartbeat_modules").as_string_array();
   testing_ = this->get_parameter("testing").as_int();
 }
 
@@ -56,6 +59,14 @@ void CarInterface::initSubscribers() {
       this->create_subscription<utfr_msgs::msg::TargetState>(
           topics::kTargetState, 10,
           std::bind(&CarInterface::TargetStateCB, this, _1));
+
+  cone_detection_subscriber_ =
+      this->create_subscription<utfr_msgs::msg::ConeDetections>(
+          topics::kConeDetections, 10,
+          std::bind(&CarInterface::ConeDetectionCB, this, _1));
+
+  cone_map_subscriber_ = this->create_subscription<utfr_msgs::msg::ConeMap>(
+      topics::kConeMap, 10, std::bind(&CarInterface::ConeMapCB, this, _1));
 
   for (const auto &module_name : heartbeat_modules_) {
 
@@ -80,7 +91,7 @@ void CarInterface::initPublishers() {
       this->create_publisher<utfr_msgs::msg::SensorCan>(topics::kSensorCan, 10);
   system_status_publisher_ =
       this->create_publisher<utfr_msgs::msg::SystemStatus>(
-          topics::kSystemStatus, 1);
+          topics::kSystemStatus, 10);
 
   RCLCPP_INFO(this->get_logger(), "Finished Initializing Publishers");
 }
@@ -95,15 +106,14 @@ void CarInterface::initTimers() {
 
 void CarInterface::initCAN() {
   can1_ = std::make_unique<CanInterface>();
-  can0_ = std::make_unique<CanInterface>();
 
-  if (can1_->connect("can1") && can0_->connect("can0")) {
+  if (can1_->connect("can1")) {
     RCLCPP_INFO(this->get_logger(), "Finished Initializing CAN");
   } else
     RCLCPP_ERROR(this->get_logger(), "Failed To Initialize CAN");
 
-  while (can1_->read_can());
-  while (can0_->read_can());
+  while (can1_->read_can())
+    ;
 
   return;
 }
@@ -115,30 +125,28 @@ void CarInterface::initMonitor() {
 
 void CarInterface::heartbeatCB(const utfr_msgs::msg::Heartbeat &msg) {
   heartbeat_monitor_->updateHeartbeat(msg, this->get_clock()->now());
+
+  if (msg.module.data == "controller_node") {
+    system_status_.lap_counter = msg.lap_count;
+    if (msg.status == utfr_msgs::msg::Heartbeat::FINISH) {
+      finished_ = true;
+    }
+  }
 }
 
 void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   const std::string function_name{"controlCmdCB"};
 
-  /***** Steering *****/
-
-  // Contruct command to send
-  uint16_t steeringRateToSC = (abs((int) (msg.str_cmd * 1000)) & 0x0FFF)/1000;
-  bool directionBit;
-
-  if (steering_cmd_ < 0) {
-    directionBit = 0;
-  } else {
-    directionBit = 1;
-  }
-
-  steeringRateToSC |= (uint16_t)(directionBit << 12);
+  steering_cmd_ = msg.str_cmd;
+  // Clamp steering angle to +/- MAX_STR
+  std::clamp(steering_cmd_, MAX_STR, -MAX_STR);
 
   // Finalize commands
-  if (cmd_) {
-    braking_cmd_ = msg.brk_cmd;
-    steering_cmd_ = steeringRateToSC;
-    throttle_cmd_ = msg.thr_cmd;
+
+  if (cmd_ || testing_) {
+    braking_cmd_ = (int16_t)msg.brk_cmd;
+    steering_cmd_ = (((int32_t)(msg.str_cmd * 45454)) & 0xFFFFFFFF);
+    throttle_cmd_ = (int16_t)msg.thr_cmd;
   } else {
     braking_cmd_ = 0;
     steering_cmd_ = 0;
@@ -156,9 +164,6 @@ void CarInterface::EgoStateCB(const utfr_msgs::msg::EgoState &msg) {
   system_status_.acceleration_longitudinal = msg.accel.accel.linear.x;
   system_status_.acceleration_lateral = -msg.accel.accel.linear.y;
   system_status_.yaw_rate = -msg.vel.twist.angular.z;
-  system_status_.lap_counter = msg.lap_count; // TODO: Should this be in
-                                              // ego state or in a planning msg
-  finished_ = msg.finished;
 }
 
 void CarInterface::TargetStateCB(const utfr_msgs::msg::TargetState &msg) {
@@ -166,172 +171,18 @@ void CarInterface::TargetStateCB(const utfr_msgs::msg::TargetState &msg) {
   system_status_.steering_angle_target = -msg.steering_angle;
 }
 
-void CarInterface::getSteeringAngleSensorData() {
-  const std::string function_name{"getSteeringAngleSensorData"};
-  int16_t steering_angle; // TODO: Check proper var type
-
-  try {
-    // TODO: Check value format
-    steering_angle = -((int16_t)(can1_->get_can(dv_can_msg::ANGSENREC)) / 10);
-
-    // Check for sensor malfunction
-    if ((abs(steering_angle) > 750)) {
-      RCLCPP_ERROR(this->get_logger(), "%s: Value error",
-                   function_name.c_str());
-      // TODO: Error handling function, change control cmds to 0 and trigger EBS
-    } else {
-      // TODO: Check frame
-      sensor_can_.steering_angle = steering_angle;
-      system_status_.steering_angle_actual = -sensor_can_.steering_angle;
-    }
-  } catch (int e) {
-    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
-                 function_name.c_str(), e);
-    // TODO: Error handling function, change control cmds to 0 and trigger EBS
-  }
+void CarInterface::ConeDetectionCB(const utfr_msgs::msg::ConeDetections &msg) {
+  system_status_.cones_count_actual =
+      msg.left_cones.size() + msg.right_cones.size() +
+      msg.large_orange_cones.size() + msg.small_orange_cones.size() +
+      msg.unknown_cones.size();
 }
 
-void CarInterface::getMotorSpeedData() {
-  const std::string function_name{"getMotorSpeedData"};
-  double motor_speed; // TODO: Check proper var type
-
-  try {
-    // TODO: Check value format
-    motor_speed = can1_->get_can(dv_can_msg::MOTPOS) * -0.021545;
-
-    sensor_can_.motor_speed = motor_speed;
-  } catch (int e) {
-    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
-                 function_name.c_str(), e);
-  }
-}
-
-void CarInterface::getMotorTorqueData() {
-  const std::string function_name{"getMotorTorqueData"};
-  double motor_torque; // TODO: Check proper var type
-
-  try {
-    // TODO: Check value format
-    motor_torque = can1_->get_can(dv_can_msg::APPS);
-
-    system_status_.motor_moment_actual =
-        (int)(100 * motor_torque / MAX_THROTTLE); // Converting to %
-  } catch (int e) {
-    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
-                 function_name.c_str(), e);
-  }
-}
-
-void CarInterface::getServiceBrakeData() {
-  const std::string function_name{"getServiceBrakeData"};
-  uint16_t front_pressure; 
-  uint16_t rear_pressure; 
-
-  try {
-    // TODO: Check value format
-    front_pressure = (can1_->get_can(dv_can_msg::FBP));
-    rear_pressure = (can1_->get_can(dv_can_msg::RBP))&0xFFFF;
-    RCLCPP_DEBUG(this->get_logger(), "rear brake pressure: %d",rear_pressure);
-
-    sensor_can_.rear_pressure = front_pressure; 
-    sensor_can_.front_pressure = rear_pressure; 
-
-    system_status_.brake_hydr_actual =
-        (int)(100 * rear_pressure / MAX_BRK_PRS); // Converting to %
-
-  } catch (int e) {
-    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
-                 function_name.c_str(), e);
-  }
-}
-
-void CarInterface::getWheelspeedSensorData() {
-  const std::string function_name{"getWheelspeedSensorData"};
-  double wheelspeed_fl = 0; // TODO: Check proper var type
-  double wheelspeed_fr = 0; // TODO: Check proper var type
-  double wheelspeed_rl = 0; // TODO: Check proper var type
-  double wheelspeed_rr = 0; // TODO: Check proper var type
-
-  try {
-    // TODO: Proper CAN message
-    // wheelspeed_fl 
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
-    // TODO: Proper CAN message
-    // wheelspeed_fr 
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
-    // TODO: Proper CAN message
-    // wheelspeed_rl 
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
-    // TODO: Proper CAN message
-    // wheelspeed_rr 
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
-
-    sensor_can_.wheelspeed_fl = wheelspeed_fl;
-    sensor_can_.wheelspeed_fr = wheelspeed_fr;
-    sensor_can_.wheelspeed_rl = wheelspeed_rl;
-    sensor_can_.wheelspeed_rr = wheelspeed_rr;
-  } catch (int e) {
-    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
-                 function_name.c_str(), e);
-  }
-}
-
-void CarInterface::getIMUData() {
-  const std::string function_name{"getIMUData"};
-
-  try {
-    // TODO: Check reference frames, double check value format
-    sensor_msgs::msg::Imu imu;
-    imu.linear_acceleration.x =
-        (double)(((long)can1_->get_can(dv_can_msg::ImuX) >> (32)) & 255) / 100;
-    imu.linear_acceleration.y =
-        -(double)(((long)can1_->get_can(dv_can_msg::ImuY) >> (32)) & 255) / 100;
-    imu.linear_acceleration.z =
-        (double)(((long)can1_->get_can(dv_can_msg::ImuZ) >> (32)) & 255) / 100;
-    imu.angular_velocity.x =
-        (double)(can1_->get_can(dv_can_msg::ImuX) & 255) / 10;
-    imu.angular_velocity.y =
-        (double)(can1_->get_can(dv_can_msg::ImuY) & 255) / 10;
-
-    sensor_can_.imu_data = imu;
-  } catch (int e) {
-    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
-                 function_name.c_str(), e);
-  }
-}
-
-void CarInterface::getSensorCan() {
-  const std::string function_name{"getSensorCan"};
-
-  try {
-    // Read sensor CAN messages from car
-    getSteeringAngleSensorData();
-    getMotorSpeedData();
-    getServiceBrakeData();
-    getWheelspeedSensorData();
-    getIMUData();
-
-    sensor_can_.header.stamp = this->get_clock()->now();
-    sensor_can_publisher_->publish(sensor_can_);
-  } catch (int e) {
-    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
-                 function_name.c_str(), e);
-  }
-}
-
-void CarInterface::getDVState() {
-  // Get DV state from car
-  long dv_state = can1_->get_can(dv_can_msg::DV_STATE);
-
-  system_status_.as_state = dv_state & 0x7;
-
-  system_status_.ebs_state = (dv_state << 3) & 0x3;
-
-  system_status_.ami_state = (dv_state << 5) & 0x7;
-
-  system_status_.steering_state = (dv_state << 8) & 0x1;
-
-  system_status_.service_brake_state = (dv_state << 9) & 0x3;
+void CarInterface::ConeMapCB(const utfr_msgs::msg::ConeMap &msg) {
+  system_status_.cones_count_all =
+      msg.left_cones.size() + msg.right_cones.size() +
+      msg.large_orange_cones.size() + msg.small_orange_cones.size() +
+      msg.unknown_cones.size();
 }
 
 void CarInterface::setDVLogs() {
@@ -374,16 +225,15 @@ void CarInterface::setDVLogs() {
     long dv_system_status = 0;
     i = 0;
 
+    // TODO: Not reading the states from canbus at the moment
     dv_system_status |= (system_status_.as_state & 0x7);
     dv_system_status |= (system_status_.ebs_state & 0x3) << 3;
     dv_system_status |= (system_status_.ami_state & 0x7) << 5;
     dv_system_status |= (system_status_.steering_state & 0x1) << 8;
     dv_system_status |= (system_status_.service_brake_state & 0x3) << 9;
     dv_system_status |= (system_status_.lap_counter & 0x15) << 11;
-    dv_system_status |= (system_status_.cones_count_actual & 0xFF)
-                        << 15; // TODO: Get from perception
-    dv_system_status |= (system_status_.cones_count_all & 0x1FFFF)
-                        << 23; // TODO: Get from perception
+    dv_system_status |= (system_status_.cones_count_actual & 0xFF) << 15;
+    dv_system_status |= (system_status_.cones_count_all & 0x1FFFF) << 23;
 
     system_status_.header.stamp = this->get_clock()->now();
     system_status_publisher_->publish(system_status_);
@@ -403,6 +253,9 @@ void CarInterface::setDVStateAndCommand() {
     bool heartbeat_status =
         heartbeat_monitor_->verifyHeartbeats(this->get_clock()->now());
 
+    RCLCPP_INFO(this->get_logger(), "%s: Current state: %d",
+                function_name.c_str(), system_status_.as_state);
+
     switch (system_status_.as_state) {
     case utfr_msgs::msg::SystemStatus::AS_STATE_OFF: {
       // Check if autonomous mission is set
@@ -411,8 +264,7 @@ void CarInterface::setDVStateAndCommand() {
                          utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION,
                          utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS) &&
           !launched_) {
-        launchMission(); // Launch other dv nodes
-        launched_ = true;
+        launched_ = launchMission(); // Launch other dv nodes
       } else if (heartbeat_status) {
         dv_pc_state_ = DV_PC_STATE::READY;
         cmd_ = false;
@@ -450,8 +302,7 @@ void CarInterface::setDVStateAndCommand() {
       dv_pc_state_ = DV_PC_STATE::EMERGENCY;
       cmd_ = false;
       if (!shutdown_) {
-        shutdownNodes();
-        shutdown_ = true;
+        shutdown_ = shutdownNodes();
       }
       break;
     }
@@ -459,17 +310,15 @@ void CarInterface::setDVStateAndCommand() {
       dv_pc_state_ = DV_PC_STATE::FINISH; // Should already be finish
       cmd_ = false;                       // Should already be false
       if (!shutdown_) {
-        shutdownNodes();
-        shutdown_ = true;
+        shutdown_ = shutdownNodes();
       }
       break;
     }
     default: {
-      dv_pc_state_ = DV_PC_STATE::EMERGENCY;
+      dv_pc_state_ = DV_PC_STATE::OFF;
       cmd_ = false;
       if (!shutdown_) {
-        shutdownNodes();
-        shutdown_ = true;
+        shutdown_ = shutdownNodes();
       }
       break;
     }
@@ -477,21 +326,20 @@ void CarInterface::setDVStateAndCommand() {
 
     // Write to can
     long dv_command = 0;
-    dv_command |= (long)(dv_pc_state_)&7;
-    
-    RCLCPP_DEBUG(this->get_logger(), "PC: %d", dv_pc_state_);
-    RCLCPP_DEBUG(this->get_logger(), "Steer: %d", steering_cmd_);
-    RCLCPP_DEBUG(this->get_logger(), "Throttle: %d", throttle_cmd_);
-    RCLCPP_DEBUG(this->get_logger(), "PWM: %d", braking_cmd_);
-  
-    if (cmd_) {
+
+    if (cmd_ || testing_) {
+      dv_command |= (long)(dv_pc_state_)&7;
       dv_command |= (long)(throttle_cmd_ & 0xFFFF) << 3;
-      dv_command |= (long)(steering_cmd_ & 0x1FFF) << 19;
-      dv_command |= (long)(braking_cmd_ & 0xFF) << 32;
+      dv_command |= (long)(braking_cmd_ & 0xFF) << 19;
+
+      // Write to steering motor
+      // RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
+      can1_->write_can(
+          dv_can_msg::SetSTRMotorPos,
+          ((long)steering_cmd_)
+              << 32); // can use different mode to command speed/accel
     }
-
-    RCLCPP_DEBUG(this->get_logger(), "Command: %lx", dv_command);
-
+    // Need to always send dv command so RC always knows DVPC status
     can1_->write_can(dv_can_msg::DV_COMMAND, dv_command);
 
   } catch (int e) {
@@ -500,38 +348,35 @@ void CarInterface::setDVStateAndCommand() {
   }
 }
 
-void CarInterface::launchMission() {
+bool CarInterface::launchMission() {
   const std::string function_name{"launchMission"};
-
-  std::string launchCmd =
-      "ros2 launch launcher dv.launch.py -p mission:=" +
-      std::to_string(system_status_.ami_state); // TODO: Param implementation
+  RCLCPP_INFO(this->get_logger(), "%s: Laucnhing all nodes",
+              function_name.c_str());
+  std::string launchCmd = "ros2 launch launcher dv.launch.py";
   // Execute the launch command
   int result = std::system(launchCmd.c_str());
 
   if (result != 0) {
-    RCLCPP_ERROR(this->get_logger(), "%s: Error occured",
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occurred",
                  function_name.c_str());
+    return false;
+  } else {
+    return true;
   }
 }
 
-void CarInterface::shutdownNodes() {
+bool CarInterface::shutdownNodes() {
   const std::string function_name{"shutdownNodes"};
-  // TODO: Fix
-  // // Create a node to retrieve the list of active nodes
-  // auto node = std::make_shared<rclcpp::Node>("shutdown_nodes");
-
-  // // Retrieve the list of active node names
-  // auto node_names = rclcpp::Node::get_node_names(node);
-
-  // for (const auto &name : node_names) {
-  //   if (name != "car_interface") {
-  //     auto node_interface = node->get_node_base_interface();
-  //     node_interface->get_node_by_name(name)->shutdown();
-  //   }
-  // }
-
-  // rclcpp::shutdown(); TODO: Decide to kill car_interface or not
+  try {
+    RCLCPP_INFO(this->get_logger(), "%s: Shutting down car_interface node",
+                function_name.c_str());
+    rclcpp::shutdown();
+  } catch (int e) {
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occurred",
+                 function_name.c_str());
+    return false;
+  }
+  return true;
 }
 
 void CarInterface::timerCB() {

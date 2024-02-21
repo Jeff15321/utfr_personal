@@ -20,12 +20,10 @@ using Point32 = geometry_msgs::msg::Point32;
 using PointTuple = std::tuple<Point32, Point32, Point32, Point32>;
 
 CenterPathNode::CenterPathNode() : Node("center_path_node") {
-  RCLCPP_INFO(this->get_logger(), "Center Path Node Launched");
-  
+  // RCLCPP_INFO(this->get_logger(), "Center Path Node Launched");
   this->initParams();
   this->initHeartbeat();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
-  
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
@@ -71,7 +69,7 @@ void CenterPathNode::initPublishers() {
   center_path_publisher_ =
       this->create_publisher<utfr_msgs::msg::ParametricSpline>(
           topics::kCenterPath, 10);
-  
+
   accel_path_publisher_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kAccelPath, 10);
@@ -134,7 +132,7 @@ void CenterPathNode::initSector() {
     curr_sector_ = 20;
   } else if (event_ == "trackdrive") {
     curr_sector_ = 30;
-  } else{
+  } else {
     curr_sector_ = 0;
   }
   last_time = this->get_clock()->now();
@@ -145,7 +143,6 @@ void CenterPathNode::initSector() {
 void CenterPathNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kCenterPathHeartbeat, 10);
-
   heartbeat_.module.data = "center_path_node";
   heartbeat_.update_rate = update_rate_;
 }
@@ -239,7 +236,7 @@ void CenterPathNode::timerCBAccel() {
     }
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -248,7 +245,8 @@ void CenterPathNode::timerCBSkidpad() {
   const std::string function_name{"center_path_timerCB:"};
   try {
     try {
-      if (cone_detections_ == nullptr || ego_state_ == nullptr || cone_map_ == nullptr) {
+      if (cone_detections_ == nullptr || ego_state_ == nullptr ||
+          cone_map_ == nullptr) {
         RCLCPP_WARN(get_logger(),
                     "%s Either cone detections or ego state is empty.",
                     function_name.c_str());
@@ -256,14 +254,14 @@ void CenterPathNode::timerCBSkidpad() {
       }
       skidPadFit(*cone_detections_, *ego_state_);
 
-    } catch (const std::exception &e) {
+    } catch (int e) {
       RCLCPP_ERROR(get_logger(), "%s Exception: %s", function_name.c_str(),
                    e.what());
     }
 
     skidpadLapCounter();
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -271,8 +269,9 @@ void CenterPathNode::timerCBSkidpad() {
 void CenterPathNode::timerCBAutocross() {
   const std::string function_name{"center_path_timerCB:"};
 
-  try {  
-    if (cone_detections_ == nullptr || cone_map_ == nullptr || ego_state_ == nullptr) {
+  try {
+    if (cone_detections_ == nullptr || cone_map_ == nullptr ||
+        ego_state_ == nullptr) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
       return;
@@ -322,7 +321,7 @@ void CenterPathNode::timerCBAutocross() {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 
     trackdriveLapCounter();
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -381,7 +380,7 @@ void CenterPathNode::timerCBTrackdrive() {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 
     trackdriveLapCounter();
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -416,7 +415,7 @@ void CenterPathNode::timerCBEBS() {
     int large_orange_size = cone_detections_->large_orange_cones.size();
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } catch (const std::exception &e) {
+  } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
 }
@@ -659,7 +658,7 @@ double CenterPathNode::midpointCostFunction(
 
   double MAX_MAX_ANGLE = 3.3141592653589793;
   double MAX_MAX_MIDPOINT_TO_CONE_DIST = 25.0;
-  double MAX_SQUARED_RANGE_PATH_LENGTH_DIFF = 
+  double MAX_SQUARED_RANGE_PATH_LENGTH_DIFF =
       pow(MAX_MAX_MIDPOINT_TO_CONE_DIST, 2);
   int MAX_POINT_COUNT_COST = 10;
   double MAX_INTERPOLATED_MIDPOINT_TO_CONE_DISTANCE_COST = 1.2 / 2.0 * 4.0;
@@ -789,7 +788,7 @@ double CenterPathNode::midpointCostFunction(
   double sq_sum = std::inner_product(track_widths.begin(), track_widths.end(),
                                      track_widths.begin(), 0.0);
   double std_dev = std::sqrt(sq_sum / track_widths.size() - mean * mean);
-  
+
   double sum =
       A * pow((max_angle / MAX_MAX_ANGLE), 2) +
       B * pow((squared_range_path_length_diff /
@@ -868,7 +867,7 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
     double local_x = translated_x * cos(-yaw) - translated_y * sin(-yaw);
     double local_y = translated_x * sin(-yaw) + translated_y * cos(-yaw);
 
-    if (local_x < 0){
+    if (local_x < 0) {
       continue;
     }
 
@@ -931,7 +930,8 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
   std::vector<std::vector<int>> all_paths;
   std::deque<std::vector<int>> q;
 
-  for (size_t i = 0; i < std::min(static_cast<size_t>(4), midpoints.size()); ++i) {
+  for (size_t i = 0; i < std::min(static_cast<size_t>(4), midpoints.size());
+       ++i) {
     q.push_back({midpoint_indices_by_dist[i]});
   }
 
@@ -944,8 +944,8 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
       auto [a, b] = midpoint_index_to_cone_indices[path.back()];
       std::vector<int> neighbors = cone_index_to_midpoint_indices[a];
       neighbors.insert(neighbors.end(),
-                      cone_index_to_midpoint_indices[b].begin(),
-                      cone_index_to_midpoint_indices[b].end());
+                       cone_index_to_midpoint_indices[b].begin(),
+                       cone_index_to_midpoint_indices[b].end());
 
       for (int neighbor : neighbors) {
         if (std::find(path.begin(), path.end(), neighbor) == path.end()) {
@@ -962,13 +962,14 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
                                             cone_map_->right_cones,
                                             cone_map_->left_cones,
                                             midpoint_index_to_cone_indices) <
-                      midpointCostFunction(b, midpoints, points,
+                       midpointCostFunction(b, midpoints, points,
                                             cone_map_->right_cones,
                                             cone_map_->left_cones,
                                             midpoint_index_to_cone_indices);
               });
     q.clear();
-    for (size_t j = 0; j < std::min(static_cast<size_t>(4), nextQ.size()); ++j) {
+    for (size_t j = 0; j < std::min(static_cast<size_t>(4), nextQ.size());
+         ++j) {
       q.push_back(nextQ[j]);
     }
     all_paths.insert(all_paths.end(), nextQ.begin(), nextQ.end());
@@ -981,18 +982,21 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
                                           cone_map_->right_cones,
                                           cone_map_->left_cones,
                                           midpoint_index_to_cone_indices) <
-                    midpointCostFunction(b, midpoints, points,
-                                          cone_map_->right_cones,
-                                          cone_map_->left_cones,
-                                          midpoint_index_to_cone_indices);
+                     midpointCostFunction(
+                         b, midpoints, points, cone_map_->right_cones,
+                         cone_map_->left_cones, midpoint_index_to_cone_indices);
             });
 
   if (!all_paths.empty()) {
     int best = 0;
-    // double costO = midpointCostFunction(all_paths[0], midpoints, points, cone_map_->right_cones, cone_map_->left_cones, midpoint_index_to_cone_indices);
-    // for(int i = 1; i < all_paths.size(); i++){
-    //   double costN = midpointCostFunction(all_paths[i], midpoints, points, cone_map_->right_cones, cone_map_->left_cones, midpoint_index_to_cone_indices);
-    //   if(abs(1-costN/costO) <= 0.25 && all_paths[best].size() < all_paths[i].size()){
+    // double costO = midpointCostFunction(all_paths[0], midpoints, points,
+    // cone_map_->right_cones, cone_map_->left_cones,
+    // midpoint_index_to_cone_indices); for(int i = 1; i < all_paths.size();
+    // i++){
+    //   double costN = midpointCostFunction(all_paths[i], midpoints, points,
+    //   cone_map_->right_cones, cone_map_->left_cones,
+    //   midpoint_index_to_cone_indices); if(abs(1-costN/costO) <= 0.25 &&
+    //   all_paths[best].size() < all_paths[i].size()){
     //     best = i;
     //   }
     // }
@@ -1338,7 +1342,7 @@ void CenterPathNode::skidPadFit(
 
     Point32 pointavg;
 
-    for (int i = 0; i < 50; i++){
+    for (int i = 0; i < 50; i++) {
       double cur_ang = static_cast<double>(i) / 50 * 3.1415 / 2;
       double cur_x = b + r * cos(cur_ang);
       double cur_y = k - r * sin(cur_ang);
@@ -1348,7 +1352,7 @@ void CenterPathNode::skidPadFit(
       circleavg.polygon.points.push_back(pointavg);
     }
 
-    for (int i = 50; i >= 0; i--){
+    for (int i = 50; i >= 0; i--) {
       double cur_ang = static_cast<double>(i) / 50 * 3.1415 / 2;
       double cur_x = b + r * cos(cur_ang);
       double cur_y = k - r * sin(cur_ang);
@@ -1398,7 +1402,7 @@ void CenterPathNode::skidPadFit(
 
     Point32 pointavg;
 
-    for (int i = 0; i < 50; i++){
+    for (int i = 0; i < 50; i++) {
       double cur_ang = static_cast<double>(i) / 50 * 3.1415 / 2;
       double cur_x = b + r * cos(cur_ang);
       double cur_y = k + r * sin(cur_ang);
@@ -1408,7 +1412,7 @@ void CenterPathNode::skidPadFit(
       circleavg.polygon.points.push_back(pointavg);
     }
 
-    for (int i = 50; i >= 0; i--){
+    for (int i = 50; i >= 0; i--) {
       double cur_ang = static_cast<double>(i) / 50 * 3.1415 / 2;
       double cur_x = b + r * cos(cur_ang);
       double cur_y = k + r * sin(cur_ang);

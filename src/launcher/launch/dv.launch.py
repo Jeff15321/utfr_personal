@@ -60,9 +60,9 @@ def generate_launch_description():
         )
     )
 
-    ld.add_action(cam_launch)
+    # ld.add_action(cam_launch) done in perception
     ld.add_action(gps_launch)
-    ld.add_action(lidar_launch)
+    # ld.add_action(lidar_launch) done in perception
 
     ld.add_action(perception_launch)
     ld.add_action(mapping_launch)

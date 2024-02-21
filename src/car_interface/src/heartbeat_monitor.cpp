@@ -27,7 +27,6 @@ HeartbeatMonitor::HeartbeatMonitor(const std::vector<std::string> &module_names,
                                                                    curr_time};
 
   for (const auto &name : module_names) {
-
     last_heartbeats_[name] = unintitalized_values;
   }
 }
@@ -94,9 +93,9 @@ bool HeartbeatMonitor::verifyHeartbeats(const rclcpp::Time &curr_time) {
     double current_diff = (curr_time - new_stamp).nanoseconds() / 1000000;
     double latest_duration = current_diff - const_diff;
     RCLCPP_DEBUG(rclcpp::get_logger("heartbeat_monitor"),
-                "%s Module %s duration %f, max duration %f!",
-                function_name.c_str(), element.first.c_str(), latest_duration,
-                max_duration);
+                 "%s Module %s duration %f, max duration %f!",
+                 function_name.c_str(), element.first.c_str(), latest_duration,
+                 max_duration);
 
     if (latest_duration > max_duration) {
       RCLCPP_ERROR(rclcpp::get_logger("heartbeat_monitor"),
@@ -104,9 +103,9 @@ bool HeartbeatMonitor::verifyHeartbeats(const rclcpp::Time &curr_time) {
                    element.first.c_str());
       return false;
     }
-    RCLCPP_INFO(rclcpp::get_logger("heartbeat_monitor"),
-              "%s Module '%s' is alive",
-              function_name.c_str(), element.first.c_str());
+    // RCLCPP_INFO(rclcpp::get_logger("heartbeat_monitor"),
+    //           "%s Module '%s' is alive",
+    //           function_name.c_str(), element.first.c_str());
   }
 
   return true;
