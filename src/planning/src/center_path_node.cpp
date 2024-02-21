@@ -22,6 +22,7 @@ using PointTuple = std::tuple<Point32, Point32, Point32, Point32>;
 CenterPathNode::CenterPathNode() : Node("center_path_node") {
   // RCLCPP_INFO(this->get_logger(), "Center Path Node Launched");
   this->initParams();
+  this->initEvent();
   this->initHeartbeat();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
   this->initSubscribers();
@@ -33,7 +34,7 @@ CenterPathNode::CenterPathNode() : Node("center_path_node") {
 
 void CenterPathNode::initParams() {
   this->declare_parameter("update_rate", 33.33);
-  this->declare_parameter("event", "accel");
+  this->declare_parameter("event", "read");
   this->declare_parameter("big_radius", 10.625);
   this->declare_parameter("small_radius", 7.625);
   this->declare_parameter("threshold_radius", 0.8);
@@ -93,6 +94,38 @@ void CenterPathNode::initPublishers() {
   skidpad_path_publisher_avg_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kSkidpadFittingavg, 10);
+}
+
+void CenterPathNode::initEvent(){
+  if (event_ == "read") {
+    mission_subscriber_ = this->create_subscription<utfr_msgs::msg::SystemStatus>(
+        topics::kSystemStatus, 10, std::bind(&CenterPathNode::missionCB, this, _1));
+  }
+}
+
+void CenterPathNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
+  if (msg.ami_state == 1) {
+    event_ = "accel";
+  }
+  else if (msg.ami_state == 2) {
+    event_ = "skidpad";
+  }
+  else if (msg.ami_state == 3) {
+    event_ = "trackdrive";
+  }
+  else if (msg.ami_state == 4) {
+    event_ = "EBSTest";
+  }
+  else if (msg.ami_state == 5) {
+    event_ = "ASTest";
+  }
+  else if (msg.ami_state == 6) {
+    event_ = "autocross";
+  }
+  else {
+    // wait until mission is set
+    initEvent();
+  }
 }
 
 void CenterPathNode::initTimers() {
