@@ -46,6 +46,8 @@ namespace controls {
 #define RadToDeg(ang) ang * 180 / PI
 #define DegToRad(ang) ang *PI / 180
 #define MAX_STR 19
+#define GEAR_RATIO 3.41
+#define WHEEL_RADIUS 0.1955 // meters
 
 class ControlsNode : public rclcpp::Node {
 public:
@@ -190,7 +192,8 @@ private:
   int brake_inc_;
   int steer_inc_;
   int throttle_inc_;
-  std::vector<double> thr_ctrl_params_;
+  // std::vector<double> str_ctrl_params_;
+  // std::vector<double> thr_ctrl_params_;
   std::vector<double> brk_ctrl_params_;
 
   // Callback

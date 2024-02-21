@@ -45,6 +45,8 @@ using SlamLinearSolver =
     g2o::LinearSolverEigen<SlamBlockSolver::PoseMatrixType>;
 
 void BuildGraphNode::initParams() {
+  this->declare_parameter("update_rate", 33.33);
+  update_rate_ = this->get_parameter("update_rate").as_double();
   loop_closed_ = false;
   landmarked_ = false;
   landmarkedID_ = -1;
@@ -120,9 +122,9 @@ void BuildGraphNode::initPublishers() {
 }
 
 void BuildGraphNode::initTimers() {
-  heartbeat_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(heartbeat_rate_),
-      std::bind(&BuildGraphNode::publishHeartbeat, this));
+  main_timer_ = this->create_wall_timer(
+      std::chrono::duration<double, std::milli>(this->update_rate_),
+      std::bind(&BuildGraphNode::timerCB, this));
 }
 
 void BuildGraphNode::initHeartbeat() {
@@ -570,6 +572,8 @@ void BuildGraphNode::graphSLAM() {
 }
 
 void BuildGraphNode::buildGraph() {}
+
+void BuildGraphNode::timerCB() {}
 
 } // namespace build_graph
 } // namespace utfr_dv

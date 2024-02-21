@@ -30,6 +30,8 @@ EkfNode::EkfNode() : Node("ekf_node") {
 }
 
 void EkfNode::initParams() {
+  this->declare_parameter("update_rate", 33.33);
+  update_rate_ = this->get_parameter("update_rate").as_double();
   P_ = 1 * Eigen::MatrixXd::Identity(6, 6);
   prev_time_ = this->now();
   current_state_.pose.pose.position.x = 0.0;
@@ -59,9 +61,9 @@ void EkfNode::initPublishers() {
 }
 
 void EkfNode::initTimers() {
-  heartbeat_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(heartbeat_rate_),
-      std::bind(&EkfNode::publishHeartbeat, this));
+  main_timer_ = this->create_wall_timer(
+      std::chrono::duration<double, std::milli>(this->update_rate_),
+      std::bind(&EkfNode::timerCB, this));
 }
 
 void EkfNode::initHeartbeat() {
@@ -329,6 +331,8 @@ std::vector<double> EkfNode::lla2enu(std::vector<double> &inputVector) {
   resultVector[2] = z;
   return resultVector;
 }
+
+void EkfNode::timerCB() {}
 
 } // namespace ekf
 } // namespace utfr_dv

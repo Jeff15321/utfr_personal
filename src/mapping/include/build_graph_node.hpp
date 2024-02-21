@@ -167,6 +167,10 @@ public:
    */
   void graphSLAM();
 
+  /*! Primary callback function
+   */
+  void timerCB();
+
   /*! States for hearbeat publisher */
   enum class HeartBeatState {
     NOT_READY = 1,
@@ -182,7 +186,6 @@ public:
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::PoseGraph>::SharedPtr pose_graph_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_publisher_;
-  rclcpp::TimerBase::SharedPtr heartbeat_timer_;
 
   // Subscribers
   rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
@@ -232,6 +235,9 @@ public:
 
   g2o::SparseOptimizer optimizer_;
   utfr_msgs::msg::ConeMap cone_map_;
+  utfr_msgs::msg::Heartbeat heartbeat_;
+  double update_rate_;
+  rclcpp::TimerBase::SharedPtr main_timer_;
 };
 } // namespace build_graph
 } // namespace utfr_dv

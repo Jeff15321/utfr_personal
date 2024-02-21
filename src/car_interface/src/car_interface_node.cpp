@@ -63,10 +63,10 @@ void CarInterface::initSubscribers() {
   cone_detection_subscriber_ =
       this->create_subscription<utfr_msgs::msg::ConeDetections>(
           topics::kConeDetections, 10,
-          std::bind(&CarInterface::coneDetectionCB, this, _1));
+          std::bind(&CarInterface::ConeDetectionCB, this, _1));
 
   cone_map_subscriber_ = this->create_subscription<utfr_msgs::msg::ConeMap>(
-      topics::kConeMap, 10, std::bind(&CarInterface::coneMapCB, this, _1));
+      topics::kConeMap, 10, std::bind(&CarInterface::ConeMapCB, this, _1));
 
   for (const auto &module_name : heartbeat_modules_) {
 
@@ -91,7 +91,7 @@ void CarInterface::initPublishers() {
       this->create_publisher<utfr_msgs::msg::SensorCan>(topics::kSensorCan, 10);
   system_status_publisher_ =
       this->create_publisher<utfr_msgs::msg::SystemStatus>(
-          topics::kSystemStatus, 1);
+          topics::kSystemStatus, 10);
 
   RCLCPP_INFO(this->get_logger(), "Finished Initializing Publishers");
 }
@@ -126,7 +126,7 @@ void CarInterface::initMonitor() {
 void CarInterface::heartbeatCB(const utfr_msgs::msg::Heartbeat &msg) {
   heartbeat_monitor_->updateHeartbeat(msg, this->get_clock()->now());
 
-  if (msg.module.data = "controller_node") {
+  if (msg.module.data == "controller_node") {
     system_status_.lap_counter = msg.lap_count;
     if (msg.status == utfr_msgs::msg::Heartbeat::FINISH) {
       finished_ = true;
@@ -145,8 +145,7 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
 
   if (cmd_ || testing_) {
     braking_cmd_ = (int16_t)msg.brk_cmd;
-    steering_cmd_ = (((int32_t)(msg.str_cmd * 45000)) &
-                     0xFFFFFFFF); // *4.5 for motor to wheels angle
+    steering_cmd_ = (((int32_t)(msg.str_cmd * 45454)) & 0xFFFFFFFF);
     throttle_cmd_ = (int16_t)msg.thr_cmd;
   } else {
     braking_cmd_ = 0;
@@ -172,14 +171,14 @@ void CarInterface::TargetStateCB(const utfr_msgs::msg::TargetState &msg) {
   system_status_.steering_angle_target = -msg.steering_angle;
 }
 
-void CarInterface::coneDetectionCB(const utfr_msgs::msg::ConeDetections &msg) {
+void CarInterface::ConeDetectionCB(const utfr_msgs::msg::ConeDetections &msg) {
   system_status_.cones_count_actual =
       msg.left_cones.size() + msg.right_cones.size() +
       msg.large_orange_cones.size() + msg.small_orange_cones.size() +
       msg.unknown_cones.size();
 }
 
-void CarInterface::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
+void CarInterface::ConeMapCB(const utfr_msgs::msg::ConeMap &msg) {
   system_status_.cones_count_all =
       msg.left_cones.size() + msg.right_cones.size() +
       msg.large_orange_cones.size() + msg.small_orange_cones.size() +
@@ -336,7 +335,7 @@ void CarInterface::setDVStateAndCommand() {
       // Write to steering motor
       // RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
       can1_->write_can(
-          dv_can_msg::SetMotorPos,
+          dv_can_msg::SetSTRMotorPos,
           ((long)steering_cmd_)
               << 32); // can use different mode to command speed/accel
     }

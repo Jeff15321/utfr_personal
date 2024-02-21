@@ -26,11 +26,11 @@ ControlsNode::ControlsNode() : Node("controls_node") {
 }
 
 void ControlsNode::initParams() {
-
+  std::vector<double> default_pid = {0.0, 0.0, 0.0, 0.0, 0.0};
   // throttle_controller_params
-  this->declare_parameter("throttle_controller_params", default_pid);
-  thr_ctrl_params_ =
-      this->get_parameter("throttle_controller_params").as_double_array();
+  // this->declare_parameter("throttle_controller_params", default_pid);
+  // thr_ctrl_params_ =
+  //     this->get_parameter("throttle_controller_params").as_double_array();
 
   // braking_controller_params
   this->declare_parameter("braking_controller_params", default_pid);
@@ -76,12 +76,12 @@ void ControlsNode::initTimers() {
 }
 
 void ControlsNode::initController() {
-  steering_pid_ = std::make_unique<PIDController>();
-  throttle_pid_ = std::make_unique<PIDController>();
+  // steering_pid_ = std::make_unique<PIDController>();
+  // throttle_pid_ = std::make_unique<PIDController>();
   braking_pid_ = std::make_unique<PIDController>();
 
-  steering_pid_->initController(str_ctrl_params_, "steering controller");
-  throttle_pid_->initController(thr_ctrl_params_, "throttle controller");
+  // steering_pid_->initController(str_ctrl_params_, "steering controller");
+  // throttle_pid_->initController(thr_ctrl_params_, "throttle controller");
   braking_pid_->initController(brk_ctrl_params_, "braking controller");
 }
 
@@ -111,9 +111,9 @@ void ControlsNode::sensorCanCB(const utfr_msgs::msg::SensorCan &msg) {
 }
 
 bool max_vel = false;
+float current_velocity = 0.0;
+float target_velocity = 0.0;
 void ControlsNode::brakeTesting() {
-  int current_velocity = 0.0;
-  int target_velocity = 0.0;
 
   // If targets are available get them
   if (ego_state_ == nullptr || target_state_ == nullptr) {
@@ -122,7 +122,7 @@ void ControlsNode::brakeTesting() {
     if (brake_inc_ >= 179) {
       brake_inc_ = 0;
     }
-  } else {
+  } else { // TODO: review
     if (ego_state_ != nullptr) {
       current_velocity = ego_state_->vel.twist.linear.x;
 
@@ -139,14 +139,14 @@ void ControlsNode::brakeTesting() {
         }
       }
 
-      RCLCPP_INFO(this->get_logger(), "Current speed: %dm/s", current_velocity);
-      RCLCPP_INFO(this->get_logger(), "Target speed: %dm/s", target_velocity);
+      RCLCPP_INFO(this->get_logger(), "Current speed: %fm/s", current_velocity);
+      RCLCPP_INFO(this->get_logger(), "Target speed: %fm/s", target_velocity);
 
       control_cmd_.brk_cmd = (target_velocity > current_velocity) ? 0 : 255;
     }
   }
 
-  RCLCPP_INFO(this->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
+  RCLCPP_INFO(this->get_logger(), "PWM: %f", control_cmd_.brk_cmd);
 }
 
 void ControlsNode::steerTesting() {
@@ -213,29 +213,28 @@ void ControlsNode::timerCB() {
     ros_time_ = this->now();
 
     control_cmd_.str_cmd =
-        utfr_dv::util::radToDeg(target_state_->steering_angle);
-    std::clamp(steering_cmd_, MAX_STR, -MAX_STR);
+        std::clamp((int)utfr_dv::util::radToDeg(target_state_->steering_angle),
+                   MAX_STR, -MAX_STR);
 
     // //*****   Throttle & Brake  *****
     current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
     target_velocity = target_state_->speed;            // TODO: review
-    // RCLCPP_INFO(this->get_logger(), "Current speed: %fm/s",
-    // current_velocity);
-
-    control_cmd_.thr_cmd =
-        throttle_pid_->getCommand(target_velocity, current_velocity, dt);
-
-    control_cmd_.brk_cmd =
-        braking_pid_->getCommand(target_velocity, current_velocity, dt);
 
     if (current_velocity < target_velocity) {
       // RCLCPP_INFO(this->get_logger(), "Accelerating to reach: %fm/s",
       // target_velocity);
+      // control_cmd_.thr_cmd =
+      //     throttle_pid_->getCommand(target_velocity, current_velocity, dt);
+      // TODO: add RPM cap
+      control_cmd_.thr_cmd =
+          target_velocity * 60 / (2 * M_PI * WHEEL_RADIUS) * GEAR_RATIO;
       control_cmd_.brk_cmd = 0;
     } else {
       // RCLCPP_INFO(this->get_logger(), "Braking to reach: %fm/s",
       // target_velocity);
       control_cmd_.thr_cmd = 0;
+      control_cmd_.brk_cmd =
+          braking_pid_->getCommand(target_velocity, current_velocity, dt);
     }
 
     control_cmd_.header.stamp = this->get_clock()->now();

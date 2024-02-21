@@ -32,10 +32,12 @@ ComputeGraphNode::ComputeGraphNode() : Node("compute_graph_node") {
 }
 
 void ComputeGraphNode::initParams() {
+  this->declare_parameter("update_rate", 33.33);
   this->declare_parameter("slam_timer_", 100.0);
 
   slam_rate_ =
       this->get_parameter("slam_timer_").get_parameter_value().get<double>();
+  update_rate_ = this->get_parameter("update_rate").as_double();
 }
 
 void ComputeGraphNode::initSubscribers() {
@@ -50,9 +52,9 @@ void ComputeGraphNode::initPublishers() {
 }
 
 void ComputeGraphNode::initTimers() {
-  slam_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(slam_rate_),
-      std::bind(&ComputeGraphNode::graphSLAM, this));
+  main_timer_ = this->create_wall_timer(
+      std::chrono::duration<double, std::milli>(this->update_rate_),
+      std::bind(&ComputeGraphNode::timerCB, this));
 }
 
 void ComputeGraphNode::initHeartbeat() {
@@ -71,6 +73,8 @@ void ComputeGraphNode::publishHeartbeat(const int status) {
 void ComputeGraphNode::poseGraphCB(const utfr_msgs::msg::PoseGraph msg) {}
 
 void ComputeGraphNode::graphSLAM() {}
+
+void ComputeGraphNode::timerCB() {}
 
 } // namespace compute_graph
 } // namespace utfr_dv

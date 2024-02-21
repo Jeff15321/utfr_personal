@@ -86,10 +86,13 @@ public:
    */
   void graphSLAM();
 
+  /*! Primary callback function
+   */
+  void timerCB();
+
   // Publisher
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_publisher_;
-  rclcpp::TimerBase::SharedPtr slam_timer_;
 
   // Subscribers
   rclcpp::Subscription<utfr_msgs::msg::PoseGraph>::SharedPtr
@@ -97,6 +100,9 @@ public:
 
   utfr_msgs::msg::PoseGraph pose_graph_;
   double slam_rate_;
+  utfr_msgs::msg::Heartbeat heartbeat_;
+  double update_rate_;
+  rclcpp::TimerBase::SharedPtr main_timer_;
 };
 } // namespace compute_graph
 } // namespace utfr_dv

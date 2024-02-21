@@ -174,12 +174,15 @@ public:
   utfr_msgs::msg::EgoState updateState(const double x, const double y,
                                        const double yaw);
 
+  /*! Primary callback function
+   */
+  void timerCB();
+
   // Publishers
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr
       state_estimation_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr pose_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
-  rclcpp::TimerBase::SharedPtr heartbeat_timer_;
 
   // Subscribers
   // SensorCAN handles GPS, IMU, and wheel/steering speed data!
@@ -194,6 +197,9 @@ public:
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
   Eigen::MatrixXd P_;
   std::vector<double> datum_lla;
+  utfr_msgs::msg::Heartbeat heartbeat_;
+  double update_rate_;
+  rclcpp::TimerBase::SharedPtr main_timer_;
 
   rclcpp::Time prev_time_;
 };

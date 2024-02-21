@@ -22,6 +22,8 @@
 
 // Message Requirements
 #include <sensor_msgs/msg/imu.hpp>
+#include <utfr_msgs/msg/cone_detections.hpp>
+#include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/control_cmd.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
@@ -125,6 +127,19 @@ private:
    */
   void TargetStateCB(const utfr_msgs::msg::TargetState &msg);
 
+  /*! Callback function for cone_detection_subscriber_
+   *
+   *  @param[in] msg utfr_msgs::msg::ConeDetections latest message from
+   * perception
+   */
+  void ConeDetectionCB(const utfr_msgs::msg::ConeDetections &msg);
+
+  /*! Callback function for cone_map_subscriber_
+   *
+   *  @param[in] msg utfr_msgs::msg::ConeMap latest message from mapping
+   */
+  void ConeMapCB(const utfr_msgs::msg::ConeMap &msg);
+
   /**
    * @brief Get the steering angle sensor data.
    */
@@ -178,12 +193,12 @@ private:
   /**
    * @brief Launch the mission.
    */
-  void launchMission();
+  bool launchMission();
 
   /**
    * @brief Shutdown the nodes.
    */
-  void shutdownNodes();
+  bool shutdownNodes();
 
   /**
    * @brief Callback function for the timer.
@@ -197,17 +212,17 @@ private:
       ego_state_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::TargetState>::SharedPtr
       target_state_subscriber_;
-  rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
+  rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
       cone_detection_subscriber_;
-  rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
-      cone_map_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
+  std::map<std::string,
+           rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr>
+      heartbeat_subscribers_;
 
   rclcpp::Publisher<utfr_msgs::msg::SensorCan>::SharedPtr sensor_can_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::SystemStatus>::SharedPtr
       system_status_publisher_;
-  std::map<std::string,
-           rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr>
-      heartbeat_subscribers_;
+
   rclcpp::TimerBase::SharedPtr main_timer_;
 
   // Parameters

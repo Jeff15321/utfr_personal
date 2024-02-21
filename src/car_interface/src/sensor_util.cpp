@@ -23,25 +23,21 @@ void CarInterface::getSteeringAngleSensorData() {
   try {
     // TODO: Check value format
     steering_angle =
-        (uint16_t)((int16_t)(can1_->get_can(dv_can_msg::StrMotorStatus)) / 10) /
-        4.5;
-    RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
-                function_name.c_str(), steering_angle);
+        (uint16_t)((int16_t)(can1_->get_can(dv_can_msg::StrMotorStatus)) / 10);
+    // RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
+    //             function_name.c_str(), steering_angle);
     // Check for sensor malfunction
     if ((abs(steering_angle) > 50)) {
       RCLCPP_ERROR(this->get_logger(), "%s: Value error",
                    function_name.c_str());
-      // TODO: Error handling function, change control cmds to 0 and trigger EBS
-
     } else {
       // TODO: Check frame
-      sensor_can_.steering_angle = steering_angle;
+      sensor_can_.steering_angle = steering_angle * 0.22;
       system_status_.steering_angle_actual = -sensor_can_.steering_angle;
     }
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
                  function_name.c_str(), e);
-    // TODO: Error handling function, change control cmds to 0 and trigger EBS
   }
 }
 
