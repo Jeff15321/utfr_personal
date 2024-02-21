@@ -226,6 +226,7 @@ void CarInterface::setDVLogs() {
     long dv_system_status = 0;
     i = 0;
 
+    // TODO: Not reading the states from canbus at the moment
     dv_system_status |= (system_status_.as_state & 0x7);
     dv_system_status |= (system_status_.ebs_state & 0x3) << 3;
     dv_system_status |= (system_status_.ami_state & 0x7) << 5;
@@ -252,6 +253,9 @@ void CarInterface::setDVStateAndCommand() {
   try {
     bool heartbeat_status =
         heartbeat_monitor_->verifyHeartbeats(this->get_clock()->now());
+
+    RCLCPP_INFO(this->get_logger(), "%s: Current state: %d",
+                function_name.c_str(), system_status_.as_state);
 
     switch (system_status_.as_state) {
     case utfr_msgs::msg::SystemStatus::AS_STATE_OFF: {
@@ -365,26 +369,9 @@ void CarInterface::launchMission() {
 
 void CarInterface::shutdownNodes() {
   const std::string function_name{"shutdownNodes"};
-
-  // // Retrieve the list of active node names, including rosbag recording
-  // auto node_names = rclcpp::Node::get_node_names();
-
-  // for (const auto &name : node_names) {
-  //   if (name != "car_interface") {
-  //     // Create a node to shutdown the active node
-  //     auto node = std::make_shared<rclcpp::Node>(name);
-
-  //     // Shutdown the active node
-  //     node->rclcpp::shutdown();
-  //     RCLCPP_INFO(this->get_logger(), "%s: Shutting down node: %s",
-  //                 function_name.c_str(), name.c_str());
-  //   }
-  // }
-
-  // // Shutdown the car_interface node
-  // rclcpp::shutdown();
-  // RCLCPP_INFO(this->get_logger(), "%s: Shutting down car_interface node",
-  //             function_name.c_str());
+  rclcpp::shutdown();
+  RCLCPP_INFO(this->get_logger(), "%s: Shutting down car_interface node",
+              function_name.c_str());
 }
 
 void CarInterface::timerCB() {
