@@ -221,6 +221,7 @@ public:
   std::unique_ptr<kd_tree_knn::KDTree> globalKDTreePtr_;
   double heartbeat_rate_;
   std::shared_ptr<tf2_ros::TransformBroadcaster> broadcaster_;
+  utfr_msgs::msg::ConeDetections current_cone_detections_;
 
   // Lists for poses, cones, and edges
   std::vector<g2o::VertexSE2 *> pose_nodes_;

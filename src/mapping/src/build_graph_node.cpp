@@ -94,6 +94,7 @@ void BuildGraphNode::initParams() {
   transformStamped.transform.rotation.w = 0;
 
   // Broadcast the transform
+  broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
   broadcaster_->sendTransform(transformStamped);
 }
 
@@ -118,7 +119,6 @@ void BuildGraphNode::initPublishers() {
   cone_map_publisher_ =
       this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
 
-  broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 }
 
 void BuildGraphNode::initTimers() {
@@ -141,11 +141,7 @@ void BuildGraphNode::publishHeartbeat(const int status) {
 }
 
 void BuildGraphNode::coneDetectionCB(const utfr_msgs::msg::ConeDetections msg) {
-  std::vector<int> cones = KNN(msg);
-  loopClosure(cones);
-  if (cones_found_ > 10) {
-    graphSLAM();
-  }
+  current_cone_detections_ = msg;
 }
 
 void BuildGraphNode::stateEstimationCB(const utfr_msgs::msg::EgoState msg) {
@@ -573,7 +569,13 @@ void BuildGraphNode::graphSLAM() {
 
 void BuildGraphNode::buildGraph() {}
 
-void BuildGraphNode::timerCB() {}
+void BuildGraphNode::timerCB() {
+  std::vector<int> cones = KNN(current_cone_detections_);
+  loopClosure(cones);
+  if (cones_found_ > 10) {
+    graphSLAM();
+  }
+}
 
 } // namespace build_graph
 } // namespace utfr_dv
