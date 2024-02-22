@@ -90,6 +90,10 @@ private:
    */
   void initPublishers();
 
+  void initEvent();
+
+  void missionCB(const utfr_msgs::msg::SystemStatus &msg);
+
   /*! Initialize Timers:
    */
   void initTimers();
@@ -214,6 +218,8 @@ private:
   rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
       cone_detection_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
+      mission_subscriber_;
 
   rclcpp::Publisher<utfr_msgs::msg::ParametricSpline>::SharedPtr
       center_path_publisher_;

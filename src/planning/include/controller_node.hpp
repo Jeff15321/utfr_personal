@@ -97,6 +97,10 @@ private:
    */
   void initTimers();
 
+  void initEvent();
+
+  void missionCB(const utfr_msgs::msg::SystemStatus &msg);
+
   /*! Initialize GGV data:
    * NOTE: assumes that the lateral acceleration data is in
    * decreasing order.
@@ -216,6 +220,8 @@ private:
       center_path_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr
       lap_counter_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
+      mission_subscriber_;
 
   rclcpp::Publisher<utfr_msgs::msg::TargetState>::SharedPtr
       target_state_publisher_;

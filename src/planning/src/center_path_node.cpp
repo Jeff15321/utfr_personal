@@ -22,6 +22,7 @@ using PointTuple = std::tuple<Point32, Point32, Point32, Point32>;
 CenterPathNode::CenterPathNode() : Node("center_path_node") {
   // RCLCPP_INFO(this->get_logger(), "Center Path Node Launched");
   this->initParams();
+  this->initEvent();
   this->initHeartbeat();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
   this->initSubscribers();
@@ -33,7 +34,7 @@ CenterPathNode::CenterPathNode() : Node("center_path_node") {
 
 void CenterPathNode::initParams() {
   this->declare_parameter("update_rate", 33.33);
-  this->declare_parameter("event", "accel");
+  this->declare_parameter("event", "read");
   this->declare_parameter("big_radius", 10.625);
   this->declare_parameter("small_radius", 7.625);
   this->declare_parameter("threshold_radius", 0.8);
@@ -93,6 +94,37 @@ void CenterPathNode::initPublishers() {
   skidpad_path_publisher_avg_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kSkidpadFittingavg, 10);
+}
+
+void CenterPathNode::initEvent() {
+  if (event_ == "read") {
+    mission_subscriber_ =
+        this->create_subscription<utfr_msgs::msg::SystemStatus>(
+            topics::kSystemStatus, 10,
+            std::bind(&CenterPathNode::missionCB, this, std::placeholders::_1));
+  }
+}
+
+void CenterPathNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
+  if (msg.ami_state == 1) {
+    event_ = "accel";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 2) {
+    event_ = "skidpad";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 3) {
+    event_ = "trackdrive";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 4) {
+    event_ = "EBSTest";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 5) {
+    event_ = "ASTest";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 6) {
+    event_ = "autocross";
+    mission_subscriber_.reset();
+  }
 }
 
 void CenterPathNode::initTimers() {
@@ -166,8 +198,6 @@ void CenterPathNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
   ego_state_->vel = msg.vel;
   ego_state_->accel = msg.accel;
   ego_state_->steering_angle = msg.steering_angle;
-  ego_state_->lap_count = msg.lap_count;
-  ego_state_->finished = msg.finished;
 }
 
 void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
@@ -244,21 +274,14 @@ void CenterPathNode::timerCBAccel() {
 void CenterPathNode::timerCBSkidpad() {
   const std::string function_name{"center_path_timerCB:"};
   try {
-    try {
-      if (cone_detections_ == nullptr || ego_state_ == nullptr ||
-          cone_map_ == nullptr) {
-        RCLCPP_WARN(get_logger(),
-                    "%s Either cone detections or ego state is empty.",
-                    function_name.c_str());
-        return;
-      }
-      skidPadFit(*cone_detections_, *ego_state_);
-
-    } catch (int e) {
-      RCLCPP_ERROR(get_logger(), "%s Exception: %s", function_name.c_str(),
-                   e.what());
+    if (cone_detections_ == nullptr || ego_state_ == nullptr ||
+        cone_map_ == nullptr) {
+      RCLCPP_WARN(get_logger(),
+                  "%s Either cone detections or ego state is empty.",
+                  function_name.c_str());
+      return;
     }
-
+    skidPadFit(*cone_detections_, *ego_state_);
     skidpadLapCounter();
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
   } catch (int e) {
@@ -1313,7 +1336,6 @@ void CenterPathNode::skidPadFit(
     }
 
     publishLine(m_left, m_right, c_left, c_right, 0, 5, 0.02);
-
   } else if (curr_sector_ == 12 || curr_sector_ == 13) {
     std::tuple<double, double, double, double, double, double> circle;
     if (cone_detections_->large_orange_cones.size() > 0 ||

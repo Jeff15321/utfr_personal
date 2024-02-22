@@ -20,6 +20,7 @@ namespace controller {
 ControllerNode::ControllerNode() : Node("controller_node") {
   // RCLCPP_INFO(this->get_logger(), "Center Path Node Launched");
   this->initParams();
+  this->initEvent();
   this->initHeartbeat();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
   this->initSubscribers();
@@ -140,6 +141,37 @@ void ControllerNode::initTimers() {
   }
 }
 
+void ControllerNode::initEvent() {
+  if (event_ == "read") {
+    mission_subscriber_ =
+        this->create_subscription<utfr_msgs::msg::SystemStatus>(
+            topics::kSystemStatus, 10,
+            std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
+  }
+}
+
+void ControllerNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
+  if (msg.ami_state == 1) {
+    event_ = "accel";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 2) {
+    event_ = "skidpad";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 3) {
+    event_ = "trackdrive";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 4) {
+    event_ = "EBSTest";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 5) {
+    event_ = "ASTest";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 6) {
+    event_ = "autocross";
+    mission_subscriber_.reset();
+  }
+}
+
 void ControllerNode::initGGV(std::string filename) {
   std::ifstream GGV(filename);
   if (!GGV.is_open()) {
@@ -223,6 +255,11 @@ void ControllerNode::initHeartbeat() {
 void ControllerNode::publishHeartbeat(const int status) {
   heartbeat_.status = status;
   heartbeat_.header.stamp = this->get_clock()->now();
+  if (lap_count_ <= 25) {
+    heartbeat_.lap_count = 0;
+  } else {
+    heartbeat_.lap_count = lap_count_ - 29;
+  }
   heartbeat_publisher_->publish(heartbeat_);
 }
 
@@ -238,8 +275,6 @@ void ControllerNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
   ego_state_->vel = msg.vel;
   ego_state_->accel = msg.accel;
   ego_state_->steering_angle = msg.steering_angle;
-  ego_state_->lap_count = msg.lap_count;
-  ego_state_->finished = msg.finished;
 }
 
 void ControllerNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
