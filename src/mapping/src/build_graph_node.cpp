@@ -107,7 +107,7 @@ void BuildGraphNode::initSubscribers() {
 
   state_estimation_subscriber_ =
       this->create_subscription<utfr_msgs::msg::EgoState>(
-          topics::kPose, 1,
+          topics::kEgoState, 1,
           std::bind(&BuildGraphNode::stateEstimationCB, this,
                     std::placeholders::_1));
 }

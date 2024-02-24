@@ -42,7 +42,7 @@ void ComputeGraphNode::initParams() {
 
 void ComputeGraphNode::initSubscribers() {
   pose_graph_subscriber_ = this->create_subscription<utfr_msgs::msg::PoseGraph>(
-      topics::kPoseGraph, 1,
+      topics::kEgoState, 1,
       std::bind(&ComputeGraphNode::poseGraphCB, this, std::placeholders::_1));
 }
 

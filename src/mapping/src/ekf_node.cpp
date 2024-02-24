@@ -56,8 +56,6 @@ void EkfNode::initSubscribers() {
 void EkfNode::initPublishers() {
   state_estimation_publisher_ =
       this->create_publisher<utfr_msgs::msg::EgoState>(topics::kEgoState, 10);
-  pose_publisher_ =
-      this->create_publisher<utfr_msgs::msg::EgoState>(topics::kPose, 10);
 }
 
 void EkfNode::initTimers() {
@@ -125,7 +123,7 @@ void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
   // res.pose.pose.position.y << std::endl;
   current_state_ = res;
   res.pose.pose.position.y = -res.pose.pose.position.y;
-  pose_publisher_->publish(res);
+  state_estimation_publisher_->publish(res);
 }
 
 void EkfNode::imuCB(const sensor_msgs::msg::Imu msg) {
@@ -135,7 +133,7 @@ void EkfNode::imuCB(const sensor_msgs::msg::Imu msg) {
   current_state_ = res;
 
   res.pose.pose.position.y = -res.pose.pose.position.y;
-  pose_publisher_->publish(res);
+  state_estimation_publisher_->publish(res);
   // std::cout << "x: " << res.pose.pose.position.x << " y: " <<
   // res.pose.pose.position.y << std::endl;
 }

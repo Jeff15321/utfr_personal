@@ -181,7 +181,6 @@ public:
   // Publishers
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr
       state_estimation_publisher_;
-  rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr pose_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
 
   // Subscribers
