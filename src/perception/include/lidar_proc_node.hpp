@@ -29,6 +29,7 @@
 #include <clusterer.hpp>
 #include <cone_filter.hpp>
 #include <filter.hpp>
+#include "rclcpp/qos.hpp"
 
 // Message Requirements
 #include <geometry_msgs/msg/polygon_stamped.hpp>
@@ -101,7 +102,7 @@ private:
   double update_rate_;
   Filter filter;
   Clusterer clusterer;
-  ConeFilter cone_filter;
+  ConeLRFilter cone_filter;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
   utfr_msgs::msg::TargetState target_;

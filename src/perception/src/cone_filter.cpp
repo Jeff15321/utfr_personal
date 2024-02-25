@@ -1,139 +1,63 @@
-/*
+#include "../include/cone_filter.hpp"
+#include <iostream>
 
-██████  ██    ██ ██████  ██   ██
-██   ██ ██    ██      ██ ██   ██
-██   ██ ██    ██  █████  ███████
-██   ██  ██  ██  ██           ██
-██████    ████   ███████      ██
-
-*
-* file: cone_filter.hpp
-* auth: Kareem Elsawah
-* desc: cone filter class
-*/
-
-#include <cone_filter.hpp>
-
-ConeFilter::ConeFilter(ConeFilterParams params) {
-  this->height = params.cone_height;
-  this->a = (params.cone_height * params.cone_height) /
-            (params.cone_radius * params.cone_radius);
-  this->threshold = params.inlier_mse_threshold;
-  this->max_iterations = params.max_iterations;
-  this->min_inlier_ratio = params.min_inlier_ratio;
+ConeLRFilter::ConeLRFilter(ConeLRFilterParams params){
+    this->cone_height = params.cone_height;
+    this->cone_radius = params.cone_radius;
+    this->mse_threshold = params.mse_threshold;
+    this->lin_threshold = params.lin_threshold;
 }
 
-std::array<float, 2> ConeFilter::fit_model(Point p1, Point p2, Point p3,
-                                           Point p4) {
-  float t1 = (p1[2] - this->height) * (p1[2] - this->height);
-  float t2 = (p2[2] - this->height) * (p2[2] - this->height);
-  float t3 = (p3[2] - this->height) * (p3[2] - this->height);
-  float t4 = (p4[2] - this->height) * (p4[2] - this->height);
-  float a = this->a;
-  float b = this->a;
+std::tuple<Point, float, float> fit_cone(PointCloud points, float h, float r){
+    float a = r/h;
 
-  float x1 = p1[0];
-  float x2 = p2[0];
-  float y1 = p1[1];
-  float y2 = p2[1];
-  float x3 = p3[0];
-  float x4 = p4[0];
-  float y3 = p3[1];
-  float y4 = p4[1];
+    int n_points = points.size();
+    Eigen::MatrixXd phi(n_points, 3);
+    Eigen::VectorXd  target(n_points);
 
-  float k0 = (a * x1 * x1 - a * x2 * x2 + b * y1 * y1 - b * y2 * y2 - t1 + t2) /
-             (2 * a * (x1 - x2));
-  float k1 = (b) / (a * (x1 - x2));
+    float avg_z = 0;
 
-  float yc_num = a * k0 * x3 - a * k0 * x4 +
-                 0.5 * (-1 * a * x3 * x3 + a * x4 * x4 - b * y3 * y3 +
-                        b * y4 * y4 + t3 - t4);
-  float yc_denom = a * k1 * x3 * y1 - a * k1 * x3 * y2 - a * k1 * x4 * y1 +
-                   a * k1 * x4 * y2 - b * y3 + b * y4;
+    for (int i = 0; i < n_points; i++){
+        float x = points[i][0];
+        float y = points[i][1];
+        float z = points[i][2];
+        phi(i, 0) = -2*x;
+        phi(i, 1) = -2*y;
+        phi(i, 2) = 1;
 
-  float yc = yc_num / yc_denom;
+        target(i) = a * a * (z - h) * (z - h) - x * x - y * y;
 
-  float xc = (a * x1 * x1 - a * x2 * x2 + b * y1 * y1 - 2 * b * y1 * yc -
-              b * y2 * y2 + 2 * b * y2 * yc - t1 + t2) /
-             (2 * a * (x1 - x2));
+        avg_z += z;
+    }
+    avg_z /= n_points;
 
-  std::array<float, 2> center = {xc, yc};
+    Eigen::VectorXd solution = phi.colPivHouseholderQr().solve(target);
+    float xc = solution(0);
+    float yc = solution(1);
+    float b = solution(2);
 
-  return center;
+    Eigen::VectorXd loss = phi*solution - target;
+
+    float mse_loss = loss.dot(loss)/n_points;
+    float lin_loss = abs(xc * xc + yc * yc - b);
+
+    Point center = {xc, yc, avg_z};
+    return std::tuple<Point, float, float>(center, mse_loss, lin_loss);
 }
 
-float ConeFilter::calculateMSE(std::array<float, 2> model, Point point) {
-  float x = point[0];
-  float y = point[1];
-  float z = point[2];
-  float a = this->a;
-  float b = this->a;
-  float h = this->height;
-
-  float pred =
-      a * (x - model[0]) * (x - model[0]) + b * (y - model[1]) * (y - model[1]);
-  float pred_z = h - sqrt(pred);
-  float mse = (z - pred_z) * (z - pred_z);
-
-  return mse;
-}
-
-std::tuple<Point, int> ConeFilter::ransac(const PointCloud &points) {
-  int best_inliers = 0;
-  std::array<float, 2> best_model;
-
-  for (int i = 0; i < this->max_iterations; ++i) {
-    int index1 = rand() % points.size();
-    int index2;
-    do {
-      index2 = rand() % points.size();
-    } while (index2 == index1);
-
-    int index3;
-    do {
-      index3 = rand() % points.size();
-    } while (index3 == index1 || index3 == index2);
-
-    int index4;
-    do {
-      index4 = rand() % points.size();
-    } while (index4 == index1 || index4 == index2 || index4 == index3);
-
-    std::array<float, 2> model = fit_model(points[index1], points[index2],
-                                           points[index3], points[index4]);
-
-    int inliers_count = 0;
-    for (const auto &point : points) {
-      float mse = calculateMSE(model, {point});
-      if (mse < this->threshold) {
-        ++inliers_count;
-      }
+PointCloud ConeLRFilter::filter_clusters(std::vector<PointCloud> clusters){
+    PointCloud cone_centers;
+    for(const auto& cluster : clusters){
+        std::tuple<Point, float, float> result = fit_cone(cluster, this->cone_height, this->cone_radius);
+        Point center = std::get<0>(result);
+        float mse_loss = std::get<1>(result);
+        float lin_loss = std::get<2>(result);
+        float n_points = (float) cluster.size();
+        std::cout << "MSE: " << mse_loss << ", Lin: " << lin_loss << std::endl;
+        if (mse_loss < this->mse_threshold && lin_loss < exp(-1*n_points/60)/60)
+        {
+            cone_centers.push_back(center);
+        }
     }
-
-    if (inliers_count > best_inliers) {
-      best_inliers = inliers_count;
-      best_model = model;
-    }
-  }
-
-  Point model_to_return = {best_model[0], best_model[1], 0};
-
-  std::tuple<Point, float> result = {model_to_return, best_inliers};
-  return result;
-}
-
-PointCloud ConeFilter::filter_clusters(std::vector<PointCloud> clusters) {
-  PointCloud cone_centers;
-  for (const auto &cluster : clusters) {
-    if (cluster.size() < 4) {
-      continue;
-    }
-    std::tuple<Point, float> result = ransac(cluster);
-    Point center = std::get<0>(result);
-    int inliers = std::get<1>(result);
-    if (inliers / cluster.size() > this->min_inlier_ratio) {
-      cone_centers.push_back(center);
-    }
-  }
-  return cone_centers;
+    return cone_centers;
 }

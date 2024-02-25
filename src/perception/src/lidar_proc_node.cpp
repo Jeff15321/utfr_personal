@@ -60,11 +60,9 @@ void LidarProcNode::initParams() {
                           rclcpp::PARAMETER_DOUBLE);
   this->declare_parameter("cone_filter.cone_radius", rclcpp::PARAMETER_DOUBLE);
   this->declare_parameter("cone_filter.cone_height", rclcpp::PARAMETER_DOUBLE);
-  this->declare_parameter("cone_filter.inlier_mse_threshold",
+  this->declare_parameter("cone_filter.mse_threshold",
                           rclcpp::PARAMETER_DOUBLE);
-  this->declare_parameter("cone_filter.ransac_max_iters",
-                          rclcpp::PARAMETER_INTEGER);
-  this->declare_parameter("cone_filter.min_inlier_ratio",
+  this->declare_parameter("cone_filter.lin_threshold",
                           rclcpp::PARAMETER_DOUBLE);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
@@ -115,23 +113,21 @@ void LidarProcNode::initParams() {
       this->get_parameter("cone_filter.cone_height").as_double();
   double cone_radius =
       this->get_parameter("cone_filter.cone_radius").as_double();
-  double inlier_mse_threshold =
-      this->get_parameter("cone_filter.inlier_mse_threshold").as_double();
-  int ransac_max_iters =
-      this->get_parameter("cone_filter.ransac_max_iters").as_int();
-  double min_inlier_ratio =
-      this->get_parameter("cone_filter.min_inlier_ratio").as_double();
-  ConeFilterParams cone_filter_params = {cone_height, cone_radius,
-                                         inlier_mse_threshold, ransac_max_iters,
-                                         min_inlier_ratio};
+  double mse_threshold =
+      this->get_parameter("cone_filter.mse_threshold").as_double();
+  double lin_threshold =
+      this->get_parameter("cone_filter.lin_threshold").as_double();
+  ConeLRFilterParams cone_filter_params = {cone_height, cone_radius,
+                                         mse_threshold, lin_threshold};
 
-  cone_filter = ConeFilter(cone_filter_params);
+  cone_filter = ConeLRFilter(cone_filter_params);
 }
 
 void LidarProcNode::initSubscribers() {
   point_cloud_subscriber_ =
       this->create_subscription<sensor_msgs::msg::PointCloud2>(
-          "/ouster/points", 10,
+          "/ouster/points", 
+          rclcpp::QoS(10).reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT),
           std::bind(&LidarProcNode::pointCloudCallback, this, _1));
 } //TODO - check topic name
 
@@ -141,7 +137,7 @@ void LidarProcNode::initPublishers() {
   pub_no_ground = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       topics::kNoGround, 10);
   pub_clustered = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-      topics::kClustered, 10);
+      "/lidar_pipeline/cluster_debug", 10);
   pub_clustered_center = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       topics::kClustered, 10);
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
@@ -176,7 +172,7 @@ void LidarProcNode::publishPointCloud(
     const PointCloud &cloud,
     const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub) {
   sensor_msgs::msg::PointCloud2 output =
-      convertToPointCloud2(cloud, "velodyne");
+      convertToPointCloud2(cloud, "os_lidar");
   pub->publish(output);
 }
 
@@ -220,6 +216,16 @@ void LidarProcNode::timerCB() {
     Grid min_points_grid = std::get<1>(filtered_cloud_and_grid);
     publishPointCloud(filtered_cloud, pub_filtered);
 
+    //Debug grid of minimum z points
+    // PointCloud grid_points;
+    // for(std::vector<Point> row : min_points_grid){
+    //   for(Point point : row){
+    //     grid_points.push_back(point);
+    //   }
+    // }
+    // publishPointCloud(grid_points, pub_filtered);
+
+
     // Clustering and reconstruction
     std::tuple<PointCloud, std::vector<PointCloud>> cluster_results =
         clusterer.clean_and_cluster(filtered_cloud, min_points_grid);
@@ -228,7 +234,7 @@ void LidarProcNode::timerCB() {
 
     publishPointCloud(no_ground_cloud, pub_no_ground);
 
-    // Publishing each reconstructed cluster in a loop
+    // // Publishing each reconstructed cluster in a loop
 
     PointCloud combined_clusters;
     for (int i = 0; i < reconstructed_clusters.size(); i++) {
