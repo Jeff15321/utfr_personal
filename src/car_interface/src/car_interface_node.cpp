@@ -36,12 +36,19 @@ void CarInterface::initParams() {
   this->declare_parameter("update_rate", 33.33);
   this->declare_parameter("heartbeat_tolerance", 1.5);
   this->declare_parameter("heartbeat_modules", default_modules);
+  this->declare_parameter("heartbeat_modules_accel", default_modules);
+  this->declare_parameter("heartbeat_modules_inspection", default_modules);
   this->declare_parameter("testing", 0);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   heartbeat_tolerance_ = this->get_parameter("heartbeat_tolerance").as_double();
   heartbeat_modules_ =
       this->get_parameter("heartbeat_modules").as_string_array();
+  heartbeat_modules_accel_ =
+      this->get_parameter("heartbeat_modules_accel").as_string_array();
+  heartbeat_modules_inspection_ =
+      this->get_parameter("heartbeat_modules_inspection").as_string_array();
+
   testing_ = this->get_parameter("testing").as_int();
 }
 
@@ -350,11 +357,30 @@ void CarInterface::setDVStateAndCommand() {
 
 bool CarInterface::launchMission() {
   const std::string function_name{"launchMission"};
-  RCLCPP_INFO(this->get_logger(), "%s: Laucnhing all nodes",
-              function_name.c_str());
+  RCLCPP_INFO(this->get_logger(), "%s: Laucnhing nodes", function_name.c_str());
+
   std::string launchCmd = "ros2 launch launcher dv.launch.py";
+  std::vector<std::string> modules = heartbeat_modules_;
+
+  switch (system_status_.ami_state) {
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION:
+    launchCmd = "ros2 launch launcher dv_inspection.launch.py";
+    modules = heartbeat_modules_inspection_;
+    break;
+
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_BRAKETEST:
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION:
+    launchCmd = "ros2 launch launcher dv_accel.launch.py";
+    modules = heartbeat_modules_accel_;
+    break;
+
+  default:
+    break;
+  }
   // Execute the launch command
   int result = std::system(launchCmd.c_str());
+
+  heartbeat_monitor_->updateModules(modules, this->get_clock()->now());
 
   if (result != 0) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occurred",
@@ -386,7 +412,8 @@ void CarInterface::timerCB() {
     getSensorCan(); // Publish sensor and state data that is read from can
     getDVState();   // Read DV state from car from can
     setDVLogs();    // Publish FSG log format over ros and send over can
-    setDVStateAndCommand(); // Send state of dv computer and control cmd to car
+    setDVStateAndCommand(); // Send state of dv computer and control cmd to
+                            // car
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",

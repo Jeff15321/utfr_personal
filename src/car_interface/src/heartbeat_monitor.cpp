@@ -68,6 +68,19 @@ void HeartbeatMonitor::updateHeartbeat(const utfr_msgs::msg::Heartbeat &msg,
   last_heartbeats_[module_name] = {max_update_duration, diff, new_stamp};
 }
 
+void HeartbeatMonitor::updateModules(std::vector<std::string> module_names,
+                                     const rclcpp::Time &curr_time) {
+
+  std::tuple<double, double, rclcpp::Time> unintitalized_values = {-1.0, 0.0,
+                                                                   curr_time};
+
+  last_heartbeats_.clear();
+
+  for (const auto &name : module_names) {
+    last_heartbeats_[name] = unintitalized_values;
+  }
+}
+
 bool HeartbeatMonitor::verifyHeartbeats(const rclcpp::Time &curr_time) {
   const std::string function_name{"verifyHeartbeats: "};
 
