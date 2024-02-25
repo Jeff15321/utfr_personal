@@ -229,6 +229,8 @@ private:
   double update_rate_;
   double heartbeat_tolerance_;
   std::vector<std::string> heartbeat_modules_;
+  std::vector<std::string> heartbeat_modules_inspection_;
+  std::vector<std::string> heartbeat_modules_accel_;
 
   // Callback Variables
   // utfr_msgs::msg::ControlCmd control_cmd_;
