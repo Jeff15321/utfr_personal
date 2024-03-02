@@ -59,11 +59,6 @@ void CenterPathNode::initSubscribers() {
       this->create_subscription<utfr_msgs::msg::ConeDetections>(
           topics::kConeDetections, 10,
           std::bind(&CenterPathNode::coneDetectionsCB, this, _1));
-
-  cone_detection_subscriber_ =
-      this->create_subscription<utfr_msgs::msg::ConeDetections>(
-          topics::kConeDetections, 10,
-          std::bind(&CenterPathNode::coneDetectionsCB, this, _1));
 }
 
 void CenterPathNode::initPublishers() {
