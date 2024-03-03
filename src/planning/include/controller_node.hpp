@@ -225,7 +225,7 @@ private:
 
   rclcpp::Publisher<utfr_msgs::msg::TargetState>::SharedPtr
       target_state_publisher_;
-  rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr ego_state_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr ego_state_publisher__;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr
       pure_pursuit_point_publisher_;
