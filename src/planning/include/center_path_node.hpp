@@ -207,6 +207,7 @@ private:
   rclcpp::Time last_time;
   bool accel_sector_increase;
   int detections_in_row_ = 0;
+  bool use_mapping_ = false;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};

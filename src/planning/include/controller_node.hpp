@@ -205,15 +205,14 @@ private:
   bool skip_path_opt_;
   double lookahead_distance_;
   double a_lateral_max_;
+  bool use_mapping_ = false;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
-  utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
   utfr_msgs::msg::ParametricSpline::SharedPtr path_{nullptr};
   utfr_msgs::msg::VelocityProfile::SharedPtr velocity_profile_{nullptr};
 
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
-  rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ParametricSpline>::SharedPtr
       path_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr

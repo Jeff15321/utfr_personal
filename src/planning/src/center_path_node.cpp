@@ -153,12 +153,16 @@ void CenterPathNode::initTimers() {
 void CenterPathNode::initSector() {
   if (event_ == "accel") {
     curr_sector_ = 1;
+    use_mapping_ = false;
   } else if (event_ == "skidpad") {
     curr_sector_ = 10;
+    use_mapping_ = false;
   } else if (event_ == "autocross") {
     curr_sector_ = 20;
+    use_mapping_ = true;
   } else if (event_ == "trackdrive") {
     curr_sector_ = 30;
+    use_mapping_ = true;
   } else {
     curr_sector_ = 0;
   }
@@ -187,12 +191,23 @@ void CenterPathNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
     utfr_msgs::msg::EgoState template_ego;
     ego_state_ = std::make_shared<utfr_msgs::msg::EgoState>(template_ego);
   }
-
-  ego_state_->header = msg.header;
-  ego_state_->pose = msg.pose;
-  ego_state_->vel = msg.vel;
-  ego_state_->accel = msg.accel;
-  ego_state_->steering_angle = msg.steering_angle;
+  if (use_mapping_){
+    ego_state_->header = msg.header;
+    ego_state_->pose = msg.pose;
+    ego_state_->vel = msg.vel;
+    ego_state_->accel = msg.accel;
+    ego_state_->steering_angle = msg.steering_angle;
+  }
+  else if (!use_mapping_){
+    ego_state_->header = msg.header;
+    ego_state_->pose = msg.pose;
+    ego_state_->pose.pose.position.x = 0.0;
+    ego_state_->pose.pose.position.y = 0.0;
+    ego_state_->pose.pose.position.z = 0.0;
+    ego_state_->vel = msg.vel;
+    ego_state_->accel = msg.accel;
+    ego_state_->steering_angle = msg.steering_angle;
+  }
 }
 
 void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
@@ -201,12 +216,13 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     utfr_msgs::msg::ConeMap template_cone_map;
     cone_map_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
   }
-
-  cone_map_->header = msg.header;
-  cone_map_->left_cones = msg.left_cones;
-  cone_map_->right_cones = msg.right_cones;
-  cone_map_->large_orange_cones = msg.large_orange_cones;
-  cone_map_->small_orange_cones = msg.small_orange_cones;
+  if (use_mapping_) {
+    cone_map_->header = msg.header;
+    cone_map_->left_cones = msg.left_cones;
+    cone_map_->right_cones = msg.right_cones;
+    cone_map_->large_orange_cones = msg.large_orange_cones;
+    cone_map_->small_orange_cones = msg.small_orange_cones;
+  }
 }
 
 void CenterPathNode::coneDetectionsCB(
@@ -223,6 +239,14 @@ void CenterPathNode::coneDetectionsCB(
   cone_detections_->right_cones = msg.right_cones;
   cone_detections_->large_orange_cones = msg.large_orange_cones;
   cone_detections_->small_orange_cones = msg.small_orange_cones;
+
+  if (!use_mapping_){
+    cone_map_->header = msg.header;
+    cone_map_->left_cones = cone_detections_->left_cones;
+    cone_map_->right_cones = cone_detections_->right_cones;
+    cone_map_->large_orange_cones = cone_detections_->large_orange_cones;
+    cone_map_->small_orange_cones = cone_detections_->small_orange_cones;
+  }
 }
 
 void CenterPathNode::timerCBAccel() {

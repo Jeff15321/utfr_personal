@@ -83,9 +83,6 @@ void ControllerNode::initSubscribers() {
   ego_state_subscriber_ = this->create_subscription<utfr_msgs::msg::EgoState>(
       topics::kEgoState, 10, std::bind(&ControllerNode::egoStateCB, this, _1));
 
-  cone_map_subscriber_ = this->create_subscription<utfr_msgs::msg::ConeMap>(
-      topics::kConeMap, 10, std::bind(&ControllerNode::coneMapCB, this, _1));
-
   path_subscriber_ =
       this->create_subscription<utfr_msgs::msg::ParametricSpline>(
           topics::kCenterPath, 10,
@@ -112,21 +109,25 @@ void ControllerNode::initPublishers() {
 void ControllerNode::initTimers() {
   if (event_ == "accel") {
     last_lap_count_ = 2;
+    use_mapping_ = false;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBAccel, this));
   } else if (event_ == "skidpad") {
     last_lap_count_ = 17;
+    use_mapping_ = false;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBSkidpad, this));
   } else if (event_ == "autocross") {
     last_lap_count_ = 21;
+    use_mapping_ = true;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBAutocross, this));
   } else if (event_ == "trackdrive") {
     last_lap_count_ = 40;
+    use_mapping_ = true;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBTrackdrive, this));
@@ -269,26 +270,23 @@ void ControllerNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
     utfr_msgs::msg::EgoState template_ego;
     ego_state_ = std::make_shared<utfr_msgs::msg::EgoState>(template_ego);
   }
-
-  ego_state_->header = msg.header;
-  ego_state_->pose = msg.pose;
-  ego_state_->vel = msg.vel;
-  ego_state_->accel = msg.accel;
-  ego_state_->steering_angle = msg.steering_angle;
-}
-
-void ControllerNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
-  if (cone_map_ == nullptr) {
-    // first initialization:
-    utfr_msgs::msg::ConeMap template_cone_map;
-    cone_map_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
+  if (use_mapping_){
+    ego_state_->header = msg.header;
+    ego_state_->pose = msg.pose;
+    ego_state_->vel = msg.vel;
+    ego_state_->accel = msg.accel;
+    ego_state_->steering_angle = msg.steering_angle;
   }
-
-  cone_map_->header = msg.header;
-  cone_map_->left_cones = msg.left_cones;
-  cone_map_->right_cones = msg.right_cones;
-  cone_map_->large_orange_cones = msg.large_orange_cones;
-  cone_map_->small_orange_cones = msg.small_orange_cones;
+  else if (!use_mapping_){
+    ego_state_->header = msg.header;
+    ego_state_->pose = msg.pose;
+    ego_state_->pose.pose.position.x = 0.0;
+    ego_state_->pose.pose.position.y = 0.0;
+    ego_state_->pose.pose.position.z = 0.0;
+    ego_state_->vel = msg.vel;
+    ego_state_->accel = msg.accel;
+    ego_state_->steering_angle = msg.steering_angle;
+  }
 }
 
 void ControllerNode::pathCB(const utfr_msgs::msg::ParametricSpline &msg) {
