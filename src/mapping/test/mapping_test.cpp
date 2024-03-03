@@ -80,8 +80,8 @@ TEST(KNNSearchNodeTest, kNNTest1) {
 
   // run one more time to see if added to potential_cones_ again
   utfr_msgs::msg::Cone yellow_cone2;
-  yellow_cone2.pos.x = -1.3;
-  yellow_cone2.pos.y = -1.3;
+  yellow_cone2.pos.x = -1.5;
+  yellow_cone2.pos.y = -1.5;
   yellow_cone2.pos.z = 0;
   yellow_cone2.type = 2;
   cones.right_cones.push_back(yellow_cone2);
@@ -94,8 +94,8 @@ TEST(KNNSearchNodeTest, kNNTest1) {
 
   // run one more time to see if added to past_detections_
   utfr_msgs::msg::Cone yellow_cone3;
-  yellow_cone3.pos.x = -1.3;
-  yellow_cone3.pos.y = -1.3;
+  yellow_cone3.pos.x = -1.5;
+  yellow_cone3.pos.y = -1.5;
   yellow_cone3.pos.z = 0;
   yellow_cone3.type = 2;
   cones.right_cones.push_back(yellow_cone3);
@@ -111,8 +111,8 @@ TEST(KNNSearchNodeTest, kNNTest1) {
   // CHECK IF KNN WORKS, CONE SHOULD NOT BE ADDED
 
   utfr_msgs::msg::Cone yellow_cone4;
-  yellow_cone4.pos.x = -1.3;
-  yellow_cone4.pos.y = -1.3;
+  yellow_cone4.pos.x = -1.5;
+  yellow_cone4.pos.y = -1.5;
   yellow_cone4.pos.z = 0;
   yellow_cone4.type = 2;
   cones.right_cones.push_back(yellow_cone4);

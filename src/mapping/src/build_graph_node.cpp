@@ -272,86 +272,89 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       double displacement = utfr_dv::util::euclidianDistance2D(
           position_x_, nearestCone.x, position_y_, nearestCone.y);
 
-      // Do not add if its within 0.3 of an already seen cone
-      if (displacement <= 0.3) {
-        // Add the ID to the list
-        cones_id_list_.push_back(nearestCone.id);
-        continue;
-      }
-
-      // Do not add if its within 0.3 of another cone deteced within the current
-      // call of the function (rejecting duplicate detections)
-      double comparative_displacement = 0.0;
-      bool is_duplicate_ = false;
-      for (const auto &duplicates_potential : current_round_cones_) {
-        comparative_displacement = utfr_dv::util::euclidianDistance2D(
-            position_x_, std::get<0>(duplicates_potential), position_y_,
-            std::get<1>(duplicates_potential));
-        if (comparative_displacement <= 0.3) {
-          is_duplicate_ = true;
-          break;
+        // Do not add if its within 0.5 of an already seen cone
+        if (displacement <= 0.5) {
+            // Add the ID to the list
+            cones_id_list_.push_back(nearestCone.id);
+            // g2o::VertexPointXY* vertex = createConeVertex(cones_found_, position_x_, position_y_);
+            // cone_nodes_.push_back(vertex);
+            // g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, newCone.pos.x, newCone.pos.y);
+            // pose_to_cone_edges_.push_back(edge);
+            continue;
         }
-      }
-      if (is_duplicate_) {
-        continue;
-      }
+
+        // Do not add if its within 0.5 of another cone deteced within the current call of the function (rejecting duplicate detections)
+        double comparative_displacement = 0.0;
+        bool is_duplicate_ = false;
+        for (const auto& duplicates_potential : current_round_cones_){
+          comparative_displacement = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(duplicates_potential), position_y_, std::get<1>(duplicates_potential));
+          if (comparative_displacement <= 0.5){
+            is_duplicate_ = true;
+            break;
+          }
+        }
+        if (is_duplicate_){
+          continue;
+        }
     }
     // Add to duplicate checker
-    current_round_cones_.emplace_back(
-        std::make_tuple(position_x_, position_y_));
+    current_round_cones_.emplace_back(std::make_tuple(position_x_, position_y_));
 
-    // Add to potential_cones (used for checking if cone can be added to
-    // past_detections)
-    potential_cones_.insert(std::make_pair(
-        cones_potential_, std::make_tuple(position_x_, position_y_)));
+    // Add to potential_cones (used for checking if cone can be added to past_detections)
+    potential_cones_.insert(std::make_pair(cones_potential_, std::make_tuple(position_x_, position_y_)));
 
     std::vector<int> keys{};
 
-    // Check if same cone detected in three different time instances
-    for (const auto &pair : potential_cones_) {
-      int key_ = pair.first;
-      const std::tuple<double, double> potentialPoint = pair.second;
-      double temp_displacement_ = utfr_dv::util::euclidianDistance2D(
-          position_x_, std::get<0>(potentialPoint), position_y_,
-          std::get<1>(potentialPoint));
-
-      // Check if cone within 0.3 of any other new detected cone
-      if (temp_displacement_ <= 0.3) {
-        count_ += 1;
-        keys.push_back(key_);
-        // Check if three of same detected
-        if (count_ == 3) {
-          // FIX: Delete all of the same cone from potential_cones_ if three
-          // detected
-          for (int key_number_ : keys) {
-            potential_cones_.erase(key_number_);
-          }
-          keys.clear();
-
-          // Update cone_id_list_ and past_detections_ and KD tree
-          cones_id_list_.push_back(cones_found_);
-          cone_id_to_color_map_[cones_found_] = newCone.type;
-          g2o::VertexPointXY *vertex =
-              createConeVertex(cones_found_, position_x_, position_y_);
-          cone_nodes_.push_back(vertex);
-          g2o::EdgeSE2PointXY *edge =
-              addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex,
-                                newCone.pos.x, newCone.pos.y);
-          pose_to_cone_edges_.push_back(edge);
-          kd_tree_knn::Point newPoint(position_x_, position_y_, cones_found_);
-
-          // std::cout << "Cone x: " << position_x_ << " Cone y: " <<
-          // position_y_ << " Cone id: " << cones_found_ << std::endl;
-          past_detections_.emplace_back(cones_found_, newCone);
-          globalKDTreePtr_->insert(newPoint);
-          cones_found_ += 1;
-          break;
-        }
-      }
-    }
-
     count_ = 0;
+    // Check if same cone detected in three different time instances
+    for (auto pointer = potential_cones_.begin(); pointer != potential_cones_.end(); ++pointer) {
+        std::pair<int, std::tuple<double, double>> pair = *pointer;
+        int key_ = pair.first;
+        const std::tuple<double,double> potentialPoint = pair.second;
+        double temp_displacement_ = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(potentialPoint), position_y_, std::get<1>(potentialPoint));
+
+        // Check if cone within 0.5 of any other new detected cone
+        if (temp_displacement_ <= 0.5) {
+                count_ += 1;
+                keys.push_back(key_);
+                // Check if three of same detected
+                if (count_ == 3) {
+                    // FIX: Delete all of the same cone from potential_cones_ if three detected
+                    // for (int key_number_ : keys) {
+                    //     potential_cones_.erase(key_number_);
+                    // }
+                    // keys.clear();
+                    kd_tree_knn::Point closestPointAtAdd = globalKDTreePtr_ -> KNN(kd_tree_knn::Point(position_x_, position_y_, 0));
+                    // std::cout << "Nearest existing cone is " << closestPointAtAdd.id << " at " << closestPointAtAdd.x << ", " << closestPointAtAdd.y << std::endl;
+                    for (auto it = potential_cones_.begin(); it != potential_cones_.end();) {
+                        double temp_displacement_ = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(it->second), position_y_, std::get<1>(it->second));
+                        if (temp_displacement_ <= 0.5) {
+                            it = potential_cones_.erase(it);
+                        } else {
+                            ++it;
+                        }
+                    }
+                  
+                    // Update cone_id_list_ and past_detections_ and KD tree
+                    cones_id_list_.push_back(cones_found_);
+                    cone_id_to_color_map_[cones_found_] = newCone.type;
+                    g2o::VertexPointXY* vertex = createConeVertex(cones_found_, position_x_, position_y_);
+                    cone_nodes_.push_back(vertex);
+                    g2o::EdgeSE2PointXY* edge = addPoseToConeEdge(id_to_pose_map_[temp_current_pose_id_], vertex, newCone.pos.x, newCone.pos.y);
+                    pose_to_cone_edges_.push_back(edge);
+                    kd_tree_knn::Point newPoint(position_x_,position_y_, cones_found_);
+                  
+                    // std::cout << "Cone x: " << position_x_ << " Cone y: " << position_y_ << " Cone id: " << cones_found_ << std::endl;
+                    past_detections_.emplace_back(cones_found_,newCone);
+                    globalKDTreePtr_ -> insert(newPoint);
+                    cones_found_ += 1;
+                    break;
+                    }
+                }
+        }
+
     cones_potential_ += 1;
+    count_ = 0;
   }
   return cones_id_list_;
 }
@@ -564,7 +567,7 @@ void BuildGraphNode::graphSLAM() {
 
   cone_map_publisher_->publish(cone_map_);
   // Save the optimized pose graph
-  // std::cout << "Optimized pose graph saved" << std::endl;
+  // std::cout << "Optimized pose graph saved " << current_pose_id_ << std::endl;
 }
 
 void BuildGraphNode::buildGraph() {}

@@ -129,6 +129,7 @@ void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
 void EkfNode::imuCB(const sensor_msgs::msg::Imu msg) {
   double dt = (this->now() - prev_time_).seconds();
   prev_time_ = this->now();
+  
   utfr_msgs::msg::EgoState res = extrapolateState(msg, dt);
   current_state_ = res;
 
