@@ -300,7 +300,7 @@ void CenterPathNode::timerCBSkidpad() {
                   function_name.c_str());
       return;
     }
-    skidPadFit(*cone_detections_, *ego_state_);
+    skidPadFit();
     skidpadLapCounter();
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
   } catch (int e) {
@@ -451,10 +451,6 @@ void CenterPathNode::timerCBEBS() {
     center_path_msg.y_params = y;
 
     center_path_publisher_->publish(center_path_msg);
-
-    int left_size = cone_detections_->left_cones.size();
-    int right_size = cone_detections_->right_cones.size();
-    int large_orange_size = cone_detections_->large_orange_cones.size();
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
   } catch (int e) {
@@ -712,8 +708,6 @@ double CenterPathNode::midpointCostFunction(
   double car_tip_y =
       ego_state_->pose.pose.position.y +
       1.2 / 2.0 * sin(util::quaternionToYaw(ego_state_->pose.pose.orientation));
-  double car_yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
-
   double initial_angle = getTurnAngle(
       car_tip_x - ego_state_->pose.pose.position.x,
       car_tip_y - ego_state_->pose.pose.position.y,
@@ -727,7 +721,7 @@ double CenterPathNode::midpointCostFunction(
 
   double max_angle = -100000.0;
 
-  for (int i = 1; i < nodes.size() - 1; i++) {
+  for (int i = 1; i < static_cast<int>(nodes.size()) - 1; i++) {
     double angle =
         getTurnAngle(midpoints[nodes[i]].x() - midpoints[nodes[i - 1]].x(),
                      midpoints[nodes[i]].y() - midpoints[nodes[i - 1]].y(),
@@ -742,7 +736,7 @@ double CenterPathNode::midpointCostFunction(
 
   double path_length = 0;
 
-  for (int i = 0; i < nodes.size() - 1; i++) {
+  for (int i = 0; i < static_cast<int>(nodes.size()) - 1; i++) {
     path_length +=
         sqrt(pow(midpoints[nodes[i]].x() - midpoints[nodes[i + 1]].x(), 2) +
              pow(midpoints[nodes[i]].y() - midpoints[nodes[i + 1]].y(), 2));
@@ -775,7 +769,7 @@ double CenterPathNode::midpointCostFunction(
 
   std::vector<Point> interpolated_midpoints;
 
-  for (int i = 1; i < nodes.size(); i++) {
+  for (int i = 1; i < static_cast<int>(nodes.size()); i++) {
     double x1 = midpoints[nodes[i - 1]].x();
     double y1 = midpoints[nodes[i - 1]].y();
     double x2 = midpoints[nodes[i]].x();
@@ -856,12 +850,12 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
 
   std::vector<std::pair<Point, unsigned int>> points;
 
-  for (int i = 0; i < cone_map_->left_cones.size(); i++) {
+  for (int i = 0; i < static_cast<int>(cone_map_->left_cones.size()); i++) {
     points.push_back(std::make_pair(
         Point(cone_map_->left_cones[i].pos.x, cone_map_->left_cones[i].pos.y),
         i));
   }
-  for (int i = 0; i < cone_map_->right_cones.size(); i++) {
+  for (int i = 0; i < static_cast<int>(cone_map_->right_cones.size()); i++) {
     points.push_back(std::make_pair(
         Point(cone_map_->right_cones[i].pos.x, cone_map_->right_cones[i].pos.y),
         cone_map_->left_cones.size() + i));
@@ -891,8 +885,8 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
 
     int index1 = vh1->info();
     int index2 = vh2->info();
-    if ((index1 < cone_map_->left_cones.size()) ==
-        (index2 < cone_map_->left_cones.size())) {
+    if ((index1 < static_cast<int>(cone_map_->left_cones.size())) ==
+        (index2 < static_cast<int>(cone_map_->left_cones.size()))) {
       continue;
     }
 
@@ -907,7 +901,6 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
     double translated_x = global_x - ego_state_->pose.pose.position.x;
     double translated_y = global_y - ego_state_->pose.pose.position.y;
     double local_x = translated_x * cos(-yaw) - translated_y * sin(-yaw);
-    double local_y = translated_x * sin(-yaw) + translated_y * cos(-yaw);
 
     if (local_x < 0) {
       continue;
@@ -930,7 +923,7 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
   midpoint_viz.header.stamp = this->get_clock()->now();
   midpoint_viz.header.frame_id = "base_footprint";
   geometry_msgs::msg::Point32 point32;
-  for (int i = 0; i < midpoints.size(); i++) {
+  for (int i = 0; i < static_cast<int>(midpoints.size()); i++) {
     double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
     double global_x = midpoints[i].x();
     double global_y = midpoints[i].y();
@@ -1077,7 +1070,7 @@ CenterPathNode::BezierPoints(
 
   midpoints.push_back(Point(0, 0));
 
-  for (int i = 0; i < maxDegree + 1; i++) {
+  for (int i = 0; i < static_cast<int>(maxDegree) + 1; i++) {
     bezier_points.push_back(Point(0, 0));
   }
 
@@ -1198,7 +1191,7 @@ void CenterPathNode::trackdriveLapCounter() {
 
   double average_distance_to_cones = 0.0;
 
-  for (int i = 0; i < large_orange_cones_size; i++) {
+  for (int i = 0; i < static_cast<int>(large_orange_cones_size); i++) {
     average_distance_to_cones += util::euclidianDistance2D(
         cone_detections_->large_orange_cones[i].pos.x, 0.0,
         cone_detections_->large_orange_cones[i].pos.y, 0.0);
@@ -1225,26 +1218,23 @@ void CenterPathNode::trackdriveLapCounter() {
   }
 }
 
-void CenterPathNode::skidPadFit(
-    const utfr_msgs::msg::ConeDetections &cone_detections,
-    const utfr_msgs::msg::EgoState &msg) {
+void CenterPathNode::skidPadFit() {
 
   const std::string function_name{"skidPadFit:"};
   std::tuple<double, double, double, double> left_circle_s, left_circle_l,
       right_circle_s, right_circle_l, left_circle, right_circle;
-  double m_left, b_left, m_right, b_right, c_left, c_right;
+  double m_left, m_right, c_left, c_right ;
   double xc1, yc1, xc2, yc2, r1, r2;
   geometry_msgs::msg::Polygon circle1, circle2;
   circle1.points.reserve(75);
   circle2.points.reserve(75);
 
-  float y_0 = 0;
   if (curr_sector_ == 10) {
     bool find = false;
     int ind1, ind2;
 
-    for (int i = 0; i < cone_detections_->small_orange_cones.size() - 1; i++) {
-      for (int j = i + 1; j < cone_detections_->small_orange_cones.size();
+    for (int i = 0; i < static_cast<int>(cone_detections_->small_orange_cones.size()) - 1; i++) {
+      for (int j = i + 1; j < static_cast<int>(cone_detections_->small_orange_cones.size());
            j++) {
         if (i != j) {
           utfr_msgs::msg::ConeMap cur_test;
@@ -1295,15 +1285,15 @@ void CenterPathNode::skidPadFit(
       }
     }
 
-    publishLine(m_left, m_right, c_left, c_right, 0, 5, 0.02);
+    publishLine(m_left, m_right, c_left, c_right, 0, 5);
   }
 
   else if (curr_sector_ == 11) {
     bool find = false;
     int ind1, ind2;
 
-    for (int i = 0; i < cone_detections_->large_orange_cones.size() - 1; i++) {
-      for (int j = i + 1; j < cone_detections_->large_orange_cones.size();
+    for (int i = 0; i < static_cast<int>(cone_detections_->large_orange_cones.size()) - 1; i++) {
+      for (int j = i + 1; j < static_cast<int>(cone_detections_->large_orange_cones.size());
            j++) {
         if (i != j) {
           utfr_msgs::msg::ConeMap cur_test;
@@ -1354,7 +1344,7 @@ void CenterPathNode::skidPadFit(
       }
     }
 
-    publishLine(m_left, m_right, c_left, c_right, 0, 5, 0.02);
+    publishLine(m_left, m_right, c_left, c_right, 0, 5);
   } else if (curr_sector_ == 12 || curr_sector_ == 13) {
     std::tuple<double, double, double, double, double, double> circle;
     if (cone_detections_->large_orange_cones.size() > 0 ||
@@ -1479,8 +1469,8 @@ void CenterPathNode::skidPadFit(
   else if (curr_sector_ == 16) {
     bool find = false;
     int ind1, ind2;
-    for (int i = 0; i < cone_detections_->small_orange_cones.size() - 1; i++) {
-      for (int j = i + 1; j < cone_detections_->small_orange_cones.size();
+    for (int i = 0; i < static_cast<int>(cone_detections_->small_orange_cones.size()) - 1; i++) {
+      for (int j = i + 1; j < static_cast<int>(cone_detections_->small_orange_cones.size());
            j++) {
         if (i != j) {
           utfr_msgs::msg::ConeMap cur_test;
@@ -1509,8 +1499,8 @@ void CenterPathNode::skidPadFit(
     }
     find = false;
 
-    for (int k = 0; k < cone_detections_->small_orange_cones.size() - 1; k++) {
-      for (int l = k + 1; l < cone_detections_->small_orange_cones.size();
+    for (int k = 0; k < static_cast<int>(cone_detections_->small_orange_cones.size()) - 1; k++) {
+      for (int l = k + 1; l < static_cast<int>(cone_detections_->small_orange_cones.size());
            l++) {
         if (k != l && k != ind1 && k != ind2 && l != ind1 && l != ind2) {
           utfr_msgs::msg::ConeMap cur_test_other;
@@ -1536,13 +1526,12 @@ void CenterPathNode::skidPadFit(
       }
     }
 
-    publishLine(m_left, m_right, c_left, c_right, 0, 5, 0.02);
+    publishLine(m_left, m_right, c_left, c_right, 0, 5);
   }
 }
 
 void CenterPathNode::publishLine(double m_left, double m_right, double c_left,
-                                 double c_right, double x_min, double x_max,
-                                 double thickness) {
+                                 double c_right, double x_min, double x_max) {
 
   utfr_msgs::msg::ParametricSpline avg_line_msg;
 
