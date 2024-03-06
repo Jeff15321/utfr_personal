@@ -221,7 +221,12 @@ private:
    */
   void skidpadLapCounter();
 
-  /*! Autox/Trackdrive Lap Counter based off of local cone detections:
+  bool checkPassedDatum(const utfr_msgs::msg::EgoState reference,
+                        const utfr_msgs::msg::EgoState &current);
+
+  utfr_msgs::msg::EgoState getSkidpadDatum(const utfr_msgs::msg::ConeMap &cone_map);
+
+  /*! Autox/Trackdrive Lap Counter
    */
   void trackdriveLapCounter();
   
@@ -284,6 +289,8 @@ private:
   bool accel_sector_increase;
   int detections_in_row_ = 0;
   bool use_mapping_ = false;
+
+  double datum_last_local_x_ = 0;
 
   double total_distance_traveled_ = 0.0;
 
