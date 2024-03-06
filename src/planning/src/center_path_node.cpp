@@ -1170,8 +1170,11 @@ void CenterPathNode::skidpadLapCounter() {
   case 13:
   case 14:
   case 15:
-    if (time_diff > 20.0 && !lock_sector_ && found_4_large_orange &&
-        large_orange_cones_size < 4 && average_distance_to_cones < 5.0) {
+    if (time_diff > 20.0 && !lock_sector_ && ((found_4_large_orange &&
+        large_orange_cones_size < 4 && average_distance_to_cones < 5.0)
+         ||
+        (cone_map_->loopclosed && checkPassedDatum(getSkidpadDatum(*cone_map_), *ego_state_)))) {
+          //  TODO get proper name for loopclosed
       last_time = curr_time;
       curr_sector_ += 1;
       lock_sector_ = true;
@@ -1188,6 +1191,81 @@ void CenterPathNode::skidpadLapCounter() {
       curr_sector_ += 1;
     }
   }
+}
+
+bool CenterPathNode::checkPassedDatum(const utfr_msgs::msg::EgoState reference,
+                      const utfr_msgs::msg::EgoState &current) {
+  double ref_x = reference.pose.pose.position.x;
+  double ref_y = reference.pose.pose.position.y;
+  double ref_yaw = util::quaternionToYaw(reference.pose.pose.orientation);
+
+  double cur_x = current.pose.pose.position.x;
+  double cur_y = current.pose.pose.position.y;
+  double cur_yaw = util::quaternionToYaw(current.pose.pose.orientation);
+
+  //for testing
+  ref_yaw = cur_yaw;
+
+  double dx = ref_x - cur_x;
+  double dy = ref_y - cur_y;
+
+  double tdist = sqrt(dx * dx + dy * dy);
+
+  double dx_local = dx * cos(-ref_yaw) - dy * sin(-ref_yaw);
+
+  if (abs(ref_yaw - cur_yaw) < 3.1415 / 2 && tdist < 3.0 && dx_local < 0.0 && datum_last_local_x_ >= 0.0) {
+    //if alignment within 90 deg, distance less than 3m
+    datum_last_local_x_ = dx_local;
+    return true;
+  }
+  datum_last_local_x_ = dx_local;
+  return false;
+
+}
+
+utfr_msgs::msg::EgoState CenterPathNode::getSkidpadDatum(const utfr_msgs::msg::ConeMap &cone_map) {
+  utfr_msgs::msg::EgoState datum;
+
+  if (cone_map.large_orange_cones.size() == 3) {
+    double x = 0.0;
+    double y = 0.0;
+    //do x
+    for (int i = 0; i < 2; i++) {
+      for (int j = i + 1; j < 3; j++) {
+        if (abs(cone_map.large_orange_cones[i].pos.x - cone_map.large_orange_cones[j].pos.x) > 0.5) {
+          x += cone_map.large_orange_cones[i].pos.x;
+        }
+      }
+    }
+    x = x / 2;
+    //do y
+    for (utfr_msgs::msg::Cone cone : cone_map.large_orange_cones) {
+      y += cone.pos.y;
+    }
+    y = y / 3;
+
+    datum.pose.pose.position.x = x;
+    datum.pose.pose.position.y = y;
+    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
+  } else if (cone_map.large_orange_cones.size() >= 4) {
+    double x = 0.0;
+    double y = 0.0;
+    for (utfr_msgs::msg::Cone cone : cone_map.large_orange_cones) {
+      x += cone.pos.x;
+      y += cone.pos.y;
+    }
+    datum.pose.pose.position.x = x / cone_map.large_orange_cones.size();
+    datum.pose.pose.position.y = y / cone_map.large_orange_cones.size();
+    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
+  } else {
+    datum.pose.pose.position.x = -100.0;
+    datum.pose.pose.position.y = -100.0;
+    datum.pose.pose.position.z = -100.0;
+    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
+  }
+
+  return datum;
+
 }
 
 void CenterPathNode::trackdriveLapCounter() {
