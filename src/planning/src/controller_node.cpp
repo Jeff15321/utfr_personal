@@ -87,11 +87,6 @@ void ControllerNode::initSubscribers() {
       this->create_subscription<utfr_msgs::msg::ParametricSpline>(
           topics::kCenterPath, 10,
           std::bind(&ControllerNode::pathCB, this, _1));
-
-  lap_counter_subscriber_ =
-      this->create_subscription<utfr_msgs::msg::Heartbeat>(
-          topics::kCenterPathHeartbeat, 10,
-          std::bind(&ControllerNode::lapCounterCB, this, _1));
 }
 
 void ControllerNode::initPublishers() {
@@ -301,9 +296,7 @@ void ControllerNode::pathCB(const utfr_msgs::msg::ParametricSpline &msg) {
   path_->x_params = msg.x_params;
   path_->y_params = msg.y_params;
   path_->skidpad_params = msg.skidpad_params;
-}
-
-void ControllerNode::lapCounterCB(const utfr_msgs::msg::Heartbeat &msg) {
+  path_->lap_count = msg.lap_count;
   lap_count_ = msg.lap_count;
 }
 
@@ -387,7 +380,7 @@ void ControllerNode::timerCBSkidpad() {
 
     std::vector<double> filtered_velocities =
         filterVelocities(velocities, ego_state_->vel.twist.linear.x,
-                         lookahead_distance_, max_velocity_, 10, -10);
+                         lookahead_distance_, max_velocity_, 10.0, -2.5);
 
     velocity_profile_->velocities = filtered_velocities;
     velocity_profile_->header.stamp = this->get_clock()->now();
@@ -798,6 +791,16 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   // Limit steering angle within bounds.
   delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
 
+  double max_steering_rate = static_cast<double>(109 * 100 / 22.0 / 60.0 / update_rate_);
+  double last_steering_angle = ego_state_->steering_angle;
+  if (abs(delta - last_steering_angle) > max_steering_rate) {
+    if (delta > last_steering_angle) {
+      delta = last_steering_angle + max_steering_rate;
+    } else {
+      delta = last_steering_angle - max_steering_rate;
+    }
+  }
+
   // Reduce speed if turning sharply or near max steering.
   if ((abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
        abs(delta) > max_steering_angle) &&
@@ -816,7 +819,12 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
     desired_velocity = 1.0;
   }
 
-  if (abs((curr_time - start_time_).seconds()) > 5.0 && finished_event_) {
+  // if (abs((curr_time - start_time_).seconds()) > 5.0 && finished_event_) {
+  //   desired_velocity = 0.0;
+  //   finished_and_stopped_ = true;
+  // }
+
+  if (finished_event_) {
     desired_velocity = 0.0;
     finished_and_stopped_ = true;
   }

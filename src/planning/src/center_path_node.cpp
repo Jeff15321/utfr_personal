@@ -234,6 +234,12 @@ void CenterPathNode::coneDetectionsCB(
         template_cone_detections);
   }
 
+  if (!use_mapping_ && cone_map_ == nullptr) {
+    // first initialization:
+    utfr_msgs::msg::ConeMap template_cone_map;
+    cone_map_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
+  }
+
   cone_detections_->header = msg.header;
   cone_detections_->left_cones = msg.left_cones;
   cone_detections_->right_cones = msg.right_cones;
@@ -271,7 +277,7 @@ void CenterPathNode::timerCBAccel() {
 
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
-
+    center_path_msg.lap_count = curr_sector_;
     center_path_publisher_->publish(center_path_msg);
 
     int left_size = cone_detections_->left_cones.size();
@@ -293,8 +299,7 @@ void CenterPathNode::timerCBAccel() {
 void CenterPathNode::timerCBSkidpad() {
   const std::string function_name{"center_path_timerCB:"};
   try {
-    if (cone_detections_ == nullptr || ego_state_ == nullptr ||
-        cone_map_ == nullptr) {
+    if (cone_detections_ == nullptr || ego_state_ == nullptr) {
       RCLCPP_WARN(get_logger(),
                   "%s Either cone detections or ego state is empty.",
                   function_name.c_str());
@@ -358,6 +363,7 @@ void CenterPathNode::timerCBAutocross() {
     center_path.header.stamp = this->get_clock()->now();
     center_path.x_params = xoft;
     center_path.y_params = yoft;
+    center_path.lap_count = curr_sector_;
     center_path_publisher_->publish(center_path);
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
@@ -417,6 +423,7 @@ void CenterPathNode::timerCBTrackdrive() {
     center_path.header.stamp = this->get_clock()->now();
     center_path.x_params = xoft;
     center_path.y_params = yoft;
+    center_path.lap_count = curr_sector_;
     center_path_publisher_->publish(center_path);
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
@@ -449,6 +456,7 @@ void CenterPathNode::timerCBEBS() {
 
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
+    center_path_msg.lap_count = curr_sector_;
 
     center_path_publisher_->publish(center_path_msg);
 
@@ -472,10 +480,12 @@ bool CenterPathNode::coneDistComparitor(const utfr_msgs::msg::Cone &a,
 
 std::vector<double> CenterPathNode::getAccelPath() {
   std::vector<utfr_msgs::msg::Cone> all_cones;
-  all_cones.insert(all_cones.end(), cone_detections_->left_cones.begin(),
-                   cone_detections_->left_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->right_cones.begin(),
-                   cone_detections_->right_cones.end());
+  if (curr_sector_ < 5) {
+    all_cones.insert(all_cones.end(), cone_detections_->left_cones.begin(),
+                    cone_detections_->left_cones.end());
+    all_cones.insert(all_cones.end(), cone_detections_->right_cones.begin(),
+                    cone_detections_->right_cones.end());
+  }
   all_cones.insert(all_cones.end(),
                    cone_detections_->large_orange_cones.begin(),
                    cone_detections_->large_orange_cones.end());
@@ -620,21 +630,23 @@ std::vector<double> CenterPathNode::getAccelPath() {
     }
   }
 
-  geometry_msgs::msg::PolygonStamped accel_path_msg;
+  if (curr_sector_ < 5) {
+    geometry_msgs::msg::PolygonStamped accel_path_msg;
 
-  accel_path_msg.header.stamp = this->get_clock()->now();
-  accel_path_msg.header.frame_id = "base_footprint";
-  geometry_msgs::msg::Point32 point;
-  point.x = 0;
-  point.y = -final_c;
-  point.z = 0;
-  accel_path_msg.polygon.points.push_back(point);
-  point.x = 15;
-  point.y = -(final_m * 15 + final_c);
-  point.z = 0;
-  accel_path_msg.polygon.points.push_back(point);
+    accel_path_msg.header.stamp = this->get_clock()->now();
+    accel_path_msg.header.frame_id = "base_footprint";
+    geometry_msgs::msg::Point32 point;
+    point.x = 0;
+    point.y = -final_c;
+    point.z = 0;
+    accel_path_msg.polygon.points.push_back(point);
+    point.x = 15;
+    point.y = -(final_m * 15 + final_c);
+    point.z = 0;
+    accel_path_msg.polygon.points.push_back(point);
 
-  accel_path_publisher_->publish(accel_path_msg);
+    accel_path_publisher_->publish(accel_path_msg);
+  }
 
   std::vector<double> accel_path;
   accel_path.push_back(final_m);
@@ -1163,7 +1175,7 @@ void CenterPathNode::skidpadLapCounter() {
   case 13:
   case 14:
   case 15:
-    if (time_diff > 20.0 && !lock_sector_ && found_4_large_orange &&
+    if (time_diff > 10.0 && !lock_sector_ && found_4_large_orange &&
         large_orange_cones_size < 4 && average_distance_to_cones < 5.0) {
       last_time = curr_time;
       curr_sector_ += 1;
@@ -1177,7 +1189,7 @@ void CenterPathNode::skidpadLapCounter() {
     }
     break;
   case 16:
-    if (left_size == 0 && right_size == 0 && large_orange_cones_size == 0) {
+    if (left_size == 0 && right_size == 0) {
       curr_sector_ += 1;
     }
   }
@@ -1229,123 +1241,42 @@ void CenterPathNode::skidPadFit() {
   circle1.points.reserve(75);
   circle2.points.reserve(75);
 
-  if (curr_sector_ == 10) {
-    bool find = false;
-    int ind1, ind2;
+  if (curr_sector_ == 10 || curr_sector_ == 11 || curr_sector_ == 16 || curr_sector_ == 17) {
+    std::vector<double> accel_path = getAccelPath();
 
-    for (int i = 0; i < static_cast<int>(cone_detections_->small_orange_cones.size()) - 1; i++) {
-      for (int j = i + 1; j < static_cast<int>(cone_detections_->small_orange_cones.size());
-           j++) {
-        if (i != j) {
-          utfr_msgs::msg::ConeMap cur_test;
-          cur_test.small_orange_cones.push_back(
-              cone_detections_->small_orange_cones[i]);
-          cur_test.small_orange_cones.push_back(
-              cone_detections_->small_orange_cones[j]);
+    utfr_msgs::msg::ParametricSpline center_path_msg;
 
-          std::tuple<double, double> test_line =
-              util::accelLLSOccupancy(cur_test.small_orange_cones);
-          m_left = std::get<0>(test_line);
-          if (abs(m_left) < 0.6) { // unsure about bounds
-            find = true;
-            m_left = std::get<0>(test_line);
-            c_left = std::get<1>(test_line);
-            ind1 = i;
-            ind2 = j;
-          }
-        }
-        if (find == true) {
-          break;
-        }
-      }
-      if (find == true) {
-        break;
-      }
-    }
-    if (cone_detections_->small_orange_cones.size() == 4) {
-      utfr_msgs::msg::ConeMap cur_test_other;
-      int possibilities[4] = {0, 1, 2, 3};
-      for (int a = 0; a < 4; a++) {
-        if (possibilities[a] != ind1 && possibilities[a] != ind2) {
-          cur_test_other.small_orange_cones.push_back(
-              cone_detections_->small_orange_cones[a]);
-        }
-      }
+    double m = accel_path[0];
+    double c = accel_path[1];
 
-      std::tuple<double, double> test_other_line =
-          util::accelLLSOccupancy(cur_test_other.small_orange_cones);
-      m_right = std::get<0>(test_other_line);
-      c_right = std::get<1>(test_other_line);
-    } else {
-      m_right = m_left;
-      if (c_left < 0) {
-        c_right = c_left + 3;
-      } else {
-        c_right = c_left - 3;
-      }
-    }
+    std::vector<double> x = {0, 0, 0, 0, 1, 0};
+    std::vector<double> y = {0, 0, 0, 0, m, c};
 
-    publishLine(m_left, m_right, c_left, c_right, 0, 5);
+    center_path_msg.x_params = x;
+    center_path_msg.y_params = y;
+    center_path_msg.lap_count = curr_sector_;
+
+    center_path_publisher_->publish(center_path_msg);
+
+    geometry_msgs::msg::PolygonStamped circleavg;
+    circleavg.header.frame_id = "base_footprint";
+    circleavg.header.stamp = this->get_clock()->now();
+    Point32 pointavg;
+
+    pointavg.x = 0;
+    pointavg.y = 0;
+    pointavg.z = 0;
+    circleavg.polygon.points.push_back(pointavg);
+
+    pointavg.x = 10.0;
+    pointavg.y = -(m * 10.0 + c);
+    pointavg.z = 0;
+    circleavg.polygon.points.push_back(pointavg);
+
+    skidpad_path_publisher_avg_->publish(circleavg);
   }
 
-  else if (curr_sector_ == 11) {
-    bool find = false;
-    int ind1, ind2;
-
-    for (int i = 0; i < static_cast<int>(cone_detections_->large_orange_cones.size()) - 1; i++) {
-      for (int j = i + 1; j < static_cast<int>(cone_detections_->large_orange_cones.size());
-           j++) {
-        if (i != j) {
-          utfr_msgs::msg::ConeMap cur_test;
-          cur_test.large_orange_cones.push_back(
-              cone_detections_->large_orange_cones[i]);
-          cur_test.large_orange_cones.push_back(
-              cone_detections_->large_orange_cones[j]);
-
-          std::tuple<double, double> test_line =
-              util::accelLLSOccupancy(cur_test.large_orange_cones);
-          m_left = std::get<0>(test_line);
-          if (abs(m_left) < 0.6) { // unsure about bounds
-            find = true;
-            m_left = std::get<0>(test_line);
-            c_left = std::get<1>(test_line);
-            ind1 = i;
-            ind2 = j;
-          }
-        }
-        if (find == true) {
-          break;
-        }
-      }
-      if (find == true) {
-        break;
-      }
-    }
-    if (cone_detections_->large_orange_cones.size() == 4) {
-      utfr_msgs::msg::ConeMap cur_test_other;
-      int possibilities[4] = {0, 1, 2, 3};
-      for (int a = 0; a < 4; a++) {
-        if (possibilities[a] != ind1 && possibilities[a] != ind2) {
-          cur_test_other.large_orange_cones.push_back(
-              cone_detections_->large_orange_cones[a]);
-        }
-      }
-
-      std::tuple<double, double> test_other_line =
-          util::accelLLSOccupancy(cur_test_other.large_orange_cones);
-      m_right = std::get<0>(test_other_line);
-      c_right = std::get<1>(test_other_line);
-    } else {
-      m_right = m_left;
-      if (c_left < 0) {
-        c_right = c_left + 3;
-      } else {
-        c_right = c_left - 3;
-      }
-    }
-
-    publishLine(m_left, m_right, c_left, c_right, 0, 5);
-  } else if (curr_sector_ == 12 || curr_sector_ == 13) {
+  else if (curr_sector_ == 12 || curr_sector_ == 13) {
     std::tuple<double, double, double, double, double, double> circle;
     if (cone_detections_->large_orange_cones.size() > 0 ||
         cone_detections_->small_orange_cones.size() > 0) {
@@ -1402,6 +1333,7 @@ void CenterPathNode::skidPadFit() {
     avg_circle_msg.skidpad_params = {b, k, r};
     avg_circle_msg.x_params = {0, 0, 0, 0, 0, 0};
     avg_circle_msg.y_params = {0, 0, 0, 0, 0, 0};
+    avg_circle_msg.lap_count = curr_sector_;
 
     center_path_publisher_->publish(avg_circle_msg);
   }
@@ -1462,71 +1394,9 @@ void CenterPathNode::skidPadFit() {
     avg_circle_msg.skidpad_params = {b, k, r};
     avg_circle_msg.x_params = {0, 0, 0, 0, 0, 0};
     avg_circle_msg.y_params = {0, 0, 0, 0, 0, 0};
+    avg_circle_msg.lap_count = curr_sector_;
 
     center_path_publisher_->publish(avg_circle_msg);
-  }
-
-  else if (curr_sector_ == 16) {
-    bool find = false;
-    int ind1, ind2;
-    for (int i = 0; i < static_cast<int>(cone_detections_->small_orange_cones.size()) - 1; i++) {
-      for (int j = i + 1; j < static_cast<int>(cone_detections_->small_orange_cones.size());
-           j++) {
-        if (i != j) {
-          utfr_msgs::msg::ConeMap cur_test;
-          cur_test.small_orange_cones.push_back(
-              cone_detections_->small_orange_cones[i]);
-          cur_test.small_orange_cones.push_back(
-              cone_detections_->small_orange_cones[j]);
-          std::tuple<double, double> test_line =
-              util::accelLLSOccupancy(cur_test.small_orange_cones);
-          m_left = std::get<0>(test_line);
-          if (abs(m_left) < 0.8) { // unsure about bounds
-            find = true;
-            m_left = std::get<0>(test_line);
-            c_left = std::get<1>(test_line);
-            ind1 = i;
-            ind2 = j;
-          }
-        }
-        if (find == true) {
-          break;
-        }
-      }
-      if (find == true) {
-        break;
-      }
-    }
-    find = false;
-
-    for (int k = 0; k < static_cast<int>(cone_detections_->small_orange_cones.size()) - 1; k++) {
-      for (int l = k + 1; l < static_cast<int>(cone_detections_->small_orange_cones.size());
-           l++) {
-        if (k != l && k != ind1 && k != ind2 && l != ind1 && l != ind2) {
-          utfr_msgs::msg::ConeMap cur_test_other;
-          cur_test_other.small_orange_cones.push_back(
-              cone_detections_->small_orange_cones[k]);
-          cur_test_other.small_orange_cones.push_back(
-              cone_detections_->small_orange_cones[l]);
-          std::tuple<double, double> test_line =
-              util::accelLLSOccupancy(cur_test_other.small_orange_cones);
-          m_right = std::get<0>(test_line);
-          c_right = std::get<1>(test_line);
-          if (abs(c_right - c_left) > 2 &&
-              abs(m_right - m_left) < 0.1) { // unsure about bounds
-            find = true;
-          }
-        }
-        if (find == true) {
-          break;
-        }
-      }
-      if (find == true) {
-        break;
-      }
-    }
-
-    publishLine(m_left, m_right, c_left, c_right, 0, 5);
   }
 }
 
@@ -1586,6 +1456,7 @@ void CenterPathNode::publishLine(double m_left, double m_right, double c_left,
   avg_line_msg.y_params = {
       0, 0, 0, 0, (m_left + m_right) / 2.0, (c_left + c_right) / 2.0};
   avg_line_msg.skidpad_params = {0, 0, 0};
+  avg_line_msg.lap_count = curr_sector_;
 
   center_path_publisher_->publish(avg_line_msg);
 }

@@ -140,11 +140,6 @@ private:
    */
   void velocityProfileCB(const utfr_msgs::msg::VelocityProfile &msg);
 
-  /*! Lap counter callback:
-   * @param[in] msg utfr_msgs::msg::Heartbeat incoming lap counter msg
-   */
-  void lapCounterCB(const utfr_msgs::msg::Heartbeat &msg);
-
   /*! Accel Timer Callback:
    */
   void timerCBAccel();
@@ -247,8 +242,6 @@ private:
       path_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr
       center_path_subscriber_;
-  rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr
-      lap_counter_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
       mission_subscriber_;
 
