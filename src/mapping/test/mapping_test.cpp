@@ -125,8 +125,6 @@ TEST(KNNSearchNodeTest, kNNTest1) {
 
   ASSERT_EQ(3, node.past_detections_.size());
 
-  node.graphSLAM();
-
   // Detect a new cone
   // utfr_msgs::msg::Cone yellow_cone2;
   // yellow_cone2.pos.x = -1;

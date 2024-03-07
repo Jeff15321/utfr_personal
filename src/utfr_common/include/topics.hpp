@@ -37,6 +37,7 @@ const std::string kEgoState{"ekf/ego_state"};
 const std::string kEKFHeartbeat{"ekf/heartbeat"};
 
 // Mapping
+const std::string kLoopClosed{"mapping/loop_closed"};
 const std::string kConeMap{"mapping/cone_map"};
 const std::string kMappingBuildHeartbeat{"mapping/build/heartbeat"};
 const std::string kPoseGraph{"mapping/pose_graph"};
