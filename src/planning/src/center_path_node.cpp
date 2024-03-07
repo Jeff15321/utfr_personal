@@ -704,6 +704,7 @@ double CenterPathNode::midpointCostFunction(
   double C = 2.0;
   double D = 3.0;
   double E = 1.0;
+  double F = 0.3;
   double Z = 0.1;
 
   double MAX_MAX_ANGLE = 3.3141592653589793;
@@ -713,6 +714,7 @@ double CenterPathNode::midpointCostFunction(
   int MAX_POINT_COUNT_COST = 10;
   double MAX_INTERPOLATED_MIDPOINT_TO_CONE_DISTANCE_COST = 1.2 / 2.0 * 4.0;
   double MAX_STD_DEV = 1.2;
+  double LENGTH_COST = 0.2;
 
   double car_tip_x =
       ego_state_->pose.pose.position.x +
@@ -820,6 +822,8 @@ double CenterPathNode::midpointCostFunction(
     if (minDistance > min_interpolated_midpoint_to_cone_distance)
       min_interpolated_midpoint_to_cone_distance = minDistance;
   }
+  
+  double length = 0.0;
 
   std::vector<double> track_widths;
   for (int node : nodes) {
@@ -829,6 +833,7 @@ double CenterPathNode::midpointCostFunction(
     double width = std::sqrt(std::pow(cone1.x() - cone2.x(), 2) +
                              std::pow(cone1.y() - cone2.y(), 2));
     track_widths.push_back(width);
+    length += F;
   }
 
   double mean = std::accumulate(track_widths.begin(), track_widths.end(), 0.0) /
@@ -850,7 +855,8 @@ double CenterPathNode::midpointCostFunction(
                MAX_INTERPOLATED_MIDPOINT_TO_CONE_DISTANCE_COST),
               2) +
       E * pow((std_dev / MAX_STD_DEV), 2) +
-      Z * pow((abs(10.0 - nodes.size()) / MAX_POINT_COUNT_COST), 2);
+      Z * pow((abs(10.0 - nodes.size()) / MAX_POINT_COUNT_COST), 2) - 
+      length * LENGTH_COST;
 
   return sum;
 }

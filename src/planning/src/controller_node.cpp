@@ -802,11 +802,11 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   }
 
   // Reduce speed if turning sharply or near max steering.
-  if ((abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
-       abs(delta) > max_steering_angle) &&
-      (lap_count_ > 15 || lap_count_ < 12)) {
-    desired_velocity = std::max(desired_velocity - 2, 1.0);
-  }
+  // if ((abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
+  //      abs(delta) > max_steering_angle) &&
+  //     (lap_count_ > 15 || lap_count_ < 12)) {
+  //   desired_velocity = std::max(desired_velocity - 2, 1.0);
+  // }
 
   rclcpp::Time curr_time = this->get_clock()->now();
 
