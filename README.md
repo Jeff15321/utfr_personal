@@ -16,7 +16,7 @@ bash scripts/utfr_init
 
 ### Building/launching
 ```
-colcon build --<options>
+colcon build --symlink-install --<other-options>
 source install/setup.bash
 ```
 > [Colcon build options](https://colcon.readthedocs.io/en/released/reference/package-selection-arguments.html)
