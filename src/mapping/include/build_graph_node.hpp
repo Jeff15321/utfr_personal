@@ -157,6 +157,7 @@ public:
   std::map<int, utfr_msgs::msg::PoseGraphData>
       id_to_pose_map_; // Maps state estimate to pose node
   std::map<int, std::tuple<double, double>> potential_cones_;
+  std::map<int, std::vector<double>> average_position_;
   int cones_potential_;
   int count_;
   bool loop_closed_; // True if loop is closed

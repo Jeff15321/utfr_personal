@@ -34,6 +34,7 @@ const std::string kDetected{"/lidar_pipeline/detected"};
 
 // EKF
 const std::string kEgoState{"ekf/ego_state"};
+const std::string kPose{"ekf/pose"};
 const std::string kEKFHeartbeat{"ekf/heartbeat"};
 
 // Mapping

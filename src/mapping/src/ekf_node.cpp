@@ -55,7 +55,7 @@ void EkfNode::initSubscribers() {
 
 void EkfNode::initPublishers() {
   ego_state_publisher_ =
-      this->create_publisher<utfr_msgs::msg::EgoState>(topics::kEgoState, 10);
+      this->create_publisher<utfr_msgs::msg::EgoState>(topics::kPose, 10);
 }
 
 void EkfNode::initTimers() {

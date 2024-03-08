@@ -90,7 +90,7 @@ void BuildGraphNode::initSubscribers() {
 
   state_estimation_subscriber_ =
       this->create_subscription<utfr_msgs::msg::EgoState>(
-          topics::kEgoState, 1,
+          topics::kPose, 1,
           std::bind(&BuildGraphNode::stateEstimationCB, this,
                     std::placeholders::_1));
 }
@@ -193,6 +193,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       cone_data.x = position_x_;
       cone_data.y = position_y_;
       cone_nodes_.push_back(cone_data);
+      average_position_[cones_found_] = {position_x_, position_y_, 1};
       cone_id_to_vertex_map_[cones_found_] = cone_data;
 
       utfr_msgs::msg::PoseGraphData edge_data;
@@ -219,6 +220,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       cone_data.x = position_x_;
       cone_data.y = position_y_;
       cone_nodes_.push_back(cone_data);
+      average_position_[cones_found_] = {position_x_, position_y_, 1};
       cone_id_to_vertex_map_[cones_found_] = cone_data;
 
       utfr_msgs::msg::PoseGraphData edge_data;
@@ -251,6 +253,12 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
         if (displacement <= 0.5) {
             // Add the ID to the list
             cones_id_list_.push_back(nearestCone.id);
+            average_position_[nearestCone.id][0] += position_x_;
+            average_position_[nearestCone.id][1] += position_y_;
+            average_position_[nearestCone.id][2] += 1;
+
+            cone_nodes_[nearestCone.id].x = average_position_[nearestCone.id][0] / average_position_[nearestCone.id][2];
+            cone_nodes_[nearestCone.id].y = average_position_[nearestCone.id][1] / average_position_[nearestCone.id][2];
 
             utfr_msgs::msg::PoseGraphData edge_data;
             edge_data.id = temp_current_pose_id_;
@@ -315,6 +323,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
                     cone_data.x = position_x_;
                     cone_data.y = position_y_;
                     cone_nodes_.push_back(cone_data);
+                    average_position_[cones_found_] = {position_x_, position_y_, 1};
                     cone_id_to_vertex_map_[cones_found_] = cone_data;
 
                     utfr_msgs::msg::PoseGraphData edge_data;
