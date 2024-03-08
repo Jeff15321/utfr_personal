@@ -1173,8 +1173,7 @@ void CenterPathNode::skidpadLapCounter() {
     if (time_diff > 20.0 && !lock_sector_ && ((found_4_large_orange &&
         large_orange_cones_size < 4 && average_distance_to_cones < 5.0)
          ||
-        (cone_map_->loopclosed && checkPassedDatum(getSkidpadDatum(*cone_map_), *ego_state_)))) {
-          //  TODO get proper name for loopclosed
+        (cone_map_->kLoopClosed && checkPassedDatum(getSkidpadDatum(*cone_map_), *ego_state_)))) {
       last_time = curr_time;
       curr_sector_ += 1;
       lock_sector_ = true;
