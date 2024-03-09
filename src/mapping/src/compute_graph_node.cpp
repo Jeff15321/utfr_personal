@@ -165,6 +165,7 @@ void ComputeGraphNode::poseGraphCB(const utfr_msgs::msg::PoseGraph msg) {
 }
 
 void ComputeGraphNode::graphSLAM() {
+  std::cout << "Running graph slam" << std::endl;
 
   // Set the fixed node as 1001
   pose_nodes_[0]->setFixed(true);
@@ -182,9 +183,12 @@ void ComputeGraphNode::graphSLAM() {
     optimizer_.addEdge(edge);
   }
 
-  for (int i = std::max(0, (int)pose_to_cone_edges_.size() - 10000);
-       i < pose_to_cone_edges_.size(); i++) {
-    optimizer_.addEdge(pose_to_cone_edges_[i]);
+  // for (int i = std::max(0, (int)pose_to_cone_edges_.size() - 10000);
+  //      i < pose_to_cone_edges_.size(); i++) {
+  //   optimizer_.addEdge(pose_to_cone_edges_[i]);
+  // }
+  for (g2o::EdgeSE2PointXY *edge : pose_to_cone_edges_) {
+    optimizer_.addEdge(edge);
   }
 
   optimizer_.initializeOptimization();
