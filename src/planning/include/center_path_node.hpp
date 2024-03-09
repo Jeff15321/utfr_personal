@@ -239,6 +239,26 @@ private:
    */
   std::tuple<double, double, double, double, double, double> skidpadLeft();
 
+  /*! Converts something from global to local coordinates
+   * @param[in] x, y, yaw in global coordinates
+   * @param[out] x, y in local coodrinates
+   */
+  std::vector<double> globalToLocal(double x, double y); 
+
+  /*! Checks if a point is within the hemisphere of the car
+   * @param[in] x, y, point of the cone
+   * @param[in] r, radius of the hempishere
+   * @param[out] true if within the hemisphere, false if not
+   */
+  bool hempishere(double x, double y, double r);
+
+  /*! Takes a list of cones and given the current position of the car, returns which cones are in the hemisphere
+   * @param[in] list of cones
+   * @param[in] radius we want
+   * @param[out] list of cones in himesphere
+   */
+  std::vector<utfr_msgs::msg::Cone> getConesInHemisphere(std::vector<utfr_msgs::msg::Cone> cones, double r);
+  
   /*! Initialize global variables:
    */
   double update_rate_;

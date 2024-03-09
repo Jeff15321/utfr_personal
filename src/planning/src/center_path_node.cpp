@@ -153,10 +153,10 @@ void CenterPathNode::initTimers() {
 void CenterPathNode::initSector() {
   if (event_ == "accel") {
     curr_sector_ = 1;
-    use_mapping_ = false;
+    use_mapping_ = true;
   } else if (event_ == "skidpad") {
     curr_sector_ = 10;
-    use_mapping_ = false;
+    use_mapping_ = true;
   } else if (event_ == "autocross") {
     curr_sector_ = 20;
     use_mapping_ = true;
@@ -216,12 +216,19 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     utfr_msgs::msg::ConeMap template_cone_map;
     cone_map_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
   }
-  if (use_mapping_) {
+  if (use_mapping_ && (event_ == "autocross" || event_ == "trackdrive")) {
     cone_map_->header = msg.header;
     cone_map_->left_cones = msg.left_cones;
     cone_map_->right_cones = msg.right_cones;
     cone_map_->large_orange_cones = msg.large_orange_cones;
     cone_map_->small_orange_cones = msg.small_orange_cones;
+  }
+  else if (use_mapping_ && (event_ == "skidpad" || event_ == "accel")){
+    cone_map_->header = msg.header;
+    cone_map_->left_cones = getConesInHemisphere(msg.left_cones, 15.0);
+    cone_map_->right_cones = getConesInHemisphere(msg.right_cones, 15.0);
+    cone_map_->large_orange_cones = getConesInHemisphere(msg.large_orange_cones, 15.0);
+    cone_map_->small_orange_cones = getConesInHemisphere(msg.small_orange_cones, 15.0);
   }
 }
 
@@ -481,17 +488,17 @@ bool CenterPathNode::coneDistComparitor(const utfr_msgs::msg::Cone &a,
 std::vector<double> CenterPathNode::getAccelPath() {
   std::vector<utfr_msgs::msg::Cone> all_cones;
   if (curr_sector_ < 5) {
-    all_cones.insert(all_cones.end(), cone_detections_->left_cones.begin(),
-                    cone_detections_->left_cones.end());
-    all_cones.insert(all_cones.end(), cone_detections_->right_cones.begin(),
-                    cone_detections_->right_cones.end());
+    all_cones.insert(all_cones.end(), cone_map_->left_cones.begin(),
+                    cone_map_->left_cones.end());
+    all_cones.insert(all_cones.end(), cone_map_->right_cones.begin(),
+                    cone_map_->right_cones.end());
   }
   all_cones.insert(all_cones.end(),
-                   cone_detections_->large_orange_cones.begin(),
-                   cone_detections_->large_orange_cones.end());
+                   cone_map_->large_orange_cones.begin(),
+                   cone_map_->large_orange_cones.end());
   all_cones.insert(all_cones.end(),
-                   cone_detections_->small_orange_cones.begin(),
-                   cone_detections_->small_orange_cones.end());
+                   cone_map_->small_orange_cones.begin(),
+                   cone_map_->small_orange_cones.end());
 
   std::sort(
       all_cones.begin(), all_cones.end(),
@@ -1472,12 +1479,12 @@ CenterPathNode::skidpadMain() {
     turning = 0;
   }
   std::vector<utfr_msgs::msg::Cone> all_cones;
-  all_cones.insert(all_cones.end(), cone_detections_->left_cones.begin(),
-                  cone_detections_->left_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->right_cones.begin(),
-                  cone_detections_->right_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->large_orange_cones.begin(),
-                  cone_detections_->large_orange_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->left_cones.begin(),
+                  cone_map_->left_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->right_cones.begin(),
+                  cone_map_->right_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->large_orange_cones.begin(),
+                  cone_map_->large_orange_cones.end());
   std::sort(
       all_cones.begin(), all_cones.end(),
       [this](const utfr_msgs::msg::Cone &a, const utfr_msgs::msg::Cone &b) {
@@ -1597,12 +1604,12 @@ CenterPathNode::skidpadMain() {
 std::tuple<double, double, double, double, double, double>
 CenterPathNode::skidpadRight() {
   std::vector<utfr_msgs::msg::Cone> all_cones;
-  all_cones.insert(all_cones.end(), cone_detections_->left_cones.begin(),
-                  cone_detections_->left_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->right_cones.begin(),
-                  cone_detections_->right_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->large_orange_cones.begin(),
-                  cone_detections_->large_orange_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->left_cones.begin(),
+                  cone_map_->left_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->right_cones.begin(),
+                  cone_map_->right_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->large_orange_cones.begin(),
+                  cone_map_->large_orange_cones.end());
   std::sort(
       all_cones.begin(), all_cones.end(),
       [this](const utfr_msgs::msg::Cone &a, const utfr_msgs::msg::Cone &b) {
@@ -1702,12 +1709,12 @@ CenterPathNode::skidpadRight() {
 std::tuple<double, double, double, double, double, double>
 CenterPathNode::skidpadLeft() {
   std::vector<utfr_msgs::msg::Cone> all_cones;
-  all_cones.insert(all_cones.end(), cone_detections_->left_cones.begin(),
-                  cone_detections_->left_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->right_cones.begin(),
-                  cone_detections_->right_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->large_orange_cones.begin(),
-                  cone_detections_->large_orange_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->left_cones.begin(),
+                  cone_map_->left_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->right_cones.begin(),
+                  cone_map_->right_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->large_orange_cones.begin(),
+                  cone_map_->large_orange_cones.end());
   std::sort(
       all_cones.begin(), all_cones.end(),
       [this](const utfr_msgs::msg::Cone &a, const utfr_msgs::msg::Cone &b) {
@@ -1802,6 +1809,40 @@ CenterPathNode::skidpadLeft() {
   best_r_large = big_radius_;
 
   return std::make_tuple(best_xc_small, best_yc_small, best_r_small, best_xc_large, best_yc_large, best_r_large);
+}
+
+std::vector<double> CenterPathNode::globalToLocal(double x, double y) {
+  double translated_x = x - ego_state_->pose.pose.position.x;
+  double translated_y = y - ego_state_->pose.pose.position.y;
+  double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
+  double local_x = translated_x * cos(-yaw) - translated_y * sin(-yaw);
+  double local_y = translated_x * sin(-yaw) + translated_y * cos(-yaw);
+  return {local_x, local_y};
+}
+
+bool CenterPathNode::hempishere(double x, double y, double r){
+  std::vector<double> local_coord = globalToLocal(x, y);
+  double local_x = local_coord[0];
+  double local_y = local_coord[1];
+  if (local_x * local_x + local_y * local_y < r * r && local_x > 0){
+    return true;
+  }
+  else return false;
+}
+
+std::vector<utfr_msgs::msg::Cone> CenterPathNode::getConesInHemisphere(std::vector<utfr_msgs::msg::Cone> cones, double r){
+  std::vector<utfr_msgs::msg::Cone> cones_in_hemisphere;
+  for (int i = 0; i < static_cast<int>(cones.size()); i++){
+    if (hempishere(cones[i].pos.x, cones[i].pos.y, r)){
+      utfr_msgs::msg::Cone cone;
+      std::vector<double> local_coord = globalToLocal(cones[i].pos.x, cones[i].pos.y);
+      cone.pos.x = local_coord[0];
+      cone.pos.y = local_coord[1];
+      cone.type = cones[i].type;
+      cones_in_hemisphere.push_back(cone);
+    }
+  }
+  return cones_in_hemisphere;
 }
 
 } // namespace center_path
