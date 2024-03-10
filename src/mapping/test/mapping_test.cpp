@@ -80,8 +80,8 @@ TEST(KNNSearchNodeTest, kNNTest1) {
 
   // run one more time to see if added to potential_cones_ again
   utfr_msgs::msg::Cone yellow_cone2;
-  yellow_cone2.pos.x = -1.5;
-  yellow_cone2.pos.y = -1.5;
+  yellow_cone2.pos.x = -1.4;
+  yellow_cone2.pos.y = -1.8;
   yellow_cone2.pos.z = 0;
   yellow_cone2.type = 2;
   cones.right_cones.push_back(yellow_cone2);
@@ -95,7 +95,7 @@ TEST(KNNSearchNodeTest, kNNTest1) {
   // run one more time to see if added to past_detections_
   utfr_msgs::msg::Cone yellow_cone3;
   yellow_cone3.pos.x = -1.5;
-  yellow_cone3.pos.y = -1.5;
+  yellow_cone3.pos.y = -1.81;
   yellow_cone3.pos.z = 0;
   yellow_cone3.type = 2;
   cones.right_cones.push_back(yellow_cone3);
@@ -108,11 +108,11 @@ TEST(KNNSearchNodeTest, kNNTest1) {
 
   cones = empty;
 
-  // CHECK IF KNN WORKS, CONE SHOULD NOT BE ADDED
+  // CHECK IF KNN WORKS, CONE SHOULD BE ADDED
 
   utfr_msgs::msg::Cone yellow_cone4;
-  yellow_cone4.pos.x = -1.5;
-  yellow_cone4.pos.y = -1.5;
+  yellow_cone4.pos.x = -1.6;
+  yellow_cone4.pos.y = -1.79;
   yellow_cone4.pos.z = 0;
   yellow_cone4.type = 2;
   cones.right_cones.push_back(yellow_cone4);
@@ -125,20 +125,146 @@ TEST(KNNSearchNodeTest, kNNTest1) {
 
   ASSERT_EQ(3, node.past_detections_.size());
 
-  // Detect a new cone
-  // utfr_msgs::msg::Cone yellow_cone2;
-  // yellow_cone2.pos.x = -1;
-  // yellow_cone2.pos.y = 1;
-  // yellow_cone2.pos.z = 0;
-  // yellow_cone2.type = 2;
-  // cones.right_cones.clear();
-  // cones.right_cones.push_back(yellow_cone2);
+  ASSERT_NEAR(-1.5, node.cone_nodes_.back().x,1*pow(10,-8));
+  ASSERT_NEAR(-1.8, node.cone_nodes_.back().y,1*pow(10,-8));
 
-  // Run once
-  // node.KNN(cones);
+  // multi cone rounds
 
-  // Assert after three more runs
-  // ASSERT_EQ(3, node.past_detections_.size());
+  utfr_msgs::msg::Cone blue_cone11;
+  blue_cone11.pos.x = 2.05;
+  blue_cone11.pos.y = -1.00;
+  blue_cone11.pos.z = 0;
+  blue_cone11.type = 1;
+  cones.right_cones.push_back(blue_cone11);
+
+  utfr_msgs::msg::Cone blue_cone21;
+  blue_cone21.pos.x = 3.35;
+  blue_cone21.pos.y = -2.10;
+  blue_cone21.pos.z = 0;
+  blue_cone21.type = 1;
+  cones.right_cones.push_back(blue_cone21);
+  node.KNN(cones);
+
+
+  cones = empty;
+
+  utfr_msgs::msg::Cone blue_cone12;
+  blue_cone12.pos.x = 2.06;
+  blue_cone12.pos.y = -1.01;
+  blue_cone12.pos.z = 0;
+  blue_cone12.type = 1;
+  cones.right_cones.push_back(blue_cone12);
+
+  utfr_msgs::msg::Cone blue_cone22;
+  blue_cone22.pos.x = 3.36;
+  blue_cone22.pos.y = -2.09;
+  blue_cone22.pos.z = 0;
+  blue_cone22.type = 1;
+  cones.right_cones.push_back(blue_cone22);
+  node.KNN(cones);
+
+
+  cones = empty;
+  utfr_msgs::msg::Cone blue_cone13;
+  blue_cone13.pos.x = 2.07;
+  blue_cone13.pos.y = -1.02;
+  blue_cone13.pos.z = 0;
+  blue_cone13.type = 1;
+  cones.right_cones.push_back(blue_cone13);
+
+  utfr_msgs::msg::Cone blue_cone23;
+  blue_cone23.pos.x = 3.37;
+  blue_cone23.pos.y = -2.08;
+  blue_cone23.pos.z = 0;
+  blue_cone23.type = 1;
+  cones.right_cones.push_back(blue_cone23);
+  node.KNN(cones);
+
+
+  cones = empty;
+
+  utfr_msgs::msg::Cone blue_cone14;
+  blue_cone14.pos.x = 2.04;
+  blue_cone14.pos.y = -1.03;
+  blue_cone14.pos.z = 0;
+  blue_cone14.type = 1;
+  cones.right_cones.push_back(blue_cone14);
+
+  utfr_msgs::msg::Cone blue_cone24;
+  blue_cone24.pos.x = 3.34;
+  blue_cone24.pos.y = -2.07;
+  blue_cone24.pos.z = 0;
+  blue_cone24.type = 1;
+  cones.right_cones.push_back(blue_cone24);
+  node.KNN(cones);
+
+  cones = empty;
+  utfr_msgs::msg::Cone blue_cone15;
+  blue_cone15.pos.x = 2.03;
+  blue_cone15.pos.y = -1.04;
+  blue_cone15.pos.z = 0;
+  blue_cone15.type = 1;
+  cones.right_cones.push_back(blue_cone15);
+
+  utfr_msgs::msg::Cone blue_cone25;
+  blue_cone25.pos.x = 3.33;
+  blue_cone25.pos.y = -2.06;
+  blue_cone25.pos.z = 0;
+  blue_cone25.type = 1;
+  cones.right_cones.push_back(blue_cone25);
+
+
+  node.KNN(cones);
+  node.timerCB();
+  ASSERT_NEAR(3.35, node.cone_nodes_.back().x,1*pow(10,-8));
+  ASSERT_NEAR(-2.08, node.cone_nodes_.back().y,1*pow(10,-8));
+
+  ASSERT_NEAR(2.05, (*(node.cone_nodes_.end()-2)).x,1*pow(10,-8));
+  ASSERT_NEAR(-1.02, (*(node.cone_nodes_.end()-2)).y,1*pow(10,-8));
+
+  cones = empty;
+  //test colour unit tests
+
+  utfr_msgs::msg::Cone yellow_cone5;
+  yellow_cone5.pos.x = -2;
+  yellow_cone5.pos.y = -2;
+  yellow_cone5.pos.z = 0;
+  yellow_cone5.type = 2;
+  cones.right_cones.push_back(yellow_cone5);
+
+  node.KNN(cones);
+
+  cones = empty;
+
+  utfr_msgs::msg::Cone yellow_cone6;
+  yellow_cone6.pos.x = -2;
+  yellow_cone6.pos.y = -2;
+  yellow_cone6.pos.z = 0;
+  yellow_cone6.type = 2;
+  cones.right_cones.push_back(yellow_cone6);
+
+  node.KNN(cones);
+
+  cones = empty;
+
+  utfr_msgs::msg::Cone blue_cone1;
+  blue_cone1.pos.x = -2;
+  blue_cone1.pos.y = -2;
+  blue_cone1.pos.z = 0;
+  blue_cone1.type = 1;
+  cones.right_cones.push_back(blue_cone1);
+
+  node.KNN(cones);
+
+  cones = empty;
+
+  //should not add to past detections because the third cone is of a different colour
+
+  ASSERT_EQ(3,node.potential_cones_.size());
+
+  ASSERT_EQ(5, node.past_detections_.size());
+
+  
 }
 
 TEST(BuildGraphNodeTest, loopClosureTest1) {

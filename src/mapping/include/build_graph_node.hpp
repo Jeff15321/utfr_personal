@@ -156,7 +156,7 @@ public:
   std::map<int, int> cone_id_to_color_map_; // Maps cone id to color
   std::map<int, utfr_msgs::msg::PoseGraphData>
       id_to_pose_map_; // Maps state estimate to pose node
-  std::map<int, std::tuple<double, double>> potential_cones_;
+  std::map<int, std::tuple<double, double, int>> potential_cones_;
   int cones_potential_;
   int count_;
   bool loop_closed_; // True if loop is closed
@@ -179,7 +179,7 @@ public:
   std::vector<utfr_msgs::msg::PoseGraphData> cone_nodes_;
   std::vector<utfr_msgs::msg::PoseGraphData> pose_to_pose_edges_;
   std::vector<utfr_msgs::msg::PoseGraphData> pose_to_cone_edges_;
-
+  std::map<double, int> detection_counts;
   utfr_msgs::msg::ConeMap cone_map_;
   utfr_msgs::msg::Heartbeat heartbeat_;
   double update_rate_;
