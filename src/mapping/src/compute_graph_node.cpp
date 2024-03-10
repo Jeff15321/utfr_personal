@@ -171,27 +171,27 @@ void ComputeGraphNode::graphSLAM() {
   // for (g2o::VertexSE2 *pose : pose_nodes_) {
   //   optimizer_.addVertex(pose);
   // }
-  // for (int i = std::max(0, (int)pose_nodes_.size() - 500);
-  //      i < pose_nodes_.size(); i++) {
-  //   optimizer_.addVertex(pose_nodes_[i]);
-  // }
+  for (int i = std::max(0, (int)pose_nodes_.size() - 500);
+       i < pose_nodes_.size(); i++) {
+    optimizer_.addVertex(pose_nodes_[i]);
+  }
 
-  // for (g2o::VertexPointXY *cone : cone_nodes_) {
-  //   optimizer_.addVertex(cone);
-  // }
+  for (g2o::VertexPointXY *cone : cone_nodes_) {
+    optimizer_.addVertex(cone);
+  }
 
-  // // for (g2o::EdgeSE2 *edge : pose_to_pose_edges_) {
-  // //   optimizer_.addEdge(edge);
-  // // }
-  // for (int i = std::max(0, (int)pose_to_pose_edges_.size() - 500);
-  //      i < pose_to_pose_edges_.size(); i++) {
-  //   optimizer_.addEdge(pose_to_pose_edges_[i]);
+  // for (g2o::EdgeSE2 *edge : pose_to_pose_edges_) {
+  //   optimizer_.addEdge(edge);
   // }
+  for (int i = std::max(0, (int)pose_to_pose_edges_.size() - 500);
+       i < pose_to_pose_edges_.size(); i++) {
+    optimizer_.addEdge(pose_to_pose_edges_[i]);
+  }
 
-  // for (int i = std::max(0, (int)pose_to_cone_edges_.size() - 1500);
-  //      i < pose_to_cone_edges_.size(); i++) {
-  //   optimizer_.addEdge(pose_to_cone_edges_[i]);
-  // }
+  for (int i = std::max(0, (int)pose_to_cone_edges_.size() - 1500);
+       i < pose_to_cone_edges_.size(); i++) {
+    optimizer_.addEdge(pose_to_cone_edges_[i]);
+  }
   // for (g2o::EdgeSE2PointXY *edge : pose_to_cone_edges_) {
   //   optimizer_.addEdge(edge);
   // }
@@ -258,18 +258,21 @@ void ComputeGraphNode::timerCB() {
   cone_map_.large_orange_cones.clear();
   cone_map_.header.frame_id = "map";
 
-  int POSE_NODES = 500;
-  int CONE_NODES = 1500;
-
-  // Get the last 500 pose verticies and add them to the optimizer
-  for (int i = std::max(0, (int)local_data.states.size() - POSE_NODES);
-       i < local_data.states.size(); i++) {
-    utfr_msgs::msg::PoseGraphData pose = local_data.states[i];
+  for (utfr_msgs::msg::PoseGraphData pose : local_data.states) {
     g2o::VertexSE2 *poseVertex = createPoseNode(
         pose.id, pose.x, pose.y, pose.theta);
     pose_id_to_vertex_map_[pose.id] = poseVertex;
-    optimizer_.addVertex(poseVertex);
+    pose_nodes_.push_back(poseVertex);
   }
+  // Only add the last poses that weren't used
+  // for (int i = lastPose; i < local_data.states.size(); i++) {
+  //   utfr_msgs::msg::PoseGraphData pose = local_data.states[i];
+  //   g2o::VertexSE2 *poseVertex = createPoseNode(
+  //       pose.id, pose.x, pose.y, pose.theta);
+  //   pose_id_to_vertex_map_[pose.id] = poseVertex;
+  //   pose_nodes_.push_back(poseVertex);
+  // }
+  // lastPose = local_data.states.size();
 
   for (utfr_msgs::msg::PoseGraphData cone : local_data.cones) {
     g2o::VertexPointXY *coneVertex = createConeVertex(
@@ -278,26 +281,55 @@ void ComputeGraphNode::timerCB() {
     cone_nodes_.push_back(coneVertex);
     optimizer_.addVertex(coneVertex);
   }
+  // Only add the last cones that weren't used
+  // for (int i = lastCone; i < local_data.cones.size(); i++) {
+  //   utfr_msgs::msg::PoseGraphData cone = local_data.cones[i];
+  //   g2o::VertexPointXY *coneVertex = createConeVertex(
+  //       cone.id, cone.x, cone.y);
+  //   cone_id_to_vertex_map_[cone.id] = coneVertex;
+  //   cone_nodes_.push_back(coneVertex);
+  // }
+  // lastCone = local_data.cones.size();
 
-  for (int i = std::max(0, (int)local_data.measurement_edges.size() - POSE_NODES);
-       i < local_data.measurement_edges.size(); i++) {
-    utfr_msgs::msg::PoseGraphData edge = local_data.measurement_edges[i];
+  for (utfr_msgs::msg::PoseGraphData edge : local_data.motion_edge) {
     g2o::EdgeSE2 *res = addPoseToPoseEdge(
         pose_id_to_vertex_map_[edge.id],
         pose_id_to_vertex_map_[edge.id2], edge.dx, edge.dy, edge.dtheta,
         edge.loop_closure);
-    optimizer_.addEdge(res);
+    pose_to_pose_edges_.push_back(res);
   }
+  // Only add the last edges that weren't used
+  // for (int i = lastPosetoPoseEdge; i < local_data.motion_edge.size(); i++) {
+  //   utfr_msgs::msg::PoseGraphData edge = local_data.motion_edge[i];
+  //   g2o::EdgeSE2 *res = addPoseToPoseEdge(
+  //       pose_id_to_vertex_map_[edge.id],
+  //       pose_id_to_vertex_map_[edge.id2], edge.dx, edge.dy, edge.dtheta,
+  //       edge.loop_closure);
+  //   pose_to_pose_edges_.push_back(res);
+  // }
+  // lastPosetoPoseEdge = local_data.motion_edge.size();
+  // for (int i = 0; i < pose_to_pose_edges_.size()-500; i++) {
+  //   delete pose_nodes_[i];
+  // }
 
-
-  for (int i = std::max(0, (int)local_data.cone_edges.size() - CONE_NODES);
-       i < local_data.cone_edges.size(); i++) {
-    utfr_msgs::msg::PoseGraphData edge = local_data.cone_edges[i];
+  for (utfr_msgs::msg::PoseGraphData edge : local_data.measurement_edges) {
     g2o::EdgeSE2PointXY *res = addPoseToConeEdge(
         pose_id_to_vertex_map_[edge.id],
         cone_id_to_vertex_map_[edge.id2], edge.dx, edge.dy);
-    optimizer_.addEdge(res);
+    pose_to_cone_edges_.push_back(res);
   }
+  // Only add the last edges that weren't used
+  // for (int i = lastPosetoConeEdge; i < local_data.measurement_edges.size(); i++) {
+  //   utfr_msgs::msg::PoseGraphData edge = local_data.measurement_edges[i];
+  //   g2o::EdgeSE2PointXY *res = addPoseToConeEdge(
+  //       pose_id_to_vertex_map_[edge.id],
+  //       cone_id_to_vertex_map_[edge.id2], edge.dx, edge.dy);
+  //   pose_to_cone_edges_.push_back(res);
+  // }
+  // lastPosetoConeEdge = local_data.measurement_edges.size();
+  // for (int i = 0; i < pose_to_cone_edges_.size()-1500; i++) {
+  //   delete pose_nodes_[i];
+  // }
 
   for (int i = 0; i < local_data.color.size(); i++) {
     cone_id_to_color_map_[local_data.cone_id[i]] = local_data.color[i];
