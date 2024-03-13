@@ -305,53 +305,5 @@ sensor_msgs::msg::PointCloud2 LidarProcNode::convertToPointCloud2(
   return cloud;
 }
 
-void LidarProcNode::timerCB() {
-  const std::string function_name{"timerCB"};
-
-  try {
-
-    if (latest_point_cloud) {
-      PointCloud custom_cloud = convertToCustomPointCloud(latest_point_cloud);
-
-      // Filtering
-      std::tuple<PointCloud, Grid> filtered_cloud_and_grid =
-          filter.view_filter(custom_cloud);
-      PointCloud filtered_cloud = std::get<0>(filtered_cloud_and_grid);
-      Grid min_points_grid = std::get<1>(filtered_cloud_and_grid);
-      publishPointCloud(filtered_cloud, pub_filtered);
-
-      // Clustering and reconstruction
-      std::tuple<PointCloud, std::vector<PointCloud>> cluster_results =
-          clusterer.clean_and_cluster(filtered_cloud, min_points_grid);
-      PointCloud no_ground_cloud = std::get<0>(cluster_results);
-      std::vector<PointCloud> reconstructed_clusters =
-          std::get<1>(cluster_results);
-
-      publishPointCloud(no_ground_cloud, pub_no_ground);
-
-      // Publishing each reconstructed cluster in a loop
-
-      PointCloud combined_clusters;
-      for (int i = 0; i < reconstructed_clusters.size(); i++) {
-        for (int j = 0; j < reconstructed_clusters[i].size(); j++) {
-          combined_clusters.push_back(reconstructed_clusters[i][j]);
-        }
-      }
-      publishPointCloud(combined_clusters, pub_clustered);
-
-      // Gather the cluster centers into a single point cloud
-      PointCloud cluster_centers =
-          cone_filter.filter_clusters(reconstructed_clusters);
-      if (cluster_centers.size() > 0) {
-        publishPointCloud(cluster_centers, pub_clustered_center);
-      }
-    }
-    //   RCLCPP_INFO(this->get_logger(), "Published Processed Point Clouds");
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } catch (int e) {
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
-  }
-}
-
 } // namespace lidar_proc
 } // namespace utfr_dv
