@@ -180,7 +180,8 @@ def bounding_boxes_to_cone_detections(
         color = labelColor(classes[i])  # int for color
 
         # 3.73mm height of sensor, 1080 px height of image
-        depth = find_depth_mono_tri(3.73, h, f, cone_heights[color], 1080)
+        depth_mm = find_depth_mono_tri(3.73, h, f, cone_heights[color], 1080)
+        depth = depth_mm / 1000  # convert mm to metres
 
         # 3d coordinate mapping
 
@@ -211,6 +212,7 @@ def image_to_3d_point(image_point, camera_matrix, depth):
 
     # 3D point multiplied by monocular depth
     point_3d *= depth
+    point_3d /= 250
 
     return point_3d
 
@@ -267,10 +269,10 @@ def transform_det_lidar(detections, transform):
                 PointStamped(point=point_stamped), transform
             ).point
             transformed_point = [
-                transformed_point_stamped.x,
-                transformed_point_stamped.y,
-                transformed_point_stamped.z,
-                point[3]
+                -1.0 * transformed_point_stamped.z,
+                -1.0 * transformed_point_stamped.x,
+                -1.0 * transformed_point_stamped.y,
+                point[3],
             ]
             transformed_points.append(transformed_point)
 

@@ -54,7 +54,7 @@ PointCloud ConeLRFilter::filter_clusters(std::vector<PointCloud> clusters){
         float lin_loss = std::get<2>(result);
         float n_points = (float) cluster.size();
         std::cout << "MSE: " << mse_loss << ", Lin: " << lin_loss << std::endl;
-        if (mse_loss < this->mse_threshold && lin_loss < exp(-1*n_points/60)/60)
+        if (!std::isnan(mse_loss) && mse_loss < this->mse_threshold && lin_loss < this->lin_threshold && center[2] < this->cone_height + 0.1) //check if mse_loss is NaN
         {
             cone_centers.push_back(center);
         }

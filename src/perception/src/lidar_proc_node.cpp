@@ -179,6 +179,8 @@ void LidarProcNode::publishPointCloud(
 PointCloud LidarProcNode::convertToCustomPointCloud(
     const sensor_msgs::msg::PointCloud2::SharedPtr &input) {
   PointCloud custom_cloud;
+    float c = cos(8/180.0*3.14);
+    float s = sin(8/180.0*3.14);
   for (uint32_t i = 0; i < input->height * input->width; ++i) {
     Point pt;
     
@@ -195,6 +197,9 @@ PointCloud LidarProcNode::convertToCustomPointCloud(
         &input->data[i * input->point_step + y_offset]);
     pt[2] = *reinterpret_cast<const float *>(
         &input->data[i * input->point_step + z_offset]);
+    float xn = c*pt[0] - s*pt[2];
+    pt[2] = s*pt[0] + c*pt[2] + 1.05;
+    pt[0] = xn;
 
     custom_cloud.push_back(pt);
   }
@@ -289,6 +294,7 @@ sensor_msgs::msg::PointCloud2 LidarProcNode::convertToPointCloud2(
   cloud.data.resize(cloud.row_step * cloud.height);
 
   auto float_ptr = reinterpret_cast<float *>(&cloud.data[0]);
+  
   for (const auto &point : points) {
     *float_ptr++ = point[0];
     *float_ptr++ = point[1];
