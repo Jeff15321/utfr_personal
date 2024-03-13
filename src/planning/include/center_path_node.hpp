@@ -42,6 +42,7 @@
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
+#include <utfr_msgs/msg/lap_time.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -239,6 +240,10 @@ private:
    */
   std::tuple<double, double, double, double, double, double> skidpadLeft();
 
+  /*! Function to calculate and publish lap times
+   */
+  void publishLapTime();
+
   /*! Converts something from global to local coordinates
    * @param[in] x, y, yaw in global coordinates
    * @param[out] x, y in local coodrinates
@@ -258,7 +263,7 @@ private:
    * @param[out] list of cones in himesphere
    */
   std::vector<utfr_msgs::msg::Cone> getConesInHemisphere(std::vector<utfr_msgs::msg::Cone> cones, double r);
-  
+
   /*! Initialize global variables:
    */
   double update_rate_;
@@ -272,6 +277,10 @@ private:
   bool cones_detected_ = false;
   bool found_4_large_orange;
   rclcpp::Time last_time;
+  rclcpp::Time last_switch_time;
+  int last_sector = 0;
+  float best_lap_time = 0.0;
+  float last_lap_time = 0.0;
   bool accel_sector_increase;
   int detections_in_row_ = 0;
   bool use_mapping_ = false;
@@ -304,6 +313,8 @@ private:
       delaunay_path_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       first_midpoint_path_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::LapTime>::SharedPtr
+      lap_time_publisher_;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
 

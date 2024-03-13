@@ -89,6 +89,9 @@ void CenterPathNode::initPublishers() {
   skidpad_path_publisher_avg_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kSkidpadFittingavg, 10);
+
+  lap_time_publisher_ = this->create_publisher<utfr_msgs::msg::LapTime>(
+      topics::kLapTime, 10);
 }
 
 void CenterPathNode::initEvent() {
@@ -167,6 +170,7 @@ void CenterPathNode::initSector() {
     curr_sector_ = 0;
   }
   last_time = this->get_clock()->now();
+  last_switch_time = this->get_clock()->now();
   lock_sector_ = true;
   found_4_large_orange = false;
 }
@@ -298,6 +302,7 @@ void CenterPathNode::timerCBAccel() {
     }
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    publishLapTime();
   } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -315,6 +320,7 @@ void CenterPathNode::timerCBSkidpad() {
     skidPadFit();
     skidpadLapCounter();
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    publishLapTime();
   } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -376,6 +382,7 @@ void CenterPathNode::timerCBAutocross() {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 
     trackdriveLapCounter();
+    publishLapTime();
   } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -436,6 +443,7 @@ void CenterPathNode::timerCBTrackdrive() {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 
     trackdriveLapCounter();
+    publishLapTime();
   } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -1809,6 +1817,33 @@ CenterPathNode::skidpadLeft() {
   best_r_large = big_radius_;
 
   return std::make_tuple(best_xc_small, best_yc_small, best_r_small, best_xc_large, best_yc_large, best_r_large);
+}
+
+
+void CenterPathNode::publishLapTime(){
+  utfr_msgs::msg::LapTime lap_time_msg;
+  lap_time_msg.header.stamp = this->get_clock()->now();
+  if (!last_sector){
+    return;
+  }
+  rclcpp::Time curr_time = this->get_clock()->now();
+  float curr_lap_time = (curr_time - last_switch_time).seconds();
+
+  if (curr_sector_ != last_sector){
+    last_lap_time = curr_time.seconds();
+    last_switch_time = curr_time;
+    if (curr_time.seconds() < best_lap_time){
+      best_lap_time = curr_time.seconds();
+    }
+  }
+
+  lap_time_msg.best_time = best_lap_time;
+  lap_time_msg.last_time = last_lap_time;
+  lap_time_msg.curr_time = curr_time.seconds();
+
+  lap_time_publisher_->publish(lap_time_msg);
+
+  last_sector = curr_sector_;
 }
 
 std::vector<double> CenterPathNode::globalToLocal(double x, double y) {
