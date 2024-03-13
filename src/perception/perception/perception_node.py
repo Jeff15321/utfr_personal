@@ -23,6 +23,7 @@ import time
 from scipy.spatial.distance import cdist
 from scipy.optimize import linear_sum_assignment
 
+
 # ROS2 Requirements
 import rclpy
 from rclpy.node import Node
@@ -63,11 +64,11 @@ class PerceptionNode(Node):
         super().__init__("perception_node")
 
         self.loadParams()
+        self.initHeartbeat()
         self.initVariables()
         self.initSubscribers()
         self.initPublishers()
         self.initServices()
-        self.initHeartbeat()
         self.initConeTemplate()
         self.initTimers()
         # self.initClassical()
@@ -267,11 +268,15 @@ class PerceptionNode(Node):
 
         # create session for onnxruntime ofr detections
         cuda = check_for_cuda()
-        print(cuda)
-        providers = ["CUDAExecutionProvider"] if cuda else ["CPUExecutionProvider"]
-        self.session = ort.InferenceSession(
-            "src/perception/perception/best.onnx", providers=providers
-        )
+        print("Check for cuda:", cuda)
+        # providers = ["AzureExecutionProvider"] if cuda else ["CPUExecutionProvider"]
+        providers = ort.get_available_providers()
+        print("Available Providers:", providers)
+
+        # Get the current device for inference
+        device = ort.get_device()
+        print("Current Device for Inference:", device)
+        self.session = ort.InferenceSession("src/perception/perception/best.onnx")
 
         # create transform frame variables
         self.lidar_frame = "lidar"
@@ -405,6 +410,7 @@ class PerceptionNode(Node):
         heartbeat_.update_rate: double:
           update rate of node
         """
+
         self.heartbeat_ = Heartbeat()
 
         self.heartbeat_.module.data = "perception"
@@ -416,6 +422,10 @@ class PerceptionNode(Node):
         if self.first_img_arrived_ == True:
             self.previous_left_img_ = self.left_img_
             self.previous_right_img_ = self.right_img_
+
+        self.heartbeat_publisher_ = self.create_publisher(
+            Heartbeat, self.heartbeat_topic_, 1
+        )
 
     def initConeTemplate(self):
         # create instance of cone as a template
@@ -438,7 +448,6 @@ class PerceptionNode(Node):
         """
         Callback function for left_cam_subscriber_
         """
-        self.get_logger().warn("Recieved left camera message")
         try:
             self.left_img_header = msg.header
             self.left_img_ = self.bridge.imgmsg_to_cv2(
@@ -459,7 +468,6 @@ class PerceptionNode(Node):
         """
         Callback function for right_cam_subscriber_
         """
-        self.get_logger().warn("Recieved right camera message")
         try:
             self.right_img_header = msg.header
             self.right_img_ = self.bridge.imgmsg_to_cv2(
@@ -665,6 +673,7 @@ class PerceptionNode(Node):
             right_cone_detections,
         ) = self.process(frame_left, frame_right)
 
+
         # transform camera detections to lidar frame
         left_detections_lidar_frame = transform_det_lidar(
             left_cone_detections, tf_leftcam_lidar
@@ -792,7 +801,7 @@ class PerceptionNode(Node):
             pass
         else:
             # order cones by distance
-            cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
+            # cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
 
             # publish cone detections
             self.detections_msg.header.stamp = self.get_clock().now().to_msg()

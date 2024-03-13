@@ -19,8 +19,8 @@
 #include <eigen3/Eigen/Dense>
 #include <list>
 using Eigen::MatrixXd;
-#include <tuple>
 #include <string>
+#include <tuple>
 
 // Message Requirements
 #include <geometry_msgs/msg/point.hpp>
@@ -198,6 +198,15 @@ accelLLSOccupancy(const std::vector<utfr_msgs::msg::Cone> &cones);
 std::tuple<double, double, double, double>
 ransacCircleLSF(const std::vector<utfr_msgs::msg::Cone> &cones, double radius);
 
+/*! Return linear least suqres fitting of list of cone positions
+ *
+ * @param[in] cones list of cones
+ * @returns tuple of 3 double of cicle's (center x, center y, radius)
+ *
+ */
+std::tuple<double, double, double>
+circleLSF(const std::vector<utfr_msgs::msg::Cone> &cones);
+
 /*! Yaw to Quaternion
  *
  * @param[in] yaw double of yaw in radians
@@ -222,10 +231,12 @@ bool isLargeOrangeCone(const uint coneID);
 /*! Helper function for easier acess of postion, velocity and steering angle
  *
  *@param[in] eg EgoState to be acessed
- *@param[in] infoWanted a char* that tells the function what to acess either "pos_x","pos_y","vel_x","vel_y" or "steering_angle"
- *@returns returns requested information or -10000000000000000 is input is invalid
+ *@param[in] infoWanted a char* that tells the function what to acess either
+ *"pos_x","pos_y","vel_x","vel_y" or "steering_angle"
+ *@returns returns requested information or -10000000000000000 is input is
+ *invalid
  */
-float egoHelper(utfr_msgs::msg::EgoState eg,const std::string& infoWanted);
+float egoHelper(utfr_msgs::msg::EgoState eg, const std::string &infoWanted);
 
 } // namespace util
 } // namespace utfr_dv

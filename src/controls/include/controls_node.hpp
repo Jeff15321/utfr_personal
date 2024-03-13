@@ -45,6 +45,9 @@ namespace controls {
 #define PI 3.1415926535
 #define RadToDeg(ang) ang * 180 / PI
 #define DegToRad(ang) ang *PI / 180
+#define MAX_STR 19
+#define GEAR_RATIO 3.41
+#define WHEEL_RADIUS 0.1955 // meters
 
 class ControlsNode : public rclcpp::Node {
 public:
@@ -167,7 +170,6 @@ private:
 
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
 
-  PIDControllerUPTr steering_pid_{nullptr};
   PIDControllerUPTr throttle_pid_{nullptr};
   PIDControllerUPTr braking_pid_{nullptr};
 
@@ -183,14 +185,15 @@ private:
   rclcpp::Time ros_time_;
 
   // Params
+  int current_setpoint_ = 0;
+  std::vector<int> setpoints_;
   double update_rate_;
-  int status_;
   uint8_t testing_;
   int brake_inc_;
   int steer_inc_;
   int throttle_inc_;
-  std::vector<double> str_ctrl_params_;
-  std::vector<double> thr_ctrl_params_;
+  // std::vector<double> str_ctrl_params_;
+  // std::vector<double> thr_ctrl_params_;
   std::vector<double> brk_ctrl_params_;
 
   // Callback
