@@ -139,6 +139,7 @@ public:
   // Publisher
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::PoseGraphData>::SharedPtr slam_state_publisher_;
 
   // Subscribers
   rclcpp::Subscription<utfr_msgs::msg::PoseGraph>::SharedPtr
@@ -155,8 +156,22 @@ public:
   std::vector<g2o::EdgeSE2 *> pose_to_pose_edges_;
   std::vector<g2o::EdgeSE2PointXY *> pose_to_cone_edges_;
 
+  // Create a data structure to store pose to pose edges between optimizations
+  std::map<std::string, g2o::EdgeSE2 *> pose_to_pose_edge_map_;
+  std::map<std::string, g2o::EdgeSE2PointXY *> pose_to_cone_edge_map_;
+
   std::map<int, g2o::VertexPointXY *> cone_id_to_vertex_map_;
   std::map<int, g2o::VertexSE2 *> pose_id_to_vertex_map_;
+
+  std::map<int, utfr_msgs::msg::Cone> fixed_cone_map_;
+  std::map<int, g2o::VertexSE2 *> fixed_pose_map_;
+  std::unordered_set<int> fixed_pose_ids_;
+  std::unordered_set<int> fixed_cone_ids_;
+
+  int lastPose;
+  int lastCone;
+  int lastPoseToPoseEdge;
+  int lastPoseToConeEdge;
 
   g2o::SparseOptimizer optimizer_;
 

@@ -108,15 +108,22 @@ void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
   double y = msg.pose.pose.position.y;
   double yaw = utfr_dv::util::quaternionToYaw(msg.pose.pose.orientation);
   // Add random noise to the measurement with a covarience of 0.001
-  double standardDeviation = std::sqrt(0.001);
+  double standardDeviation = std::sqrt(1);
 
   // Initialize a random number generator
   std::random_device rd;
   std::mt19937 gen(rd());
   std::normal_distribution<double> distribution(0.0, standardDeviation);
+
+  std::default_random_engine generator;
+  // Create a uniform distribution for angle between 0 and 2*PI
+  std::uniform_real_distribution<double> angle_distribution(0.0, 2 * M_PI);
+
+  // Generate a random angle
+  double angle = angle_distribution(generator);
   // Add noise to the ground truth value
-  x += distribution(gen);
-  y += distribution(gen);
+  x += distribution(gen)* cos(angle);
+  y += distribution(gen)* sin(angle);
 
   utfr_msgs::msg::EgoState res = updateState(x, y, -yaw);
   // std::cout << "x: " << res.pose.pose.position.x << " y: " <<
@@ -154,8 +161,8 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y,
   H(2, 4) = 1; // Map yaw
 
   R = Eigen::MatrixXd::Identity(3, 3);
-  R(0, 0) = 0.01; // Variance for x measurement
-  R(1, 1) = 0.01; // Variance for y measurement
+  R(0, 0) = 1; // Variance for x measurement
+  R(1, 1) = 1; // Variance for y measurement
   R(2, 2) = 0.01; // Variance for yaw measurement
 
   // Compute the Kalman gain
@@ -241,10 +248,10 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu_data,
   // P = FPF^T + Q
   Eigen::MatrixXd Q_; // Process noise covariance matrix
   Q_ = Eigen::MatrixXd::Identity(6, 6);
-  Q_(0, 0) = 0.01;    // Variance for x position, in m
-  Q_(1, 1) = 0.01;    // Variance for y position
-  Q_(2, 2) = 0.05;    // Variance for x velocity, m/s
-  Q_(3, 3) = 0.05;    // Variance for y velocity
+  Q_(0, 0) = 0.001;    // Variance for x position, in m
+  Q_(1, 1) = 0.001;    // Variance for y position
+  Q_(2, 2) = 0.005;    // Variance for x velocity, m/s
+  Q_(3, 3) = 0.005;    // Variance for y velocity
   Q_(4, 4) = 0.00872; // Variance for yaw in radian
   Q_(5, 5) = 0.0064;  // Variance for yaw rate, to be tuned
 

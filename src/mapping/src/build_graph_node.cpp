@@ -250,7 +250,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           position_x_, nearestCone.x, position_y_, nearestCone.y);
 
         // Do not add if its within 0.5 of an already seen cone
-        if (displacement <= 0.5) {
+        if (displacement <= 1) {
             // Add the ID to the list
             cones_id_list_.push_back(nearestCone.id);
             average_position_[nearestCone.id][0] += position_x_;
@@ -300,15 +300,21 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
         double temp_displacement_ = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(potentialPoint), position_y_, std::get<1>(potentialPoint));
 
         // Check if cone within 0.5 of any other new detected cone
-        if (temp_displacement_ <= 0.5) {
+        if (temp_displacement_ <= 1) {
                 count_ += 1;
                 keys.push_back(key_);
                 // Check if three of same detected
-                if (count_ == 3) {
+                if (count_ == 100) {
                     kd_tree_knn::Point closestPointAtAdd = globalKDTreePtr_ -> KNN(kd_tree_knn::Point(position_x_, position_y_, 0));
+                    double average_x = position_x_;
+                    double average_y = position_y_;
+                    double number_of_points = 1;
                     for (auto it = potential_cones_.begin(); it != potential_cones_.end();) {
-                        double temp_displacement_ = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(it->second), position_y_, std::get<1>(it->second));
-                        if (temp_displacement_ <= 0.5) {
+                        double temp_displacement_ = utfr_dv::util::euclidianDistance2D(average_x/number_of_points, std::get<0>(it->second), average_y/number_of_points, std::get<1>(it->second));
+                        if (temp_displacement_ <= 1) {
+                            average_x += std::get<0>(it->second);
+                            average_y += std::get<1>(it->second);
+                            number_of_points += 1;
                             it = potential_cones_.erase(it);
                         } else {
                             ++it;
@@ -464,7 +470,7 @@ void BuildGraphNode::timerCB() {
 
   std::vector<int> cones = KNN(current_cone_detections_);
   loopClosure(cones);
-  if (cones_found_ > 10) {
+  if (cones_found_ > 3) {
     utfr_msgs::msg::PoseGraph poseGraph;
     poseGraph.header.stamp = this->get_clock()->now();
     
