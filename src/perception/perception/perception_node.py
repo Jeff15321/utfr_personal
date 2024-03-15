@@ -64,8 +64,8 @@ class PerceptionNode(Node):
         super().__init__("perception_node")
 
         self.loadParams()
-        self.initHeartbeat()
         self.initVariables()
+        self.initHeartbeat()
         self.initSubscribers()
         self.initPublishers()
         self.initServices()
@@ -672,7 +672,6 @@ class PerceptionNode(Node):
             left_cone_detections,
             right_cone_detections,
         ) = self.process(frame_left, frame_right)
-
 
         # transform camera detections to lidar frame
         left_detections_lidar_frame = transform_det_lidar(
