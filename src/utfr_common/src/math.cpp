@@ -16,8 +16,8 @@
 #include <iostream>
 #include <math.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
-#include <utfr_msgs/msg/cone_map.hpp>
 #include <string>
+#include <utfr_msgs/msg/cone_map.hpp>
 
 namespace utfr_dv {
 namespace util {
@@ -390,6 +390,32 @@ ransacCircleLSF(const std::vector<utfr_msgs::msg::Cone> &cones, double radius) {
   return circle;
 }
 
+std::tuple<double, double, double>
+circleLSF(const std::vector<utfr_msgs::msg::Cone> &cones) {
+  int n = cones.size();
+  MatrixXd A(n, 3);
+  // MatrixXd A(n,2);
+  MatrixXd b(n, 1);
+
+  for (int i = 0; i < n; i++) {
+    A(i, 0) = 2.0 * cones[i].pos.x;
+    A(i, 1) = 2.0 * cones[i].pos.y;
+    A(i, 2) = 1.0;
+    // b(i, 0) = pow((cones[i].pos.x),2)+pow((cones[i].pos.y),2);
+    b(i, 0) =
+        pow((cones[i].pos.x), 2) + pow((cones[i].pos.y), 2);
+  }
+
+  MatrixXd At = A.transpose();
+  MatrixXd res = (At * A).inverse() * (At * b);
+  double xc = res(0);
+  double yc = res(1);
+  double sum = res(2);
+  double rad = sqrt(sum + xc * xc + yc * yc);
+  std::tuple<double, double, double> circle = std::make_tuple(xc, yc, rad);
+  return circle;
+}
+
 geometry_msgs::msg::Quaternion yawToQuaternion(double yaw) {
   geometry_msgs::msg::Quaternion q;
   q.w = cos(yaw * 0.5);
@@ -406,38 +432,37 @@ double quaternionToYaw(const geometry_msgs::msg::Quaternion &q) {
   return yaw;
 }
 
-float egoHelper(utfr_msgs::msg::EgoState egs,const std::string& infoWanted){
-  if (infoWanted=="pos_x"){
-    if (!egs.pose.pose.position.x){
+float egoHelper(utfr_msgs::msg::EgoState egs, const std::string &infoWanted) {
+  if (infoWanted == "pos_x") {
+    if (!egs.pose.pose.position.x) {
       return -10000000000000000;
     }
     return egs.pose.pose.position.x;
   }
-  if (infoWanted=="pos_y"){
-    if (!egs.pose.pose.position.y){
+  if (infoWanted == "pos_y") {
+    if (!egs.pose.pose.position.y) {
       return -10000000000000000;
     }
     return egs.pose.pose.position.y;
   }
-  if (infoWanted=="vel_x"){
-    if (!egs.vel.twist.linear.x){
+  if (infoWanted == "vel_x") {
+    if (!egs.vel.twist.linear.x) {
       return -10000000000000000;
     }
     return egs.vel.twist.linear.x;
   }
-  if (infoWanted=="vel_y"){
-    if (!egs.vel.twist.linear.y){
+  if (infoWanted == "vel_y") {
+    if (!egs.vel.twist.linear.y) {
       return -10000000000000000;
     }
     return egs.vel.twist.linear.y;
   }
-  if (infoWanted=="steering_angle"){
-    if (!egs.steering_angle){
+  if (infoWanted == "steering_angle") {
+    if (!egs.steering_angle) {
       return -10000000000000000;
     }
     return egs.steering_angle;
-  }
-  else{
+  } else {
     return -10000000000000000;
   }
 }

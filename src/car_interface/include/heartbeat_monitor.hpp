@@ -57,6 +57,14 @@ public:
   void updateHeartbeat(const utfr_msgs::msg::Heartbeat &msg,
                        const rclcpp::Time &curr_time);
 
+  /*! Update the last_heartbeats_ map with the correct list of runnig modules.
+   * Checks if the new modules names match existing modules, and removes those
+   * that are not in the list.
+   *
+   * @param[in] modules A vector of module names
+   */
+  void updateModules(std::vector<std::string> module_names,
+                     const rclcpp::Time &curr_time);
   /*! Check if all heartbeats have the correct status, and are within update
    *  rate tolerance.
    *

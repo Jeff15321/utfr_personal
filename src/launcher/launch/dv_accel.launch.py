@@ -10,12 +10,14 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     # Drivers
-    cam_dir = get_package_share_directory("arena_camera_node")
-    cam_launch = IncludeLaunchDescription(
-        launch_description_sources.PythonLaunchDescriptionSource(
-            cam_dir + "/launch/lucid_camera.launch.py"
-        )
-    )
+
+    # Done in Perception launch:
+    # cam_dir = get_package_share_directory("arena_camera_node")
+    # cam_launch = IncludeLaunchDescription(
+    #     launch_description_sources.PythonLaunchDescriptionSource(
+    #         cam_dir + "/launch/lucid_camera.launch.py"
+    #     )
+    # )
 
     gps_dir = get_package_share_directory("bluespace_ai_xsens_mit_driver")
     gps_launch = IncludeLaunchDescription(
@@ -24,25 +26,19 @@ def generate_launch_description():
         )
     )
 
-    lidar_dir = get_package_share_directory("ouster_ros")
-    lidar_launch = IncludeLaunchDescription(
-        launch_description_sources.PythonLaunchDescriptionSource(
-            lidar_dir + "/launch/driver.launch.py"
-        )
-    )
+    # Done in Perception launch:
+    # lidar_dir = get_package_share_directory("ouster_ros")
+    # lidar_launch = IncludeLaunchDescription(
+    #     launch_description_sources.PythonLaunchDescriptionSource(
+    #         lidar_dir + "/launch/driver.launch.py"
+    #     )
+    # )
 
     # DV stack
     perception_dir = get_package_share_directory("perception")
     perception_launch = IncludeLaunchDescription(
         launch_description_sources.PythonLaunchDescriptionSource(
             perception_dir + "/launch/perception.launch.py"
-        )
-    )
-
-    mapping_dir = get_package_share_directory("mapping")
-    mapping_launch = IncludeLaunchDescription(
-        launch_description_sources.PythonLaunchDescriptionSource(
-            mapping_dir + "/launch/mapping.launch.py"
         )
     )
 
@@ -65,7 +61,6 @@ def generate_launch_description():
     # ld.add_action(lidar_launch) done in perception
 
     ld.add_action(perception_launch)
-    ld.add_action(mapping_launch)
     ld.add_action(planning_launch)
     ld.add_action(controls_launch)
 

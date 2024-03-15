@@ -22,6 +22,8 @@
 
 // Message Requirements
 #include <sensor_msgs/msg/imu.hpp>
+#include <utfr_msgs/msg/cone_detections.hpp>
+#include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/control_cmd.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
@@ -40,7 +42,7 @@
 
 #define MAX_BRK_PRS 1600 // PSI
 #define MAX_THROTTLE 200 // Nm, from kProcessedTHrottleMax variable in FC code
-
+#define MAX_STR 19       // angle to be sent to motor is this *4.5
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
 
@@ -125,31 +127,81 @@ private:
    */
   void TargetStateCB(const utfr_msgs::msg::TargetState &msg);
 
-  void getSteeringAngleSensorData(); // TODO: function desc.
+  /*! Callback function for cone_detection_subscriber_
+   *
+   *  @param[in] msg utfr_msgs::msg::ConeDetections latest message from
+   * perception
+   */
+  void ConeDetectionCB(const utfr_msgs::msg::ConeDetections &msg);
 
-  void getMotorSpeedData(); // TODO: function desc.
+  /*! Callback function for cone_map_subscriber_
+   *
+   *  @param[in] msg utfr_msgs::msg::ConeMap latest message from mapping
+   */
+  void ConeMapCB(const utfr_msgs::msg::ConeMap &msg);
 
-  void getMotorTorqueData(); // TODO: function desc.
+  /**
+   * @brief Get the steering angle sensor data.
+   */
+  void getSteeringAngleSensorData();
 
-  void getServiceBrakeData(); // TODO: function desc.
+  /**
+   * @brief Get the motor speed data.
+   */
+  void getMotorSpeedData();
 
-  void getWheelspeedSensorData(); // TODO: function desc.
+  /**
+   * @brief Get the motor torque data.
+   */
+  void getMotorTorqueData();
 
-  void getIMUData(); // TODO: function desc.
+  /**
+   * @brief Get the service brake data.
+   */
+  void getServiceBrakeData();
 
-  void getSensorCan(); // TODO: function desc.
+  /**
+   * @brief Get the wheelspeed sensor data.
+   */
+  void getWheelspeedSensorData();
 
-  void getDVState(); // TODO: function desc.
+  /**
+   * @brief Get the IMU data.
+   */
+  void getIMUData();
 
-  void setDVLogs(); // TODO: function desc.
+  /**
+   * @brief Get the sensor CAN data.
+   */
+  void getSensorCan();
 
-  void setDVStateAndCommand(); // TODO: function desc.
+  /**
+   * @brief Get the DV state.
+   */
+  void getDVState();
 
-  void launchMission(); // TODO: function desc.
+  /**
+   * @brief Set the DV logs.
+   */
+  void setDVLogs();
 
-  void shutdownNodes(); // TODO: function desc.
+  /**
+   * @brief Set the DV state and command.
+   */
+  void setDVStateAndCommand();
 
-  /*! Callback function for timer
+  /**
+   * @brief Launch the mission.
+   */
+  bool launchMission();
+
+  /**
+   * @brief Shutdown the nodes.
+   */
+  bool shutdownNodes();
+
+  /**
+   * @brief Callback function for the timer.
    */
   void timerCB();
 
@@ -160,24 +212,32 @@ private:
       ego_state_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::TargetState>::SharedPtr
       target_state_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
+      cone_detection_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
+  std::map<std::string,
+           rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr>
+      heartbeat_subscribers_;
 
   rclcpp::Publisher<utfr_msgs::msg::SensorCan>::SharedPtr sensor_can_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::SystemStatus>::SharedPtr
       system_status_publisher_;
-  std::map<std::string,
-           rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr>
-      heartbeat_subscribers_;
+
   rclcpp::TimerBase::SharedPtr main_timer_;
 
   // Parameters
   double update_rate_;
   double heartbeat_tolerance_;
   std::vector<std::string> heartbeat_modules_;
+  std::vector<std::string> heartbeat_modules_inspection_;
+  std::vector<std::string> heartbeat_modules_accel_;
 
   // Callback Variables
-  utfr_msgs::msg::ControlCmd control_cmd_;
-  utfr_msgs::msg::EgoState ego_state_;
-  utfr_msgs::msg::TargetState target_state_;
+  // utfr_msgs::msg::ControlCmd control_cmd_;
+  // utfr_msgs::msg::EgoState ego_state_;
+  // utfr_msgs::msg::TargetState target_state_;
+  // utfr_msgs::msg::ConeDetections cone_detections_;
+  // utfr_msgs::msg::ConeMap cone_map_;
 
   // Published messages
   utfr_msgs::msg::SensorCan sensor_can_;
@@ -185,7 +245,7 @@ private:
 
   // TODO: Change global to local vars
   // Commands to rest of car
-  int16_t steering_cmd_;
+  int steering_cmd_;
   uint8_t braking_cmd_;
   int throttle_cmd_;
   int testing_;
@@ -207,21 +267,20 @@ private:
 
   // CAN objects
   CanInterfaceUPtr can1_{nullptr};
-  CanInterfaceUPtr can0_{nullptr};
-  
   rclcpp::TimerBase::SharedPtr can_timer_;
 
   // Heartbeat object
   HeartbeatMonitorUPtr heartbeat_monitor_{nullptr};
 
-  // TODO: Add drivers and other nodes and multiple planning nodes
   // Heartbeat map
   std::unordered_map<std::string, std::string> heartbeat_topics_map_{
       {"perception", topics::kPerceptionHeartbeat},
+      {"lidar_proc", topics::kLidarProcHeartbeat},
       {"ekf", topics::kEKFHeartbeat},
       {"mapping_build", topics::kMappingBuildHeartbeat},
       {"mapping_compute", topics::kMappingComputeHeartbeat},
-      {"planning", topics::kPlanningHeartbeat},
+      {"planning_cp", topics::kCenterPathHeartbeat},
+      {"planning_controller", topics::kControllerHeartbeat},
       {"controls", topics::kControlsHeartbeat},
   };
 };

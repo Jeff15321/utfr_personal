@@ -2,7 +2,7 @@
 
 # Author: Daniel Asadi
 # Description: Record cameras + LIDAR data with viz
-# Usage: bash scripts/p_sensors_bag.sh <bag_name>
+# Usage: bash scripts/p_sensors_bag_viz.sh <bag_name>
 
 cleanup() {
     echo "Killing all ros2 processes"
