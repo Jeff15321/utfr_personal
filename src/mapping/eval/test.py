@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from utfr_msgs.msg import ConeMap, EgoState
+from utfr_msgs.msg import ConeMap, EgoState, PoseGraphData
 from eufs_msgs.msg import ConeArrayWithCovariance
 from nav_msgs.msg import Odometry
 
@@ -36,14 +36,23 @@ class MinimalSubscriber(Node):
           10)
       self.ground_truth
 
+      self.slam_pose = self.create_subscription(
+          PoseGraphData,
+          'mapping/slam_pose',
+          self.slam_pose_cb,
+          10)
+      self.slam_pose
+
       self.timer = self.create_timer(0.5, self.timer_callback)
 
       self.cones = []
       self.gt_cones = []
       self.pose = None
       self.gt_pose = None
+      self.slam_pose = None
       self.total_error = 0
       self.count = 0
+      self.slam_error = 0
 
   def listener_callback(self, msg):
       self.cones = msg
@@ -61,6 +70,9 @@ class MinimalSubscriber(Node):
 
   def gt_pose_cb(self, msg):
     self.gt_pose = msg
+  
+  def slam_pose_cb(self, msg):
+    self.slam_pose = msg
 
   def timer_callback(self):
 
@@ -84,12 +96,18 @@ class MinimalSubscriber(Node):
     print("Average error: ", (total/count*100), "cm. Bad cones: ", bad_cones, " out of ", count)
 
     gt_x, gt_y = self.gt_pose.pose.pose.position.x, self.gt_pose.pose.pose.position.y
+
     x, y = self.pose.pose.pose.position.x, -self.pose.pose.pose.position.y
     error = ((x - gt_x)**2 + (y - gt_y)**2)**0.5
     self.total_error += error
-    self.count += 1
 
-    print("Average position error: ", (self.total_error/self.count*100), "cm")
+    slam_x, slam_y = self.slam_pose.x, -self.slam_pose.y
+    slam_error = ((slam_x - gt_x)**2 + (slam_y - gt_y)**2)**0.5
+    self.slam_error += slam_error
+    
+    self.count += 1
+    print("Average EKF position error: ", (self.total_error/self.count*100), "cm")
+    print("Average SLAM position error: ", (self.slam_error/self.count*100), "cm")
 
 
 
