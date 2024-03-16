@@ -285,6 +285,8 @@ private:
   int detections_in_row_ = 0;
   bool use_mapping_ = false;
 
+  double total_distance_traveled_ = 0.0;
+
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
   utfr_msgs::msg::ConeDetections::SharedPtr cone_detections_{nullptr};

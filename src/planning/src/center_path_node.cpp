@@ -194,6 +194,12 @@ void CenterPathNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
     // first initialization:
     utfr_msgs::msg::EgoState template_ego;
     ego_state_ = std::make_shared<utfr_msgs::msg::EgoState>(template_ego);
+  } else {
+    total_distance_traveled_ += msg.vel.twist.linear.x * 
+        ((((double) msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9) - 
+        (((double)ego_state_->header.stamp.sec) + ego_state_->header.stamp.nanosec * 1e-9));
+    
+    // RCLCPP_INFO(this->get_logger(), "Total Distance Traveled: %f", total_distance_traveled_);
   }
   if (use_mapping_){
     ego_state_->header = msg.header;
@@ -299,6 +305,13 @@ void CenterPathNode::timerCBAccel() {
         large_orange_size == 0) {
       accel_sector_increase = true;
       curr_sector_ += 1;
+      RCLCPP_INFO(this->get_logger(), "Accel ended due to cone detections.");
+    }
+
+    if (!accel_sector_increase && total_distance_traveled_ > 80) { // accel length 75 m
+      accel_sector_increase = true;
+      curr_sector_ += 1;
+      RCLCPP_INFO(this->get_logger(), "Accel ended due to distance traveled.");
     }
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
