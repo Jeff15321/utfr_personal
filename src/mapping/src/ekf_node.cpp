@@ -108,7 +108,7 @@ void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
   double y = msg.pose.pose.position.y;
   double yaw = utfr_dv::util::quaternionToYaw(msg.pose.pose.orientation);
   // Add random noise to the measurement with a covarience of 0.001
-  double standardDeviation = std::sqrt(1);
+  double standardDeviation = std::sqrt(0.001);
 
   // Initialize a random number generator
   std::random_device rd;
@@ -161,9 +161,9 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y,
   H(2, 4) = 1; // Map yaw
 
   R = Eigen::MatrixXd::Identity(3, 3);
-  R(0, 0) = 1; // Variance for x measurement
-  R(1, 1) = 1; // Variance for y measurement
-  R(2, 2) = 0.01; // Variance for yaw measurement
+  R(0, 0) = 0.005; // Variance for x measurement
+  R(1, 1) = 0.005; // Variance for y measurement
+  R(2, 2) = 0.005; // Variance for yaw measurement
 
   // Compute the Kalman gain
   // K = P * H^T * (H * P * H^T + R)^-1
@@ -248,10 +248,10 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu_data,
   // P = FPF^T + Q
   Eigen::MatrixXd Q_; // Process noise covariance matrix
   Q_ = Eigen::MatrixXd::Identity(6, 6);
-  Q_(0, 0) = 0.001;    // Variance for x position, in m
-  Q_(1, 1) = 0.001;    // Variance for y position
-  Q_(2, 2) = 0.005;    // Variance for x velocity, m/s
-  Q_(3, 3) = 0.005;    // Variance for y velocity
+  Q_(0, 0) = 0.01;    // Variance for x position, in m
+  Q_(1, 1) = 0.01;    // Variance for y position
+  Q_(2, 2) = 0.05;    // Variance for x velocity, m/s
+  Q_(3, 3) = 0.05;    // Variance for y velocity
   Q_(4, 4) = 0.00872; // Variance for yaw in radian
   Q_(5, 5) = 0.0064;  // Variance for yaw rate, to be tuned
 

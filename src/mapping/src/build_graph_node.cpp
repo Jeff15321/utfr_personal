@@ -437,6 +437,12 @@ void BuildGraphNode::timerCB() {
   // Print the x and y position of the car
   current_state_ = current_ego_state_;
 
+  if (current_pose_id_ == 1000) {
+    current_state_.pose.pose.position.x = 0;
+    current_state_.pose.pose.position.y = 0;
+    current_state_.pose.pose.orientation = utfr_dv::util::yawToQuaternion(0);
+  }
+
   current_pose_id_ += 1;
   id_to_ego_map_[current_pose_id_] = current_state_;
 
@@ -447,6 +453,10 @@ void BuildGraphNode::timerCB() {
   pose_data.theta = utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation);
   pose_nodes_.push_back(pose_data);
   id_to_pose_map_[current_pose_id_] = pose_data;
+
+  if (current_pose_id_ == 1001) {
+    return;
+  }
 
   utfr_msgs::msg::EgoState prevPoseVertex =
       id_to_ego_map_[current_pose_id_ - 1];

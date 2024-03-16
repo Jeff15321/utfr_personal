@@ -53,9 +53,9 @@ void ComputeGraphNode::initParams() {
   Eigen::DiagonalMatrix<double, 3> P2P;
   Eigen::DiagonalMatrix<double, 2> P2C;
   Eigen::DiagonalMatrix<double, 3> LoopClosure;
-  P2P.diagonal() << 30, 30, 2000;
+  P2P.diagonal() << 300, 300, 3000;
   P2C.diagonal() << 100, 1000;
-  LoopClosure.diagonal() << 300, 300, 3000;
+  LoopClosure.diagonal() << 500, 500, 5000;
 
   P2PInformationMatrix_ = P2P;
   P2CInformationMatrix_ = P2C;
@@ -239,9 +239,6 @@ void ComputeGraphNode::graphSLAM() {
           vertexSE2->estimate().translation().y(),
           vertexSE2->estimate().rotation().angle());
       fixed_pose_ids_.insert(v.first);
-      if (v.first == 1001) {
-        fixed_pose_map_[v.first]->setFixed(true);
-      }
     }
     if (vertexPointXY) {
 
@@ -272,9 +269,9 @@ void ComputeGraphNode::graphSLAM() {
         cone.type = utfr_msgs::msg::Cone::LARGE_ORANGE;
         cone_map_.large_orange_cones.push_back(cone);
       }
-
+      
       // if (fixed_cone_ids_.find(id) == fixed_cone_ids_.end()) {
-      //   fixed_cone_map_[id] = cone;
+      //   fixed_cone_map_[id] = new_cone;
       //   fixed_cone_ids_.insert(id);
       // }
     }
@@ -356,6 +353,9 @@ void ComputeGraphNode::timerCB() {
     // if (pose_id_to_vertex_map_.find(pose.id) != pose_id_to_vertex_map_.end()) {
     //   delete pose_id_to_vertex_map_[pose.id];
     // }
+    if (pose.id == 1001) {
+      poseVertex->setFixed(true);
+    }
     pose_id_to_vertex_map_[pose.id] = poseVertex;
     pose_nodes_.push_back(poseVertex);
   }
