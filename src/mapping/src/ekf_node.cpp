@@ -55,7 +55,7 @@ void EkfNode::initSubscribers() {
 
 void EkfNode::initPublishers() {
   ego_state_publisher_ =
-      this->create_publisher<utfr_msgs::msg::EgoState>(topics::kPose, 10);
+      this->create_publisher<utfr_msgs::msg::EgoState>(topics::kEgoState, 10);
 }
 
 void EkfNode::initTimers() {
@@ -125,9 +125,17 @@ void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
   x += distribution(gen)* cos(angle);
   y += distribution(gen)* sin(angle);
 
+  // get the velocity from the GPS
+  double vel_x = msg.twist.twist.linear.x;
+  double vel_y = msg.twist.twist.linear.y;
+  double vel_yaw = msg.twist.twist.angular.z;
+
   utfr_msgs::msg::EgoState res = updateState(x, y, -yaw);
   // std::cout << "x: " << res.pose.pose.position.x << " y: " <<
   // res.pose.pose.position.y << std::endl;
+  res.vel.twist.linear.x = vel_x;
+  res.vel.twist.linear.y = vel_y;
+  res.vel.twist.angular.z = vel_yaw;
   current_state_ = res;
   res.pose.pose.position.y = -res.pose.pose.position.y;
   ego_state_publisher_->publish(res);
