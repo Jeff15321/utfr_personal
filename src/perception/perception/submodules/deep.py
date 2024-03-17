@@ -269,9 +269,12 @@ def transform_det_lidar(detections, transform):
                 PointStamped(point=point_stamped), transform
             ).point
             transformed_point = [
-                -1.0 * transformed_point_stamped.z,
                 -1.0 * transformed_point_stamped.x,
                 -1.0 * transformed_point_stamped.y,
+                -1.0 * transformed_point_stamped.z,
+                # -1.0 * transformed_point_stamped.z,
+                # -1.0 * transformed_point_stamped.x,
+                # -1.0 * transformed_point_stamped.y,
                 point[3],
             ]
             transformed_points.append(transformed_point)

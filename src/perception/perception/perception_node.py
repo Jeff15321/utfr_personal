@@ -696,6 +696,8 @@ class PerceptionNode(Node):
             total_cam_det = np.concatenate(
                 (left_detections_lidar_frame, right_detections_lidar_frame), axis=0
             )
+        # total_cam_det = left_detections_lidar_frame
+        # total_cam_det = right_detections_lidar_frame
 
         # perception detections debug
         self.detections_debug = ConeDetections()
@@ -736,6 +738,8 @@ class PerceptionNode(Node):
 
             positions = lidar_point_cloud_data[row_ind][:, :3]
             colours = total_cam_det[col_ind][:, 3:]
+
+            # TODO - cost matrix where indices have cost above certain threshold, make the type unknown
 
             cone_detections = np.concatenate((positions, colours), axis=1)
             print(cone_detections.shape)

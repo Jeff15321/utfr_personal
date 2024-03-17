@@ -181,8 +181,8 @@ void LidarProcNode::publishPointCloud(
 PointCloud LidarProcNode::convertToCustomPointCloud(
     const sensor_msgs::msg::PointCloud2::SharedPtr &input) {
   PointCloud custom_cloud;
-    float c = cos(8/180.0*3.14);
-    float s = sin(8/180.0*3.14);
+    float c = 1.0;//cos(8/180.0*3.14);
+    float s = 0.0;//sin(8/180.0*3.14);
   for (uint32_t i = 0; i < input->height * input->width; ++i) {
     Point pt;
 
