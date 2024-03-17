@@ -65,7 +65,9 @@ enum dv_can_msg {
   SetSTRMotorPosSpeedAcc = 18,
   StrMotorStatus = 19,
 
-  COUNT = 20
+  INVERTER_COMMAND = 20,
+
+  COUNT = 21
 };
 
 typedef struct CAN_message_t {

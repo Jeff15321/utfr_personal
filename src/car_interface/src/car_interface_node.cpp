@@ -331,7 +331,7 @@ void CarInterface::setDVStateAndCommand() {
     }
     }
 
-    // Write to can
+    // Write DV_COMMAND to can
     long dv_command = 0;
 
     if (cmd_ || testing_) {
@@ -348,6 +348,23 @@ void CarInterface::setDVStateAndCommand() {
     }
     // Need to always send dv command so RC always knows DVPC status
     can1_->write_can(dv_can_msg::DV_COMMAND, dv_command);
+
+    // Write INVERTER_COMMAND to can
+    long inverter_command = 0;
+    if(cmd_ || testing_) {
+      inverter_command &= (long)(0x0000); // first two bytes must be zero; not in torque mode
+      inverter_command |= (long)(throttle_cmd_ & 0xFFFF) << 16; // speed rpm command 
+      inverter_command |= (long)(0x01) << 32; // set direction to forward
+      inverter_command |= (long)(0x05) << 40; // enable inverter; set to speed mode
+      inverter_command |= (long)(0x0000) << 48; // torque limit set to 0; uses values on EEPROM
+    } else { // if we aren't supposed to be sending a cmd, tell inv. to stop
+      inverter_command &= (long)(0x0000); // first two bytes must be zero; not in torque mode
+      inverter_command |= (long)(0x0000) << 16; // 0 speed, stop motor command 
+      inverter_command |= (long)(0x01) << 32; // set direction to forward
+      inverter_command |= (long)(0x00) << 40; // disable inverter
+      inverter_command |= (long)(0x0000) << 48; // torque limit set to 0; uses values on EEPROM
+    }
+    can1_->write_can(dv_can_msg::INVERTER_COMMAND, inverter_command);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
