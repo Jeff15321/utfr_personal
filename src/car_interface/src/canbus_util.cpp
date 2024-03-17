@@ -43,10 +43,7 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
      0x0000050F}, // Set Origin on Steering motor
     {(uint8_t)dv_can_msg::SetSTRMotorPosSpeedAcc,
      0x0000060F}, // Set Pos, speed, and accel on Steering motor
-    {(uint8_t)dv_can_msg::StrMotorStatus, 0x0000290F}, // Get Status of motor
-    
-    {(uint8_t)dv_can_msg::INVERTER_COMMAND, 0X0C0} // Inverter command to move car (in speed mode)
-    }; 
+    {(uint8_t)dv_can_msg::StrMotorStatus, 0x0000290F}}; // Get Status of motor
 
 bool CanInterface::connect(const char *canline) {
 
