@@ -59,7 +59,10 @@ class VisualizationNode(Node):
         )
 
         self.cone_detections_ = self.create_subscription(
-            ConeDetections, "/perception/cone_detections", self.perceptionConeDetectionsCB, 1
+            ConeDetections,
+            "/perception/cone_detections",
+            self.perceptionConeDetectionsCB,
+            1,
         )
         print(self.perception_debug_subscriber_left_)
         print(self.perception_debug_subscriber_right_)
@@ -629,126 +632,128 @@ class VisualizationNode(Node):
         large_orange_cones = msg.large_orange_cones
         small_orange_cones = msg.small_orange_cones
         unknown_cones = msg.unknown_cones
+        i = 0
         for cone in left_cones:
             cube_marker = Marker()
-            #populate the marker
+            # populate the marker
             cube_marker.header = msg.header
             cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = 0
-            cube_marker.type = 1 #cube
-            cube_marker.action = 0 #add
+            cube_marker.id = i
+            cube_marker.type = 1  # cube
+            cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
             cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.5
-            cube_marker.scale.y = 0.5
-            cube_marker.scale.z = 0.5
+            cube_marker.scale.x = 0.2
+            cube_marker.scale.y = 0.2
+            cube_marker.scale.z = 0.2
             cube_marker.color.a = 1.0
             cube_marker.color.r = 1.0
             cube_marker.color.g = 1.0
-            cube_marker.color.b = 1.0
+            cube_marker.color.b = 0.0
 
-            cube_cone_dets.append(cube_marker)
-        
+            cube_cone_dets.markers.append(cube_marker)
+            i += 1
+
         for cone in right_cones:
             cube_marker = Marker()
-            #populate the marker
+            # populate the marker
             cube_marker.header = msg.header
             cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = 0
-            cube_marker.type = 1 #cube
-            cube_marker.action = 0 #add
+            cube_marker.id = i
+            cube_marker.type = 1  # cube
+            cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
             cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.5
-            cube_marker.scale.y = 0.5
-            cube_marker.scale.z = 0.5
+            cube_marker.scale.x = 0.2
+            cube_marker.scale.y = 0.2
+            cube_marker.scale.z = 0.2
             cube_marker.color.a = 1.0
             cube_marker.color.r = 1.0
             cube_marker.color.g = 1.0
-            cube_marker.color.b = 1.0
+            cube_marker.color.b = 0.0
 
-            cube_cone_dets.append(cube_marker)
+            cube_cone_dets.markers.append(cube_marker)
+            i += 1
 
         for cone in large_orange_cones:
             cube_marker = Marker()
-            #populate the marker
+            # populate the marker
             cube_marker.header = msg.header
             cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = 0
-            cube_marker.type = 1 #cube
-            cube_marker.action = 0 #add
+            cube_marker.id = i
+            cube_marker.type = 1  # cube
+            cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
             cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.5
-            cube_marker.scale.y = 0.5
-            cube_marker.scale.z = 0.5
+            cube_marker.scale.x = 0.2
+            cube_marker.scale.y = 0.2
+            cube_marker.scale.z = 0.2
             cube_marker.color.a = 1.0
             cube_marker.color.r = 1.0
             cube_marker.color.g = 1.0
-            cube_marker.color.b = 1.0
+            cube_marker.color.b = 0.0
 
-            cube_cone_dets.append(cube_marker)
+            cube_cone_dets.markers.append(cube_marker)
+            i += 1
 
         for cone in small_orange_cones:
             cube_marker = Marker()
-            #populate the marker
+            # populate the marker
             cube_marker.header = msg.header
             cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = 0
-            cube_marker.type = 1 #cube
-            cube_marker.action = 0 #add
+            cube_marker.id = i
+            cube_marker.type = 1  # cube
+            cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
             cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.5
-            cube_marker.scale.y = 0.5
-            cube_marker.scale.z = 0.5
+            cube_marker.scale.x = 0.2
+            cube_marker.scale.y = 0.2
+            cube_marker.scale.z = 0.2
             cube_marker.color.a = 1.0
             cube_marker.color.r = 1.0
             cube_marker.color.g = 1.0
-            cube_marker.color.b = 1.0
+            cube_marker.color.b = 0.0
 
-            cube_cone_dets.append(cube_marker)
+            cube_cone_dets.markers.append(cube_marker)
+            i += 1
 
         for cone in unknown_cones:
             cube_marker = Marker()
-            #populate the marker
+            # populate the marker
             cube_marker.header = msg.header
             cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = 0
-            cube_marker.type = 1 #cube
-            cube_marker.action = 0 #add
+            cube_marker.id = i
+            cube_marker.type = 1  # cube
+            cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
             cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.5
-            cube_marker.scale.y = 0.5
-            cube_marker.scale.z = 0.5
+            cube_marker.scale.x = 0.2
+            cube_marker.scale.y = 0.2
+            cube_marker.scale.z = 0.2
             cube_marker.color.a = 1.0
             cube_marker.color.r = 1.0
             cube_marker.color.g = 1.0
-            cube_marker.color.b = 1.0
+            cube_marker.color.b = 0.0
 
-            cube_cone_dets.append(cube_marker)
-
+            cube_cone_dets.markers.append(cube_marker)
+            i += 1
 
         self.cone_markers_publisher_.publish(cube_cone_dets)
-
-
-        
 
 
 def main(args=None):
