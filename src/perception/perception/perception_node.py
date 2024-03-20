@@ -20,7 +20,6 @@ import matplotlib.pyplot as plot
 import onnxruntime as ort
 import time
 
-from scipy.spatial.distance import cdist
 from scipy.optimize import linear_sum_assignment
 
 
@@ -550,7 +549,7 @@ class PerceptionNode(Node):
             right_bounding_boxes,
             right_classes,
             self.intrinsics_right,
-            self.cone_heights,
+            self.cone_heights
         )
 
         return (

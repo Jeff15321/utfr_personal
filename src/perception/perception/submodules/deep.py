@@ -176,7 +176,11 @@ def bounding_boxes_to_cone_detections(
     coneDetections = np.zeros((np.shape(bounding_boxes)[0], 4))
     f = intrinsics[0][0]  # focal length in pixels from camera matrix
     i = 0
+    skip_counter = 0
     for x, y, w, h in bounding_boxes:
+        if y >= 930:
+            skip_counter += 1
+            continue
         color = labelColor(classes[i])  # int for color
 
         # 3.73mm height of sensor, 1080 px height of image
@@ -194,7 +198,10 @@ def bounding_boxes_to_cone_detections(
         coneDetections[i][3] = color
 
         i += 1
-    return coneDetections
+    if skip_counter == 0:
+        return coneDetections
+    else:
+        return coneDetections[:-skip_counter]
 
 
 def image_to_3d_point(image_point, camera_matrix, depth):
