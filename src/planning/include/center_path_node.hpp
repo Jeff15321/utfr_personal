@@ -217,7 +217,7 @@ private:
              std::vector<double>>
   BezierPoints(std::vector<CGAL::Point_2<CGAL::Epick>> midpoints);
 
-  /*! Skidpad Lap Counter based off of local cone detections:
+  /*! Skidpad Lap Counter:
    */
   void skidpadLapCounter();
 
