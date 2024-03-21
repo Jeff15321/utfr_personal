@@ -46,6 +46,8 @@ void CenterPathNode::initParams() {
   big_radius_ = this->get_parameter("big_radius").as_double();
   threshold_radius_ = this->get_parameter("threshold_radius").as_double();
   threshold_cones_ = this->get_parameter("threshold_cones").as_int();
+
+  RCLCPP_INFO(this->get_logger(), "Event: %s", event_.c_str());
 }
 
 void CenterPathNode::initSubscribers() {
@@ -59,6 +61,11 @@ void CenterPathNode::initSubscribers() {
       this->create_subscription<utfr_msgs::msg::ConeDetections>(
           topics::kConeDetections, 10,
           std::bind(&CenterPathNode::coneDetectionsCB, this, _1));
+
+  cone_map_closure_subscriber_ =
+      this->create_subscription<std_msgs::msg::Bool>(
+          topics::kLoopClosed, 10,
+          std::bind(&CenterPathNode::coneMapClosureCB, this, _1));
 }
 
 void CenterPathNode::initPublishers() {
@@ -92,6 +99,9 @@ void CenterPathNode::initPublishers() {
 
   lap_time_publisher_ = this->create_publisher<utfr_msgs::msg::LapTime>(
       topics::kLapTime, 10);
+
+  lap_datum_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>(
+      "/lap_datum", 10);
 }
 
 void CenterPathNode::initEvent() {
@@ -226,12 +236,18 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     utfr_msgs::msg::ConeMap template_cone_map;
     cone_map_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
   }
+  if (cone_map_raw_ == nullptr) {
+    // first initialization:
+    utfr_msgs::msg::ConeMap template_cone_map;
+    cone_map_raw_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
+  }
   if (use_mapping_ && (event_ == "autocross" || event_ == "trackdrive")) {
     cone_map_->header = msg.header;
     cone_map_->left_cones = msg.left_cones;
     cone_map_->right_cones = msg.right_cones;
     cone_map_->large_orange_cones = msg.large_orange_cones;
     cone_map_->small_orange_cones = msg.small_orange_cones;
+    (*cone_map_raw_) = msg;
   }
   else if (use_mapping_ && (event_ == "skidpad" || event_ == "accel")){
     cone_map_->header = msg.header;
@@ -239,6 +255,7 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     cone_map_->right_cones = getConesInHemisphere(msg.right_cones, 15.0);
     cone_map_->large_orange_cones = getConesInHemisphere(msg.large_orange_cones, 15.0);
     cone_map_->small_orange_cones = getConesInHemisphere(msg.small_orange_cones, 15.0);
+    (*cone_map_raw_) = msg;
   }
 }
 
@@ -272,6 +289,11 @@ void CenterPathNode::coneDetectionsCB(
   }
 }
 
+void CenterPathNode::coneMapClosureCB(const std_msgs::msg::Bool &msg) {
+  // RCLCPP_WARN(this->get_logger(), "Cone Map Closure Callback");
+  loop_closed_ = msg.data;
+}
+
 void CenterPathNode::timerCBAccel() {
   try {
     const std::string function_name{"center_path_timerCB:"};
@@ -279,6 +301,10 @@ void CenterPathNode::timerCBAccel() {
     if (!cone_detections_) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+    if (cone_map_ == nullptr) {
+      RCLCPP_WARN(get_logger(), "%s Cone Map is empty", function_name.c_str());
       return;
     }
 
@@ -330,9 +356,12 @@ void CenterPathNode::timerCBSkidpad() {
                   function_name.c_str());
       return;
     }
+    if (cone_map_ == nullptr) {
+      RCLCPP_WARN(get_logger(), "%s Cone Map is empty", function_name.c_str());
+      return;
+    }
     skidPadFit();
     skidpadLapCounter();
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
     publishLapTime();
   } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
@@ -347,6 +376,10 @@ void CenterPathNode::timerCBAutocross() {
         ego_state_ == nullptr) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+    if (cone_map_ == nullptr) {
+      RCLCPP_WARN(get_logger(), "%s Cone Map is empty", function_name.c_str());
       return;
     }
 
@@ -408,6 +441,10 @@ void CenterPathNode::timerCBTrackdrive() {
     if (!cone_detections_ || cone_map_ == nullptr || ego_state_ == nullptr) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+    if (cone_map_ == nullptr) {
+      RCLCPP_WARN(get_logger(), "%s Cone Map is empty", function_name.c_str());
       return;
     }
 
@@ -508,6 +545,12 @@ bool CenterPathNode::coneDistComparitor(const utfr_msgs::msg::Cone &a,
 
 std::vector<double> CenterPathNode::getAccelPath() {
   std::vector<utfr_msgs::msg::Cone> all_cones;
+
+  if (cone_map_ == nullptr) {
+    RCLCPP_WARN(this->get_logger(), "Cone Map is empty");
+    return std::vector<double>();
+  }
+  
   if (curr_sector_ < 5) {
     all_cones.insert(all_cones.end(), cone_map_->left_cones.begin(),
                     cone_map_->left_cones.end());
@@ -584,10 +627,11 @@ std::vector<double> CenterPathNode::getAccelPath() {
       }
     }
   }
+
   bool found_2 = false;
   for (int i = 0; i < static_cast<int>(all_cones.size()) - 1; i++) {
     for (int j = i + 1; j < static_cast<int>(all_cones.size()); j++) {
-      if (i != j && i != ind_1 && j != ind_1 && i != ind_2 && j != ind_2) {
+      if (i != j && found_1 && i != ind_1 && j != ind_1 && i != ind_2 && j != ind_2) {
         utfr_msgs::msg::ConeMap test_cones;
         utfr_msgs::msg::Cone test_cone;
         test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
@@ -1212,7 +1256,7 @@ void CenterPathNode::skidpadLapCounter() {
     if (time_diff > 10.0 && !lock_sector_ && ((found_4_large_orange &&
         large_orange_cones_size < 4 && average_distance_to_cones < 5.0)
          ||
-        (cone_map_->kLoopClosed && checkPassedDatum(getSkidpadDatum(*cone_map_), *ego_state_)))) {
+        (loop_closed_ && checkPassedDatum(getSkidpadDatum(*cone_map_raw_), *ego_state_)))) {
       last_time = curr_time;
       curr_sector_ += 1;
       lock_sector_ = true;
@@ -1222,6 +1266,9 @@ void CenterPathNode::skidpadLapCounter() {
         time_diff > 5.0) {
       lock_sector_ = false;
       found_4_large_orange = false;
+    }
+    if (loop_closed_ && checkPassedDatum(getSkidpadDatum(*cone_map_raw_), *ego_state_)) {
+      RCLCPP_WARN(this->get_logger(), "Global lap incremented");
     }
     break;
   case 16:
@@ -1268,19 +1315,19 @@ utfr_msgs::msg::EgoState CenterPathNode::getSkidpadDatum(const utfr_msgs::msg::C
     double x = 0.0;
     double y = 0.0;
     //do x
+    double baseX = cone_map.large_orange_cones[0].pos.x;
     for (int i = 0; i < 2; i++) {
-      for (int j = i + 1; j < 3; j++) {
-        if (abs(cone_map.large_orange_cones[i].pos.x - cone_map.large_orange_cones[j].pos.x) > 0.5) {
-          x += cone_map.large_orange_cones[i].pos.x;
-        }
+      if (abs(baseX - cone_map.large_orange_cones[i].pos.x) > 0.5) {
+        x += cone_map.large_orange_cones[i].pos.x;
+        break;
       }
     }
-    x = x / 2;
+    x = x / 2.0;
     //do y
     for (utfr_msgs::msg::Cone cone : cone_map.large_orange_cones) {
       y += cone.pos.y;
     }
-    y = y / 3;
+    y = y / 3.0;
 
     datum.pose.pose.position.x = x;
     datum.pose.pose.position.y = y;
@@ -1301,6 +1348,26 @@ utfr_msgs::msg::EgoState CenterPathNode::getSkidpadDatum(const utfr_msgs::msg::C
     datum.pose.pose.position.z = -100.0;
     datum.pose.pose.orientation = util::yawToQuaternion(0.0);
   }
+  RCLCPP_INFO(this->get_logger(), "Datum: %f, %f", datum.pose.pose.position.x, datum.pose.pose.position.y);
+  visualization_msgs::msg::Marker marker;
+  marker.header.frame_id = "base_link";
+  marker.header.stamp = this->get_clock()->now();
+  marker.ns = "my_namespace";
+  marker.id = 0;
+  marker.type = visualization_msgs::msg::Marker::SPHERE;
+  marker.action = visualization_msgs::msg::Marker::ADD;
+  marker.pose.position.x = datum.pose.pose.position.x;
+  marker.pose.position.y = -datum.pose.pose.position.y;
+  marker.pose.position.z = 0;
+  
+  marker.scale.x = 0.5;
+  marker.scale.y = 0.5;
+  marker.scale.z = 0.5;
+  marker.color.a = 1.0; // Don't forget to set the alpha!
+  marker.color.r = 0.0;
+  marker.color.g = 1.0;
+  marker.color.b = 0.0;
+  lap_datum_publisher_->publish(marker);
 
   return datum;
 
