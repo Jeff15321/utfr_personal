@@ -1295,7 +1295,7 @@ bool CenterPathNode::checkPassedDatum(const utfr_msgs::msg::EgoState reference,
   double ref_y = reference.pose.pose.position.y;
   double ref_yaw = util::quaternionToYaw(reference.pose.pose.orientation);
 
-  double cur_x = current.pose.pose.position.x;
+  double cur_x = current.pose.pose.position.x + 2.0; // offset forward to represent nose of car
   double cur_y = current.pose.pose.position.y;
   double cur_yaw = util::quaternionToYaw(current.pose.pose.orientation);
 
