@@ -1253,23 +1253,34 @@ void CenterPathNode::skidpadLapCounter() {
   case 13:
   case 14:
   case 15:
-    if (time_diff > 10.0 && !lock_sector_ && ((found_4_large_orange &&
-        large_orange_cones_size < 4 && average_distance_to_cones < 5.0)
-         ||
-        (loop_closed_ && checkPassedDatum(getSkidpadDatum(*cone_map_raw_), *ego_state_)))) {
-      last_time = curr_time;
-      curr_sector_ += 1;
-      lock_sector_ = true;
+    if (time_diff > 10.0 && !lock_sector_) {
+      if (loop_closed_) {
+        if (checkPassedDatum(getSkidpadDatum(*cone_map_raw_), *ego_state_)) {
+          last_time = curr_time;
+          curr_sector_ += 1;
+          lock_sector_ = true;
+          RCLCPP_INFO(this->get_logger(), "Lap incremented: Global trigger");
+        }
+      } else {
+        if (found_4_large_orange &&
+            large_orange_cones_size < 4 && 
+            average_distance_to_cones < 5.0) {
+          last_time = curr_time;
+          curr_sector_ += 1;
+          lock_sector_ = true;
+          RCLCPP_INFO(this->get_logger(), "Lap incremented: Local trigger");
+        }
+      }
     }
-
+    
     if (found_4_large_orange && lock_sector_ && large_orange_cones_size == 0 &&
         time_diff > 5.0) {
       lock_sector_ = false;
       found_4_large_orange = false;
     }
-    if (loop_closed_ && checkPassedDatum(getSkidpadDatum(*cone_map_raw_), *ego_state_)) {
-      RCLCPP_WARN(this->get_logger(), "Global lap incremented");
-    }
+    // if (loop_closed_ && checkPassedDatum(getSkidpadDatum(*cone_map_raw_), *ego_state_)) {
+    //   RCLCPP_WARN(this->get_logger(), "Global lap incremented");
+    // }
     break;
   case 16:
     if (left_size == 0 && right_size == 0) {
@@ -1348,7 +1359,7 @@ utfr_msgs::msg::EgoState CenterPathNode::getSkidpadDatum(const utfr_msgs::msg::C
     datum.pose.pose.position.z = -100.0;
     datum.pose.pose.orientation = util::yawToQuaternion(0.0);
   }
-  RCLCPP_INFO(this->get_logger(), "Datum: %f, %f", datum.pose.pose.position.x, datum.pose.pose.position.y);
+  // RCLCPP_INFO(this->get_logger(), "Datum: %f, %f", datum.pose.pose.position.x, datum.pose.pose.position.y);
   visualization_msgs::msg::Marker marker;
   marker.header.frame_id = "base_link";
   marker.header.stamp = this->get_clock()->now();
