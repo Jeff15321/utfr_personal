@@ -99,9 +99,6 @@ void CenterPathNode::initPublishers() {
 
   lap_time_publisher_ = this->create_publisher<utfr_msgs::msg::LapTime>(
       topics::kLapTime, 10);
-
-  lap_datum_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>(
-      "/lap_datum", 10);
 }
 
 void CenterPathNode::initEvent() {
