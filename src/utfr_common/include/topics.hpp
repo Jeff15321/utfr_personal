@@ -37,6 +37,7 @@ const std::string kEgoState{"ekf/ego_state"};
 const std::string kEKFHeartbeat{"ekf/heartbeat"};
 
 // Mapping
+const std::string kLoopClosed{"mapping/loop_closed"};
 const std::string kConeMap{"mapping/cone_map"};
 const std::string kMappingBuildHeartbeat{"mapping/build/heartbeat"};
 const std::string kPoseGraph{"mapping/pose_graph"};
@@ -58,6 +59,7 @@ const std::string kPurePursuitPoint{"planning/pure_pursuit_point"};
 const std::string kSkidpadFitting{"planning/skidpad_fitting"};
 const std::string kSkidpadFitting2{"planning/skidpad_fitting_2"};
 const std::string kSkidpadFittingavg{"planning/skidpad_fitting_avg"};
+const std::string kLapTime{"planning/lap_time"};
 
 // Controls
 const std::string kControlCmd{"controls/control_cmd"};

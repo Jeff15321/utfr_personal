@@ -199,6 +199,15 @@ accelLLSOccupancy(const std::vector<utfr_msgs::msg::Cone> &cones);
 std::tuple<double, double, double, double>
 ransacCircleLSF(const std::vector<utfr_msgs::msg::Cone> &cones, double radius);
 
+/*! Return linear least suqres fitting of list of cone positions
+ *
+ * @param[in] cones list of cones
+ * @returns tuple of 3 double of cicle's (center x, center y, radius)
+ *
+ */
+std::tuple<double, double, double>
+circleLSF(const std::vector<utfr_msgs::msg::Cone> &cones);
+
 /*! Yaw to Quaternion
  *
  * @param[in] yaw double of yaw in radians

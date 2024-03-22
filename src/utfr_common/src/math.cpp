@@ -390,6 +390,32 @@ ransacCircleLSF(const std::vector<utfr_msgs::msg::Cone> &cones, double radius) {
   return circle;
 }
 
+std::tuple<double, double, double>
+circleLSF(const std::vector<utfr_msgs::msg::Cone> &cones) {
+  int n = cones.size();
+  MatrixXd A(n, 3);
+  // MatrixXd A(n,2);
+  MatrixXd b(n, 1);
+
+  for (int i = 0; i < n; i++) {
+    A(i, 0) = 2.0 * cones[i].pos.x;
+    A(i, 1) = 2.0 * cones[i].pos.y;
+    A(i, 2) = 1.0;
+    // b(i, 0) = pow((cones[i].pos.x),2)+pow((cones[i].pos.y),2);
+    b(i, 0) =
+        pow((cones[i].pos.x), 2) + pow((cones[i].pos.y), 2);
+  }
+
+  MatrixXd At = A.transpose();
+  MatrixXd res = (At * A).inverse() * (At * b);
+  double xc = res(0);
+  double yc = res(1);
+  double sum = res(2);
+  double rad = sqrt(sum + xc * xc + yc * yc);
+  std::tuple<double, double, double> circle = std::make_tuple(xc, yc, rad);
+  return circle;
+}
+
 geometry_msgs::msg::Quaternion yawToQuaternion(double yaw) {
   geometry_msgs::msg::Quaternion q;
   q.w = cos(yaw * 0.5);

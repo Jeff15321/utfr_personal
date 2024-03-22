@@ -49,10 +49,6 @@ void ControllerNode::initParams() {
   this->declare_parameter("base_lookahead_distance", 1.0);
   this->declare_parameter("lookahead_scaling_factor", 0.15);
 
-  this->declare_parameter("stanley_gain", 1.0);
-  this->declare_parameter("softening_constant", 5.0);
-  this->declare_parameter("k_yaw_rate", 0.0);
-  this->declare_parameter("k_damp_steer", 0.0);
   this->declare_parameter("skip_path_opt", false);
   this->declare_parameter("lookahead_distance", 5.0);
   this->declare_parameter("a_lateral", 1.0);
@@ -76,10 +72,6 @@ void ControllerNode::initParams() {
   lookahead_distance_scaling_factor_ =
       this->get_parameter("lookahead_scaling_factor").as_double();
 
-  stanley_gain_ = this->get_parameter("stanley_gain").as_double();
-  softening_constant_ = this->get_parameter("softening_constant").as_double();
-  k_yaw_rate_ = this->get_parameter("k_yaw_rate").as_double();
-  k_damp_steer_ = this->get_parameter("k_damp_steer").as_double();
   skip_path_opt_ = this->get_parameter("skip_path_opt").as_bool();
   lookahead_distance_ = this->get_parameter("lookahead_distance").as_double();
   a_lateral_max_ = this->get_parameter("a_lateral").as_double();
@@ -91,18 +83,10 @@ void ControllerNode::initSubscribers() {
   ego_state_subscriber_ = this->create_subscription<utfr_msgs::msg::EgoState>(
       topics::kEgoState, 10, std::bind(&ControllerNode::egoStateCB, this, _1));
 
-  cone_map_subscriber_ = this->create_subscription<utfr_msgs::msg::ConeMap>(
-      topics::kConeMap, 10, std::bind(&ControllerNode::coneMapCB, this, _1));
-
   path_subscriber_ =
       this->create_subscription<utfr_msgs::msg::ParametricSpline>(
           topics::kCenterPath, 10,
           std::bind(&ControllerNode::pathCB, this, _1));
-
-  lap_counter_subscriber_ =
-      this->create_subscription<utfr_msgs::msg::Heartbeat>(
-          topics::kCenterPathHeartbeat, 10,
-          std::bind(&ControllerNode::lapCounterCB, this, _1));
 }
 
 void ControllerNode::initPublishers() {
@@ -120,21 +104,25 @@ void ControllerNode::initPublishers() {
 void ControllerNode::initTimers() {
   if (event_ == "accel") {
     last_lap_count_ = 2;
+    use_mapping_ = false;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBAccel, this));
   } else if (event_ == "skidpad") {
     last_lap_count_ = 17;
+    use_mapping_ = false;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBSkidpad, this));
   } else if (event_ == "autocross") {
     last_lap_count_ = 21;
+    use_mapping_ = true;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBAutocross, this));
   } else if (event_ == "trackdrive") {
     last_lap_count_ = 40;
+    use_mapping_ = true;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBTrackdrive, this));
@@ -277,26 +265,23 @@ void ControllerNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
     utfr_msgs::msg::EgoState template_ego;
     ego_state_ = std::make_shared<utfr_msgs::msg::EgoState>(template_ego);
   }
-
-  ego_state_->header = msg.header;
-  ego_state_->pose = msg.pose;
-  ego_state_->vel = msg.vel;
-  ego_state_->accel = msg.accel;
-  ego_state_->steering_angle = msg.steering_angle;
-}
-
-void ControllerNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
-  if (cone_map_ == nullptr) {
-    // first initialization:
-    utfr_msgs::msg::ConeMap template_cone_map;
-    cone_map_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
+  if (use_mapping_){
+    ego_state_->header = msg.header;
+    ego_state_->pose = msg.pose;
+    ego_state_->vel = msg.vel;
+    ego_state_->accel = msg.accel;
+    ego_state_->steering_angle = msg.steering_angle;
   }
-
-  cone_map_->header = msg.header;
-  cone_map_->left_cones = msg.left_cones;
-  cone_map_->right_cones = msg.right_cones;
-  cone_map_->large_orange_cones = msg.large_orange_cones;
-  cone_map_->small_orange_cones = msg.small_orange_cones;
+  else if (!use_mapping_){
+    ego_state_->header = msg.header;
+    ego_state_->pose = msg.pose;
+    ego_state_->pose.pose.position.x = 0.0;
+    ego_state_->pose.pose.position.y = 0.0;
+    ego_state_->pose.pose.position.z = 0.0;
+    ego_state_->vel = msg.vel;
+    ego_state_->accel = msg.accel;
+    ego_state_->steering_angle = msg.steering_angle;
+  }
 }
 
 void ControllerNode::pathCB(const utfr_msgs::msg::ParametricSpline &msg) {
@@ -311,9 +296,7 @@ void ControllerNode::pathCB(const utfr_msgs::msg::ParametricSpline &msg) {
   path_->x_params = msg.x_params;
   path_->y_params = msg.y_params;
   path_->skidpad_params = msg.skidpad_params;
-}
-
-void ControllerNode::lapCounterCB(const utfr_msgs::msg::Heartbeat &msg) {
+  path_->lap_count = msg.lap_count;
   lap_count_ = msg.lap_count;
 }
 
@@ -335,22 +318,27 @@ void ControllerNode::timerCBAccel() {
 
     double cur_s_ = 0;
 
+    std::vector<double> velocities = calculateVelocities(
+        *path_, lookahead_distance_, num_points_, a_lateral_max_);
+    std::vector<double> filtered_velocities =
+        filterVelocities(velocities, ego_state_->vel.twist.linear.x,
+                         lookahead_distance_, max_velocity_, 10, -10);
+
+    velocity_profile_->velocities = filtered_velocities;
+    velocity_profile_->header.stamp = this->get_clock()->now();
+
     // Controller
     utfr_msgs::msg::TargetState target = purePursuitController(
         max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
-        baselink_location_, *ego_state_, base_lookahead_distance_,
+        baselink_location_, base_lookahead_distance_,
         lookahead_distance_scaling_factor_);
-
-    // utfr_msgs::msg::TargetState target = stanleyController(
-    //   stanley_gain_, INT_MAX, max_steering_angle_, max_steering_rate_,
-    //   *path_, cur_s_, ds_, *velocity_profile_, baselink_location_, *ego_state_);
 
     target_ = target;
 
     // print target state
-    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                "Target steering: %f \n Target velocity: %f",
-                target.steering_angle, target.speed);
+    // RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+    //             "Target steering: %f \n Target velocity: %f",
+    //             target.steering_angle, target.speed);
 
     // publish target state
     target_state_publisher_->publish(target_);
@@ -383,7 +371,7 @@ void ControllerNode::timerCBSkidpad() {
 
     std::vector<double> velocities;
     if (lap_count_ > 11 && lap_count_ < 16) {
-      velocities = calculateSkidpadVelocities(*path_, lookahead_distance_,
+      velocities = calculateSkidpadVelocities(*path_,
                                               num_points_, a_lateral_max_);
     } else {
       velocities = calculateVelocities(*path_, lookahead_distance_, num_points_,
@@ -392,7 +380,7 @@ void ControllerNode::timerCBSkidpad() {
 
     std::vector<double> filtered_velocities =
         filterVelocities(velocities, ego_state_->vel.twist.linear.x,
-                         lookahead_distance_, max_velocity_, 10, -10);
+                         lookahead_distance_, max_velocity_, 10.0, -2.5);
 
     velocity_profile_->velocities = filtered_velocities;
     velocity_profile_->header.stamp = this->get_clock()->now();
@@ -402,7 +390,7 @@ void ControllerNode::timerCBSkidpad() {
     // Controller
     utfr_msgs::msg::TargetState target = purePursuitController(
         max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
-        baselink_location_, *ego_state_, base_lookahead_distance_,
+        baselink_location_, base_lookahead_distance_,
         lookahead_distance_scaling_factor_);
 
     target_ = target;
@@ -455,7 +443,7 @@ void ControllerNode::timerCBAutocross() {
     // Controller
     utfr_msgs::msg::TargetState target = purePursuitController(
         max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
-        baselink_location_, *ego_state_, base_lookahead_distance_,
+        baselink_location_, base_lookahead_distance_,
         lookahead_distance_scaling_factor_);
 
     target_ = target;
@@ -508,7 +496,7 @@ void ControllerNode::timerCBTrackdrive() {
     // Controller
     utfr_msgs::msg::TargetState target = purePursuitController(
         max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
-        baselink_location_, *ego_state_, base_lookahead_distance_,
+        baselink_location_, base_lookahead_distance_,
         lookahead_distance_scaling_factor_);
 
     target_ = target;
@@ -560,7 +548,7 @@ void ControllerNode::timerCBEBS() {
     // Controller
     utfr_msgs::msg::TargetState target = purePursuitController(
         max_steering_angle_, *path_, cur_s_, ds_, *velocity_profile_,
-        baselink_location_, *ego_state_, base_lookahead_distance_,
+        baselink_location_, base_lookahead_distance_,
         lookahead_distance_scaling_factor_);
 
     target_ = target;
@@ -640,11 +628,9 @@ ControllerNode::discretizePoint(const utfr_msgs::msg::ParametricSpline &spline,
 }
 
 std::vector<geometry_msgs::msg::Pose> ControllerNode::discretizeCircle(
-    const utfr_msgs::msg::ParametricSpline &spline_params, double cur_s,
-    double ds, int num_points) {
+    const utfr_msgs::msg::ParametricSpline &spline_params, int num_points) {
   std::vector<geometry_msgs::msg::Pose> discretized_points;
 
-  double s = cur_s;
   double x0 = spline_params.skidpad_params[0];
   double y0 = spline_params.skidpad_params[1];
   double r = spline_params.skidpad_params[2];
@@ -709,13 +695,13 @@ std::vector<geometry_msgs::msg::Pose> ControllerNode::discretizeParametric(
 utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
     double max_steering_angle, utfr_msgs::msg::ParametricSpline spline_params,
     double cur_s, double ds, utfr_msgs::msg::VelocityProfile velocity_profile,
-    double baselink_location, utfr_msgs::msg::EgoState ego_state,
+    double baselink_location, 
     double base_lookahead_distance, double lookahead_distance_scaling_factor) {
 
   std::vector<geometry_msgs::msg::Pose> discretized_points;
   if (lap_count_ < 16 && lap_count_ > 11) {
     discretized_points =
-        discretizeCircle(spline_params, cur_s, ds, num_points_);
+        discretizeCircle(spline_params, num_points_);
   } else {
     discretized_points =
         discretizeParametric(spline_params, cur_s, ds, num_points_);
@@ -805,12 +791,22 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   // Limit steering angle within bounds.
   delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
 
-  // Reduce speed if turning sharply or near max steering.
-  if ((abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
-       abs(delta) > max_steering_angle) &&
-      (lap_count_ > 15 || lap_count_ < 12)) {
-    desired_velocity = std::max(desired_velocity - 2, 1.0);
+  double max_steering_rate = static_cast<double>(109 * 100 / 22.0 / 60.0 / update_rate_);
+  double last_steering_angle = ego_state_->steering_angle;
+  if (abs(delta - last_steering_angle) > max_steering_rate) {
+    if (delta > last_steering_angle) {
+      delta = last_steering_angle + max_steering_rate;
+    } else {
+      delta = last_steering_angle - max_steering_rate;
+    }
   }
+
+  // Reduce speed if turning sharply or near max steering.
+  // if ((abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
+  //      abs(delta) > max_steering_angle) &&
+  //     (lap_count_ > 15 || lap_count_ < 12)) {
+  //   desired_velocity = std::max(desired_velocity - 2, 1.0);
+  // }
 
   rclcpp::Time curr_time = this->get_clock()->now();
 
@@ -823,7 +819,12 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
     desired_velocity = 1.0;
   }
 
-  if (abs((curr_time - start_time_).seconds()) > 5.0 && finished_event_) {
+  // if (abs((curr_time - start_time_).seconds()) > 5.0 && finished_event_) {
+  //   desired_velocity = 0.0;
+  //   finished_and_stopped_ = true;
+  // }
+
+  if (finished_event_) {
     desired_velocity = 0.0;
     finished_and_stopped_ = true;
   }
@@ -840,216 +841,10 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   return target; // Return the target state.
 }
 
-utfr_msgs::msg::TargetState ControllerNode::stanleyController(
-    double k, double max_speed, double max_steering_angle,
-    double max_steering_rate, utfr_msgs::msg::ParametricSpline spline_params,
-    double cur_s, double ds, utfr_msgs::msg::VelocityProfile velocity_profile,
-    double baselink_location, utfr_msgs::msg::EgoState ego_state) {
-  const std::string function_name{"stanleyController:"};
-
-  static std::ofstream out("stanley.txt", std::ios::trunc);
-  static int idx = 0;
-  idx++;
-  out << "Log " << idx << ":" << std::endl;
-
-  // double vehicle_theta = util::quaternionToYaw(ego_state.pose.pose.orientation);
-
-  double prev_steering = ego_state.steering_angle;
-
-  // double vehicle_x =
-  //     ego_state.pose.pose.position.x + baselink_location * cos(vehicle_theta);
-  // double vehicle_y = 
-  //     ego_state.pose.pose.position.y + baselink_location * sin(vehicle_theta);
-
-  double vehicle_x = 0.79, vehicle_y = 0;
-
-  // double x = ego_state.pose.pose.position.x, y = ego_state.pose.pose.position.y;
-  // RCLCPP_FATAL(this->get_logger(), "Center: %f, %f", x, y);
-  // RCLCPP_FATAL(this->get_logger(), "Front: %f, %f", vehicle_x, vehicle_y);
-  // RCLCPP_FATAL(this->get_logger(), "Angle: %f", vehicle_theta);
-
-  std::vector<geometry_msgs::msg::Pose> discretized_points =
-      discretizeParametric(spline_params, cur_s, ds, num_points_);
-
-  geometry_msgs::msg::PolygonStamped path_stamped;
-
-  path_stamped.header.frame_id = "base_footprint";
-
-  path_stamped.header.stamp = this->get_clock()->now();
-
-  for (int i = 0; i < static_cast<int>(discretized_points.size()); i++) {
-    geometry_msgs::msg::Point32 point;
-    point.x = discretized_points[i].position.x;
-    point.y = -discretized_points[i].position.y;
-    point.z = 0.0;
-    path_stamped.polygon.points.push_back(point);
-  }
-
-  path_publisher_->publish(path_stamped);
-
-  geometry_msgs::msg::Pose closest_wp =
-      closestPoint(ego_state, discretized_points);
-
-  out << "WP Distance: " << sqrt(pow(closest_wp.position.x-vehicle_x, 2) + pow(closest_wp.position.y, 2)) << std::endl;
-
-  double vx = ego_state.vel.twist.linear.x, vy = ego_state.vel.twist.linear.y;
-  double vehicle_velocity = sqrt(vx * vx + vy * vy);
-  RCLCPP_FATAL(this->get_logger(), "Velocity: %f", vehicle_velocity);
-  out << "Velocity: " << vehicle_velocity << std::endl;
-
-  // Compute the errors
-  double dx = closest_wp.position.x - vehicle_x;
-  double dy = closest_wp.position.y - vehicle_y;
-  // Crosstrack error i.e. the distance from the vehicle to the racing line
-  double cte;
-  if(atan2(dy, dx) < 0){
-    cte = -sqrt(dx * dx + dy * dy);
-  }
-  else{
-    cte = sqrt(dx * dx + dy * dy);
-  }
-  // Heading error i.e. the difference between the vehicle's heading and the
-  // racing line's heading
-
-  // if (vehicle_theta > M_PI) {
-  //   vehicle_theta = vehicle_theta - 2 * M_PI;
-  // } else if (vehicle_theta < -M_PI) {
-  //   vehicle_theta = vehicle_theta + 2 * M_PI;
-  // }
-  double psi = util::quaternionToYaw(closest_wp.orientation);
-
-  RCLCPP_FATAL(this->get_logger(), "WP Angle: %f", psi);
-  out << "WP Angle: " << psi << std::endl;
-
-  // if (psi > M_PI) {
-  //   psi = psi - 2 * M_PI;
-  // } else if (psi < -M_PI) {
-  //   psi = psi + 2 * M_PI;
-  // }
-
-  // // Compute vector from vehicle to target point
-  // double vecToTarget[2] = {dx, dy};
-
-  // // Compute path direction vector at target point
-  // double theta = util::quaternionToYaw(closest_wp.orientation);
-  // double pathDir[2] = {cos(theta), sin(theta)};
-
-  // // Compute the magnitudes of the vectors
-  // double magnitudeVecToTarget =
-  //     sqrt(vecToTarget[0] * vecToTarget[0] + vecToTarget[1] * vecToTarget[1]);
-  // double magnitudePathDir =
-  //     sqrt(pathDir[0] * pathDir[0] + pathDir[1] * pathDir[1]);
-
-  // // Compute the dot product
-  // double dotProduct = vecToTarget[0] * pathDir[0] + vecToTarget[1] * pathDir[1];
-
-  // // Compute the angle in radians
-  // double angleRad =
-  //     acos(dotProduct / (magnitudeVecToTarget * magnitudePathDir));
-
-  // // Convert the angle to degrees
-  // double angleDeg = angleRad * 180.0 / M_PI;
-  // if (cte < cte_error_ || abs(angleDeg) < cte_angle_error_)
-  //   cte = 0.0;
-
-  // // Compute cross product
-  // double crossProduct =
-  //     vecToTarget[0] * pathDir[1] - vecToTarget[1] * pathDir[0];
-
-  // // Check the side
-  // if (crossProduct > 0) {
-  //   cte = -cte;
-  // }
-
-
-  if (vehicle_velocity < 1.0) {
-    vehicle_velocity = 1.0; // to prevent division by zero
-  }
-
-  // Control law for the Stanley steering controller
-  double stanley_term = atan2((k * cte), vehicle_velocity);
-
-  double desired_velocity = velocity_profile.velocities[50];
-
-  {
-    double low = 1e9, high = -1e9;
-    for(double v : velocity_profile.velocities){
-      low = std::min(low, v);
-      high = std::max(high, v);
-    }
-    RCLCPP_FATAL(this->get_logger(), "High=%f, Low=%f", high, low);
-    out << "High=" << high << ", Low=" << low << std::endl;
-  }
-
-  // double yaw_rate_damping =
-  //     k_yaw_rate_ * (-desired_velocity * sin(prev_steering)) / wheel_base_;
-
-  // double desired_steering_angle = psi + yaw_rate_damping + stanley_term;
-
-  // double steering_delay =
-  //     k_damp_steer_ * (desired_steering_angle - prev_steering);
-
-  // double unclipped_delta = desired_steering_angle + steering_delay;
-
-  double unclipped_delta = psi + stanley_term;
-
-  // Clip the steering angle to the maximum allowed
-  double delta =
-      std::clamp(unclipped_delta, -max_steering_angle, max_steering_angle);
-
-  RCLCPP_FATAL(this->get_logger(), "Steering Angle: %f", delta);
-  out << "Old Steering Angle: " << prev_steering << std::endl;
-  out << "New Steering Angle: " << delta << std::endl;
-  out << "Steering difference: " << delta-prev_steering << std::endl;
-
-  // If we're at the maximum steering angle, slow down
-  // if (abs(delta) == max_steering_angle ||
-  //     (cte > cte_error_ && abs(angleDeg) > cte_angle_error_ &&
-  //      abs(psi) > 0.2 * max_steering_angle)) {
-  //   desired_velocity = 1.0; // or some other speed lower than max_speed
-  // } else {
-  //   // Use the velocity profile to determine the desired velocity
-  //   desired_velocity = velocity_profile.velocities[0];
-  // }
-
-  RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-              "Target steering: %f \n Target velocity: %f", delta,
-              desired_velocity);
-
-  utfr_msgs::msg::TargetState target;
-  target.speed = desired_velocity;
-  target.speed = 2;
-  target.steering_angle = -delta;
-
-  return target;
-}
-
-geometry_msgs::msg::Pose
-ControllerNode::closestPoint(utfr_msgs::msg::EgoState ego_state,
-                             std::vector<geometry_msgs::msg::Pose> waypoints) {
-  double closest_distance = 100000.0;
-  geometry_msgs::msg::Pose closest_wp;
-
-  double vehicle_x = 0.79, vehicle_y = 0;
-
-  for (int i = 0; i < waypoints.size(); i++) {
-    geometry_msgs::msg::Pose wp = waypoints[i];
-    double dx = wp.position.x - vehicle_x;
-    double dy = wp.position.y - vehicle_y;
-    double distance = sqrt(dx * dx + dy * dy);
-    if (distance < closest_distance) {
-      closest_distance = distance;
-      closest_wp = wp;
-    }
-  }
-
-  return closest_wp;
-}
-
-double ControllerNode::k(std::vector<double> c, double s) { return 1 / c[2]; }
+double ControllerNode::k(std::vector<double> c) { return 1 / c[2]; }
 
 std::vector<double> ControllerNode::calculateSkidpadVelocities(
-    utfr_msgs::msg::ParametricSpline &spline, double L, int n,
+    utfr_msgs::msg::ParametricSpline &spline, int n,
     double a_lateral) {
   if (n <= 1)
     return {};
@@ -1058,11 +853,10 @@ std::vector<double> ControllerNode::calculateSkidpadVelocities(
   std::vector<double> velocities;
 
   for (int s = 0; s <= num_points_; s++) {
-    double angle = s / num_points_ * 3.1415 / 2;
     try {
-      velocities.push_back(sqrt(a_lateral / k(params, angle)));
+      velocities.push_back(sqrt(a_lateral / k(params)));
     } catch (int e) {
-      velocities.push_back(100.0);
+      velocities.push_back(5.0);
     }
   }
   return velocities;

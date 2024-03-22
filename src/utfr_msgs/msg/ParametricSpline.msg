@@ -7,3 +7,5 @@ float64[] x_params
 float64[] y_params
 
 float64[] skidpad_params # [x0, y0, radius]
+
+uint8 lap_count

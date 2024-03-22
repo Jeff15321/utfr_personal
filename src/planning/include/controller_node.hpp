@@ -58,15 +58,15 @@ public:
    */
   ControllerNode();
 
-  double k(std::vector<double> c, double s);
+  double k(std::vector<double> c);
 
   std::vector<double>
-  calculateSkidpadVelocities(utfr_msgs::msg::ParametricSpline &spline, double L,
+  calculateSkidpadVelocities(utfr_msgs::msg::ParametricSpline &spline, 
                              int n, double a_lateral);
 
   std::vector<geometry_msgs::msg::Pose>
   discretizeCircle(const utfr_msgs::msg::ParametricSpline &spline_params,
-                   double cur_s, double ds, int num_points);
+                   int num_points);
 
   std::vector<double>
   calculateVelocities(utfr_msgs::msg::ParametricSpline &spline, double L, int n,
@@ -96,9 +96,14 @@ private:
   /*! Initialize Timers:
    */
   void initTimers();
-
+  
+  /*! Initialize event subscriber to read from system status: 
+   */
   void initEvent();
-
+  
+  /*! Set event based on system status: 
+   *  @param[in] msg system status message
+   */
   void missionCB(const utfr_msgs::msg::SystemStatus &msg);
 
   /*! Initialize GGV data:
@@ -112,30 +117,28 @@ private:
   void initHeartbeat();
 
   /*! Send Heartbeat on every timer loop.
-   *
    *  @param[in] status current module status, using Heartbeat status enum.
    */
   void publishHeartbeat(const int status);
 
   /*! EgoState Subscriber Callback:
+   * @param[in] msg utfr_msgs::msg::EgoState incoming ego state msg
    */
   void egoStateCB(const utfr_msgs::msg::EgoState &msg);
 
   /*! ConeMap Subscriber Callback:
+   * @param[in] msg utfr_msgs::msg::ConeMap incoming cone map msg
    */
   void coneMapCB(const utfr_msgs::msg::ConeMap &msg);
 
   /*! Path Subscriber Callback:
+   * @param[in] msg utfr_msgs::msg::ParametricSpline incoming center path msg
    */
   void pathCB(const utfr_msgs::msg::ParametricSpline &msg);
 
-  /*! VelocityProfile Subscriber Callback:
+  /*! VelocityProfile Subscriber Callback: TODO: REMOVE
    */
   void velocityProfileCB(const utfr_msgs::msg::VelocityProfile &msg);
-
-  /*! Lap counter callback:
-   */
-  void lapCounterCB(const utfr_msgs::msg::Heartbeat &msg);
 
   /*! Accel Timer Callback:
    */
@@ -152,29 +155,51 @@ private:
   /*! Trackdrive Timer Callback:
    */
   void timerCBTrackdrive();
-
+  
+  /*! EBS Test Timer Callback:
+   */
   void timerCBEBS();
 
+  /*! Autonomous System Test Timer Callback
+   */
   void timerCBAS();
 
-  /*! Discretize point on a path
+  /*! Discretize point on a given path
+   * @param[in] spline_params utfr_msgs::msg::ParametricSpline spline parameters
+   * @param[in] s double current s value
+   * @param[in] delta double discretization step
+   * @return geometry_msgs::msg::Pose discretized point
    */
   geometry_msgs::msg::Pose
   discretizePoint(const utfr_msgs::msg::ParametricSpline &spline_params,
                   const double s, const double delta);
 
   /*! Discretize Path from Parametric
+   * @param[in] spline_params utfr_msgs::msg::ParametricSpline spline parameters
+   * @param[in] cur_s double current s value
+   * @param[in] ds double discretization step
+   * @param[in] num_points int number of points to discretize
+   * @return std::vector<geometry_msgs::msg::Pose> discretized path
    */
   std::vector<geometry_msgs::msg::Pose>
   discretizeParametric(const utfr_msgs::msg::ParametricSpline &spline_params,
                        double cur_s, double ds, int num_points);
 
   /*! Pure Pursuit Controller
+   * @param[in] max_steering_angle double maximum steering angle
+   * @param[in] spline_params utfr_msgs::msg::ParametricSpline spline parameters
+   * @param[in] cur_s double current s value
+   * @param[in] ds double discretization step
+   * @param[in] velocity_profile utfr_msgs::msg::VelocityProfile velocity profile
+   * @param[in] baselink_location double location of baselink
+   * @param[in] base_lookahead_distance double base lookahead distance
+   * @param[in] lookahead_distance_scaling_factor double lookahead distance scaling factor
+   * @return utfr_msgs::msg::TargetState target state
    */
   utfr_msgs::msg::TargetState purePursuitController(
       double max_steering_angle, utfr_msgs::msg::ParametricSpline spline_params,
       double cur_s, double ds, utfr_msgs::msg::VelocityProfile velocity_profile,
-      double baselink_location, utfr_msgs::msg::EgoState ego_state,
+      double baselink_location, 
       double base_lookahead_distance, double lookahead_distance_scaling_factor);
 
   /*! Stanley Controller
@@ -224,27 +249,24 @@ private:
   bool skip_path_opt_;
   double lookahead_distance_;
   double a_lateral_max_;
+  bool use_mapping_ = false;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
-  utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
   utfr_msgs::msg::ParametricSpline::SharedPtr path_{nullptr};
   utfr_msgs::msg::VelocityProfile::SharedPtr velocity_profile_{nullptr};
 
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
-  rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ParametricSpline>::SharedPtr
       path_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr
       center_path_subscriber_;
-  rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr
-      lap_counter_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
       mission_subscriber_;
 
   rclcpp::Publisher<utfr_msgs::msg::TargetState>::SharedPtr
       target_state_publisher_;
-  rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr ego_state_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr ego_state_publisher__;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr
       pure_pursuit_point_publisher_;
