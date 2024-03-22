@@ -303,10 +303,6 @@ void CenterPathNode::timerCBAccel() {
                   "Data not published or initialized yet. Using defaults.");
       return;
     }
-    if (cone_map_ == nullptr) {
-      RCLCPP_WARN(get_logger(), "%s Cone Map is empty", function_name.c_str());
-      return;
-    }
 
     std::vector<double> accel_path = getAccelPath();
 
@@ -1359,26 +1355,6 @@ utfr_msgs::msg::EgoState CenterPathNode::getSkidpadDatum(const utfr_msgs::msg::C
     datum.pose.pose.position.z = -100.0;
     datum.pose.pose.orientation = util::yawToQuaternion(0.0);
   }
-  // RCLCPP_INFO(this->get_logger(), "Datum: %f, %f", datum.pose.pose.position.x, datum.pose.pose.position.y);
-  visualization_msgs::msg::Marker marker;
-  marker.header.frame_id = "base_link";
-  marker.header.stamp = this->get_clock()->now();
-  marker.ns = "my_namespace";
-  marker.id = 0;
-  marker.type = visualization_msgs::msg::Marker::SPHERE;
-  marker.action = visualization_msgs::msg::Marker::ADD;
-  marker.pose.position.x = datum.pose.pose.position.x;
-  marker.pose.position.y = -datum.pose.pose.position.y;
-  marker.pose.position.z = 0;
-  
-  marker.scale.x = 0.5;
-  marker.scale.y = 0.5;
-  marker.scale.z = 0.5;
-  marker.color.a = 1.0; // Don't forget to set the alpha!
-  marker.color.r = 0.0;
-  marker.color.g = 1.0;
-  marker.color.b = 0.0;
-  lap_datum_publisher_->publish(marker);
 
   return datum;
 

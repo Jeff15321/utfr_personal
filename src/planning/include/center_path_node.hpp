@@ -336,8 +336,6 @@ private:
       first_midpoint_path_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::LapTime>::SharedPtr
       lap_time_publisher_;
-  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr
-      lap_datum_publisher_;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
 
