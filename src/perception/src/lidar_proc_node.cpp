@@ -1,0 +1,303 @@
+/*
+
+██████  ██    ██ ██████  ██   ██
+██   ██ ██    ██      ██ ██   ██
+██   ██ ██    ██  █████  ███████
+██   ██  ██  ██  ██           ██
+██████    ████   ███████      ██
+
+*
+* file: lidar_proc_node.cpp
+* auth: Kareem Elsawah
+* desc: lidar processing node class
+*/
+
+#include <lidar_proc_node.hpp>
+
+namespace utfr_dv {
+namespace lidar_proc {
+
+LidarProcNode::LidarProcNode() : Node("lidar_proc_node") {
+  this->initParams();
+  this->initHeartbeat();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
+  this->initSubscribers();
+  this->initPublishers();
+  this->initTimers();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+}
+
+void LidarProcNode::initParams() {
+  this->declare_parameter("update_rate", 33.33);
+  this->declare_parameter("topics.input", rclcpp::PARAMETER_STRING);
+  this->declare_parameter("view_filter.outer_box.xmin",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("view_filter.outer_box.xmax",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("view_filter.outer_box.ymin",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("view_filter.outer_box.ymax",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("view_filter.inner_box.xmin",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("view_filter.inner_box.xmax",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("view_filter.inner_box.ymin",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("view_filter.inner_box.ymax",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("view_filter.grid_size_x", rclcpp::PARAMETER_INTEGER);
+  this->declare_parameter("view_filter.grid_size_y", rclcpp::PARAMETER_INTEGER);
+  this->declare_parameter("ground_ransac.max_iterations",
+                          rclcpp::PARAMETER_INTEGER);
+  this->declare_parameter("ground_ransac.distance_threshold",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("clustering.cluster_tolerance",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("clustering.min_cluster_size",
+                          rclcpp::PARAMETER_INTEGER);
+  this->declare_parameter("clustering.max_cluster_size",
+                          rclcpp::PARAMETER_INTEGER);
+  this->declare_parameter("clustering.reconstruct_radius",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("cone_filter.cone_radius", rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("cone_filter.cone_height", rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("cone_filter.inlier_mse_threshold",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("cone_filter.ransac_max_iters",
+                          rclcpp::PARAMETER_INTEGER);
+  this->declare_parameter("cone_filter.min_inlier_ratio",
+                          rclcpp::PARAMETER_DOUBLE);
+
+  update_rate_ = this->get_parameter("update_rate").as_double();
+  double outer_xmin =
+      this->get_parameter("view_filter.outer_box.xmin").as_double();
+  double outer_xmax =
+      this->get_parameter("view_filter.outer_box.xmax").as_double();
+  double outer_ymin =
+      this->get_parameter("view_filter.outer_box.ymin").as_double();
+  double outer_ymax =
+      this->get_parameter("view_filter.outer_box.ymax").as_double();
+  double inner_xmin =
+      this->get_parameter("view_filter.inner_box.xmin").as_double();
+  double inner_xmax =
+      this->get_parameter("view_filter.inner_box.xmax").as_double();
+  double inner_ymin =
+      this->get_parameter("view_filter.inner_box.ymin").as_double();
+  double inner_ymax =
+      this->get_parameter("view_filter.inner_box.ymax").as_double();
+  ViewBounds bounds = {{outer_xmin, outer_xmax, outer_ymin, outer_ymax},
+                       {inner_xmin, inner_xmax, inner_ymin, inner_ymax}};
+
+  int grid_size_x = this->get_parameter("view_filter.grid_size_x").as_int();
+  int grid_size_y = this->get_parameter("view_filter.grid_size_y").as_int();
+  filter = Filter(bounds, grid_size_x, grid_size_y);
+
+  int groundRansacMaxIterations =
+      this->get_parameter("ground_ransac.max_iterations").as_int();
+  double groundRansacDistanceThreshold =
+      this->get_parameter("ground_ransac.distance_threshold").as_double();
+  RansacParams ransac_params = {groundRansacMaxIterations,
+                                groundRansacDistanceThreshold};
+
+  double cluster_tolerace =
+      this->get_parameter("clustering.cluster_tolerance").as_double();
+  int min_cluster_size =
+      this->get_parameter("clustering.min_cluster_size").as_int();
+  int max_cluster_size =
+      this->get_parameter("clustering.max_cluster_size").as_int();
+  double reconstruct_radius =
+      this->get_parameter("clustering.reconstruct_radius").as_double();
+
+  ClusterParams cluster_params = {cluster_tolerace, min_cluster_size,
+                                  max_cluster_size};
+  clusterer = Clusterer(ransac_params, cluster_params, reconstruct_radius);
+
+  double cone_height =
+      this->get_parameter("cone_filter.cone_height").as_double();
+  double cone_radius =
+      this->get_parameter("cone_filter.cone_radius").as_double();
+  double inlier_mse_threshold =
+      this->get_parameter("cone_filter.inlier_mse_threshold").as_double();
+  int ransac_max_iters =
+      this->get_parameter("cone_filter.ransac_max_iters").as_int();
+  double min_inlier_ratio =
+      this->get_parameter("cone_filter.min_inlier_ratio").as_double();
+  ConeFilterParams cone_filter_params = {cone_height, cone_radius,
+                                         inlier_mse_threshold, ransac_max_iters,
+                                         min_inlier_ratio};
+
+  cone_filter = ConeFilter(cone_filter_params);
+}
+
+void LidarProcNode::initSubscribers() {
+  point_cloud_subscriber_ =
+      this->create_subscription<sensor_msgs::msg::PointCloud2>(
+          "/ouster/points", 10,
+          std::bind(&LidarProcNode::pointCloudCallback, this, _1));
+} // TODO - check topic name
+
+void LidarProcNode::initPublishers() {
+  pub_filtered = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+      topics::kFiltered, 10);
+  pub_no_ground = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+      topics::kNoGround, 10);
+  pub_clustered = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+      topics::kClustered, 10);
+  pub_clustered_center = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+      topics::kClustered, 10);
+}
+
+void LidarProcNode::initTimers() {
+  main_timer_ = this->create_wall_timer(
+      std::chrono::duration<double, std::milli>(this->update_rate_),
+      std::bind(&LidarProcNode::timerCB, this));
+
+  RCLCPP_INFO(this->get_logger(), "Finished Initializing Timer");
+}
+
+void LidarProcNode::initHeartbeat() {
+  heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
+      topics::kLidarProcHeartbeat, 10);
+  heartbeat_.module.data = "lidar_proc_node";
+  heartbeat_.update_rate = update_rate_;
+}
+
+void LidarProcNode::publishHeartbeat(const int status) {
+  heartbeat_.status = status;
+  heartbeat_.header.stamp = this->get_clock()->now();
+  heartbeat_publisher_->publish(heartbeat_);
+}
+
+void LidarProcNode::pointCloudCallback(
+    const sensor_msgs::msg::PointCloud2::SharedPtr input) {
+  latest_point_cloud = input;
+}
+
+void LidarProcNode::publishPointCloud(
+    const PointCloud &cloud,
+    const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub) {
+  sensor_msgs::msg::PointCloud2 output =
+      convertToPointCloud2(cloud, "velodyne");
+  pub->publish(output);
+}
+
+PointCloud LidarProcNode::convertToCustomPointCloud(
+    const sensor_msgs::msg::PointCloud2::SharedPtr &input) {
+  PointCloud custom_cloud;
+  for (uint32_t i = 0; i < input->height * input->width; ++i) {
+    Point pt;
+
+    // Offsets for x, y, z fields in PointCloud2 data
+    int x_offset = input->fields[0].offset;
+    int y_offset = input->fields[1].offset;
+    int z_offset = input->fields[2].offset;
+
+    // Extract x, y, z from the data
+    pt[0] = *reinterpret_cast<const float *>(
+        &input->data[i * input->point_step + x_offset]);
+    pt[1] = *reinterpret_cast<const float *>(
+        &input->data[i * input->point_step + y_offset]);
+    pt[2] = *reinterpret_cast<const float *>(
+        &input->data[i * input->point_step + z_offset]);
+
+    custom_cloud.push_back(pt);
+  }
+
+  return custom_cloud;
+}
+
+sensor_msgs::msg::PointCloud2 LidarProcNode::convertToPointCloud2(
+    const std::vector<std::array<float, 3>> &points,
+    const std::string &frame_id) {
+  sensor_msgs::msg::PointCloud2 cloud;
+  cloud.header.frame_id = frame_id;
+  cloud.header.stamp = rclcpp::Clock().now();
+
+  cloud.height = 1; // Unordered point cloud
+  cloud.width = points.size();
+
+  cloud.is_bigendian = false;
+  cloud.is_dense = true;
+
+  cloud.point_step = 12; // x, y, z each take 4 bytes (float)
+  cloud.row_step = cloud.point_step * cloud.width;
+
+  cloud.fields.resize(3);
+  cloud.fields[0].name = "x";
+  cloud.fields[0].offset = 0;
+  cloud.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud.fields[0].count = 1;
+
+  cloud.fields[1].name = "y";
+  cloud.fields[1].offset = 4;
+  cloud.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud.fields[1].count = 1;
+
+  cloud.fields[2].name = "z";
+  cloud.fields[2].offset = 8;
+  cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud.fields[2].count = 1;
+
+  cloud.data.resize(cloud.row_step * cloud.height);
+
+  auto float_ptr = reinterpret_cast<float *>(&cloud.data[0]);
+  for (const auto &point : points) {
+    *float_ptr++ = point[0];
+    *float_ptr++ = point[1];
+    *float_ptr++ = point[2];
+  }
+
+  return cloud;
+}
+
+void LidarProcNode::timerCB() {
+  const std::string function_name{"timerCB"};
+
+  try {
+
+    if (latest_point_cloud) {
+      PointCloud custom_cloud = convertToCustomPointCloud(latest_point_cloud);
+
+      // Filtering
+      std::tuple<PointCloud, Grid> filtered_cloud_and_grid =
+          filter.view_filter(custom_cloud);
+      PointCloud filtered_cloud = std::get<0>(filtered_cloud_and_grid);
+      Grid min_points_grid = std::get<1>(filtered_cloud_and_grid);
+      publishPointCloud(filtered_cloud, pub_filtered);
+
+      // Clustering and reconstruction
+      std::tuple<PointCloud, std::vector<PointCloud>> cluster_results =
+          clusterer.clean_and_cluster(filtered_cloud, min_points_grid);
+      PointCloud no_ground_cloud = std::get<0>(cluster_results);
+      std::vector<PointCloud> reconstructed_clusters =
+          std::get<1>(cluster_results);
+
+      publishPointCloud(no_ground_cloud, pub_no_ground);
+
+      // Publishing each reconstructed cluster in a loop
+
+      PointCloud combined_clusters;
+      for (int i = 0; i < reconstructed_clusters.size(); i++) {
+        for (int j = 0; j < reconstructed_clusters[i].size(); j++) {
+          combined_clusters.push_back(reconstructed_clusters[i][j]);
+        }
+      }
+      publishPointCloud(combined_clusters, pub_clustered);
+
+      // Gather the cluster centers into a single point cloud
+      PointCloud cluster_centers =
+          cone_filter.filter_clusters(reconstructed_clusters);
+      if (cluster_centers.size() > 0) {
+        publishPointCloud(cluster_centers, pub_clustered_center);
+      }
+    }
+    //   RCLCPP_INFO(this->get_logger(), "Published Processed Point Clouds");
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+  } catch (int e) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
+  }
+}
+
+} // namespace lidar_proc
+} // namespace utfr_dv

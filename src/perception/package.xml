@@ -2,10 +2,13 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>perception</name>
-  <version>0.0.1</version>
+  <version>0.0.0</version>
   <description>perception package</description>
   <maintainer email="kelvinwhcui@gmail.com">kelvin cui</maintainer>
   <license>TODO: License declaration</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <depend>rclpy</depend>
   <depend>utfr_msgs</depend>
@@ -13,7 +16,10 @@
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
   <depend>cv_bridge</depend>
+  <depend>rclcpp</depend>
   <depend>geometry_msgs</depend>
+  <depend>pcl_conversions</depend>
+  <depend>utfr_common</depend>
   <depend>tf2_ros_py</depend>
 
   <depend>python3-numpy</depend>
@@ -25,6 +31,6 @@
   <test_depend>python3-pytest</test_depend>
 
   <export>
-    <build_type>ament_python</build_type>
+    <build_type>ament_cmake</build_type>
   </export>
 </package>

@@ -17,18 +17,21 @@
 #include <rclcpp/rclcpp.hpp>
 
 // System Requirements
+#include <algorithm>
 #include <chrono>
+#include <deque>
 #include <fstream>
 #include <functional>
+#include <queue>
 #include <sstream>   // std::stringstream
 #include <stdexcept> // std::runtime_error
 #include <string>
 #include <vector>
 
 // Message Requirements
-#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/polygon.hpp>
+#include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <rclcpp/time.hpp>
 #include <utfr_msgs/msg/cone_detections.hpp>
@@ -133,6 +136,10 @@ private:
    */
   void initPublishers();
 
+  void initEvent();
+
+  void missionCB(const utfr_msgs::msg::SystemStatus &msg);
+
   /*! Initialize Timers:
    */
   void initTimers();
@@ -141,11 +148,13 @@ private:
    */
   void initSector();
 
-  /*! Initialize Heartbeat:
+  /*! Setup Heartbeat message with appropriate module name and update rate.
    */
   void initHeartbeat();
 
-  /*! Publish Heartbeat:
+  /*! Send Heartbeat on every timer loop.
+   *
+   *  @param[in] status current module status, using Heartbeat status enum.
    */
   void publishHeartbeat(const int status);
 
@@ -177,6 +186,10 @@ private:
    */
   void timerCBTrackdrive();
 
+  void timerCBEBS();
+
+  void timerCBAS();
+
   /*! Function for sorting cones
    */
   bool coneDistComparitor(const utfr_msgs::msg::Cone &a,
@@ -188,11 +201,16 @@ private:
    */
   std::vector<double> getAccelPath();
 
-  /*! Midpoints using Delaunay Triangulation:
-   */
-  std::vector<CGAL::Point_2<CGAL::Epick>>
-  Midpoints(utfr_msgs::msg::ConeDetections_<std::allocator<void>>::SharedPtr
-                cone_detections_);
+  double midpointCostFunction(
+      std::vector<int> nodes,
+      const std::vector<CGAL::Point_2<CGAL::Epick>> &midpoints,
+      std::vector<std::pair<CGAL::Point_2<CGAL::Epick>, unsigned int>>
+          all_cones,
+      std::vector<utfr_msgs::msg::Cone> yellow_cones,
+      std::vector<utfr_msgs::msg::Cone> blue_cones,
+      std::vector<std::pair<int, int>> midpoint_index_to_cone_indices);
+
+  std::vector<CGAL::Point_2<CGAL::Epick>> getBestPath();
 
   /*! SkidPad Fit Function:
    */
@@ -201,9 +219,8 @@ private:
 
   /*! Publish Fitted Skidpad Path Lines:
    */
-  void publishLine(
-    double m_left, double m_right, double c_left, double c_right, double x_min, 
-    double x_max, double thickness);
+  void publishLine(double m_left, double m_right, double c_left, double c_right,
+                   double x_min, double x_max, double thickness);
 
   std::tuple<std::vector<CGAL::Point_2<CGAL::Epick>>, std::vector<double>,
              std::vector<double>>
@@ -256,6 +273,8 @@ private:
   rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
       cone_detection_subscriber_;
+  rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
+      mission_subscriber_;
 
   rclcpp::Publisher<utfr_msgs::msg::ParametricSpline>::SharedPtr
       center_path_publisher_;

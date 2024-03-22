@@ -3,7 +3,8 @@
 # Header for timestamp
 std_msgs/Header header
 
-float32 thr_cmd # [-3276.8, 3276.7] Nm
+# TODO: find RPM limits
+int32 thr_cmd # [min_rpm, max_rpm] RPM
 float32 brk_cmd #[0, 255] PWM
-float32 str_cmd #[-4096, 4096] PWM 
+int32 str_cmd #[-360, 360] Degrees
 

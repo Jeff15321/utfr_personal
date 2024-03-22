@@ -1,0 +1,34 @@
+import os
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription, launch_description_sources
+from launch.actions import IncludeLaunchDescription
+
+
+def generate_launch_description():
+    ld = LaunchDescription()
+
+    # DV stack
+    perception_dir = get_package_share_directory("perception")
+    perception_launch = IncludeLaunchDescription(
+        launch_description_sources.PythonLaunchDescriptionSource(
+            perception_dir + "/launch/perception.launch.py"
+        )
+    )
+
+    extrinsics_launch = IncludeLaunchDescription(
+        launch_description_sources.PythonLaunchDescriptionSource(
+            perception_dir + "/launch/extrinsics.launch.py"
+        )
+    )
+
+    lidar_proc_launch = IncludeLaunchDescription(
+        launch_description_sources.PythonLaunchDescriptionSource(
+            perception_dir + "/launch/lidar_proc.launch.py"
+        )
+    )
+
+    ld.add_action(perception_launch)
+    ld.add_action(extrinsics_launch)
+    # ld.add_action(lidar_proc_launch)
+
+    return ld
