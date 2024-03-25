@@ -77,6 +77,8 @@ void ControllerNode::initParams() {
   a_lateral_max_ = this->get_parameter("a_lateral").as_double();
 
   start_time_ = this->get_clock()->now();
+
+  RCLCPP_INFO(this->get_logger(), "Event: %s", event_.c_str());
 }
 
 void ControllerNode::initSubscribers() {

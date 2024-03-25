@@ -43,6 +43,7 @@
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
 #include <utfr_msgs/msg/lap_time.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -132,6 +133,12 @@ private:
    */
   void coneDetectionsCB(const utfr_msgs::msg::ConeDetections &msg);
 
+  /**
+   * ConeMap Closure Subscriber Callback:
+   * @param[in] msg utfr_msgs::msg::ConeDetections incoming cone detections msg
+   */
+  void coneMapClosureCB(const std_msgs::msg::Bool &msg);
+
   /*! Accel Timer Callback:
    */
   void timerCBAccel();
@@ -217,11 +224,16 @@ private:
              std::vector<double>>
   BezierPoints(std::vector<CGAL::Point_2<CGAL::Epick>> midpoints);
 
-  /*! Skidpad Lap Counter based off of local cone detections:
+  /*! Skidpad Lap Counter:
    */
   void skidpadLapCounter();
 
-  /*! Autox/Trackdrive Lap Counter based off of local cone detections:
+  bool checkPassedDatum(const utfr_msgs::msg::EgoState reference,
+                        const utfr_msgs::msg::EgoState &current);
+
+  utfr_msgs::msg::EgoState getSkidpadDatum(const utfr_msgs::msg::ConeMap &cone_map);
+
+  /*! Autox/Trackdrive Lap Counter
    */
   void trackdriveLapCounter();
   
@@ -285,16 +297,23 @@ private:
   int detections_in_row_ = 0;
   bool use_mapping_ = false;
 
+  bool loop_closed_ = false;
+
+  double datum_last_local_x_ = 0;
+
   double total_distance_traveled_ = 0.0;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
+  utfr_msgs::msg::ConeMap::SharedPtr cone_map_raw_{nullptr};
   utfr_msgs::msg::ConeDetections::SharedPtr cone_detections_{nullptr};
   geometry_msgs::msg::Point reference_point_;
 
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr
+      cone_map_closure_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
       cone_detection_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
