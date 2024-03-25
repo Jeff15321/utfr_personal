@@ -92,7 +92,7 @@ void ControllerNode::initSubscribers() {
 
   point_subscriber_ =
       this->create_subscription<geometry_msgs::msg::Pose>(
-          "skidpad/point", 10,
+          topics::kSkidpadCenterPoint, 10,
           std::bind(&ControllerNode::pointCB, this, _1));
 }
 

@@ -76,9 +76,11 @@ void CenterPathNode::initPublishers() {
   center_path_publisher_ =
       this->create_publisher<utfr_msgs::msg::ParametricSpline>(
           topics::kCenterPath, 10);
+
   center_point_publisher_ =
       this->create_publisher<geometry_msgs::msg::Pose>(
-          "skidpad/point", 10);
+          topics::kSkidpadCenterPoint, 10);
+  
   accel_path_publisher_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kAccelPath, 10);
@@ -227,6 +229,7 @@ void CenterPathNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
     ego_state_->pose.pose.position.x = 0.0;
     ego_state_->pose.pose.position.y = 0.0;
     ego_state_->pose.pose.position.z = 0.0;
+    ego_state_->pose.pose.orientation = util::yawToQuaternion(0.0);
     ego_state_->vel = msg.vel;
     ego_state_->accel = msg.accel;
     ego_state_->steering_angle = msg.steering_angle;
@@ -284,7 +287,7 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     // cone_map_->small_orange_cones = msg.small_orange_cones;
     (*cone_map_raw_) = msg;
     this->createTransform(); // generate transform for global path
-    this->GlobalWaypoints(); // visualize the transformed points in map view
+    // this->GlobalWaypoints(); // visualize the transformed points in map view
   }
 }
 

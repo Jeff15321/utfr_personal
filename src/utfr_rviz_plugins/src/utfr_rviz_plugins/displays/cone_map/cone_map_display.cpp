@@ -160,12 +160,13 @@ void ConeMapDisplay::initMarkers() {
   big_orange_cone_marker_.pose.orientation.z = 0.0;
   big_orange_cone_marker_.pose.orientation.w = 1.0;
 
-  big_orange_cone_marker_.scale.x = 1.0;
-  big_orange_cone_marker_.scale.y = 1.0;
-  big_orange_cone_marker_.scale.z = -z_orientation_;
+  big_orange_cone_marker_.scale.x = 0.25;
+  big_orange_cone_marker_.scale.y = 0.25;
+  big_orange_cone_marker_.scale.z = 0.25;
   big_orange_cone_marker_.color.r = 1.0;
   big_orange_cone_marker_.color.g = 0.549;
   big_orange_cone_marker_.color.b = 0.0;
+  big_orange_cone_marker_.color.a = 1.0;
   big_orange_cone_marker_.ns = "cone";
 
   covariance_marker_.type = visualization_msgs::msg::Marker::SPHERE;
