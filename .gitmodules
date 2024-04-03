@@ -18,3 +18,6 @@
 	path = src/mapping/external/g2o
 	url = git@github.com:RainerKuemmerle/g2o.git
 	branch = master
+[submodule "src/drivers/ntrip_client"]
+	path = src/drivers/ntrip_client
+	url = https://github.com/LORD-MicroStrain/ntrip_client.git
