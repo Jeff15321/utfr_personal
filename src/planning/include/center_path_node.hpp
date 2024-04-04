@@ -334,6 +334,7 @@ private:
   std::vector<std::pair<double,double>> waypoints;
   std::vector<std::tuple<double,double,double>> visited;
   bool global_path_;
+  double max_velocity_;
 
   double small_radius_;
   double big_radius_;

@@ -746,7 +746,9 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
 
   path_publisher_->publish(path_stamped);
 
-  double lookahead_distance = 0;
+  double lookahead_distance = std::min(base_lookahead_distance + 
+                                        lookahead_distance_scaling_factor *
+                                        velocity_profile.velocities[1], 5.0);
   geometry_msgs::msg::Pose lookahead_point;
   bool found_lookahead = false;
   // Get desired velocity from the velocity profile
@@ -754,13 +756,8 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
 
   // Get dynamic lookahead distance
   for (const auto &wp : discretized_points) {
-    double dx = wp.position.x - baselink_location;
+    double dx = wp.position.x + (wheel_base_-baselink_location);
     double dy = wp.position.y;
-
-    lookahead_distance =
-        std::min(base_lookahead_distance + lookahead_distance_scaling_factor *
-                                               velocity_profile.velocities[1],
-                 5.0);
     double distance = sqrt(dx * dx + dy * dy);
     if (distance > lookahead_distance && dx > 0.0) {
       lookahead_point = wp;
@@ -770,90 +767,10 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   }
 
   if (!found_lookahead) {
-    lookahead_point = discretized_points[discretized_points.size() - 1];
+    lookahead_point = discretized_points.back();
   }
-
-  // Plotting pure pursuit lookahead point
-  visualization_msgs::msg::Marker marker;
-  marker.header.frame_id = "base_footprint";
-  marker.header.stamp = this->get_clock()->now();
-  marker.ns = "lookahead";
-  marker.id = 0;
-  marker.type = visualization_msgs::msg::Marker::SPHERE;
-  marker.action = visualization_msgs::msg::Marker::ADD;
-
-  marker.pose.position.x = lookahead_point.position.x;
-  marker.pose.position.y = -lookahead_point.position.y;
-  marker.pose.position.z = 0.0;
-
-  marker.scale.x = 0.25;
-  marker.scale.y = 0.25;
-  marker.scale.z = 0.25;
-
-  marker.color.a = 1.0;
-  marker.color.r = 1.0;
-  marker.color.g = 0.0;
-  marker.color.b = 0.0;
-
-  pure_pursuit_point_publisher_->publish(marker);
-
-  // Calculate angle to the lookahead point.
-  double alpha = atan2(lookahead_point.position.y, lookahead_point.position.x);
-
-  // Compute steering angle using Pure Pursuit.
-  double delta = atan2(2.0 * wheel_base_ * sin(alpha), lookahead_distance);
-
-  // Limit steering angle within bounds.
-  delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
-
-  double max_steering_rate = static_cast<double>(109 * 100 / 22.0 / 60.0 / update_rate_);
-  double last_steering_angle = ego_state_->steering_angle;
-  if (abs(delta - last_steering_angle) > max_steering_rate) {
-    if (delta > last_steering_angle) {
-      delta = last_steering_angle + max_steering_rate;
-    } else {
-      delta = last_steering_angle - max_steering_rate;
-    }
-  }
-
-  // Reduce speed if turning sharply or near max steering.
-  // if ((abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
-  //      abs(delta) > max_steering_angle) &&
-  //     (lap_count_ > 15 || lap_count_ < 12)) {
-  //   desired_velocity = std::max(desired_velocity - 2, 1.0);
-  // }
-
-  rclcpp::Time curr_time = this->get_clock()->now();
-
-  if (lap_count_ == last_lap_count_ || finished_event_) {
-    if (start_finish_time) {
-      start_time_ == curr_time;
-      start_finish_time = false;
-    }
-    finished_event_ = true;
-    desired_velocity = 1.0;
-  }
-
-  // if (abs((curr_time - start_time_).seconds()) > 5.0 && finished_event_) {
-  //   desired_velocity = 0.0;
-  //   finished_and_stopped_ = true;
-  // }
-
-  if (finished_event_) {
-    desired_velocity = 0.0;
-    finished_and_stopped_ = true;
-  }
-
-  if (desired_velocity != 0.0 && desired_velocity < 2.0) {
-    desired_velocity = 2.0;
-  }
-
-  // Set target state values.
-  utfr_msgs::msg::TargetState target;
-  target.speed = desired_velocity;
-  target.steering_angle = -delta;
-
-  return target; // Return the target state.
+  
+  return purePursuitController(max_steering_angle, lookahead_point, desired_velocity);
 }
 
 utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
@@ -884,12 +801,11 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
 
   pure_pursuit_point_publisher_->publish(marker);
 
-  double dx = lookahead_point.position.x-baselink_location_;
+  // Calculate angle to the lookahead point.
+  double dx = lookahead_point.position.x+(wheel_base_-baselink_location_);
   double dy = lookahead_point.position.y;
   double lookahead_distance = sqrt(dx * dx + dy * dy);
-
-  // Calculate angle to the lookahead point.
-  double alpha = atan2(lookahead_point.position.y, lookahead_point.position.x);
+  double alpha = atan2(dy, dx);
 
   // Compute steering angle using Pure Pursuit.
   double delta = atan2(2.0 * wheel_base_ * sin(alpha), lookahead_distance);

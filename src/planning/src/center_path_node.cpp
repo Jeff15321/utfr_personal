@@ -40,6 +40,7 @@ void CenterPathNode::initParams() {
   this->declare_parameter("threshold_radius", 0.8);
   this->declare_parameter("threshold_cones", 3);
   this->declare_parameter("global_path", 0);
+  this->declare_parameter("max_velocity", 5.0);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   event_ = this->get_parameter("event").as_string();
@@ -47,6 +48,7 @@ void CenterPathNode::initParams() {
   big_radius_ = this->get_parameter("big_radius").as_double();
   threshold_radius_ = this->get_parameter("threshold_radius").as_double();
   threshold_cones_ = this->get_parameter("threshold_cones").as_int();
+  max_velocity_ = this->get_parameter("max_velocity").as_double();
 
   waypoints = this->getWaypoints("src/planning/global_waypoints/Waypoints.csv");
   global_path_ = this->get_parameter("global_path").as_int();
@@ -385,8 +387,8 @@ void CenterPathNode::timerCBSkidpad() {
       return;
     }
     if(global_path_ && skidpadTransform_ != nullptr){
-        RCLCPP_INFO(this->get_logger(), "USING GLOBAL PATH");
-        this->nextWaypoint();
+      RCLCPP_INFO(this->get_logger(), "USING GLOBAL PATH");
+      this->nextWaypoint();
     }
     else{
       RCLCPP_INFO(this->get_logger(), "USING LOCAL PATH");
@@ -1288,7 +1290,7 @@ void CenterPathNode::skidpadLapCounter() {
   case 13:
   case 14:
   case 15:
-    if (time_diff > 10.0 && !lock_sector_) {
+    if (time_diff > 5.0 && !lock_sector_) {
       if (loop_closed_) {
         if (checkPassedDatum(getSkidpadDatum(*cone_map_raw_), *ego_state_)) {
           last_time = curr_time;
@@ -2087,14 +2089,17 @@ void CenterPathNode::nextWaypoint(){
   }
   visited.pop_back();
 
+  double vx = ego_state_->vel.twist.linear.x, vy = ego_state_->vel.twist.linear.y;
+  double current_velocity = sqrt(vx * vx + vy * vy);
+  double lookahead_disance = 3 + 0.8 * current_velocity;
   while(i < waypoints.size()){
     auto [x,y] = this->transformWaypoint(waypoints[i]);
     double localX = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
     double localY = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
-    double dx = localX - 0.79;
+    double dx = localX + 0.79;
     double dy = localY;
     double dist = sqrt(dx * dx + dy * y);
-    if(dist >= 2.5) break;
+    if(dist >= max_velocity_) break;
     i++;
   }
 

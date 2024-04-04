@@ -6,7 +6,7 @@ center_path_node: # Name of Module
     wheel_base: 1.58 # [m]
 
     ds: 0.025 # [m] discretization step
-    max_velocity: 5.0 # [m/s]
+    max_velocity: 6.0 # [m/s]
     num_points: 150 # number of points to discretize the path
 
     threshold_radius: 0.5 #[m]
@@ -22,7 +22,7 @@ controller_node: # Name of Module
     wheel_base: 1.58 # [m]
 
     ds: 0.025 # [m] discretization step
-    max_velocity: 4.0 # [m/s]
+    max_velocity: 6.0 # [m/s]
     num_points: 150 # number of points to discretize the path
 
     # Stanley Controller Parameters
@@ -34,5 +34,5 @@ controller_node: # Name of Module
     max_steering_angle: 0.34
 
     # Pure Pursuit Controller Parameters
-    base_lookahead_distance: 1.5 # [m]
-    lookahead_scaling_factor: 0.25 # [m]
+    base_lookahead_distance: 3.0 # [m]
+    lookahead_scaling_factor: 0.8 # [m]
