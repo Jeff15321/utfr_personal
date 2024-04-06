@@ -21,6 +21,7 @@
 #include <stdexcept> // std::runtime_error
 #include <string>
 #include <vector>
+#include <limits>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -29,18 +30,19 @@
 
 namespace utfr_dv {
 
-  //KD TREE IMPLEMENTATION
+// KD TREE IMPLEMENTATION
 
-  namespace kd_tree_knn {
+namespace kd_tree_knn {
 
-    // Define Point Struct
+// Define Point Struct
 
-    struct Point {
-    double x;
-    double y;
-    double id;
+struct Point {
+  double x;
+  double y;
+  double id;
 
-    Point(double x_val, double y_val, double id_val) : x(x_val), y(y_val), id(id_val){}
+  Point(double x_val, double y_val, double id_val)
+      : x(x_val), y(y_val), id(id_val) {}
 
     // Define the operator!= for Point class
     bool operator!=(const Point& other) const {
@@ -154,6 +156,7 @@ namespace utfr_dv {
 
         return nearestInNext;
       }
+      
       // Insert a new node into KD tree (recursive)
       KDNode * insertNode(KDNode * node,
         const Point & newPoint, int depth, int & currentIndex) {
@@ -201,6 +204,69 @@ namespace utfr_dv {
         }
       }
 
+          // Utility function to calculate distance between two points
+      double distance(const Point& point1, const Point& point2) {
+          return sqrt((point1.x - point2.x) * (point1.x - point2.x) + (point1.y - point2.y) * (point1.y - point2.y));
+      }
+
+      // Recursive function to find the nearest neighbor
+      void nearestUtil(KDNode* root, const Point& point, unsigned depth, KDNode*& best, double& bestDist) {
+          if (root == nullptr)
+              // return Point(0.0, 0.0, 0.0);
+              // Rewrite the above line to work
+              return;
+
+          double d = distance(root->point, point);
+          unsigned cd = depth % 2;
+
+          // Update best neighbor if closer point is found
+          if (d < bestDist) {
+              bestDist = d;
+              best = root;
+          }
+
+          // Recurse down the tree
+          // Node* goodSide = point[cd] < root->point[cd] ? root->left : root->right;
+          // Node* badSide = point[cd] < root->point[cd] ? root->right : root->left;
+          KDNode* goodSide = nullptr;
+          KDNode* badSide = nullptr;
+          // Point has the x and y values, rewrite the above line to use the x and y values
+          if (cd == 0) {
+            if (point.x < root->point.x) {
+              goodSide = root->left;
+              badSide = root->right;
+            } else {
+              goodSide = root->right;
+              badSide = root->left;
+            }
+          } else {
+            if (point.y < root->point.y) {
+              goodSide = root->left;
+              badSide = root->right;
+            } else {
+              goodSide = root->right;
+              badSide = root->left;
+            }
+          }
+
+          nearestUtil(goodSide, point, depth + 1, best, bestDist);
+
+          // Check if we need to explore the other side
+          // if ((point[cd] - root->point[cd]) * (point[cd] - root->point[cd]) < bestDist) {
+          //     nearestUtil(badSide, point, depth + 1, best, bestDist);
+          // }
+          if (cd == 0) {
+            if ((point.x - root->point.x) * (point.x - root->point.x) < bestDist) {
+              nearestUtil(badSide, point, depth + 1, best, bestDist);
+            }
+          } else {
+            if ((point.y - root->point.y) * (point.y - root->point.y) < bestDist) {
+              nearestUtil(badSide, point, depth + 1, best, bestDist);
+            }
+          }
+      }
+
+
       public:
 
         int getNumberOfCones() const {
@@ -212,7 +278,13 @@ namespace utfr_dv {
 
       // Wrapper function for KNN search (always searches for 1 nearest neighbor)
       Point KNN(const Point & target) {
-        return findNearestNeighbor(root, target, 0, this);
+        KDNode* best = nullptr;
+        double bestDist = std::numeric_limits<double>::max();
+        nearestUtil(root, target, 0, best, bestDist);
+        if (best == nullptr) {
+          return Point(0.0, 0.0, 0.0);
+        }
+        return best->point;
       }
 
       // Insert a new point into the KD tree
@@ -230,4 +302,4 @@ namespace utfr_dv {
       }
     };
   }
-}
+};

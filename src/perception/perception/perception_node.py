@@ -62,11 +62,11 @@ class PerceptionNode(Node):
         super().__init__("perception_node")
 
         self.loadParams()
+        self.initHeartbeat()
         self.initVariables()
         self.initSubscribers()
         self.initPublishers()
         self.initServices()
-        self.initHeartbeat()
         self.initConeTemplate()
         self.initTimers()
         # self.initClassical()
@@ -351,10 +351,6 @@ class PerceptionNode(Node):
             ConeDetections, self.cone_detections_topic_, 1
         )
 
-        self.heartbeat_publisher_ = self.create_publisher(
-            Heartbeat, self.heartbeat_topic_, 1
-        )
-
         self.perception_debug_publisher_left_ = self.create_publisher(
             PerceptionDebug, self.perception_debug_topic_ + "_left", 1
         )
@@ -403,6 +399,7 @@ class PerceptionNode(Node):
         heartbeat_.update_rate: double:
           update rate of node
         """
+
         self.heartbeat_ = Heartbeat()
 
         self.heartbeat_.module.data = "perception"
@@ -414,6 +411,10 @@ class PerceptionNode(Node):
         if self.first_img_arrived_ == True:
             self.previous_left_img_ = self.left_img_
             self.previous_right_img_ = self.right_img_
+
+        self.heartbeat_publisher_ = self.create_publisher(
+            Heartbeat, self.heartbeat_topic_, 1
+        )
 
     def initConeTemplate(self):
         # create instance of cone as a template

@@ -33,9 +33,17 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::DVDrivingDynamics2, 0x501}, // FSG DV logging
     {(uint8_t)dv_can_msg::DVSystemStatus, 0x502},     // FSG DV logging
 
-    {(uint8_t)dv_can_msg::DV_STATE, 0x503}, // DV state from car
+    {(uint8_t)dv_can_msg::DV_STATE, 0x504}, // DV state from car
 
-    {(uint8_t)dv_can_msg::DV_COMMAND, 0x506}}; // DV PC state + control cmd
+    {(uint8_t)dv_can_msg::DV_COMMAND, 0x506}, // DV PC state + control cmd
+
+    {(uint8_t)dv_can_msg::SetSTRMotorPos,
+     0x0000040F}, // Set Pos on Steering motor
+    {(uint8_t)dv_can_msg::SetSTRMotorOrigin,
+     0x0000050F}, // Set Origin on Steering motor
+    {(uint8_t)dv_can_msg::SetSTRMotorPosSpeedAcc,
+     0x0000060F}, // Set Pos, speed, and accel on Steering motor
+    {(uint8_t)dv_can_msg::StrMotorStatus, 0x0000290F}}; // Get Status of motor
 
 bool CanInterface::connect(const char *canline) {
 
@@ -76,14 +84,17 @@ int CanInterface::get_can(dv_can_msg msgName) {
   // while(pthread_mutex_trylock(&readlock)){;}
   int result;
   if (msgName == dv_can_msg::ANGSENREC) {
-    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[2]) |
-                   (((messages[dv_can_msg_map[(int)msgName]].data[3]) << 8)));
+    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[0]) |
+                   (((messages[dv_can_msg_map[(int)msgName]].data[1]) << 8)));
   } else if (msgName == dv_can_msg::MOTPOS) {
     result = (int)((messages[dv_can_msg_map[(int)msgName]].data[2]) |
                    (((messages[dv_can_msg_map[(int)msgName]].data[3]) << 8)));
   } else if (msgName == dv_can_msg::APPS) {
     result = (int)((messages[dv_can_msg_map[(int)msgName]].data[0]) |
                    (((messages[dv_can_msg_map[(int)msgName]].data[1]) << 8)));
+  } else if (msgName == dv_can_msg::StrMotorStatus) {
+    result = (int)((messages[dv_can_msg_map[(int)msgName]].data[1]) |
+                   (((messages[dv_can_msg_map[(int)msgName]].data[0]) << 8)));
   } else {
     result = ARRAY_TO_INT64(
         messages[dv_can_msg_map[(int)msgName]]
@@ -106,7 +117,11 @@ static void *thread_read(void *node) {
     }
     read(canNode->sock, &recieved, sizeof(struct canfd_frame));
     pthread_mutex_unlock(&(canNode->readlock));
-    canNode->messages[recieved.can_id] = recieved;
+    if (recieved.can_id & CAN_EFF_FLAG) {
+      canNode->messages[recieved.can_id & CAN_EFF_MASK] = recieved;
+    } else {
+      canNode->messages[recieved.can_id] = recieved;
+    }
   }
   pthread_mutex_unlock(&(canNode->lock));
   return NULL;
@@ -130,7 +145,14 @@ void CanInterface::write_can(dv_can_msg msgName, long long data) {
   uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   INT64_TO_ARRAY(data, signalArray); // Convert to array of bytes
 
-  for (int i = 0; i < 8; i++) {
+  if (msgName == dv_can_msg::SetSTRMotorPos ||
+      msgName == dv_can_msg::SetSTRMotorOrigin ||
+      msgName == dv_can_msg::SetSTRMotorPosSpeedAcc) {
+    to_write.can_id = dv_can_msg_map[(int)msgName] | (CAN_EFF_FLAG);
+    INT64_TO_ARRAY_REVERSE(data, signalArray); // Convert to array of bytes
+  }
+
+  for (uint8_t i = 0; i < 8; i++) {
     to_write.data[i] = signalArray[i];
   }
 

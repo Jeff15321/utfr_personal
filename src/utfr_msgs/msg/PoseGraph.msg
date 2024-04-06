@@ -3,7 +3,11 @@
 # Header for timestamp
 std_msgs/Header header
 
-string[] cones
-string[] states
-string[] measurement_edges
-string[] motion_edge
+PoseGraphData[] cones
+PoseGraphData[] states
+PoseGraphData[] measurement_edges
+PoseGraphData[] motion_edge
+
+float64[] color
+float64[] cone_id
+bool      run_slam

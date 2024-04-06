@@ -109,16 +109,14 @@ void ConeMapDisplay::initMarkers() {
   delete_all_marker_.action = visualization_msgs::msg::Marker::DELETEALL;
 
   blue_cone_marker_.action = visualization_msgs::msg::Marker::ADD;
-  blue_cone_marker_.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
+  blue_cone_marker_.type = visualization_msgs::msg::Marker::CUBE;
   blue_cone_marker_.pose.orientation.x = 0.0;
   blue_cone_marker_.pose.orientation.y = 0.0;
   blue_cone_marker_.pose.orientation.z = 0.0;
   blue_cone_marker_.pose.orientation.w = 1.0;
-  blue_cone_marker_.scale.x = 1.0;
-  blue_cone_marker_.scale.y = 1.0;
-  blue_cone_marker_.scale.z = -z_orientation_;
-  blue_cone_marker_.mesh_resource =
-      "package://utfr_rviz_plugins/meshes/blue_cone.dae";
+  blue_cone_marker_.scale.x = 0.25;
+  blue_cone_marker_.scale.y = 0.25;
+  blue_cone_marker_.scale.z = 0.25;
   blue_cone_marker_.color.r = 0.0;
   blue_cone_marker_.color.g = 0.0;
   blue_cone_marker_.color.b = 1.0;
@@ -126,16 +124,14 @@ void ConeMapDisplay::initMarkers() {
   blue_cone_marker_.ns = "cone";
 
   yellow_cone_marker_.action = visualization_msgs::msg::Marker::ADD;
-  yellow_cone_marker_.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
+  yellow_cone_marker_.type = visualization_msgs::msg::Marker::CUBE;
   yellow_cone_marker_.pose.orientation.x = 0.0;
   yellow_cone_marker_.pose.orientation.y = 0.0;
   yellow_cone_marker_.pose.orientation.z = 0.0;
   yellow_cone_marker_.pose.orientation.w = 1.0;
-  yellow_cone_marker_.scale.x = 1.0;
-  yellow_cone_marker_.scale.y = 1.0;
-  yellow_cone_marker_.scale.z = -z_orientation_;
-  yellow_cone_marker_.mesh_resource =
-      "package://utfr_rviz_plugins/meshes/cone.dae";
+  yellow_cone_marker_.scale.x = 0.25;
+  yellow_cone_marker_.scale.y = 0.25;
+  yellow_cone_marker_.scale.z = 0.25;
   yellow_cone_marker_.color.r = 1.0;
   yellow_cone_marker_.color.g = 1.0;
   yellow_cone_marker_.color.b = 0.0;
@@ -143,16 +139,14 @@ void ConeMapDisplay::initMarkers() {
   yellow_cone_marker_.ns = "cone";
 
   orange_cone_marker_.action = visualization_msgs::msg::Marker::ADD;
-  orange_cone_marker_.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
+  orange_cone_marker_.type = visualization_msgs::msg::Marker::CUBE;
   orange_cone_marker_.pose.orientation.x = 0.0;
   orange_cone_marker_.pose.orientation.y = 0.0;
   orange_cone_marker_.pose.orientation.z = 0.0;
   orange_cone_marker_.pose.orientation.w = 1.0;
-  orange_cone_marker_.scale.x = 1.0;
-  orange_cone_marker_.scale.y = 1.0;
-  orange_cone_marker_.scale.z = -z_orientation_;
-  orange_cone_marker_.mesh_resource =
-      "package://utfr_rviz_plugins/meshes/cone.dae";
+  orange_cone_marker_.scale.x = 0.25;
+  orange_cone_marker_.scale.y = 0.25;
+  orange_cone_marker_.scale.z = 0.25;
   orange_cone_marker_.color.r = 1.0;
   orange_cone_marker_.color.g = 0.549;
   orange_cone_marker_.color.b = 0.0;
@@ -160,16 +154,14 @@ void ConeMapDisplay::initMarkers() {
   orange_cone_marker_.ns = "cone";
 
   big_orange_cone_marker_.action = visualization_msgs::msg::Marker::ADD;
-  big_orange_cone_marker_.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
+  big_orange_cone_marker_.type = visualization_msgs::msg::Marker::CUBE;
   big_orange_cone_marker_.pose.orientation.x = 0.0;
   big_orange_cone_marker_.pose.orientation.y = 0.0;
   big_orange_cone_marker_.pose.orientation.z = 0.0;
   big_orange_cone_marker_.pose.orientation.w = 1.0;
-  big_orange_cone_marker_.scale.x = 1.0;
-  big_orange_cone_marker_.scale.y = 1.0;
-  big_orange_cone_marker_.scale.z = -z_orientation_;
-  big_orange_cone_marker_.mesh_resource =
-      "package://utfr_rviz_plugins/meshes/big_cone.dae";
+  big_orange_cone_marker_.scale.x = 0.25;
+  big_orange_cone_marker_.scale.y = 0.25;
+  big_orange_cone_marker_.scale.z = 0.25;
   big_orange_cone_marker_.color.r = 1.0;
   big_orange_cone_marker_.color.g = 0.549;
   big_orange_cone_marker_.color.b = 0.0;
@@ -191,25 +183,26 @@ void ConeMapDisplay::initMarkers() {
   covariance_marker_.ns = "covariance";
 }
 
-void ConeMapDisplay::setConeMarker(
-    const utfr_msgs::msg::Cone &cone, const std_msgs::msg::Header &header,
-    const int &id, visualization_msgs::msg::Marker *marker) {
+void ConeMapDisplay::setConeMarker(const utfr_msgs::msg::Cone &cone,
+                                   const std_msgs::msg::Header &header,
+                                   const int &id,
+                                   visualization_msgs::msg::Marker *marker) {
   // Assuming input is in FRD frame
   marker->id = id;
   marker->header = header;
   marker->pose.position.x = cone.pos.x;
-  marker->pose.position.y = - cone.pos.y;
+  marker->pose.position.y = -cone.pos.y;
   marker->pose.position.z = 0;
 }
 
-void ConeMapDisplay::setCovarianceMarker(
-    const utfr_msgs::msg::Cone &cone, const std_msgs::msg::Header &header,
-    const int &id) {
+void ConeMapDisplay::setCovarianceMarker(const utfr_msgs::msg::Cone &cone,
+                                         const std_msgs::msg::Header &header,
+                                         const int &id) {
   // https://www.visiondummy.com/2014/04/draw-error-ellipse-representing-covariance-matrix/
   covariance_marker_.id = id;
   covariance_marker_.header = header;
   covariance_marker_.pose.position.x = cone.pos.x;
-  covariance_marker_.pose.position.y = - cone.pos.y;
+  covariance_marker_.pose.position.y = -cone.pos.y;
   covariance_marker_.pose.position.z = -cone.pos.z;
 
   // Convert the covariance message to a matrix
@@ -236,8 +229,8 @@ void ConeMapDisplay::setCovarianceMarker(
   covariance_marker_.pose.orientation.w = std::cos(angle * 0.5);
 }
 
-visualization_msgs::msg::Marker ConeMapDisplay::getColoredMarker(
-    visualization_msgs::msg::Marker cone_marker) {
+visualization_msgs::msg::Marker
+ConeMapDisplay::getColoredMarker(visualization_msgs::msg::Marker cone_marker) {
   visualization_msgs::msg::Marker marker = cone_marker;
   switch (cone_color_option_) {
   case FLAT: {
