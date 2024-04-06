@@ -250,9 +250,9 @@ TEST(EkfNodeTest, updatePositionTest){
 
     std::cout << "Test 1: No throttle, no brake, no steering (no movement)"
           << "x: " << node.current_state_.pose.pose.position.x 
-          << " y: " << node.current_state_.pose.pose.position.y 
-          << " speed_x: " << node.current_state_.vel.twist.linear.x 
-          << " speed_y: " << node.current_state_.vel.twist.linear.y << std::endl;
+          << " y: " << node.current_state_.pose.pose.position.y << std::endl;
+          //<< " speed_x: " << node.current_state_.vel.twist.linear.x 
+          //<< " speed_y: " << node.current_state_.vel.twist.linear.y << std::endl;
 
 
     // Sanity Test 2: No steering angle, throttle of 2 m/s^2 for 4 second
@@ -266,16 +266,15 @@ TEST(EkfNodeTest, updatePositionTest){
             node.kinematicBicycleModel(throttle, brake, steering, dt);
         else
             node.dynamicBicycleModel(throttle, brake, steering, dt);
-        std::cout<<"Time : "<<i*dt<<std::endl; 
+        std::cout<<"Time : "<<(i + 1)*dt<<std::endl; 
         std::cout << "x: " << node.current_state_.pose.pose.position.x 
-          << " y: " << node.current_state_.pose.pose.position.y 
-          << " speed_x: " << node.current_state_.vel.twist.linear.x 
-          << " speed_y: " << node.current_state_.vel.twist.linear.y  
-          << " yaw: " << utfr_dv::util::quaternionToYaw(node.current_state_.pose.pose.orientation)
-          << " velocty:" << sqrt(node.current_state_.vel.twist.linear.x * node.current_state_.vel.twist.linear.x + node.current_state_.vel.twist.linear.y * node.current_state_.vel.twist.linear.y) << std::endl;
+          << " y: " << node.current_state_.pose.pose.position.y << std::endl;
+          //<< " speed_x: " << node.current_state_.vel.twist.linear.x 
+          //<< " speed_y: " << node.current_state_.vel.twist.linear.y  
+          //<< " yaw: " << utfr_dv::util::quaternionToYaw(node.current_state_.pose.pose.orientation)
+          //<< " velocty:" << sqrt(node.current_state_.vel.twist.linear.x * node.current_state_.vel.twist.linear.x + node.current_state_.vel.twist.linear.y * node.current_state_.vel.twist.linear.y) << std::endl;
     }
 
-    
     // Test 3: 
     //Throttle of 2 m/s^2,  steering of pi/4 degrees for  4 seconds, should be around (-2.35, 4.48) with a yaw of -2.36 rad, vel of 3.15m/s
     std::cout<<"Test 3: Throttle of 2 m/s^2,  steering of pi/4 degrees for  4 seconds"<<std::endl;
@@ -295,18 +294,15 @@ TEST(EkfNodeTest, updatePositionTest){
             node.kinematicBicycleModel(throttle, brake, steering, dt);
         else
             node.dynamicBicycleModel(throttle, brake, steering, dt);
-        std::cout<<"Time : "<<i*dt<<std::endl; 
+        std::cout<<"Time : "<<(i+1)*dt<<std::endl; 
         std::cout << "x: " << node.current_state_.pose.pose.position.x 
-          << " y: " << node.current_state_.pose.pose.position.y 
-          << " speed_x: " << node.current_state_.vel.twist.linear.x 
-          << " speed_y: " << node.current_state_.vel.twist.linear.y  
-          << " yaw: " << utfr_dv::util::quaternionToYaw(node.current_state_.pose.pose.orientation)
-          << " velocty:" << sqrt(node.current_state_.vel.twist.linear.x * node.current_state_.vel.twist.linear.x + node.current_state_.vel.twist.linear.y * node.current_state_.vel.twist.linear.y) << std::endl;
+          << " y: " << node.current_state_.pose.pose.position.y << std::endl;
+          //<< " speed_x: " << node.current_state_.vel.twist.linear.x 
+          //<< " speed_y: " << node.current_state_.vel.twist.linear.y  
+          //<< " yaw: " << utfr_dv::util::quaternionToYaw(node.current_state_.pose.pose.orientation)
+          //<< " velocty:" << sqrt(node.current_state_.vel.twist.linear.x * node.current_state_.vel.twist.linear.x + node.current_state_.vel.twist.linear.y * node.current_state_.vel.twist.linear.y) << std::endl;
     }
     
-
-
-
     //Throttle of 4 m/s^2, no steering, starting velocity is 10m/s 10+16 = 26m/s
     std::cout<<"Test 4: Throttle of 4 m/s^2, no steering, starting velocity is 10m/s"<<std::endl;
    
@@ -329,11 +325,11 @@ TEST(EkfNodeTest, updatePositionTest){
             node.dynamicBicycleModel(throttle, brake, steering, dt);
         std::cout<<"Time : "<<(i + 1)*dt <<std::endl; 
         std::cout << "x: " << node.current_state_.pose.pose.position.x 
-          << " y: " << node.current_state_.pose.pose.position.y 
-          << " speed_x: " << node.current_state_.vel.twist.linear.x 
-          << " speed_y: " << node.current_state_.vel.twist.linear.y  
-          << " yaw: " << utfr_dv::util::quaternionToYaw(node.current_state_.pose.pose.orientation)
-          << " velocty:" << sqrt(node.current_state_.vel.twist.linear.x * node.current_state_.vel.twist.linear.x + node.current_state_.vel.twist.linear.y * node.current_state_.vel.twist.linear.y) << std::endl;
+          << " y: " << node.current_state_.pose.pose.position.y << std::endl;
+          //<< " speed_x: " << node.current_state_.vel.twist.linear.x 
+          //<< " speed_y: " << node.current_state_.vel.twist.linear.y  
+          //<< " yaw: " << utfr_dv::util::quaternionToYaw(node.current_state_.pose.pose.orientation)
+          //<< " velocty:" << sqrt(node.current_state_.vel.twist.linear.x * node.current_state_.vel.twist.linear.x + node.current_state_.vel.twist.linear.y * node.current_state_.vel.twist.linear.y) << std::endl;
     }
 
     //Throttle of 3 m/s^2,  steering of pi/6 degrees for 10 seconds 3 * 10 = 30 
@@ -356,14 +352,12 @@ TEST(EkfNodeTest, updatePositionTest){
             node.dynamicBicycleModel(throttle, brake, steering, dt);
         std::cout<<"Time : "<<(i + 1)*dt <<std::endl; 
         std::cout << "x: " << node.current_state_.pose.pose.position.x 
-          << " y: " << node.current_state_.pose.pose.position.y 
-          << " speed_x: " << node.current_state_.vel.twist.linear.x 
-          << " speed_y: " << node.current_state_.vel.twist.linear.y  
-          << " yaw: " << utfr_dv::util::quaternionToYaw(node.current_state_.pose.pose.orientation)
-          << " velocty:" << sqrt(node.current_state_.vel.twist.linear.x * node.current_state_.vel.twist.linear.x + node.current_state_.vel.twist.linear.y * node.current_state_.vel.twist.linear.y) << std::endl;
+          << " y: " << node.current_state_.pose.pose.position.y << std::endl;
+          //<< " speed_x: " << node.current_state_.vel.twist.linear.x 
+          //<< " speed_y: " << node.current_state_.vel.twist.linear.y  
+          //<< " yaw: " << utfr_dv::util::quaternionToYaw(node.current_state_.pose.pose.orientation)
+          //<< " velocty:" << sqrt(node.current_state_.vel.twist.linear.x * node.current_state_.vel.twist.linear.x + node.current_state_.vel.twist.linear.y * node.current_state_.vel.twist.linear.y) << std::endl;
     }
-
-
 }
 
 
