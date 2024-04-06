@@ -34,6 +34,7 @@ void CarInterface::initParams() {
   };
 
   this->declare_parameter("update_rate", 33.33);
+  this->declare_parameter("ema_gain", 0.6);
   this->declare_parameter("heartbeat_tolerance", 1.5);
   this->declare_parameter("heartbeat_modules", default_modules);
   this->declare_parameter("heartbeat_modules_accel", default_modules);
@@ -41,6 +42,7 @@ void CarInterface::initParams() {
   this->declare_parameter("testing", 0);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
+  ema_gain_ = this->get_parameter("ema_gain").as_double();
   heartbeat_tolerance_ = this->get_parameter("heartbeat_tolerance").as_double();
   heartbeat_modules_ =
       this->get_parameter("heartbeat_modules").as_string_array();
