@@ -292,7 +292,7 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y, co
 
   H = Eigen::MatrixXd::Zero(3, 6);
   H(0, 0) = 1; // Map x position
-  H(1, 1) = 1; // Map yposition
+  H(1, 1) = 1; // Map y_position
   H(2, 4) = 1; // Map yaw
 
   R = Eigen::MatrixXd::Identity(3, 3);
