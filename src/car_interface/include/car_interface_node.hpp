@@ -283,6 +283,19 @@ private:
       {"planning_controller", topics::kControllerHeartbeat},
       {"controls", topics::kControlsHeartbeat},
   };
+
+  // Wheel speed vars
+  double ema_gain_ = 0.0;
+
+  double ema_prev_fl_ = 0.0;
+  double ema_prev_fr_ = 0.0;
+  double ema_prev_rl_ = 0.0;
+  double ema_prev_rr_ = 0.0;
+
+  double prev_wheelspeed_fl_ = 0;
+  double prev_wheelspeed_fr_ = 0;
+  double prev_wheelspeed_rl_ = 0;
+  double prev_wheelspeed_rr_ = 0;
 };
 
 } // namespace car_interface
