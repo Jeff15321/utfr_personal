@@ -26,7 +26,6 @@ EkfNode::EkfNode() : Node("ekf_node") {
   HeartBeatState heartbeat_state_ = HeartBeatState::NOT_READY;
   heartbeat_rate_ = 1;
   this->initTimers();
-  
   this->initHeartbeat();
   this->publishHeartbeat();
   this->initParams();
@@ -43,6 +42,7 @@ void EkfNode::initParams() {
   current_state_.pose.pose.position.x = 0.0;
   current_state_.pose.pose.position.y = 0.0;
   datum_lla={std::nan(""),std::nan(""),std::nan("")};
+  vehicle_params_ = VehicleParameters();
 }
 
 void EkfNode::initSubscribers() {
@@ -145,8 +145,188 @@ void EkfNode::imuCB(const sensor_msgs::msg::Imu msg) {
   // std::cout << "x: " << res.pose.pose.position.x << " y: " << res.pose.pose.position.y << std::endl;
 }
 
-void EkfNode::vehicleModel(const float &throttle, const float &brake,
-                           const float &steering_angle) {}
+void EkfNode::kinematicBicycleModel(const float &throttle, const float &brake, const float &steering_angle, const double dt) {
+  //Get the parameters of the vehicle
+  double mass = vehicle_params_.inertia.mass;
+  double l_f = vehicle_params_.kinematics.l_f;
+  double l_r = vehicle_params_.kinematics.l_r;
+  double drag_coefficient = vehicle_params_.kinematics.drag_coefficient;
+  double rolling_resistance_coefficient = vehicle_params_.kinematics.rolling_resistance_coefficient;
+  double cornering_stiffness = vehicle_params_.kinematics.cornering_stiffness;
+
+  // Get the current angle
+  double yaw = utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation);
+
+  // Convert the global velocity to the local frame
+  Eigen::MatrixXd R_2D = Eigen::MatrixXd::Zero(2, 2);
+  R_2D(0, 0) = cos(yaw);
+  R_2D(0, 1) = -sin(yaw);
+  R_2D(1, 0) = sin(yaw);
+  R_2D(1, 1) = cos(yaw);
+
+  Eigen::Vector2d global_velocity = Eigen::Vector2d(current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y);
+  Eigen::Vector2d local_velocity = R_2D * global_velocity;
+
+  double local_velocity_x = local_velocity(0);
+  std::cout<<"Local velocity x before : "<<local_velocity_x<<"\n";
+  double local_velocity_y = local_velocity(1);
+  std::cout<<"Local velocity y before : "<<local_velocity_y<<"\n";
+  double local_velocity_magnitude = std::sqrt(local_velocity_x * local_velocity_x + local_velocity_y * local_velocity_y);
+
+  Eigen::Vector2d global_position = Eigen::Vector2d(current_state_.pose.pose.position.x , current_state_.pose.pose.position.y);
+  Eigen::Vector2d local_position = R_2D.transpose() * global_position;
+
+  double local_x = local_position(0);
+  double local_y = local_position(1);
+
+  std::cout<<"Local x before : "<<local_x<<"\n";
+  std::cout<<"Local y before : "<<local_y<<"\n";
+  
+  double throttle_force = throttle * mass;
+  double brake_force = (brake) * mass;
+  double drag_force = drag_coefficient * local_velocity_x * local_velocity_x;
+  double rolling_resistance_force = (local_velocity_magnitude > 0) ? rolling_resistance_coefficient * mass * 9.81 : 0.0;
+  double net_force_x = throttle_force - brake_force - drag_force - rolling_resistance_force;
+  
+  std::cout <<"Throttle force: "<<throttle_force<<"\n";
+  std::cout<<"Brake force: "<<brake_force<<"\n";
+  std::cout<<"Drag force: "<<drag_force<<"\n";
+  std::cout<<"Rolling resistance force: "<<rolling_resistance_force<<"\n";
+  std::cout<<"Net force_x: "<<net_force_x<<std::endl;
+
+  // Lateral force
+  double lateral_force = (mass * local_velocity_x * local_velocity_x / (l_f + l_r)) * tan(steering_angle);
+  std::cout<<"Lateral force: "<<lateral_force<<std::endl;
+
+  // Calculate acceleration
+  double acceleration_x = net_force_x / mass;
+  double acceleration_y = lateral_force / mass;
+
+  // Update velocity
+  double updated_local_velocity_x = local_velocity_x + acceleration_x * dt;
+  double updated_local_velocity_y = local_velocity_y + acceleration_y * dt;
+  std::cout<<"Local velocity x after : "<<updated_local_velocity_x<<"\n";
+  std::cout<<"Local velocity y after : "<<updated_local_velocity_y<<"\n";
+
+  // Position update
+  double updated_local_x = local_x + local_velocity_x * dt + 0.5 * acceleration_x * dt * dt;
+  double updated_local_y = local_y + local_velocity_y * dt + 0.5 * acceleration_y * dt * dt;
+
+  std::cout<<"Local x after : "<<updated_local_x<<"\n";
+  std::cout<<"Local y after : "<<updated_local_y<<"\n";
+
+  // Yaw update
+  double yaw_rate = local_velocity_magnitude * tan(steering_angle) / (l_f + l_r);
+  double updated_yaw = yaw + yaw_rate * dt;
+
+  // Convert the local frame back to global frame
+  Eigen::Vector2d updated_global_velocity = R_2D.transpose() * Eigen::Vector2d(updated_local_velocity_x, updated_local_velocity_y);
+  Eigen::Vector2d updated_global_position = R_2D * Eigen::Vector2d(updated_local_x, updated_local_y);
+
+  // Update the current state
+  current_state_.pose.pose.position.x = updated_global_position(0);
+  current_state_.pose.pose.position.y = updated_global_position(1);
+  current_state_.vel.twist.linear.x = updated_global_velocity(0);
+  current_state_.vel.twist.linear.y = updated_global_velocity(1);
+  current_state_.pose.pose.orientation = utfr_dv::util::yawToQuaternion(updated_yaw);
+  current_state_.vel.twist.angular.z = yaw_rate;
+}
+
+
+
+
+void EkfNode::dynamicBicycleModel(const float &throttle, const float &brake, const float &steering_angle, const double dt) {
+  //Get the parameters of the vehicle
+  double mass = vehicle_params_.inertia.mass;
+  double c_r = vehicle_params_.tire.c_r;
+  double c_f = vehicle_params_.tire.c_f;
+  double l_f = vehicle_params_.kinematics.l_f;
+  double l_r = vehicle_params_.kinematics.l_r;
+  double Izz = vehicle_params_.inertia.Izz;
+  double drag_coefficient = vehicle_params_.kinematics.drag_coefficient;
+  double rolling_resistance_coefficient = vehicle_params_.kinematics.rolling_resistance_coefficient;
+  double down_force_coefficient = vehicle_params_.kinematics.down_force_coefficient;
+  double angular_velocity = current_state_.vel.twist.angular.z;
+  // Get the current head angle
+  double yaw = utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation);
+
+  // Convert the global velocity to the local frame
+  Eigen::MatrixXd R_2D = Eigen::MatrixXd::Zero(2, 2);
+  R_2D(0, 0) = cos(yaw);
+  R_2D(0, 1) = -sin(yaw);
+  R_2D(1, 0) = sin(yaw);
+  R_2D(1, 1) = cos(yaw);
+
+  Eigen::Vector2d global_velocity = Eigen::Vector2d(current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y);
+  Eigen::Vector2d local_velocity = R_2D * global_velocity;
+
+  double global_x = current_state_.pose.pose.position.x;
+  double global_y = current_state_.pose.pose.position.y;
+
+  std::cout<<"Global position x before : "<<global_x<<"\n";
+  std::cout<<"Global position y before : "<<global_y<<"\n";
+
+  double local_velocity_x = local_velocity(0);
+  double local_velocity_y = local_velocity(1);
+  double local_velocity_magnitude = std::sqrt(local_velocity_x * local_velocity_x + local_velocity_y * local_velocity_y);
+
+  std::cout<<"Local velocity x before : "<<local_velocity_x<<"\n";
+  std::cout<<"Local velocity y before : "<<local_velocity_y<<"\n";
+
+  Eigen::Vector2d global_position = Eigen::Vector2d(current_state_.pose.pose.position.x , current_state_.pose.pose.position.y);
+  double slip_angle_front = atan((local_velocity_y - l_r * angular_velocity) / local_velocity_x);
+  double Fy_f = c_r * slip_angle_front;
+
+  
+  std::cout<<"Slip angle front: "<<slip_angle_front<<std::endl;
+  std::cout<<"Fy_f: "<<Fy_f<<std::endl;
+
+  double slip_angle_rear = atan((local_velocity_y + l_f * angular_velocity) / local_velocity_x) - steering_angle;
+  double Fy_r = c_f * slip_angle_rear;
+
+  std::cout<<"Slip angle rear: "<<slip_angle_rear<<std::endl;
+  std::cout<<"Fy_r: "<<Fy_r<<std::endl;
+
+  double Fx = throttle * mass - brake * mass - drag_coefficient * local_velocity_x - rolling_resistance_coefficient * mass * 9.81;
+
+  std::cout<<"Fx: "<<Fx<<std::endl;
+  double a_x = Fx / mass;
+  std::cout<<"Ax: "<<a_x<<std::endl;
+
+  double delta_vx = angular_velocity * local_velocity_y + a_x - (drag_coefficient * local_velocity_x * local_velocity_x + 2 * Fy_f * sin(steering_angle)) / mass;
+  double delta_vy = 2 * (Fy_f * cos(steering_angle) + Fy_r) / mass - angular_velocity * local_velocity_x;
+  double delta_vphi = 2 * (Fy_f * l_f * cos(steering_angle) - Fy_r * l_r) / Izz;
+
+  std::cout<<"Delta vx: "<<delta_vx<<std::endl;
+  std::cout<<"Delta vy: "<<delta_vy<<std::endl;
+  std::cout<<"Delta vphi: "<<delta_vphi<<std::endl;
+
+  local_velocity_x += delta_vx * dt;
+  std::cout<<"Local velocity x after : "<<local_velocity_x<<"\n";
+  local_velocity_y += delta_vy * dt;
+  std::cout<<"Local velocity y after : "<<local_velocity_y<<"\n";
+
+
+  yaw += angular_velocity * dt;
+  current_state_.vel.twist.angular.z += delta_vphi * dt;
+
+
+  Eigen::Vector2d updated_global_velocity = R_2D.transpose() * Eigen::Vector2d(local_velocity_x, local_velocity_y);
+  std::cout<<"Updated global velocity x: "<<updated_global_velocity(0)<<"\n";
+  std::cout<<"Updated global velocity y: "<<updated_global_velocity(1)<<"\n";
+
+  global_x += updated_global_velocity(0) * dt;
+  global_y += updated_global_velocity(1) * dt;
+
+  std::cout<<"Updated global position x: "<<global_x<<"\n";
+  std::cout<<"Updated global position y: "<<global_y<<"\n";
+
+  current_state_.pose.pose.position.x = global_x;
+  current_state_.pose.pose.position.y = global_y;
+  current_state_.vel.twist.linear.x = updated_global_velocity(0);
+  current_state_.vel.twist.linear.y = updated_global_velocity(1);
+  current_state_.pose.pose.orientation = utfr_dv::util::yawToQuaternion(yaw);
+}
 
 utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y, const double yaw) {
 
@@ -155,7 +335,7 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y, co
 
   H = Eigen::MatrixXd::Zero(3, 6);
   H(0, 0) = 1; // Map x position
-  H(1, 1) = 1; // Map y position
+  H(1, 1) = 1; // Map yposition
   H(2, 4) = 1; // Map yaw
 
   R = Eigen::MatrixXd::Identity(3, 3);

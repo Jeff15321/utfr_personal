@@ -42,6 +42,8 @@
 #include <utfr_common/math.hpp>
 #include <utfr_common/topics.hpp>
 
+#include "vehicle_params.hpp"
+
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
 
@@ -113,8 +115,11 @@ public:
    * vehicle model
    */
    
-  void vehicleModel(const float &throttle, const float &brake,
-                    const float &steering_angle);
+  void dynamicBicycleModel(const float &throttle, const float &brake,
+                    const float &steering_angle, const double dt);
+
+  void kinematicBicycleModel(const float &throttle, const float &brake,
+                    const float &steering_angle, const double dt);
 
   /*! Given the vehicle's current state, and a collection of inputs like
     * throttle and steering angle, calculate the state of the vehicle after asensorcan_subscriber_
@@ -188,6 +193,7 @@ public:
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
   Eigen::MatrixXd P_;
   std::vector<double> datum_lla;
+  VehicleParameters vehicle_params_;
 
   rclcpp::Time prev_time_;
 };
