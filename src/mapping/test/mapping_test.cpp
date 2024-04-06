@@ -17,7 +17,6 @@
 #include <build_graph_node.hpp>
 #include <compute_graph_node.hpp>
 #include <ekf_node.hpp>
-#include <limits>
 
 using namespace utfr_dv::build_graph;
 using namespace utfr_dv::compute_graph;
