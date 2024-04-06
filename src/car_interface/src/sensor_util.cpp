@@ -112,23 +112,36 @@ void CarInterface::getWheelspeedSensorData() {
   double wheelspeed_rr = 0; // TODO: Check proper var type
 
   try {
-    // TODO: Proper CAN message
-    // wheelspeed_fl
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
-    // TODO: Proper CAN message
-    // wheelspeed_fr
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
-    // TODO: Proper CAN message
-    // wheelspeed_rl
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
-    // TODO: Proper CAN message
-    // wheelspeed_rr
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
+    wheelspeed_fl = 
+        (uint16_t)(can1_->get_can(dv_can_msg::SPEEDFL));
+    wheelspeed_fr = 
+        (uint16_t)(can1_->get_can(dv_can_msg::SPEEDFR));
+    wheelspeed_rl = 
+        (uint16_t)(can1_->get_can(dv_can_msg::SPEEDRL));
+    wheelspeed_rr = 
+        (uint16_t)(can1_->get_can(dv_can_msg::SPEEDRR));
 
-    sensor_can_.wheelspeed_fl = wheelspeed_fl;
-    sensor_can_.wheelspeed_fr = wheelspeed_fr;
-    sensor_can_.wheelspeed_rl = wheelspeed_rl;
-    sensor_can_.wheelspeed_rr = wheelspeed_rr;
+    double dt = this->get_clock()->now().nanoseconds() / (1.0 * 1e9) - sensor_can_.header.stamp.nanosec / (1.0 * 1e9);
+
+    int delta_fl = wheelspeed_fl - prev_wheelspeed_fl_;
+    int delta_fr = wheelspeed_fr - prev_wheelspeed_fr_;
+    int delta_rl = wheelspeed_rl - prev_wheelspeed_rl_;
+    int delta_rr = wheelspeed_rr - prev_wheelspeed_rr_;
+
+    prev_wheelspeed_fl_ = wheelspeed_fl;
+    prev_wheelspeed_fr_ = wheelspeed_fr;
+    prev_wheelspeed_rl_ = wheelspeed_rl;
+    prev_wheelspeed_rr_ = wheelspeed_rr;
+
+    double rpm_fl = wheelspeed_fl / 14.0 / dt * 60;
+    double rpm_fr = wheelspeed_fr / 14.0 / dt * 60;
+    double rpm_rl = wheelspeed_rl / 14.0 / dt * 60;
+    double rpm_rr = wheelspeed_rr / 14.0 / dt * 60;
+
+    sensor_can_.wheelspeed_fl = rpm_fl;
+    sensor_can_.wheelspeed_fr = rpm_fr;
+    sensor_can_.wheelspeed_rl = rpm_rl;
+    sensor_can_.wheelspeed_rr = rpm_rr;
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
                  function_name.c_str(), e);
