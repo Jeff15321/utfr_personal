@@ -1358,7 +1358,7 @@ bool CenterPathNode::checkPassedDatum(const utfr_msgs::msg::EgoState reference,
 
   double dx_local = dx * cos(-ref_yaw) - dy * sin(-ref_yaw);
 
-  if (abs(ref_yaw - cur_yaw) < 3.1415 / 2 && tdist < 3.0 && dx_local < 0.0 && datum_last_local_x_ >= 0.0) {
+  if (abs(ref_yaw - cur_yaw) < 3.1415 / 2 && tdist < 1.5 && dx_local < 0.0 && datum_last_local_x_ >= 0.0) {
     //if alignment within 90 deg, distance less than 3m
     datum_last_local_x_ = dx_local;
     return true;
@@ -1434,19 +1434,61 @@ void CenterPathNode::trackdriveLapCounter() {
     found_4_large_orange = true;
   }
 
-  if (time_diff > 20.0 && !lock_sector_ && found_4_large_orange &&
-      large_orange_cones_size < 4 && average_distance_to_cones < 2.0) {
-    last_time = curr_time;
-    curr_sector_ += 1;
-    lock_sector_ = true;
+  if (time_diff > 20.0 && !lock_sector_) {
+    if (loop_closed_) {
+      if (checkPassedDatum(getTrackDriveDatum(*cone_map_raw_), *ego_state_)) {
+        last_time = curr_time;
+        curr_sector_ += 1;
+        lock_sector_ = true;
+        RCLCPP_INFO(this->get_logger(), "Lap incremented: Global trigger");
+      }
+    } else {
+      if (found_4_large_orange &&
+          large_orange_cones_size < 4 && average_distance_to_cones < 5.0) {
+        last_time = curr_time;
+        curr_sector_ += 1;
+        lock_sector_ = true;
+        RCLCPP_INFO(this->get_logger(), "Lap incremented: Local trigger");
+      }
+    }
   }
+  
 
   if (found_4_large_orange && lock_sector_ && large_orange_cones_size == 0 &&
       time_diff > 5.0) {
     lock_sector_ = false;
     found_4_large_orange = false;
   }
-  RCLCPP_INFO(this->get_logger(), "Sector: %d", curr_sector_);
+}
+
+utfr_msgs::msg::EgoState CenterPathNode::getTrackDriveDatum(const utfr_msgs::msg::ConeMap &cone_map) {
+  utfr_msgs::msg::EgoState datum;
+
+  if (cone_map.large_orange_cones.size() == 1) {
+    double x = cone_map.large_orange_cones[0].pos.x;;
+    double y = cone_map.large_orange_cones[0].pos.y;
+
+    datum.pose.pose.position.x = x;
+    datum.pose.pose.position.y = y;
+    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
+  } else if (cone_map.large_orange_cones.size() >= 2) {
+    double x = 0.0;
+    double y = 0.0;
+    for (utfr_msgs::msg::Cone cone : cone_map.large_orange_cones) {
+      x += cone.pos.x;
+      y += cone.pos.y;
+    }
+    datum.pose.pose.position.x = x / cone_map.large_orange_cones.size();
+    datum.pose.pose.position.y = y / cone_map.large_orange_cones.size();
+    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
+  } else {
+    datum.pose.pose.position.x = -100.0;
+    datum.pose.pose.position.y = -100.0;
+    datum.pose.pose.position.z = -100.0;
+    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
+  }
+
+  return datum;
 }
 
 void CenterPathNode::skidPadFit() {

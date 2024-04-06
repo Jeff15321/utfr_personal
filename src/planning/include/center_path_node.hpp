@@ -282,6 +282,16 @@ private:
   /*! Autox/Trackdrive Lap Counter
    */
   void trackdriveLapCounter();
+
+
+  /**
+   * Trackdrive get datum finds the point where the lap starts given a conemap. used in global lapcounter. 
+   * 
+   * @param cone_map 
+   * @return utfr_msgs::msg::EgoState 
+   */
+  utfr_msgs::msg::EgoState getTrackDriveDatum(const utfr_msgs::msg::ConeMap &cone_map);
+
   
   /*! Skidpad path finder when there are enough blue and yellow cones to fit a line
    * @param[out] std::tuple<double, double, double, double, double, double>, x center left, y center left, radius left, x center right, y center right, radius right
