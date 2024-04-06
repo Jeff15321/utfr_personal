@@ -227,7 +227,6 @@ void EkfNode::dynamicBicycleModel(const float &throttle, const float &brake, con
   double Izz = vehicle_params_.inertia.Izz;
   double drag_coefficient = vehicle_params_.kinematics.drag_coefficient;
   double rolling_resistance_coefficient = vehicle_params_.kinematics.rolling_resistance_coefficient;
-  double down_force_coefficient = vehicle_params_.kinematics.down_force_coefficient;
   
   // Get the current state of the vehicle
   double global_x = current_state_.pose.pose.position.x;
@@ -260,7 +259,7 @@ void EkfNode::dynamicBicycleModel(const float &throttle, const float &brake, con
   // Calculate the accerlation in the x_direction
   double a_x = Fx / mass;
 
-  // Find the state update
+  // Find the state updates
   double delta_vx = angular_velocity * local_velocity_y + a_x - (drag_coefficient * local_velocity_x * local_velocity_x + 2 * Fy_f * sin(steering_angle)) / mass;
   double delta_vy = 2 * (Fy_f * cos(steering_angle) + Fy_r) / mass - angular_velocity * local_velocity_x;
   double delta_vphi = 2 * (Fy_f * l_f * cos(steering_angle) - Fy_r * l_r) / Izz;
