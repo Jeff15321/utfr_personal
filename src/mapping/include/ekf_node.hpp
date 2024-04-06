@@ -42,6 +42,8 @@
 #include <utfr_common/math.hpp>
 #include <utfr_common/topics.hpp>
 
+#include "vehicle_params.hpp"
+
 // Misc Requirements:
 using std::placeholders::_1; // for std::bind
 
@@ -103,7 +105,7 @@ public:
    */
   void imuCB(const sensor_msgs::msg::Imu msg);
 
-  /*! Implement a dynamic vehicle model
+  /*! Implement a kinematic / dynamic vehicle model
    *  Use the throttle, brake, and steering angle to update the vehicle model
    * state
    *  @param[in] throttle float&, throttle data
@@ -112,9 +114,12 @@ public:
    *  @param[out] state geometry_msgs::msg::EgoState&, estimated state via the
    * vehicle model
    */
+   
+  void dynamicBicycleModel(const float &throttle, const float &brake,
+                    const float &steering_angle, const double dt);
 
-  void vehicleModel(const float &throttle, const float &brake,
-                    const float &steering_angle);
+  void kinematicBicycleModel(const float &throttle, const float &brake,
+                    const float &steering_angle, const double dt);
 
   /*! Given the vehicle's current state, and a collection of inputs like
    * throttle and steering angle, calculate the state of the vehicle after
@@ -195,6 +200,8 @@ public:
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
   Eigen::MatrixXd P_;
   std::vector<double> datum_lla;
+  
+  VehicleParameters vehicle_params_;
   utfr_msgs::msg::Heartbeat heartbeat_;
   double update_rate_;
   rclcpp::TimerBase::SharedPtr main_timer_;
