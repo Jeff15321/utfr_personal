@@ -93,7 +93,7 @@ lidar_proc_node:
   ros__parameters:
     update_rate: 33.33 #[ms]
     topics: # TODO: fix
-      input: "/velodyne_points"
+      input: "/ouster/points"
       filtered: "/lidar_pipeline/filtered"
       no_ground: "/lidar_pipeline/no_ground"
       clustered: "/lidar_pipeline/clustered"
@@ -101,10 +101,10 @@ lidar_proc_node:
       heartbeat: "/lidar_pipeline/heartbeat"
     view_filter:
       outer_box: #remove all points outside of outer box
-        xmin: -10.0
+        xmin: -20.0
         xmax: 0.0
-        ymin: -5.0
-        ymax: 5.0
+        ymin: -8.0
+        ymax: 8.0
       inner_box: #remove all points within inner box
         xmin: -1.0
         xmax: 1.0
@@ -117,11 +117,11 @@ lidar_proc_node:
       distance_threshold: 0.1
     clustering:
       cluster_tolerance: 0.2
-      min_cluster_size: 5
+      min_cluster_size: 3
       max_cluster_size: 600
       reconstruct_radius: 0.1
     cone_filter:
       cone_height: 0.43
       cone_radius: 0.0748
       mse_threshold: 0.0001 #any point as close as threshold is inlier
-      lin_threshold: 0.001
+      lin_threshold: 0.002

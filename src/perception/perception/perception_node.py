@@ -739,8 +739,15 @@ class PerceptionNode(Node):
             colours = total_cam_det[col_ind][:, 3:]
 
             # TODO - cost matrix where indices have cost above certain threshold, make the type unknown
-
+            costs = cost_matrix[row_ind, col_ind]
+            above_threshold = np.where(costs > 4.0)[0]
+            for ind in above_threshold:
+                colours[ind] = 0
+            
             cone_detections = np.concatenate((positions, colours), axis=1)
+            print(col_ind)
+            camera_det = np.delete(total_cam_det, col_ind, axis=0)
+            cone_detections = np.concatenate((cone_detections, camera_det), axis=0)
             print(cone_detections.shape)
         else:
 
