@@ -159,7 +159,6 @@ void ConeMapDisplay::initMarkers() {
   big_orange_cone_marker_.pose.orientation.y = 0.0;
   big_orange_cone_marker_.pose.orientation.z = 0.0;
   big_orange_cone_marker_.pose.orientation.w = 1.0;
-
   big_orange_cone_marker_.scale.x = 0.25;
   big_orange_cone_marker_.scale.y = 0.25;
   big_orange_cone_marker_.scale.z = 0.25;
