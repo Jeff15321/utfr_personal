@@ -19,8 +19,11 @@ namespace car_interface {
 std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::RBP, 0x008}, // Rear brake pressure
     {(uint8_t)dv_can_msg::FBP, 0x010}, // Front brake pressure
-    {(uint8_t)dv_can_msg::SPEEDFL, 0x012},
-    {(uint8_t)dv_can_msg::SPEEDRL, 0x013}, // Wheel speed
+    {(uint8_t)dv_can_msg::SPEEDFL, 0x005},
+    {(uint8_t)dv_can_msg::SPEEDRL, 0x006},
+    {(uint8_t)dv_can_msg::SPEEDFR, 0x007},
+    {(uint8_t)dv_can_msg::SPEEDRR, 0x008},
+ // Wheel speed
     {(uint8_t)dv_can_msg::ImuY, 0x174},
     {(uint8_t)dv_can_msg::ImuX, 0x178},
     {(uint8_t)dv_can_msg::ImuZ, 0x17C},

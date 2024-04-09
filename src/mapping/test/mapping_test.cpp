@@ -313,6 +313,7 @@ TEST(BuildGraphNodeTest, loopClosureTest1) {
   ASSERT_EQ(2, node.landmarkedID_);
   ASSERT_EQ(true, node.landmarked_);
 }
+
 TEST(EkfNodeTest, converlatlonalt2) {
   // utfr_dv::build_graph::BuildGraphNode node;
   utfr_dv::ekf::EkfNode node;
