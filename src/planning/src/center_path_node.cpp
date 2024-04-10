@@ -279,13 +279,11 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     cone_map_->right_cones = getConesInHemisphere(msg.right_cones, 15.0);
     cone_map_->large_orange_cones = getConesInHemisphere(msg.large_orange_cones, 15.0);
     cone_map_->small_orange_cones = getConesInHemisphere(msg.small_orange_cones, 15.0);
-    // cone_map_->left_cones = msg.left_cones;
-    // cone_map_->right_cones = msg.right_cones;
-    // cone_map_->large_orange_cones = msg.large_orange_cones;
-    // cone_map_->small_orange_cones = msg.small_orange_cones;
     (*cone_map_raw_) = msg;
-    this->createTransform(); // generate transform for global path
-    // this->GlobalWaypoints(); // visualize the transformed points in map view
+    if(event_ == "skidpad"){
+      this->createTransform(); // generate transform for global path
+      // this->GlobalWaypoints(); // visualize the transformed points in map view
+    }
   }
 }
 
