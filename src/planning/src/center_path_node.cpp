@@ -237,23 +237,19 @@ void CenterPathNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
     ego_state_->steering_angle = msg.steering_angle;
   }
 
-  ego_state_->header = msg.header;
-  ego_state_->pose = msg.pose;
-  ego_state_->vel = msg.vel;
-  ego_state_->accel = msg.accel;
-  ego_state_->steering_angle = msg.steering_angle;
-
-  // add points to the visited array for global skidpad path finding
-  double curX = ego_state_->pose.pose.position.x;
-  double curY = ego_state_->pose.pose.position.y;
-  double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
-  if(visited.empty()){
-    visited.push_back({curX,curY,yaw});
-  }
-  else{
-    auto [lastX,lastY,_] = visited.back();
-    if(util::euclidianDistance2D(lastX, curX, lastY, curY) >= 5){
+  if(event_ == "skidpad"){
+    // add points to the visited array for global skidpad path finding
+    double curX = ego_state_->pose.pose.position.x;
+    double curY = ego_state_->pose.pose.position.y;
+    double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
+    if(visited.empty()){
       visited.push_back({curX,curY,yaw});
+    }
+    else{
+      auto [lastX,lastY,_] = visited.back();
+      if(util::euclidianDistance2D(lastX, curX, lastY, curY) >= 5){
+        visited.push_back({curX,curY,yaw});
+      }
     }
   }
 }
