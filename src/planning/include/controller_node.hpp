@@ -207,14 +207,6 @@ private:
   utfr_msgs::msg::TargetState purePursuitController(
     double max_steering_angle, geometry_msgs::msg::Pose lookahead_point,
     double desired_velocity);
-  
-  /*! Stanley Controller
-   */
-  utfr_msgs::msg::TargetState stanleyController(
-      double k, double max_speed, double max_steering_angle,
-      double max_steering_rate, utfr_msgs::msg::ParametricSpline spline_params,
-      double cur_s, double ds, utfr_msgs::msg::VelocityProfile velocity_profile,
-      double baselink_location, utfr_msgs::msg::EgoState ego_state);
 
   /*! Return Closest Point
    */
