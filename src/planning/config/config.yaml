@@ -13,6 +13,10 @@ center_path_node: # Name of Module
     threshold_cones: 3 # number of cones to check for radius
     global_path: 1
 
+    # Pure Pursuit Controller Parameters
+    base_lookahead_distance: 3.0 # [m]
+    lookahead_scaling_factor: 0.6 # [m]
+
 controller_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
@@ -35,4 +39,4 @@ controller_node: # Name of Module
 
     # Pure Pursuit Controller Parameters
     base_lookahead_distance: 3.0 # [m]
-    lookahead_scaling_factor: 0.8 # [m]
+    lookahead_scaling_factor: 0.6 # [m]

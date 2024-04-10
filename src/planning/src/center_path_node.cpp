@@ -41,6 +41,8 @@ void CenterPathNode::initParams() {
   this->declare_parameter("threshold_cones", 3);
   this->declare_parameter("global_path", 0);
   this->declare_parameter("max_velocity", 5.0);
+  this->declare_parameter("lookahead_scaling_factor", 0.6);
+  this->declare_parameter("base_lookahead_distance", 3.0);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   event_ = this->get_parameter("event").as_string();
@@ -52,6 +54,10 @@ void CenterPathNode::initParams() {
 
   waypoints = this->getWaypoints("src/planning/global_waypoints/Waypoints.csv");
   global_path_ = this->get_parameter("global_path").as_int();
+  lookahead_scaling_factor_ =
+      this->get_parameter("lookahead_scaling_factor").as_double();
+  base_lookahead_distance_ =
+      this->get_parameter("base_lookahead_distance").as_double();
 
   RCLCPP_INFO(this->get_logger(), "Event: %s", event_.c_str());
 }
@@ -2085,15 +2091,15 @@ void CenterPathNode::nextWaypoint(){
 
   double vx = ego_state_->vel.twist.linear.x, vy = ego_state_->vel.twist.linear.y;
   double current_velocity = sqrt(vx * vx + vy * vy);
-  double lookahead_disance = 3 + 0.8 * current_velocity;
+  double lookahead_distance = base_lookahead_distance_ + lookahead_scaling_factor_ * current_velocity;
   while(i < waypoints.size()){
     auto [x,y] = this->transformWaypoint(waypoints[i]);
     double localX = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
     double localY = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
     double dx = localX + 0.79;
     double dy = localY;
-    double dist = sqrt(dx * dx + dy * y);
-    if(dist >= max_velocity_) break;
+    double dist = sqrt(dx * dx + dy * dy);
+    if(dist >= lookahead_distance) break;
     i++;
   }
 

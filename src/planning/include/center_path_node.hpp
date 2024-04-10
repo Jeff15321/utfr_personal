@@ -352,6 +352,8 @@ private:
   bool accel_sector_increase;
   int detections_in_row_ = 0;
   bool use_mapping_ = false;
+  double base_lookahead_distance_;
+  double lookahead_scaling_factor_;
 
   bool loop_closed_ = false;
 
