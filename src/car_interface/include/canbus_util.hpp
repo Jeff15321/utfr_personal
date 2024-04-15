@@ -39,6 +39,8 @@ enum dv_can_msg {
   FBP = 1,
   SPEEDFL = 2,
   SPEEDRL = 3,
+  SPEEDFR = 21,
+  SPEEDRR = 22,
   ImuY = 4,
   ImuX = 5,
   ImuZ = 6,

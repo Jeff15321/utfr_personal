@@ -112,23 +112,53 @@ void CarInterface::getWheelspeedSensorData() {
   double wheelspeed_rr = 0; // TODO: Check proper var type
 
   try {
-    // TODO: Proper CAN message
-    // wheelspeed_fl
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
-    // TODO: Proper CAN message
-    // wheelspeed_fr
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
-    // TODO: Proper CAN message
-    // wheelspeed_rl
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
-    // TODO: Proper CAN message
-    // wheelspeed_rr
-    //     (uint16_t)(can1_->get_can(dv_can_msg::TODO));
+    // Wheel speeds in total ticks, 14 ticks per revolution
+    wheelspeed_fl = 
+        (uint16_t)(can1_->get_can(dv_can_msg::SPEEDFL));
+    wheelspeed_fr = 
+        (uint16_t)(can1_->get_can(dv_can_msg::SPEEDFR));
+    wheelspeed_rl = 
+        (uint16_t)(can1_->get_can(dv_can_msg::SPEEDRL));
+    wheelspeed_rr = 
+        (uint16_t)(can1_->get_can(dv_can_msg::SPEEDRR));
 
-    sensor_can_.wheelspeed_fl = wheelspeed_fl;
-    sensor_can_.wheelspeed_fr = wheelspeed_fr;
-    sensor_can_.wheelspeed_rl = wheelspeed_rl;
-    sensor_can_.wheelspeed_rr = wheelspeed_rr;
+    // Calculate time step between now and last count
+    double dt = this->get_clock()->now().nanoseconds() / (1.0 * 1e9) - sensor_can_.header.stamp.nanosec / (1.0 * 1e9);
+
+    // Calculate how many new ticks
+    int delta_fl = wheelspeed_fl - prev_wheelspeed_fl_;
+    int delta_fr = wheelspeed_fr - prev_wheelspeed_fr_;
+    int delta_rl = wheelspeed_rl - prev_wheelspeed_rl_;
+    int delta_rr = wheelspeed_rr - prev_wheelspeed_rr_;
+
+    // Update previous wheelspeed
+    prev_wheelspeed_fl_ = wheelspeed_fl;
+    prev_wheelspeed_fr_ = wheelspeed_fr;
+    prev_wheelspeed_rl_ = wheelspeed_rl;
+    prev_wheelspeed_rr_ = wheelspeed_rr;
+
+    // Calculate RPM
+    double rpm_fl = delta_fl / 14.0 / dt * 60;
+    double rpm_fr = delta_fr / 14.0 / dt * 60;
+    double rpm_rl = delta_rl / 14.0 / dt * 60;
+    double rpm_rr = delta_rr / 14.0 / dt * 60;
+
+    // Apply EMA filter
+    double filtered_rpm_fl = ema_gain_ * rpm_fl + (1 - ema_gain_) * ema_prev_fl_;
+    double filtered_rpm_fr = ema_gain_ * rpm_fr + (1 - ema_gain_) * ema_prev_fr_;
+    double filtered_rpm_rl = ema_gain_ * rpm_rl + (1 - ema_gain_) * ema_prev_rl_;
+    double filtered_rpm_rr = ema_gain_ * rpm_rr + (1 - ema_gain_) * ema_prev_rr_;
+    // Update previous filtered values
+    ema_prev_fl_ = filtered_rpm_fl;
+    ema_prev_fr_ = filtered_rpm_fr;
+    ema_prev_rl_ = filtered_rpm_rl;
+    ema_prev_rr_ = filtered_rpm_rr;
+
+    // Update sensor_can_ values
+    sensor_can_.wheelspeed_fl = filtered_rpm_fl;
+    sensor_can_.wheelspeed_fr = filtered_rpm_fr;
+    sensor_can_.wheelspeed_rl = filtered_rpm_rl;
+    sensor_can_.wheelspeed_rr = filtered_rpm_rr;
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
                  function_name.c_str(), e);

@@ -46,6 +46,8 @@ void CenterPathNode::initParams() {
   big_radius_ = this->get_parameter("big_radius").as_double();
   threshold_radius_ = this->get_parameter("threshold_radius").as_double();
   threshold_cones_ = this->get_parameter("threshold_cones").as_int();
+
+  RCLCPP_INFO(this->get_logger(), "Event: %s", event_.c_str());
 }
 
 void CenterPathNode::initSubscribers() {
@@ -59,6 +61,11 @@ void CenterPathNode::initSubscribers() {
       this->create_subscription<utfr_msgs::msg::ConeDetections>(
           topics::kConeDetections, 10,
           std::bind(&CenterPathNode::coneDetectionsCB, this, _1));
+
+  cone_map_closure_subscriber_ =
+      this->create_subscription<std_msgs::msg::Bool>(
+          topics::kLoopClosed, 10,
+          std::bind(&CenterPathNode::coneMapClosureCB, this, _1));
 }
 
 void CenterPathNode::initPublishers() {
@@ -89,6 +96,9 @@ void CenterPathNode::initPublishers() {
   skidpad_path_publisher_avg_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kSkidpadFittingavg, 10);
+
+  lap_time_publisher_ = this->create_publisher<utfr_msgs::msg::LapTime>(
+      topics::kLapTime, 10);
 }
 
 void CenterPathNode::initEvent() {
@@ -153,10 +163,10 @@ void CenterPathNode::initTimers() {
 void CenterPathNode::initSector() {
   if (event_ == "accel") {
     curr_sector_ = 1;
-    use_mapping_ = false;
+    use_mapping_ = true;
   } else if (event_ == "skidpad") {
     curr_sector_ = 10;
-    use_mapping_ = false;
+    use_mapping_ = true;
   } else if (event_ == "autocross") {
     curr_sector_ = 20;
     use_mapping_ = true;
@@ -167,6 +177,7 @@ void CenterPathNode::initSector() {
     curr_sector_ = 0;
   }
   last_time = this->get_clock()->now();
+  last_switch_time = this->get_clock()->now();
   lock_sector_ = true;
   found_4_large_orange = false;
 }
@@ -190,6 +201,12 @@ void CenterPathNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
     // first initialization:
     utfr_msgs::msg::EgoState template_ego;
     ego_state_ = std::make_shared<utfr_msgs::msg::EgoState>(template_ego);
+  } else {
+    total_distance_traveled_ += msg.vel.twist.linear.x * 
+        ((((double) msg.header.stamp.sec) + msg.header.stamp.nanosec * 1e-9) - 
+        (((double)ego_state_->header.stamp.sec) + ego_state_->header.stamp.nanosec * 1e-9));
+    
+    // RCLCPP_INFO(this->get_logger(), "Total Distance Traveled: %f", total_distance_traveled_);
   }
   if (use_mapping_){
     ego_state_->header = msg.header;
@@ -204,6 +221,7 @@ void CenterPathNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
     ego_state_->pose.pose.position.x = 0.0;
     ego_state_->pose.pose.position.y = 0.0;
     ego_state_->pose.pose.position.z = 0.0;
+    ego_state_->pose.pose.orientation = util::yawToQuaternion(0.0);
     ego_state_->vel = msg.vel;
     ego_state_->accel = msg.accel;
     ego_state_->steering_angle = msg.steering_angle;
@@ -216,12 +234,26 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     utfr_msgs::msg::ConeMap template_cone_map;
     cone_map_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
   }
-  if (use_mapping_) {
+  if (cone_map_raw_ == nullptr) {
+    // first initialization:
+    utfr_msgs::msg::ConeMap template_cone_map;
+    cone_map_raw_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
+  }
+  if (use_mapping_ && (event_ == "autocross" || event_ == "trackdrive")) {
     cone_map_->header = msg.header;
     cone_map_->left_cones = msg.left_cones;
     cone_map_->right_cones = msg.right_cones;
     cone_map_->large_orange_cones = msg.large_orange_cones;
     cone_map_->small_orange_cones = msg.small_orange_cones;
+    (*cone_map_raw_) = msg;
+  }
+  else if (use_mapping_ && (event_ == "skidpad" || event_ == "accel")){
+    cone_map_->header = msg.header;
+    cone_map_->left_cones = getConesInHemisphere(msg.left_cones, 15.0);
+    cone_map_->right_cones = getConesInHemisphere(msg.right_cones, 15.0);
+    cone_map_->large_orange_cones = getConesInHemisphere(msg.large_orange_cones, 15.0);
+    cone_map_->small_orange_cones = getConesInHemisphere(msg.small_orange_cones, 15.0);
+    (*cone_map_raw_) = msg;
   }
 }
 
@@ -253,6 +285,11 @@ void CenterPathNode::coneDetectionsCB(
     cone_map_->large_orange_cones = cone_detections_->large_orange_cones;
     cone_map_->small_orange_cones = cone_detections_->small_orange_cones;
   }
+}
+
+void CenterPathNode::coneMapClosureCB(const std_msgs::msg::Bool &msg) {
+  // RCLCPP_WARN(this->get_logger(), "Cone Map Closure Callback");
+  loop_closed_ = msg.data;
 }
 
 void CenterPathNode::timerCBAccel() {
@@ -288,9 +325,17 @@ void CenterPathNode::timerCBAccel() {
         large_orange_size == 0) {
       accel_sector_increase = true;
       curr_sector_ += 1;
+      RCLCPP_INFO(this->get_logger(), "Accel ended due to cone detections.");
+    }
+
+    if (!accel_sector_increase && total_distance_traveled_ > 80) { // accel length 75 m
+      accel_sector_increase = true;
+      curr_sector_ += 1;
+      RCLCPP_INFO(this->get_logger(), "Accel ended due to distance traveled.");
     }
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    publishLapTime();
   } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -305,9 +350,13 @@ void CenterPathNode::timerCBSkidpad() {
                   function_name.c_str());
       return;
     }
+    if (cone_map_ == nullptr) {
+      RCLCPP_WARN(get_logger(), "%s Cone Map is empty", function_name.c_str());
+      return;
+    }
     skidPadFit();
     skidpadLapCounter();
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    publishLapTime();
   } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -323,64 +372,8 @@ void CenterPathNode::timerCBAutocross() {
                   "Data not published or initialized yet. Using defaults.");
       return;
     }
-
-    std::vector<Point> midpoints = getBestPath();
-    std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>>
-        result = BezierPoints(midpoints);
-    std::vector<Point> bezier_curve = std::get<0>(result);
-    std::vector<double> xoft = std::get<1>(result);
-    std::vector<double> yoft = std::get<2>(result);
-
-    // Bezier Curve Drawing
-    geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
-    geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
-
-    delaunay_midpoints_stamped.header.frame_id = "base_footprint";
-    delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
-    first_midpoint_stamped.header.frame_id = "base_footprint";
-    first_midpoint_stamped.header.stamp = this->get_clock()->now();
-    geometry_msgs::msg::Point32 midpoint_pt32;
-
-    for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
-      midpoint_pt32.x = bezier_curve[i].x();
-      midpoint_pt32.y = bezier_curve[i].y() * -1;
-      midpoint_pt32.z = 0.0;
-
-      delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
-    }
-
-    for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
-      midpoint_pt32.x = bezier_curve[i].x();
-      midpoint_pt32.y = bezier_curve[i].y() * -1;
-      midpoint_pt32.z = 0.0;
-
-      delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
-    }
-
-    delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
-
-    utfr_msgs::msg::ParametricSpline center_path;
-    center_path.header.stamp = this->get_clock()->now();
-    center_path.x_params = xoft;
-    center_path.y_params = yoft;
-    center_path.lap_count = curr_sector_;
-    center_path_publisher_->publish(center_path);
-
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-
-    trackdriveLapCounter();
-  } catch (int e) {
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
-  }
-}
-
-void CenterPathNode::timerCBTrackdrive() {
-  const std::string function_name{"center_path_timerCB:"};
-
-  try {
-    if (!cone_detections_ || cone_map_ == nullptr || ego_state_ == nullptr) {
-      RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
-                  "Data not published or initialized yet. Using defaults.");
+    if (cone_map_ == nullptr) {
+      RCLCPP_WARN(get_logger(), "%s Cone Map is empty", function_name.c_str());
       return;
     }
 
@@ -429,6 +422,72 @@ void CenterPathNode::timerCBTrackdrive() {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 
     trackdriveLapCounter();
+    publishLapTime();
+  } catch (int e) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
+  }
+}
+
+void CenterPathNode::timerCBTrackdrive() {
+  const std::string function_name{"center_path_timerCB:"};
+
+  try {
+    if (!cone_detections_ || cone_map_ == nullptr || ego_state_ == nullptr) {
+      RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
+                  "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+    if (cone_map_ == nullptr) {
+      RCLCPP_WARN(get_logger(), "%s Cone Map is empty", function_name.c_str());
+      return;
+    }
+
+    std::vector<Point> midpoints = getBestPath();
+    std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>>
+        result = BezierPoints(midpoints);
+    std::vector<Point> bezier_curve = std::get<0>(result);
+    std::vector<double> xoft = std::get<1>(result);
+    std::vector<double> yoft = std::get<2>(result);
+
+    // Bezier Curve Drawing
+    geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
+    geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
+
+    delaunay_midpoints_stamped.header.frame_id = "base_footprint";
+    delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
+    first_midpoint_stamped.header.frame_id = "base_footprint";
+    first_midpoint_stamped.header.stamp = this->get_clock()->now();
+    geometry_msgs::msg::Point32 midpoint_pt32;
+
+    for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
+      midpoint_pt32.x = bezier_curve[i].x();
+      midpoint_pt32.y = bezier_curve[i].y() * -1;
+      midpoint_pt32.z = 0.0;
+
+      delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
+    }
+
+    for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
+      midpoint_pt32.x = bezier_curve[i].x();
+      midpoint_pt32.y = bezier_curve[i].y() * -1;
+      midpoint_pt32.z = 0.0;
+
+      delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
+    }
+
+    delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
+
+    utfr_msgs::msg::ParametricSpline center_path;
+    center_path.header.stamp = this->get_clock()->now();
+    center_path.x_params = xoft;
+    center_path.y_params = yoft;
+    center_path.lap_count = curr_sector_;
+    center_path_publisher_->publish(center_path);
+
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+
+    trackdriveLapCounter();
+    publishLapTime();
   } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
   }
@@ -480,18 +539,24 @@ bool CenterPathNode::coneDistComparitor(const utfr_msgs::msg::Cone &a,
 
 std::vector<double> CenterPathNode::getAccelPath() {
   std::vector<utfr_msgs::msg::Cone> all_cones;
+
+  if (cone_map_ == nullptr) {
+    RCLCPP_WARN(this->get_logger(), "Cone Map is empty");
+    return std::vector<double>();
+  }
+  
   if (curr_sector_ < 5) {
-    all_cones.insert(all_cones.end(), cone_detections_->left_cones.begin(),
-                    cone_detections_->left_cones.end());
-    all_cones.insert(all_cones.end(), cone_detections_->right_cones.begin(),
-                    cone_detections_->right_cones.end());
+    all_cones.insert(all_cones.end(), cone_map_->left_cones.begin(),
+                    cone_map_->left_cones.end());
+    all_cones.insert(all_cones.end(), cone_map_->right_cones.begin(),
+                    cone_map_->right_cones.end());
   }
   all_cones.insert(all_cones.end(),
-                   cone_detections_->large_orange_cones.begin(),
-                   cone_detections_->large_orange_cones.end());
+                   cone_map_->large_orange_cones.begin(),
+                   cone_map_->large_orange_cones.end());
   all_cones.insert(all_cones.end(),
-                   cone_detections_->small_orange_cones.begin(),
-                   cone_detections_->small_orange_cones.end());
+                   cone_map_->small_orange_cones.begin(),
+                   cone_map_->small_orange_cones.end());
 
   std::sort(
       all_cones.begin(), all_cones.end(),
@@ -556,10 +621,11 @@ std::vector<double> CenterPathNode::getAccelPath() {
       }
     }
   }
+
   bool found_2 = false;
   for (int i = 0; i < static_cast<int>(all_cones.size()) - 1; i++) {
     for (int j = i + 1; j < static_cast<int>(all_cones.size()); j++) {
-      if (i != j && i != ind_1 && j != ind_1 && i != ind_2 && j != ind_2) {
+      if (i != j && found_1 && i != ind_1 && j != ind_1 && i != ind_2 && j != ind_2) {
         utfr_msgs::msg::ConeMap test_cones;
         utfr_msgs::msg::Cone test_cone;
         test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
@@ -1181,24 +1247,115 @@ void CenterPathNode::skidpadLapCounter() {
   case 13:
   case 14:
   case 15:
-    if (time_diff > 10.0 && !lock_sector_ && found_4_large_orange &&
-        large_orange_cones_size < 4 && average_distance_to_cones < 5.0) {
-      last_time = curr_time;
-      curr_sector_ += 1;
-      lock_sector_ = true;
+    if (time_diff > 10.0 && !lock_sector_) {
+      if (loop_closed_) {
+        if (checkPassedDatum(getSkidpadDatum(*cone_map_raw_), *ego_state_)) {
+          last_time = curr_time;
+          curr_sector_ += 1;
+          lock_sector_ = true;
+          RCLCPP_INFO(this->get_logger(), "Lap incremented: Global trigger");
+        }
+      } else {
+        if (found_4_large_orange &&
+            large_orange_cones_size < 4 && 
+            average_distance_to_cones < 5.0) {
+          last_time = curr_time;
+          curr_sector_ += 1;
+          lock_sector_ = true;
+          RCLCPP_INFO(this->get_logger(), "Lap incremented: Local trigger");
+        }
+      }
     }
-
+    
     if (found_4_large_orange && lock_sector_ && large_orange_cones_size == 0 &&
         time_diff > 5.0) {
       lock_sector_ = false;
       found_4_large_orange = false;
     }
+    // if (loop_closed_ && checkPassedDatum(getSkidpadDatum(*cone_map_raw_), *ego_state_)) {
+    //   RCLCPP_WARN(this->get_logger(), "Global lap incremented");
+    // }
     break;
   case 16:
     if (left_size == 0 && right_size == 0) {
       curr_sector_ += 1;
     }
   }
+}
+
+bool CenterPathNode::checkPassedDatum(const utfr_msgs::msg::EgoState reference,
+                      const utfr_msgs::msg::EgoState &current) {
+  double ref_x = reference.pose.pose.position.x;
+  double ref_y = reference.pose.pose.position.y;
+  double ref_yaw = util::quaternionToYaw(reference.pose.pose.orientation);
+
+  double cur_x = current.pose.pose.position.x + 2.0; // offset forward to represent nose of car
+  double cur_y = current.pose.pose.position.y;
+  double cur_yaw = util::quaternionToYaw(current.pose.pose.orientation);
+
+  //for testing
+  ref_yaw = cur_yaw;
+
+  double dx = ref_x - cur_x;
+  double dy = ref_y - cur_y;
+
+  double tdist = sqrt(dx * dx + dy * dy);
+
+  double dx_local = dx * cos(-ref_yaw) - dy * sin(-ref_yaw);
+
+  if (abs(ref_yaw - cur_yaw) < 3.1415 / 2 && tdist < 3.0 && dx_local < 0.0 && datum_last_local_x_ >= 0.0) {
+    //if alignment within 90 deg, distance less than 3m
+    datum_last_local_x_ = dx_local;
+    return true;
+  }
+  datum_last_local_x_ = dx_local;
+  return false;
+
+}
+
+utfr_msgs::msg::EgoState CenterPathNode::getSkidpadDatum(const utfr_msgs::msg::ConeMap &cone_map) {
+  utfr_msgs::msg::EgoState datum;
+
+  if (cone_map.large_orange_cones.size() == 3) {
+    double x = 0.0;
+    double y = 0.0;
+    //do x
+    double baseX = cone_map.large_orange_cones[0].pos.x;
+    for (int i = 0; i < 2; i++) {
+      if (abs(baseX - cone_map.large_orange_cones[i].pos.x) > 0.5) {
+        x += cone_map.large_orange_cones[i].pos.x;
+        break;
+      }
+    }
+    x = x / 2.0;
+    //do y
+    for (utfr_msgs::msg::Cone cone : cone_map.large_orange_cones) {
+      y += cone.pos.y;
+    }
+    y = y / 3.0;
+
+    datum.pose.pose.position.x = x;
+    datum.pose.pose.position.y = y;
+    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
+  } else if (cone_map.large_orange_cones.size() >= 4) {
+    double x = 0.0;
+    double y = 0.0;
+    for (utfr_msgs::msg::Cone cone : cone_map.large_orange_cones) {
+      x += cone.pos.x;
+      y += cone.pos.y;
+    }
+    datum.pose.pose.position.x = x / cone_map.large_orange_cones.size();
+    datum.pose.pose.position.y = y / cone_map.large_orange_cones.size();
+    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
+  } else {
+    datum.pose.pose.position.x = -100.0;
+    datum.pose.pose.position.y = -100.0;
+    datum.pose.pose.position.z = -100.0;
+    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
+  }
+
+  return datum;
+
 }
 
 void CenterPathNode::trackdriveLapCounter() {
@@ -1472,12 +1629,12 @@ CenterPathNode::skidpadMain() {
     turning = 0;
   }
   std::vector<utfr_msgs::msg::Cone> all_cones;
-  all_cones.insert(all_cones.end(), cone_detections_->left_cones.begin(),
-                  cone_detections_->left_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->right_cones.begin(),
-                  cone_detections_->right_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->large_orange_cones.begin(),
-                  cone_detections_->large_orange_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->left_cones.begin(),
+                  cone_map_->left_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->right_cones.begin(),
+                  cone_map_->right_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->large_orange_cones.begin(),
+                  cone_map_->large_orange_cones.end());
   std::sort(
       all_cones.begin(), all_cones.end(),
       [this](const utfr_msgs::msg::Cone &a, const utfr_msgs::msg::Cone &b) {
@@ -1597,12 +1754,12 @@ CenterPathNode::skidpadMain() {
 std::tuple<double, double, double, double, double, double>
 CenterPathNode::skidpadRight() {
   std::vector<utfr_msgs::msg::Cone> all_cones;
-  all_cones.insert(all_cones.end(), cone_detections_->left_cones.begin(),
-                  cone_detections_->left_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->right_cones.begin(),
-                  cone_detections_->right_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->large_orange_cones.begin(),
-                  cone_detections_->large_orange_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->left_cones.begin(),
+                  cone_map_->left_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->right_cones.begin(),
+                  cone_map_->right_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->large_orange_cones.begin(),
+                  cone_map_->large_orange_cones.end());
   std::sort(
       all_cones.begin(), all_cones.end(),
       [this](const utfr_msgs::msg::Cone &a, const utfr_msgs::msg::Cone &b) {
@@ -1702,12 +1859,12 @@ CenterPathNode::skidpadRight() {
 std::tuple<double, double, double, double, double, double>
 CenterPathNode::skidpadLeft() {
   std::vector<utfr_msgs::msg::Cone> all_cones;
-  all_cones.insert(all_cones.end(), cone_detections_->left_cones.begin(),
-                  cone_detections_->left_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->right_cones.begin(),
-                  cone_detections_->right_cones.end());
-  all_cones.insert(all_cones.end(), cone_detections_->large_orange_cones.begin(),
-                  cone_detections_->large_orange_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->left_cones.begin(),
+                  cone_map_->left_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->right_cones.begin(),
+                  cone_map_->right_cones.end());
+  all_cones.insert(all_cones.end(), cone_map_->large_orange_cones.begin(),
+                  cone_map_->large_orange_cones.end());
   std::sort(
       all_cones.begin(), all_cones.end(),
       [this](const utfr_msgs::msg::Cone &a, const utfr_msgs::msg::Cone &b) {
@@ -1802,6 +1959,67 @@ CenterPathNode::skidpadLeft() {
   best_r_large = big_radius_;
 
   return std::make_tuple(best_xc_small, best_yc_small, best_r_small, best_xc_large, best_yc_large, best_r_large);
+}
+
+
+void CenterPathNode::publishLapTime(){
+  utfr_msgs::msg::LapTime lap_time_msg;
+  lap_time_msg.header.stamp = this->get_clock()->now();
+  if (!last_sector){
+    return;
+  }
+  rclcpp::Time curr_time = this->get_clock()->now();
+  float curr_lap_time = (curr_time - last_switch_time).seconds();
+
+  if (curr_sector_ != last_sector){
+    last_lap_time = curr_time.seconds();
+    last_switch_time = curr_time;
+    if (curr_time.seconds() < best_lap_time){
+      best_lap_time = curr_time.seconds();
+    }
+  }
+
+  lap_time_msg.best_time = best_lap_time;
+  lap_time_msg.last_time = last_lap_time;
+  lap_time_msg.curr_time = curr_time.seconds();
+
+  lap_time_publisher_->publish(lap_time_msg);
+
+  last_sector = curr_sector_;
+}
+
+std::vector<double> CenterPathNode::globalToLocal(double x, double y) {
+  double translated_x = x - ego_state_->pose.pose.position.x;
+  double translated_y = y - ego_state_->pose.pose.position.y;
+  double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
+  double local_x = translated_x * cos(-yaw) - translated_y * sin(-yaw);
+  double local_y = translated_x * sin(-yaw) + translated_y * cos(-yaw);
+  return {local_x, local_y};
+}
+
+bool CenterPathNode::hempishere(double x, double y, double r){
+  std::vector<double> local_coord = globalToLocal(x, y);
+  double local_x = local_coord[0];
+  double local_y = local_coord[1];
+  if (local_x * local_x + local_y * local_y < r * r && local_x > 0){
+    return true;
+  }
+  else return false;
+}
+
+std::vector<utfr_msgs::msg::Cone> CenterPathNode::getConesInHemisphere(std::vector<utfr_msgs::msg::Cone> cones, double r){
+  std::vector<utfr_msgs::msg::Cone> cones_in_hemisphere;
+  for (int i = 0; i < static_cast<int>(cones.size()); i++){
+    if (hempishere(cones[i].pos.x, cones[i].pos.y, r)){
+      utfr_msgs::msg::Cone cone;
+      std::vector<double> local_coord = globalToLocal(cones[i].pos.x, cones[i].pos.y);
+      cone.pos.x = local_coord[0];
+      cone.pos.y = local_coord[1];
+      cone.type = cones[i].type;
+      cones_in_hemisphere.push_back(cone);
+    }
+  }
+  return cones_in_hemisphere;
 }
 
 } // namespace center_path

@@ -42,6 +42,8 @@
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
+#include <utfr_msgs/msg/lap_time.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -131,6 +133,12 @@ private:
    */
   void coneDetectionsCB(const utfr_msgs::msg::ConeDetections &msg);
 
+  /**
+   * ConeMap Closure Subscriber Callback:
+   * @param[in] msg utfr_msgs::msg::ConeDetections incoming cone detections msg
+   */
+  void coneMapClosureCB(const std_msgs::msg::Bool &msg);
+
   /*! Accel Timer Callback:
    */
   void timerCBAccel();
@@ -216,11 +224,16 @@ private:
              std::vector<double>>
   BezierPoints(std::vector<CGAL::Point_2<CGAL::Epick>> midpoints);
 
-  /*! Skidpad Lap Counter based off of local cone detections:
+  /*! Skidpad Lap Counter:
    */
   void skidpadLapCounter();
 
-  /*! Autox/Trackdrive Lap Counter based off of local cone detections:
+  bool checkPassedDatum(const utfr_msgs::msg::EgoState reference,
+                        const utfr_msgs::msg::EgoState &current);
+
+  utfr_msgs::msg::EgoState getSkidpadDatum(const utfr_msgs::msg::ConeMap &cone_map);
+
+  /*! Autox/Trackdrive Lap Counter
    */
   void trackdriveLapCounter();
   
@@ -239,6 +252,30 @@ private:
    */
   std::tuple<double, double, double, double, double, double> skidpadLeft();
 
+  /*! Function to calculate and publish lap times
+   */
+  void publishLapTime();
+
+  /*! Converts something from global to local coordinates
+   * @param[in] x, y, yaw in global coordinates
+   * @param[out] x, y in local coodrinates
+   */
+  std::vector<double> globalToLocal(double x, double y); 
+
+  /*! Checks if a point is within the hemisphere of the car
+   * @param[in] x, y, point of the cone
+   * @param[in] r, radius of the hempishere
+   * @param[out] true if within the hemisphere, false if not
+   */
+  bool hempishere(double x, double y, double r);
+
+  /*! Takes a list of cones and given the current position of the car, returns which cones are in the hemisphere
+   * @param[in] list of cones
+   * @param[in] radius we want
+   * @param[out] list of cones in himesphere
+   */
+  std::vector<utfr_msgs::msg::Cone> getConesInHemisphere(std::vector<utfr_msgs::msg::Cone> cones, double r);
+
   /*! Initialize global variables:
    */
   double update_rate_;
@@ -252,18 +289,31 @@ private:
   bool cones_detected_ = false;
   bool found_4_large_orange;
   rclcpp::Time last_time;
+  rclcpp::Time last_switch_time;
+  int last_sector = 0;
+  float best_lap_time = 0.0;
+  float last_lap_time = 0.0;
   bool accel_sector_increase;
   int detections_in_row_ = 0;
   bool use_mapping_ = false;
 
+  bool loop_closed_ = false;
+
+  double datum_last_local_x_ = 0;
+
+  double total_distance_traveled_ = 0.0;
+
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
+  utfr_msgs::msg::ConeMap::SharedPtr cone_map_raw_{nullptr};
   utfr_msgs::msg::ConeDetections::SharedPtr cone_detections_{nullptr};
   geometry_msgs::msg::Point reference_point_;
 
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr
+      cone_map_closure_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
       cone_detection_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
@@ -284,6 +334,8 @@ private:
       delaunay_path_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       first_midpoint_path_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::LapTime>::SharedPtr
+      lap_time_publisher_;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
 

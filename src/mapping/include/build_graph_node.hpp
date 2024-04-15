@@ -180,7 +180,7 @@ public:
   std::vector<utfr_msgs::msg::PoseGraphData> cone_nodes_;
   std::vector<utfr_msgs::msg::PoseGraphData> pose_to_pose_edges_;
   std::vector<utfr_msgs::msg::PoseGraphData> pose_to_cone_edges_;
-
+  std::map<double, int> detection_counts;
   utfr_msgs::msg::ConeMap cone_map_;
   utfr_msgs::msg::Heartbeat heartbeat_;
   double update_rate_;
