@@ -121,9 +121,9 @@ public:
   * @param cones the cones to find circle of best fit
   * @param radius the radius of the circle
   * @param inlier_count the number of cones the circle should contain at least
-  * @returns <centre_x, centre_y>
+  * @returns <centre_x, centre_y, radius, threshold>
   */
-  std::pair<double,double> circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count);
+  std::tuple<double,double,double,double> circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count);
 
 private:
   /*! Initialize and load params from config.yaml:

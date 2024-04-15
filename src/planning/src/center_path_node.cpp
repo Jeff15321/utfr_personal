@@ -2114,6 +2114,8 @@ void CenterPathNode::nextWaypoint(){
   point.position.x = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
   point.position.y = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
   center_point_publisher_->publish(point);
+  // static std::ofstream out("Waypoints.txt");
+  // out << "(" << x << "," << y << ")" << std::endl;
 }
 
 void CenterPathNode::GlobalWaypoints(){
@@ -2121,7 +2123,7 @@ void CenterPathNode::GlobalWaypoints(){
 
   using geometry_msgs::msg::PolygonStamped;
   static rclcpp::Publisher<PolygonStamped>::SharedPtr waypoints_pub =
-    this->create_publisher<PolygonStamped>("Waypoints", 2);
+    this->create_publisher<PolygonStamped>("Waypoints", 1);
 
   PolygonStamped points_stamped;
   points_stamped.header.frame_id = "map";
@@ -2176,6 +2178,8 @@ void CenterPathNode::createTransform(){
   std::ifstream("src/planning/global_waypoints/RightCentre.csv") >> xRight1 >> yRight1;
 
   auto [xLeft2,yLeft2,xRight2,yRight2] = this->getCentres();
+  // static std::ofstream out("Centres.txt");
+  // out << "(" << xLeft2 << "," << yLeft2 << "), (" << xRight2 << "," << yRight2 << ")" << std::endl;
   if(isnan(xLeft2) || isnan(xLeft2) || isnan(xRight2) || isnan(yRight2)){
     skidpadTransform_ = nullptr;
     return;
@@ -2257,24 +2261,37 @@ std::tuple<double,double,double,double> CenterPathNode::getCentres(){
 std::tuple<double,double,double,double> CenterPathNode::skidpadCircleCentres(){
   using geometry_msgs::msg::PolygonStamped;
   static rclcpp::Publisher<PolygonStamped>::SharedPtr small_blue_pub =
-    this->create_publisher<PolygonStamped>("SmallBlue", 2);
+    this->create_publisher<PolygonStamped>("SmallBlue", 1);
   static rclcpp::Publisher<PolygonStamped>::SharedPtr small_yellow_pub =
-    this->create_publisher<PolygonStamped>("SmallYellow", 2);
+    this->create_publisher<PolygonStamped>("SmallYellow", 1);
   static rclcpp::Publisher<PolygonStamped>::SharedPtr large_blue_pub = 
-    this->create_publisher<PolygonStamped>("LargeBlue", 2);
+    this->create_publisher<PolygonStamped>("LargeBlue", 1);
   static rclcpp::Publisher<PolygonStamped>::SharedPtr large_yellow_pub = 
-    this->create_publisher<PolygonStamped>("LargeYellow", 2);
+    this->create_publisher<PolygonStamped>("LargeYellow", 1);
   
   std::vector<utfr_msgs::msg::Cone> &blue = cone_map_raw_->left_cones;
   std::vector<utfr_msgs::msg::Cone> &yellow = cone_map_raw_->right_cones;
 
-  auto smallBlue = this->circleCentre(blue, small_radius_, small_circle_cones_-3);
-  auto smallYellow = this->circleCentre(yellow, small_radius_, small_circle_cones_-3);
-  auto largeBlue = this->circleCentre(blue, big_radius_, big_circle_cones_-3);
-  auto largeYellow = this->circleCentre(yellow, big_radius_, big_circle_cones_-3);
+  auto print = [&](auto &out, auto &c){
+    auto [x,y,r,t] = c;
+    out << "(" << x << "," << y << "," << r << "," << t << ")" << std::endl;
+  };
+
+  auto smallBlue = this->circleCentre(blue, small_radius_, small_circle_cones_/2);
+  // static std::ofstream a("SmallBlue.txt");
+  // print(a, smallBlue);
+  auto smallYellow = this->circleCentre(yellow, small_radius_, small_circle_cones_/2);
+  // static std::ofstream b("SmallYellow.txt");
+  // print(b, smallYellow);
+  auto largeBlue = this->circleCentre(blue, big_radius_, big_circle_cones_/2);
+  // static std::ofstream c("LargeBlue.txt");
+  // print(c, largeBlue);
+  auto largeYellow = this->circleCentre(yellow, big_radius_, big_circle_cones_/2);
+  // static std::ofstream d("LargeYellow.txt");
+  // print(d, largeYellow);
   
   auto drawCircle = [this](auto publisher, auto &cord, double radius){
-    auto [xc, yc] = cord;
+    auto [xc, yc, r, t] = cord;
     PolygonStamped circle_stamped_global;
     circle_stamped_global.header.frame_id = "map";
     circle_stamped_global.header.stamp = this->get_clock()->now();
@@ -2309,17 +2326,26 @@ std::tuple<double,double,double,double> CenterPathNode::skidpadCircleCentres(){
   drawCircle(large_blue_pub, largeBlue, 0.1);
   drawCircle(large_yellow_pub, largeYellow, 0.1);
   
-  // average the centres of the 2 overlapping circles one each side
-  double xLeft = (smallBlue.first+largeYellow.first)/2;
-  double yLeft = (smallBlue.second+largeYellow.second)/2;
-  double xRight = (smallYellow.first+largeBlue.first)/2;
-  double yRight = (smallYellow.second+largeBlue.second)/2;
+  auto getBetterCentre = [](auto &first, auto &second){
+    auto [x1,y1,r1,t1] = first;
+    auto [x2,y2,r2,t2] = second;
+    double x, y;
+    if(r1 < r2) x = x1, y = y1;
+    else if(r2 < r1) x = x2, y = y2;
+    else{
+      if(t1 < t2) x = x1, y = y1;
+      else x = x2, y = y2;
+    }
+    return std::make_pair(x,y);
+  };
+  auto [xLeft, yLeft] = getBetterCentre(smallBlue, largeYellow);
+  auto [xRight, yRight] = getBetterCentre(smallYellow, largeBlue);
   return {xLeft,yLeft,xRight,yRight};
 }
 
-std::pair<double,double> CenterPathNode::circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count){
+std::tuple<double,double,double,double> CenterPathNode::circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double target_radius, int inlier_count){
   int n = cones.size();
-
+  if(n < inlier_count) return {NAN,NAN,DBL_MAX,DBL_MAX};
   auto get_threshold = [&](double xc, double yc, double radius){
     // get the distances from the circle's centre
     std::vector<double> distances(n);
@@ -2340,8 +2366,6 @@ std::pair<double,double> CenterPathNode::circleCentre(std::vector<utfr_msgs::msg
   };
 
   auto circle = [](std::vector<utfr_msgs::msg::Cone> &cones){
-    std::tuple<double,double,double> ret;
-    if(cones.size() != 3) return ret = {NAN,NAN,NAN};
     MatrixXd A(2,2); // A -> [X Y]
     VectorXd B(2);
     auto x = [&](int i){return cones[i].pos.x;};
@@ -2359,35 +2383,35 @@ std::pair<double,double> CenterPathNode::circleCentre(std::vector<utfr_msgs::msg
     VectorXd ans = A.fullPivLu().solve(B);
     double xc = ans(0), yc = ans(1);
     double r = sqrt(pow(x(0)-xc, 2) + pow(y(0)-yc, 2));
-    return ret = {xc, yc, r};
+    return std::make_tuple(xc, yc, r);
   };
 
   // find the circle with the lowest threshold
-  double lowest_threshold = DBL_MAX;
-  std::pair<double,double> centre = {NAN,NAN};
+  double best_x = NAN, best_y = NAN, best_radius = DBL_MAX, best_threshold = DBL_MAX; 
   std::vector<utfr_msgs::msg::Cone> ransacCones(3);
-  double closest_radius = DBL_MAX;
   for(int i = 0; i < n; i++){
     ransacCones[0] = cones[i];
     for(int j = i+1; j < n; j++){
       ransacCones[1] = cones[j];
       for(int k = j+1; k < n; k++){
         ransacCones[2] = cones[k];
-        auto [xc,yc,radiusf] = circle(ransacCones);
-        double threshold = get_threshold(xc, yc, radiusf);
-        if(abs(radiusf-radius) < closest_radius){
-          lowest_threshold = threshold;
-          centre = {xc,yc};
-          closest_radius = abs(radiusf-radius);
+        auto [xc,yc,radius] = circle(ransacCones);
+        double threshold = get_threshold(xc, yc, target_radius);
+        if(threshold < best_threshold){
+          best_threshold = threshold;
+          best_x = xc;
+          best_y = yc;
+          best_radius = abs(radius-target_radius);
         }
-        else if(abs(radiusf-radius) == closest_radius && threshold < lowest_threshold){
-          lowest_threshold = threshold;
-          centre = {xc,yc};
+        else if(threshold == best_threshold && radius < best_radius){
+          best_x = xc;
+          best_y = yc;
+          best_radius = abs(radius-target_radius);
         }
       }
     }
   }
-  return centre;
+  return {best_x, best_y, best_radius, best_threshold};
 }
 
 } // namespace center_path
