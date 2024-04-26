@@ -2235,7 +2235,7 @@ std::pair<double,double> CenterPathNode::transformWaypoint(const std::pair<doubl
 
 std::tuple<double,double,double,double> CenterPathNode::getCentres(){
   std::vector<utfr_msgs::msg::Cone> &orange = cone_map_raw_->large_orange_cones;
-  if(orange.size() != 4){
+  if(orange.size() < 4){
     return {NAN,NAN,NAN,NAN};
   }
   auto [xLeft,yLeft,xRight,yRight] = this->skidpadCircleCentres();
@@ -2272,10 +2272,10 @@ std::tuple<double,double,double,double> CenterPathNode::skidpadCircleCentres(){
   std::vector<utfr_msgs::msg::Cone> &blue = cone_map_raw_->left_cones;
   std::vector<utfr_msgs::msg::Cone> &yellow = cone_map_raw_->right_cones;
 
-  auto print = [&](auto &out, auto &c){
-    auto [x,y,r,t] = c;
-    out << "(" << x << "," << y << "," << r << "," << t << ")" << std::endl;
-  };
+  // auto print = [&](auto &out, auto &c){
+  //   auto [x,y,r,t] = c;
+  //   out << "(" << x << "," << y << "," << r << "," << t << ")" << std::endl;
+  // };
 
   auto smallBlue = this->circleCentre(blue, small_radius_, small_circle_cones_/2);
   // static std::ofstream a("SmallBlue.txt");

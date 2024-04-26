@@ -502,6 +502,7 @@ void BuildGraphNode::timerCB() {
       do_graph_slam_ = false;
     }
   }
+  cone_map_publisher_->publish(cone_map_);
   // Save the optimized pose graph
   //std::cout << "Optimized pose graph saved" << std::endl;
 }
