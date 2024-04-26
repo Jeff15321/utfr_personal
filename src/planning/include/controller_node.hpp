@@ -136,6 +136,8 @@ private:
    */
   void pathCB(const utfr_msgs::msg::ParametricSpline &msg);
 
+  void pointCB(const geometry_msgs::msg::Pose &msg);
+  
   /*! VelocityProfile Subscriber Callback: TODO: REMOVE
    */
   void velocityProfileCB(const utfr_msgs::msg::VelocityProfile &msg);
@@ -202,6 +204,16 @@ private:
       double baselink_location, 
       double base_lookahead_distance, double lookahead_distance_scaling_factor);
 
+  utfr_msgs::msg::TargetState purePursuitController(
+    double max_steering_angle, geometry_msgs::msg::Pose lookahead_point,
+    double desired_velocity);
+
+  /*! Return Closest Point
+   */
+  geometry_msgs::msg::Pose
+  closestPoint(utfr_msgs::msg::EgoState ego_state,
+               std::vector<geometry_msgs::msg::Pose> waypoints);
+
   /*! Initialize global variables:
    */
   double update_rate_;
@@ -226,6 +238,11 @@ private:
   rclcpp::Time start_time_;
   bool start_finish_time = true;
   int last_lap_count_;
+  
+  double stanley_gain_;
+  double softening_constant_;
+  double k_yaw_rate_;
+  double k_damp_steer_;
 
   bool skip_path_opt_;
   double lookahead_distance_;
@@ -234,12 +251,15 @@ private:
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ParametricSpline::SharedPtr path_{nullptr};
+  geometry_msgs::msg::Pose::SharedPtr point_{nullptr};
   utfr_msgs::msg::VelocityProfile::SharedPtr velocity_profile_{nullptr};
 
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ParametricSpline>::SharedPtr
       path_subscriber_;
+  rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr
+      point_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::Heartbeat>::SharedPtr
       center_path_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr

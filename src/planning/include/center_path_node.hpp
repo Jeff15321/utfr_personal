@@ -78,6 +78,52 @@ public:
   typedef CGAL::Triangulation_data_structure_2<Vb> Tds;
   typedef CGAL::Delaunay_triangulation_2<K, Tds> Delaunay;
   typedef Delaunay::Vertex_handle Vertex_handle;
+  
+  /*! This function tries to get global waypoints if possible and sets path_ */
+  void GlobalWaypoints();
+  
+  /*! This function reads waypoints from a file
+  * @param path the file path for the waypoints to read
+  * @returns vector of the waypoints read
+  */
+  std::vector<std::pair<double,double>> getWaypoints(std::string path);
+  
+  /*! This function finds the next waypoint to follow and sends the current path
+      to the controller
+  */
+  void nextWaypoint();
+  
+  /*! This function generates the transform by using the centres of the skipad 
+      circle and the intersection of the circle
+  */
+  void createTransform();
+
+  /*! This function transforms points from one frame of reference to cone coords
+  * @param point the point to be transformed
+  * @returns point transformed using the skidpad transform
+  */
+  std::pair<double,double> transformWaypoint(const std::pair<double,double> &point);
+  
+  /*! This function returns the left and right skidpad circle centres 
+      respectively if they are valid. If only the right one is valid, the left 
+      one is calculated. If none are valid it returns NAN.
+  * @returns <left_x, left_y, right_x, right_y>
+  */
+  std::tuple<double,double,double,double> getCentres();
+  
+  /*! This function returns most feasible skidpad centres based on cone map
+  * @returns <left_x, left_y, right_x, right_y>
+  */
+  std::tuple<double,double,double,double> skidpadCircleCentres();
+  
+  /*! This function calculates the circle of best fit with the radius for the 
+      cones that satisfy the inlier count
+  * @param cones the cones to find circle of best fit
+  * @param radius the radius of the circle
+  * @param inlier_count the number of cones the circle should contain at least
+  * @returns <centre_x, centre_y, radius, threshold>
+  */
+  std::tuple<double,double,double,double> circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count);
 
 private:
   /*! Initialize and load params from config.yaml:
@@ -280,6 +326,16 @@ private:
    */
   double update_rate_;
   std::string event_;
+
+  const double centre_distance_ = 9.125; // skidpad centres to track centre dist
+  const int small_circle_cones_ = 16; // number of cones in small circle
+  const int big_circle_cones_ = 13; // number of cones in large circle
+  std::unique_ptr<MatrixXd> skidpadTransform_{nullptr};
+  std::vector<std::pair<double,double>> waypoints;
+  std::vector<std::tuple<double,double,double>> visited;
+  bool global_path_;
+  double max_velocity_;
+
   double small_radius_;
   double big_radius_;
   double threshold_radius_;
@@ -296,6 +352,8 @@ private:
   bool accel_sector_increase;
   int detections_in_row_ = 0;
   bool use_mapping_ = false;
+  double base_lookahead_distance_;
+  double lookahead_scaling_factor_;
 
   bool loop_closed_ = false;
 
@@ -321,6 +379,8 @@ private:
 
   rclcpp::Publisher<utfr_msgs::msg::ParametricSpline>::SharedPtr
       center_path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr
+      center_point_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       accel_path_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
