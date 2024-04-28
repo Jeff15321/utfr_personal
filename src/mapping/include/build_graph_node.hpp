@@ -156,7 +156,7 @@ public:
   std::map<int, int> cone_id_to_color_map_; // Maps cone id to color
   std::map<int, utfr_msgs::msg::PoseGraphData>
       id_to_pose_map_; // Maps state estimate to pose node
-  std::map<int, std::tuple<double, double>> potential_cones_;
+  std::map<int, std::tuple<double, double, int>> potential_cones_;
   std::map<int, std::vector<double>> average_position_;
   int cones_potential_;
   int count_;

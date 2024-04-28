@@ -267,11 +267,6 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
             cone_nodes_[nearestCone.id].y = average_position_[nearestCone.id][1] / average_position_[nearestCone.id][2];
 
             utfr_msgs::msg::PoseGraphData edge_data;
-            cone_nodes_[i].x *= detection_counts[nearestCone.id];
-            cone_nodes_[i].y *= detection_counts[nearestCone.id];
-            detection_counts[nearestCone.id]++;
-            cone_nodes_[i].x = (cone_nodes_[i].x+position_x_)/detection_counts[nearestCone.id];
-            cone_nodes_[i].y = (cone_nodes_[i].y+position_y_)/detection_counts[nearestCone.id];
             edge_data.id = temp_current_pose_id_;
             edge_data.id2 = nearestCone.id;
             edge_data.dx = newCone.pos.x;

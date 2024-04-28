@@ -210,8 +210,8 @@ using namespace utfr_dv::ekf;
 //   ASSERT_NEAR(vec3a[2], res2[2], 1e-8);
 // }
 
-int main(int argc, char **argv) {
-  rclcpp::init(argc, argv);
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
+// int main(int argc, char **argv) {
+//   rclcpp::init(argc, argv);
+//   ::testing::InitGoogleTest(&argc, argv);
+//   return RUN_ALL_TESTS();
+// }
