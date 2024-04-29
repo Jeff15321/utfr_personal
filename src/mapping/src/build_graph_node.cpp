@@ -337,8 +337,8 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
                     cone_id_to_color_map_[cones_found_] = newCone.type;
                     utfr_msgs::msg::PoseGraphData cone_data;
                     cone_data.id = cones_found_;
-                    cone_data.x = true_coordinate_x/3.0;
-                    cone_data.y = true_coordinate_y/3.0;
+                    cone_data.x = true_coordinate_x/100;
+                    cone_data.y = true_coordinate_y/100;
                     cone_nodes_.push_back(cone_data);
                     average_position_[cones_found_] = {position_x_, position_y_, 1};
                     cone_id_to_vertex_map_[cones_found_] = cone_data;
@@ -349,7 +349,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
                     edge_data.dx = newCone.pos.x;
                     edge_data.dy = newCone.pos.y;
                     pose_to_cone_edges_.push_back(edge_data);
-                    kd_tree_knn::Point newPoint(true_coordinate_x/3.0,true_coordinate_y/3.0, cones_found_);
+                    kd_tree_knn::Point newPoint(true_coordinate_x/100,true_coordinate_y/100, cones_found_);
                     detection_counts[cones_found_] = 3;
                     // std::cout << "Cone x: " << position_x_ << " Cone y: " << position_y_ << " Cone id: " << cones_found_ << std::endl;
                     past_detections_.emplace_back(cones_found_,newCone);
@@ -520,7 +520,7 @@ void BuildGraphNode::timerCB() {
       do_graph_slam_ = false;
     }
   }
-  cone_map_publisher_->publish(cone_map_);
+  // cone_map_publisher_->publish(cone_map_);
   // Save the optimized pose graph
   //std::cout << "Optimized pose graph saved" << std::endl;
 }
