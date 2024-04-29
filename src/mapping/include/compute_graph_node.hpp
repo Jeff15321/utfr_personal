@@ -31,13 +31,13 @@
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/pose_graph.hpp>
-#include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/pose_graph_data.hpp>
+#include <utfr_msgs/msg/system_status.hpp>
 
 // Import G2O 2D Slam types
+#include <g2o/core/sparse_optimizer.h>
 #include <g2o/types/slam2d/types_slam2d.h>
 #include <g2o/types/slam2d/vertex_se2.h>
-#include <g2o/core/sparse_optimizer.h>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -92,7 +92,7 @@ public:
    */
   void graphSLAM();
 
-    /*! Create a pose node for G2O
+  /*! Create a pose node for G2O
    * @param[in] id int, id of the pose node
    * @param[in] x double, x position of the pose node
    * @param[in] y double, y position of the pose node
@@ -118,7 +118,7 @@ public:
    * @param[in] loop_closure bool, true if loop closure
    * @param[out] edge g2o::EdgeSE2PointXY*, pose to pose edge pointer
    */
-  g2o::EdgeSE2 *addPoseToPoseEdge(g2o::VertexSE2* pose1, g2o::VertexSE2* pose2,
+  g2o::EdgeSE2 *addPoseToPoseEdge(g2o::VertexSE2 *pose1, g2o::VertexSE2 *pose2,
                                   double dx, double dy, double dtheta,
                                   bool loop_closure);
 
@@ -129,8 +129,9 @@ public:
    * @param[in] dy double, y distance between pose and cone
    * @param[out] edge g2o::EdgeSE2PointXY*, pose to cone edge pointer
    */
-  g2o::EdgeSE2PointXY *addPoseToConeEdge(g2o::VertexSE2* pose, g2o::VertexPointXY* cone, 
-                                          double dx, double dy);
+  g2o::EdgeSE2PointXY *addPoseToConeEdge(g2o::VertexSE2 *pose,
+                                         g2o::VertexPointXY *cone, double dx,
+                                         double dy);
 
   /*! Primary callback function
    */
@@ -139,13 +140,13 @@ public:
   // Publisher
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_publisher_;
-  rclcpp::Publisher<utfr_msgs::msg::PoseGraphData>::SharedPtr slam_state_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::PoseGraphData>::SharedPtr
+      slam_state_publisher_;
 
   // Subscribers
   rclcpp::Subscription<utfr_msgs::msg::PoseGraph>::SharedPtr
       pose_graph_subscriber_;
 
-  
   // G2O Information matricies
   Eigen::Matrix3d P2PInformationMatrix_;
   Eigen::Matrix2d P2CInformationMatrix_;

@@ -114,12 +114,12 @@ public:
    *  @param[out] state geometry_msgs::msg::EgoState&, estimated state via the
    * vehicle model
    */
-   
+
   void dynamicBicycleModel(const float &throttle, const float &brake,
-                    const float &steering_angle, const double dt);
+                           const float &steering_angle, const double dt);
 
   void kinematicBicycleModel(const float &throttle, const float &brake,
-                    const float &steering_angle, const double dt);
+                             const float &steering_angle, const double dt);
 
   /*! Given the vehicle's current state, and a collection of inputs like
    * throttle and steering angle, calculate the state of the vehicle after
@@ -200,7 +200,7 @@ public:
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
   Eigen::MatrixXd P_;
   std::vector<double> datum_lla;
-  
+
   VehicleParameters vehicle_params_;
   utfr_msgs::msg::Heartbeat heartbeat_;
   double update_rate_;

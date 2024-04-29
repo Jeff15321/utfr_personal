@@ -20,11 +20,11 @@
 #include <chrono>
 #include <fstream>
 #include <functional>
-#include <sstream>   // std::stringstream
+#include <sstream> // std::stringstream
+#include <std_msgs/msg/bool.hpp>
 #include <stdexcept> // std::runtime_error
 #include <string>
 #include <vector>
-#include <std_msgs/msg/bool.hpp>
 
 // Message Requirements
 #include "tf2_ros/transform_broadcaster.h"
@@ -32,9 +32,9 @@
 #include <utfr_msgs/msg/cone_detections.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
-#include <utfr_msgs/msg/pose_graph_data.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/pose_graph.hpp>
+#include <utfr_msgs/msg/pose_graph_data.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
 
 // Import G2O 2D Slam types

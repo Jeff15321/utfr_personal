@@ -115,7 +115,7 @@ void ComputeGraphNode::publishHeartbeat(const int status) {
 }
 
 g2o::VertexSE2 *ComputeGraphNode::createPoseNode(int id, double x, double y,
-                                               double theta) {
+                                                 double theta) {
   g2o::VertexSE2 *poseVertex = new g2o::VertexSE2();
   poseVertex->setId(id);
 
@@ -127,7 +127,7 @@ g2o::VertexSE2 *ComputeGraphNode::createPoseNode(int id, double x, double y,
 }
 
 g2o::VertexPointXY *ComputeGraphNode::createConeVertex(int id, double x,
-                                                     double y) {
+                                                       double y) {
 
   g2o::VertexPointXY *coneVertex = new g2o::VertexPointXY();
   coneVertex->setId(id);
@@ -137,8 +137,10 @@ g2o::VertexPointXY *ComputeGraphNode::createConeVertex(int id, double x,
   return coneVertex;
 }
 
-g2o::EdgeSE2 *ComputeGraphNode::addPoseToPoseEdge(g2o::VertexSE2* pose1, g2o::VertexSE2* pose2,
-                                                  double dx, double dy, double dtheta,
+g2o::EdgeSE2 *ComputeGraphNode::addPoseToPoseEdge(g2o::VertexSE2 *pose1,
+                                                  g2o::VertexSE2 *pose2,
+                                                  double dx, double dy,
+                                                  double dtheta,
                                                   bool loop_closure) {
   g2o::EdgeSE2 *edge = new g2o::EdgeSE2();
 
@@ -156,8 +158,8 @@ g2o::EdgeSE2 *ComputeGraphNode::addPoseToPoseEdge(g2o::VertexSE2* pose1, g2o::Ve
   return edge;
 }
 
-g2o::EdgeSE2PointXY *ComputeGraphNode::addPoseToConeEdge(g2o::VertexSE2* pose, g2o::VertexPointXY* cone, 
-                                                          double dx, double dy) {
+g2o::EdgeSE2PointXY *ComputeGraphNode::addPoseToConeEdge(
+    g2o::VertexSE2 *pose, g2o::VertexPointXY *cone, double dx, double dy) {
   g2o::EdgeSE2PointXY *edge = new g2o::EdgeSE2PointXY();
 
   Eigen::Vector2d measurement(dx, dy);
@@ -169,7 +171,6 @@ g2o::EdgeSE2PointXY *ComputeGraphNode::addPoseToConeEdge(g2o::VertexSE2* pose, g
 
   return edge;
 }
-
 
 void ComputeGraphNode::poseGraphCB(const utfr_msgs::msg::PoseGraph msg) {
   data = msg;
@@ -193,10 +194,11 @@ void ComputeGraphNode::graphSLAM() {
   for (g2o::VertexPointXY *cone : cone_nodes_) {
     // int id = cone->id();
     // if (fixed_cone_ids_.find(id) == fixed_cone_ids_.end()) {
-      optimizer_.addVertex(cone);
+    optimizer_.addVertex(cone);
     // } else {
     //   utfr_msgs::msg::Cone coneData = fixed_cone_map_[id];
-    //   optimizer_.addVertex(createConeVertex(id, coneData.pos.x, coneData.pos.y));
+    //   optimizer_.addVertex(createConeVertex(id, coneData.pos.x,
+    //   coneData.pos.y));
     // }
   }
 
@@ -234,10 +236,10 @@ void ComputeGraphNode::graphSLAM() {
         dynamic_cast<g2o::VertexPointXY *>(v.second);
     if (vertexPointXY == nullptr) {
       g2o::VertexSE2 *vertexSE2 = dynamic_cast<g2o::VertexSE2 *>(v.second);
-      fixed_pose_map_[v.first] = createPoseNode(
-          v.first, vertexSE2->estimate().translation().x(),
-          vertexSE2->estimate().translation().y(),
-          vertexSE2->estimate().rotation().angle());
+      fixed_pose_map_[v.first] =
+          createPoseNode(v.first, vertexSE2->estimate().translation().x(),
+                         vertexSE2->estimate().translation().y(),
+                         vertexSE2->estimate().rotation().angle());
       fixed_pose_ids_.insert(v.first);
     }
     if (vertexPointXY) {
@@ -269,7 +271,7 @@ void ComputeGraphNode::graphSLAM() {
         cone.type = utfr_msgs::msg::Cone::LARGE_ORANGE;
         cone_map_.large_orange_cones.push_back(cone);
       }
-      
+
       // if (fixed_cone_ids_.find(id) == fixed_cone_ids_.end()) {
       //   fixed_cone_map_[id] = new_cone;
       //   fixed_cone_ids_.insert(id);
@@ -283,7 +285,7 @@ void ComputeGraphNode::graphSLAM() {
     if (edgeSE2) {
       int id1 = edgeSE2->vertex(0)->id();
       int id2 = edgeSE2->vertex(1)->id();
-      std::string key = std::to_string(id1) + "_"+ std::to_string(id2);
+      std::string key = std::to_string(id1) + "_" + std::to_string(id2);
       pose_to_pose_edge_map_[key] = edgeSE2;
     }
 
@@ -292,7 +294,7 @@ void ComputeGraphNode::graphSLAM() {
     if (edgeSE2PointXY) {
       int id1 = edgeSE2PointXY->vertex(0)->id();
       int id2 = edgeSE2PointXY->vertex(1)->id();
-      std::string key = std::to_string(id1) + "_"+ std::to_string(id2);
+      std::string key = std::to_string(id1) + "_" + std::to_string(id2);
       pose_to_cone_edge_map_[key] = edgeSE2PointXY;
     }
   }
@@ -311,22 +313,27 @@ void ComputeGraphNode::graphSLAM() {
 
   optimizer_.clear();
 
-  // Loop through all the pose nodes from pose_nodes_.size() - POSE_WINDOW to the end
-  // and delete them
-  for (int i = 0; i < std::max(0, (int)pose_nodes_.size() - POSE_WINDOW-1); i++){
+  // Loop through all the pose nodes from pose_nodes_.size() - POSE_WINDOW to
+  // the end and delete them
+  for (int i = 0; i < std::max(0, (int)pose_nodes_.size() - POSE_WINDOW - 1);
+       i++) {
     delete pose_nodes_[i];
   }
 
-  for (int i = 0; i < std::max(0, (int)pose_to_pose_edges_.size() - POSE_WINDOW-1); i++){
+  for (int i = 0;
+       i < std::max(0, (int)pose_to_pose_edges_.size() - POSE_WINDOW - 1);
+       i++) {
     delete pose_to_pose_edges_[i];
   }
 
-  for (int i = 0; i < std::max(0, (int)pose_to_cone_edges_.size() - CONE_WINDOW-1); i++){
+  for (int i = 0;
+       i < std::max(0, (int)pose_to_cone_edges_.size() - CONE_WINDOW - 1);
+       i++) {
     delete pose_to_cone_edges_[i];
   }
 }
 
-void ComputeGraphNode::timerCB() {  
+void ComputeGraphNode::timerCB() {
 
   // Check if data has been received
   if (data.states.size() == 0) {
@@ -347,10 +354,11 @@ void ComputeGraphNode::timerCB() {
   cone_map_.header.frame_id = "map";
 
   for (utfr_msgs::msg::PoseGraphData pose : local_data.states) {
-    g2o::VertexSE2 *poseVertex = createPoseNode(
-        pose.id, pose.x, pose.y, pose.theta);
+    g2o::VertexSE2 *poseVertex =
+        createPoseNode(pose.id, pose.x, pose.y, pose.theta);
     // If the pose already exists in the map, free the memory
-    // if (pose_id_to_vertex_map_.find(pose.id) != pose_id_to_vertex_map_.end()) {
+    // if (pose_id_to_vertex_map_.find(pose.id) != pose_id_to_vertex_map_.end())
+    // {
     //   delete pose_id_to_vertex_map_[pose.id];
     // }
     if (pose.id == 1001) {
@@ -361,8 +369,7 @@ void ComputeGraphNode::timerCB() {
   }
 
   for (utfr_msgs::msg::PoseGraphData cone : local_data.cones) {
-    g2o::VertexPointXY *coneVertex = createConeVertex(
-        cone.id, cone.x, cone.y);
+    g2o::VertexPointXY *coneVertex = createConeVertex(cone.id, cone.x, cone.y);
     cone_id_to_vertex_map_[cone.id] = coneVertex;
     cone_nodes_.push_back(coneVertex);
   }
@@ -371,27 +378,24 @@ void ComputeGraphNode::timerCB() {
 
     std::string key = std::to_string(edge.id) + "_" + std::to_string(edge.id2);
 
-    if (pose_to_pose_edge_map_.find(key) !=
-        pose_to_pose_edge_map_.end()) {
+    if (pose_to_pose_edge_map_.find(key) != pose_to_pose_edge_map_.end()) {
       pose_to_pose_edges_.push_back(pose_to_pose_edge_map_[key]);
     } else {
       g2o::EdgeSE2 *res = addPoseToPoseEdge(
-          pose_id_to_vertex_map_[edge.id],
-          pose_id_to_vertex_map_[edge.id2], edge.dx, edge.dy, edge.dtheta,
-          edge.loop_closure);
+          pose_id_to_vertex_map_[edge.id], pose_id_to_vertex_map_[edge.id2],
+          edge.dx, edge.dy, edge.dtheta, edge.loop_closure);
       pose_to_pose_edges_.push_back(res);
     }
   }
 
   for (utfr_msgs::msg::PoseGraphData edge : local_data.measurement_edges) {
     std::string key = std::to_string(edge.id) + "_" + std::to_string(edge.id2);
-    if (pose_to_cone_edge_map_.find(key) !=
-        pose_to_cone_edge_map_.end()) {
+    if (pose_to_cone_edge_map_.find(key) != pose_to_cone_edge_map_.end()) {
       pose_to_cone_edges_.push_back(pose_to_cone_edge_map_[key]);
     } else {
-      g2o::EdgeSE2PointXY *res = addPoseToConeEdge(
-          pose_id_to_vertex_map_[edge.id],
-          cone_id_to_vertex_map_[edge.id2], edge.dx, edge.dy);
+      g2o::EdgeSE2PointXY *res =
+          addPoseToConeEdge(pose_id_to_vertex_map_[edge.id],
+                            cone_id_to_vertex_map_[edge.id2], edge.dx, edge.dy);
       pose_to_cone_edges_.push_back(res);
     }
   }

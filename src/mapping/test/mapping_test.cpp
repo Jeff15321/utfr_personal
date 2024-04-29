@@ -69,7 +69,8 @@ using namespace utfr_dv::ekf;
 //   yellow_cone.type = 2;
 //   cones.right_cones.push_back(yellow_cone);
 
-//   // run one time to see if it will not be added to past detections, but added
+//   // run one time to see if it will not be added to past detections, but
+//   added
 //   // to potential
 //   node.KNN(cones);
 
