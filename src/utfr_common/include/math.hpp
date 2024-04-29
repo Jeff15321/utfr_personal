@@ -19,6 +19,7 @@
 #include <eigen3/Eigen/Dense>
 #include <list>
 using Eigen::MatrixXd;
+using Eigen::VectorXd;
 #include <string>
 #include <tuple>
 
