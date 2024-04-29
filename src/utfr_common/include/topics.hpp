@@ -34,6 +34,7 @@ const std::string kDetected{"/lidar_pipeline/detected"};
 
 // EKF
 const std::string kEgoState{"ekf/ego_state"};
+const std::string kPose{"ekf/pose"};
 const std::string kEKFHeartbeat{"ekf/heartbeat"};
 
 // Mapping
@@ -42,6 +43,8 @@ const std::string kConeMap{"mapping/cone_map"};
 const std::string kMappingBuildHeartbeat{"mapping/build/heartbeat"};
 const std::string kPoseGraph{"mapping/pose_graph"};
 const std::string kMappingComputeHeartbeat{"mapping/compute/heartbeat"};
+const std::string kSlamPose{"mapping/slam_pose"};
+
 
 // Planning
 const std::string kTargetState{"planning/target_state"};

@@ -195,6 +195,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       cone_data.x = position_x_;
       cone_data.y = position_y_;
       cone_nodes_.push_back(cone_data);
+      average_position_[cones_found_] = {position_x_, position_y_, 1};
       cone_id_to_vertex_map_[cones_found_] = cone_data;
 
       utfr_msgs::msg::PoseGraphData edge_data;
@@ -223,6 +224,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       cone_data.x = position_x_;
       cone_data.y = position_y_;
       cone_nodes_.push_back(cone_data);
+      average_position_[cones_found_] = {position_x_, position_y_, 1};
       cone_id_to_vertex_map_[cones_found_] = cone_data;
 
       utfr_msgs::msg::PoseGraphData edge_data;
@@ -254,19 +256,17 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           position_x_, nearestCone.x, position_y_, nearestCone.y);
 
         // Do not add if its within 0.5 of an already seen cone
-        if (displacement <= 0.5) {
+        if (displacement <= 1) {
             // Add the ID to the list
             cones_id_list_.push_back(nearestCone.id);
-            int i;
-            for(i = 0; i< cone_nodes_.size();i++){
-              if ((cone_nodes_[i]).id==nearestCone.id){break;}
-            }
+            average_position_[nearestCone.id][0] += position_x_;
+            average_position_[nearestCone.id][1] += position_y_;
+            average_position_[nearestCone.id][2] += 1;
+
+            cone_nodes_[nearestCone.id].x = average_position_[nearestCone.id][0] / average_position_[nearestCone.id][2];
+            cone_nodes_[nearestCone.id].y = average_position_[nearestCone.id][1] / average_position_[nearestCone.id][2];
+
             utfr_msgs::msg::PoseGraphData edge_data;
-            cone_nodes_[i].x *= detection_counts[nearestCone.id];
-            cone_nodes_[i].y *= detection_counts[nearestCone.id];
-            detection_counts[nearestCone.id]++;
-            cone_nodes_[i].x = (cone_nodes_[i].x+position_x_)/detection_counts[nearestCone.id];
-            cone_nodes_[i].y = (cone_nodes_[i].y+position_y_)/detection_counts[nearestCone.id];
             edge_data.id = temp_current_pose_id_;
             edge_data.id2 = nearestCone.id;
             edge_data.dx = newCone.pos.x;
@@ -307,18 +307,25 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
         const std::tuple<double,double, int> potentialPoint = pair.second;
         double temp_displacement_ = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(potentialPoint), position_y_, std::get<1>(potentialPoint));
 
-        // Check if cone within 0.5 of any other new detected cone
-        if (temp_displacement_ <= 0.5 && colour == std::get<2>(potentialPoint)) {
+        // Check if cone within 1 of any other new detected cone
+        if (temp_displacement_ <= 1 && colour == std::get<2>(potentialPoint)) {
                 count_ += 1;
                 keys.push_back(key_);
                 // Check if three of same detected
                 true_coordinate_x += std::get<0>(potentialPoint);
                 true_coordinate_y += std::get<1>(potentialPoint);
-                if (count_ == 3) {
+                if (count_ == 100) {
+
                     kd_tree_knn::Point closestPointAtAdd = globalKDTreePtr_ -> KNN(kd_tree_knn::Point(position_x_, position_y_, 0));
+                    double average_x = position_x_;
+                    double average_y = position_y_;
+                    double number_of_points = 1;
                     for (auto it = potential_cones_.begin(); it != potential_cones_.end();) {
-                        double temp_displacement_ = utfr_dv::util::euclidianDistance2D(position_x_, std::get<0>(it->second), position_y_, std::get<1>(it->second));
-                        if (temp_displacement_ <= 0.5) {
+                        double temp_displacement_ = utfr_dv::util::euclidianDistance2D(average_x/number_of_points, std::get<0>(it->second), average_y/number_of_points, std::get<1>(it->second));
+                        if (temp_displacement_ <= 1) {
+                            average_x += std::get<0>(it->second);
+                            average_y += std::get<1>(it->second);
+                            number_of_points += 1;
                             it = potential_cones_.erase(it);
                         } else {
                             ++it;
@@ -330,9 +337,10 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
                     cone_id_to_color_map_[cones_found_] = newCone.type;
                     utfr_msgs::msg::PoseGraphData cone_data;
                     cone_data.id = cones_found_;
-                    cone_data.x = true_coordinate_x/3.0;
-                    cone_data.y = true_coordinate_y/3.0;
+                    cone_data.x = true_coordinate_x/100;
+                    cone_data.y = true_coordinate_y/100;
                     cone_nodes_.push_back(cone_data);
+                    average_position_[cones_found_] = {position_x_, position_y_, 1};
                     cone_id_to_vertex_map_[cones_found_] = cone_data;
 
                     utfr_msgs::msg::PoseGraphData edge_data;
@@ -341,7 +349,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
                     edge_data.dx = newCone.pos.x;
                     edge_data.dy = newCone.pos.y;
                     pose_to_cone_edges_.push_back(edge_data);
-                    kd_tree_knn::Point newPoint(true_coordinate_x/3.0,true_coordinate_y/3.0, cones_found_);
+                    kd_tree_knn::Point newPoint(true_coordinate_x/100,true_coordinate_y/100, cones_found_);
                     detection_counts[cones_found_] = 3;
                     // std::cout << "Cone x: " << position_x_ << " Cone y: " << position_y_ << " Cone id: " << cones_found_ << std::endl;
                     past_detections_.emplace_back(cones_found_,newCone);
@@ -440,6 +448,12 @@ void BuildGraphNode::timerCB() {
   // Print the x and y position of the car
   current_state_ = current_ego_state_;
 
+  if (current_pose_id_ == 1000) {
+    current_state_.pose.pose.position.x = 0;
+    current_state_.pose.pose.position.y = 0;
+    current_state_.pose.pose.orientation = utfr_dv::util::yawToQuaternion(0);
+  }
+
   current_pose_id_ += 1;
   id_to_ego_map_[current_pose_id_] = current_state_;
 
@@ -450,6 +464,10 @@ void BuildGraphNode::timerCB() {
   pose_data.theta = utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation);
   pose_nodes_.push_back(pose_data);
   id_to_pose_map_[current_pose_id_] = pose_data;
+
+  if (current_pose_id_ == 1001) {
+    return;
+  }
 
   utfr_msgs::msg::EgoState prevPoseVertex =
       id_to_ego_map_[current_pose_id_ - 1];
@@ -473,7 +491,7 @@ void BuildGraphNode::timerCB() {
 
   std::vector<int> cones = KNN(current_cone_detections_);
   loopClosure(cones);
-  if (cones_found_ > 10) {
+  if (cones_found_ > 3) {
     utfr_msgs::msg::PoseGraph poseGraph;
     poseGraph.header.stamp = this->get_clock()->now();
     /*for(int i = 0; i < cone_nodes_.size();i++){
@@ -502,7 +520,7 @@ void BuildGraphNode::timerCB() {
       do_graph_slam_ = false;
     }
   }
-  cone_map_publisher_->publish(cone_map_);
+  // cone_map_publisher_->publish(cone_map_);
   // Save the optimized pose graph
   //std::cout << "Optimized pose graph saved" << std::endl;
 }

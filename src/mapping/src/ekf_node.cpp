@@ -115,13 +115,28 @@ void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::normal_distribution<double> distribution(0.0, standardDeviation);
+
+  std::default_random_engine generator;
+  // Create a uniform distribution for angle between 0 and 2*PI
+  std::uniform_real_distribution<double> angle_distribution(0.0, 2 * M_PI);
+
+  // Generate a random angle
+  double angle = angle_distribution(generator);
   // Add noise to the ground truth value
-  x += distribution(gen);
-  y += distribution(gen);
+  x += distribution(gen)* cos(angle);
+  y += distribution(gen)* sin(angle);
+
+  // get the velocity from the GPS
+  double vel_x = msg.twist.twist.linear.x;
+  double vel_y = msg.twist.twist.linear.y;
+  double vel_yaw = msg.twist.twist.angular.z;
 
   utfr_msgs::msg::EgoState res = updateState(x, y, -yaw);
   // std::cout << "x: " << res.pose.pose.position.x << " y: " <<
   // res.pose.pose.position.y << std::endl;
+  res.vel.twist.linear.x = vel_x;
+  res.vel.twist.linear.y = vel_y;
+  res.vel.twist.angular.z = vel_yaw;
   current_state_ = res;
   res.pose.pose.position.y = -res.pose.pose.position.y;
   ego_state_publisher_->publish(res);
@@ -292,9 +307,9 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y,
   H(2, 4) = 1; // Map yaw
 
   R = Eigen::MatrixXd::Identity(3, 3);
-  R(0, 0) = 0.01; // Variance for x measurement
-  R(1, 1) = 0.01; // Variance for y measurement
-  R(2, 2) = 0.01; // Variance for yaw measurement
+  R(0, 0) = 0.005; // Variance for x measurement
+  R(1, 1) = 0.005; // Variance for y measurement
+  R(2, 2) = 0.005; // Variance for yaw measurement
 
   // Compute the Kalman gain
   // K = P * H^T * (H * P * H^T + R)^-1
