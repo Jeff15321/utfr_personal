@@ -21,6 +21,69 @@ using namespace utfr_dv::build_graph;
 using namespace utfr_dv::compute_graph;
 using namespace utfr_dv::ekf;
 
+// initialize ROS
+int main(int argc, char **argv) {
+    rclcpp::init(argc, argv);
+    ::testing::InitGoogleTest(&argc, argv);
+    int result = RUN_ALL_TESTS();
+    rclcpp::shutdown();
+    return result;
+}
+
+TEST(KNNSearchNodeTest, kNNTest1) {
+  // Setup
+  utfr_dv::build_graph::BuildGraphNode node;
+  utfr_msgs::msg::EgoState ego;
+  ego.pose.pose.position.x = 0;
+  ego.pose.pose.position.y = 0;
+  ego.pose.pose.position.z = 0;
+  ego.pose.pose.orientation = utfr_dv::util::yawToQuaternion(0);
+  node.current_state_ = ego;
+
+  ASSERT_EQ(0, node.current_state_.pose.pose.position.x);
+
+  // First round of cone detections
+  utfr_msgs::msg::ConeDetections cones;
+  utfr_msgs::msg::ConeDetections empty;
+
+  utfr_msgs::msg::Cone blue_cone;
+  blue_cone.pos.x = 1;
+  blue_cone.pos.y = 1;
+  blue_cone.pos.z = 0;
+  blue_cone.type = 1;
+
+  cones.left_cones.push_back(blue_cone);
+
+  // KNN once
+  node.KNN(cones);
+
+  // check if tree created
+  ASSERT_EQ(false, node.globalKDTreePtr_ == nullptr);
+
+  // check is added to past_detections_
+  ASSERT_EQ(1, node.past_detections_.size());
+
+  // check to see that map works
+  ASSERT_EQ(1, node.cone_id_to_color_map_[0]);
+
+  cones = empty;
+
+  utfr_msgs::msg::Cone yellow_cone;
+  yellow_cone.pos.x = -1;
+  yellow_cone.pos.y = -1;
+  yellow_cone.pos.z = 0;
+  yellow_cone.type = 2;
+  cones.right_cones.push_back(yellow_cone);
+
+  // check that cone is added to potential, but not past detections
+  node.KNN(cones);
+
+  ASSERT_EQ(2, node.past_detections_.size());
+  ASSERT_EQ(0, node.potential_cones_.size());
+
+  cones = empty;
+}
+
 // TEST(KNNSearchNodeTest, kNNTest1) {
 //   // Setup
 //   utfr_dv::build_graph::BuildGraphNode node;
@@ -30,9 +93,7 @@ using namespace utfr_dv::ekf;
 //   ego.pose.pose.position.z = 0;
 //   ego.pose.pose.orientation = utfr_dv::util::yawToQuaternion(0);
 //   node.current_state_ = ego;
-//   node.stateEstimationCB(ego);
 
-//   // Custom failure message
 //   ASSERT_EQ(0, node.current_state_.pose.pose.position.x);
 
 //   // First round of cone detections
@@ -57,7 +118,6 @@ using namespace utfr_dv::ekf;
 //   ASSERT_EQ(1, node.past_detections_.size());
 
 //   // check to see that map works
-
 //   ASSERT_EQ(1, node.cone_id_to_color_map_[0]);
 
 //   cones = empty;
@@ -69,9 +129,7 @@ using namespace utfr_dv::ekf;
 //   yellow_cone.type = 2;
 //   cones.right_cones.push_back(yellow_cone);
 
-//   // run one time to see if it will not be added to past detections, but
-//   added
-//   // to potential
+//   // run one time to see if it will not be added to past detections, but added to potential
 //   node.KNN(cones);
 
 //   ASSERT_EQ(2, node.past_detections_.size());
@@ -109,7 +167,7 @@ using namespace utfr_dv::ekf;
 
 //   cones = empty;
 
-//   // CHECK IF KNN WORKS, CONE SHOULD NOT BE ADDED
+  // CHECK IF KNN WORKS, CONE SHOULD NOT BE ADDED
 
 //   utfr_msgs::msg::Cone yellow_cone4;
 //   yellow_cone4.pos.x = -1.5;
@@ -126,20 +184,20 @@ using namespace utfr_dv::ekf;
 
 //   ASSERT_EQ(3, node.past_detections_.size());
 
-//   // Detect a new cone
-//   // utfr_msgs::msg::Cone yellow_cone2;
-//   // yellow_cone2.pos.x = -1;
-//   // yellow_cone2.pos.y = 1;
-//   // yellow_cone2.pos.z = 0;
-//   // yellow_cone2.type = 2;
-//   // cones.right_cones.clear();
-//   // cones.right_cones.push_back(yellow_cone2);
+//   //Detect a new cone
+//   utfr_msgs::msg::Cone yellow_cone5;
+//   yellow_cone5.pos.x = -1;
+//   yellow_cone5.pos.y = 1;
+//   yellow_cone5.pos.z = 0;
+//   yellow_cone5.type = 2;
+//   cones.right_cones.clear();
+//   cones.right_cones.push_back(yellow_cone5);
 
-//   // Run once
-//   // node.KNN(cones);
+//   //Run once
+//   node.KNN(cones);
 
-//   // Assert after three more runs
-//   // ASSERT_EQ(3, node.past_detections_.size());
+//   //Assert after three more runs
+//   ASSERT_EQ(3, node.past_detections_.size());
 // }
 
 // TEST(BuildGraphNodeTest, loopClosureTest1) {
@@ -188,6 +246,7 @@ using namespace utfr_dv::ekf;
 //   ASSERT_EQ(2, node.landmarkedID_);
 //   ASSERT_EQ(true, node.landmarked_);
 // }
+
 // TEST(EkfNodeTest, converlatlonalt2) {
 //   // utfr_dv::build_graph::BuildGraphNode node;
 //   utfr_dv::ekf::EkfNode node;
