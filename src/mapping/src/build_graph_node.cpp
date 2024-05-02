@@ -324,8 +324,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
         true_coordinate_y += std::get<1>(potentialPoint);
         if (count_ == 100) {
 
-          kd_tree_knn::Point closestPointAtAdd = globalKDTreePtr_->KNN(
-              kd_tree_knn::Point(position_x_, position_y_, 0));
+          
           double average_x = position_x_;
           double average_y = position_y_;
           double number_of_points = 1;

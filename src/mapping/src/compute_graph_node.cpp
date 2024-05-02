@@ -68,10 +68,10 @@ void ComputeGraphNode::initParams() {
           std::make_unique<SlamBlockSolver>(std::move(linearSolverLM)));
   optimizer_.setAlgorithm(optimizer);
 
-  int lastPose = 0;
-  int lastCone = 0;
-  int lastPosetoPoseEdge = 0;
-  int lastPosetoConeEdge = 0;
+  // int lastPose = 0;
+  // int lastCone = 0;
+  // int lastPosetoPoseEdge = 0;
+  // int lastPosetoConeEdge = 0;
 
   pose_id_to_vertex_map_.clear();
   cone_id_to_vertex_map_.clear();
@@ -182,7 +182,7 @@ void ComputeGraphNode::graphSLAM() {
   int POSE_WINDOW = do_graph_slam_ ? 1500 : 500;
   int CONE_WINDOW = do_graph_slam_ ? 4500 : 1500;
 
-  for (int i = std::max(0, (int)pose_nodes_.size() - POSE_WINDOW);
+  for (size_t i = std::max(0, (int)pose_nodes_.size() - POSE_WINDOW);
        i < pose_nodes_.size(); i++) {
     if (fixed_pose_ids_.find(pose_nodes_[i]->id()) == fixed_pose_ids_.end()) {
       optimizer_.addVertex(pose_nodes_[i]);
@@ -205,7 +205,7 @@ void ComputeGraphNode::graphSLAM() {
   // for (g2o::EdgeSE2 *edge : pose_to_pose_edges_) {
   //   optimizer_.addEdge(edge);
   // }
-  for (int i = std::max(0, (int)pose_to_pose_edges_.size() - POSE_WINDOW);
+  for (size_t i = std::max(0, (int)pose_to_pose_edges_.size() - POSE_WINDOW);
        i < pose_to_pose_edges_.size(); i++) {
     // Check if the edge exists already
     // if (pose_to_pose_edge_map_.find(
@@ -218,7 +218,7 @@ void ComputeGraphNode::graphSLAM() {
     optimizer_.addEdge(pose_to_pose_edges_[i]);
   }
 
-  for (int i = std::max(0, (int)pose_to_cone_edges_.size() - CONE_WINDOW);
+  for (size_t i = std::max(0, (int)pose_to_cone_edges_.size() - CONE_WINDOW);
        i < pose_to_cone_edges_.size(); i++) {
     optimizer_.addEdge(pose_to_cone_edges_[i]);
   }
@@ -400,7 +400,7 @@ void ComputeGraphNode::timerCB() {
     }
   }
 
-  for (int i = 0; i < local_data.color.size(); i++) {
+  for (size_t i = 0; i < local_data.color.size(); i++) {
     cone_id_to_color_map_[local_data.cone_id[i]] = local_data.color[i];
   }
 
