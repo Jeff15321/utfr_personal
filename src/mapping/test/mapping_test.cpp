@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     return result;
 }
 
-TEST(KNNSearchNodeTest, kNNTest1) {
+TEST(KNNSearchNodeTest, KNNConeDetections) {
   // Setup
   utfr_dv::build_graph::BuildGraphNode node;
   utfr_msgs::msg::EgoState ego;
