@@ -168,5 +168,78 @@ void CanInterface::write_can(dv_can_msg msgName, long long data) {
     perror("CAN...'T WRITE (<size)");
 }
 
+/*! Get CAN signals and messages with little endian.
+   *
+   * @return data received by the DV computer.
+*/
+float CanInterface::getSignal(dv_can_msg msgName, uint8_t startBit, uint8_t sigLength, float scale) 
+{
+  float result; 
+
+  int64_t signalData = ARRAY_TO_INT64(
+    messages[dv_can_msg_map[(int)msgName]].data);
+
+  // Bit mask to filter out desired bits. 
+  // Bitwise & will be used (the bitmask will be a consecutive series of 1s and will be 0s elsewhere).
+  uint64_t mask = 0; 
+  for (uint8_t i = 0; i < sigLength; i++) 
+  {
+    mask = (mask << 1) + 1;
+  }
+
+  signalData = signalData >> startBit; 
+  signalData = signalData & mask;
+
+  return signalData * scale;
+}
+
+/*! Get CAN signals and messages with big endian.
+   *
+   * Note that CAN messages are at most 8 bytes long (16 nibbles). 
+   * This function can only be used for 11-bit standard CAN protocols. 
+   * 
+   * @param msgName CAN message identifier. 
+   * @param startBit start bit of desired signal. 
+   * @param sigLength length of signal in bits. 
+   * @param sign true if signed, false if unsigned. 
+   * @param scale amount of scaling applied to the CAN signal.
+   * 
+   * @return data received by the DV computer.
+*/
+float CanInterface::getSignalBE(dv_can_msg msgName, uint8_t startBit, uint8_t sigLength, bool sign, float scale) 
+{
+  // Convert 8 bytes into a 64 bit integer in big endian format. 
+  uint64_t signalData = ARRAY_TO_INT64_BE(
+    messages[dv_can_msg_map[(int)msgName]].data);
+
+  // Bit mask to filter out desired bits. 
+  // Bitwise & will be used (the bitmask will be a consecutive series of 1s and will be 0s elsewhere).
+  uint64_t mask = 0; 
+  for (uint8_t i = 0; i < sigLength; i++) 
+  {
+    mask = (mask << 1) + 1;
+  }
+
+  signalData = signalData >> (64 - startBit - sigLength); 
+  signalData = signalData & mask;
+
+  // Signed numbers should have 2's complement applied to it, only if it is above 
+  // the maximum value able to be represented by a number of binary digits. 
+  // Negative Representation = Bitwise NOT + 1 (2's Complement)
+  int64_t signSignalData; 
+  if (sign) {
+    int maxValue = pow(2, sigLength - 1) - 1; 
+
+    if (signalData > maxValue) {
+      signSignalData = (~signalData + 1) & mask; 
+    }
+
+    return -signSignalData * scale;
+  }
+
+  return signalData * scale;
+}
+
+
 } // namespace car_interface
 } // namespace utfr_dv

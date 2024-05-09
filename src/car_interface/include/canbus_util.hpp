@@ -88,12 +88,34 @@ typedef struct CAN_message_t {
   bool seq = 0; // sequential frames
 } CAN_message_t;
 
+typedef struct CAN_signal_t {
+  const uint8_t startBit = 0; 
+  uint8_t len = 8; 
+  const bool littleEndian = true; 
+  const bool sign = false; 
+  const float scale = 1.0; 
+  const float offset = 0.0; 
+  const float min = 0; 
+  const float max = 10000; 
+} CAN_signal_t; 
+
 // From UTFR_CAN_TEENSY
+// Little Endian
 #define ARRAY_TO_INT64(array)                                                  \
   ((array[0]) | ((uint64_t)array[1] << 8) | ((uint64_t)array[2] << 16) |       \
    ((uint64_t)array[3] << 24) | ((uint64_t)array[4] << 32) |                   \
    ((uint64_t)array[5] << 40) | ((uint64_t)array[6] << 48) |                   \
    ((uint64_t)array[7] << 56))
+
+// Big Endian
+#define ARRAY_TO_INT64_BE(array)((array[7]) |\
+                                ((uint64_t)array[6] << 8) |\
+                                ((uint64_t)array[5] << 16) |\
+                                ((uint64_t)array[4] << 24) |\
+                                ((uint64_t)array[3] << 32) |\
+                                ((uint64_t)array[2] << 40) |\
+                                ((uint64_t)array[1] << 48) |\
+                                ((uint64_t)array[0] << 56))
 
 #define INT64_TO_ARRAY(num, array)                                             \
   do {                                                                         \
@@ -147,6 +169,18 @@ public:
    *  @param[in] to_write CAN Frame to push into CAN Bus
    */
   void write_can(dv_can_msg msgName, long long signalData);
+
+  /*! Get CAN signals and messages with little endian.
+   *
+   *  @return data received by the DV computer.
+   */
+  float getSignal(dv_can_msg msgName, uint8_t startBit, uint8_t sigLength, float scale);
+
+  /*! Get CAN signals and messages with big endian.
+   *
+   *  @return data received by the DV computer.
+   */
+  float getSignalBE(dv_can_msg msgName, uint8_t startBit, uint8_t sigLength, bool sign, float scale);
 
   // private:
   sockaddr_can addr;
