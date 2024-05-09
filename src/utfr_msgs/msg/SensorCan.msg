@@ -23,3 +23,17 @@ float64 wheelspeed_rr
 # IMU data
 std_msgs/Header imu_header
 sensor_msgs/Imu imu_data
+
+# GPS data 
+geometry_msgs/Vector3Stamped gps_imu_accel 
+geometry_msgs/Vector3Stamped gps_imu_ang_vel 
+sensor_msgs/NavSatFix gps_gnss 
+sensor_msgs/Imu gps_imu_data 
+
+geometry_msgs/Vector3Stamped gps_free_accel
+geometry_msgs/QuaternionStamped gps_orientation 
+geometry_msgs/Vector3Stamped gps_position
+geometry_msgs/TwistStamped gps_twist 
+geometry_msgs/TwistStamped gps_velocity 
+
+std_msgs/Bool gps_error 

@@ -67,7 +67,20 @@ enum dv_can_msg {
   SetSTRMotorPosSpeedAcc = 18,
   StrMotorStatus = 19,
 
-  COUNT = 20
+  // GPS Messages
+  GPS_ERROR_CODE = 20, 
+  GPS_SAMPLE_TIME = 21, 
+  GPS_EULER_ANGLES = 22, // check if signals can be embedded 
+  GPS_RATE_OF_TURN = 23, 
+  GPS_ACCELERATION = 24, 
+  GPS_LAT_LONG = 25, 
+  GPS_ALT_ELLIP = 26, 
+  GPS_VEL_XYZ = 27, 
+
+  COMMANDED_TORQUE = 28, 
+  ACTUAL_TORQUE = 29,
+
+  COUNT = 30
 };
 
 typedef struct CAN_message_t {
@@ -174,7 +187,7 @@ public:
    *
    *  @return data received by the DV computer.
    */
-  float getSignal(dv_can_msg msgName, uint8_t startBit, uint8_t sigLength, float scale);
+  float getSignal(dv_can_msg msgName, uint8_t startBit, uint8_t sigLength, bool sign, float scale);
 
   /*! Get CAN signals and messages with big endian.
    *

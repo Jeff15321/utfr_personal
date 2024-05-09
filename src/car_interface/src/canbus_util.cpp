@@ -172,11 +172,9 @@ void CanInterface::write_can(dv_can_msg msgName, long long data) {
    *
    * @return data received by the DV computer.
 */
-float CanInterface::getSignal(dv_can_msg msgName, uint8_t startBit, uint8_t sigLength, float scale) 
+float CanInterface::getSignal(dv_can_msg msgName, uint8_t startBit, uint8_t sigLength, bool sign, float scale) 
 {
-  float result; 
-
-  int64_t signalData = ARRAY_TO_INT64(
+  uint64_t signalData = ARRAY_TO_INT64(
     messages[dv_can_msg_map[(int)msgName]].data);
 
   // Bit mask to filter out desired bits. 
@@ -189,6 +187,18 @@ float CanInterface::getSignal(dv_can_msg msgName, uint8_t startBit, uint8_t sigL
 
   signalData = signalData >> startBit; 
   signalData = signalData & mask;
+
+  // Signed representation.
+  int64_t signSignalData; 
+  if (sign) {
+    uint64_t maxValue = pow(2, sigLength - 1) - 1; 
+
+    if (signalData > maxValue) {
+      signSignalData = (~signalData + 1) & mask; 
+
+      return -signSignalData * scale; 
+    }
+  }
 
   return signalData * scale;
 }
@@ -228,13 +238,14 @@ float CanInterface::getSignalBE(dv_can_msg msgName, uint8_t startBit, uint8_t si
   // Negative Representation = Bitwise NOT + 1 (2's Complement)
   int64_t signSignalData; 
   if (sign) {
-    int maxValue = pow(2, sigLength - 1) - 1; 
+    uint64_t maxValue = pow(2, sigLength - 1) - 1; 
 
     if (signalData > maxValue) {
+      // Mask the result to the signal length. 
       signSignalData = (~signalData + 1) & mask; 
-    }
 
-    return -signSignalData * scale;
+      return -signSignalData * scale;
+    }
   }
 
   return signalData * scale;

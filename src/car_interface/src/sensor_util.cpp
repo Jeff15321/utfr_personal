@@ -189,6 +189,64 @@ void CarInterface::getIMUData() {
   }
 }
 
+void CarInterface::getGPSData() {
+  const std::string function_name{"getGPSData"};
+
+  try {
+    std_msgs::msg::Bool gps_error; 
+    gps_error.set__data(
+      (bool) can1_->getSignalBE(
+        dv_can_msg::GPS_ERROR_CODE, 0, 8, false, 1
+      )
+    );
+
+    sensor_msgs::msg::NavSatFix latlong;
+    // Latitude, Longitude, Altitude 
+    latlong.latitude = (int32_t) can1_->getSignalBE(
+      dv_can_msg::GPS_LAT_LONG, 0, 32, true, pow(2, -24)
+    );
+    latlong.longitude = (int32_t) can1_->getSignalBE(
+      dv_can_msg::GPS_LAT_LONG, 32, 32, true, pow(2, -23)
+    );
+    latlong.altitude = (uint32_t) can1_->getSignalBE(
+      dv_can_msg::GPS_ALT_ELLIP, 0, 32, false, pow(2, -15)
+    ); 
+
+    geometry_msgs::msg::QuaternionStamped gps_orientation; 
+    // Quaternion Angles (need to change firmware to quaternion angles, euler angles can msg is misleading);
+    double gps_quat_scale = pow(2, -7);
+    gps_orientation.quaternion.set__x(
+      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_EULER_ANGLES, 0, 16, true, gps_quat_scale)
+    );
+    gps_orientation.quaternion.set__y(
+      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_EULER_ANGLES, 16, 16, true, gps_quat_scale)
+    );
+    gps_orientation.quaternion.set__w(
+      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_EULER_ANGLES, 32, 16, true, gps_quat_scale)
+    ); 
+    gps_orientation.quaternion.set__z(
+      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_EULER_ANGLES, 48, 16, true, gps_quat_scale)
+    );
+    
+    geometry_msgs::msg::TwistStamped gps_velocity; 
+    double gps_vel_scale = pow(2, -6); 
+    gps_velocity.twist.linear.x = (int16_t) can1_->getSignalBE(
+      dv_can_msg::GPS_VEL_XYZ, 0, 16, true, gps_vel_scale
+    ); 
+    gps_velocity.twist.linear.y = (int16_t) can1_->getSignalBE(
+      dv_can_msg::GPS_VEL_XYZ, 16, 16, true, gps_vel_scale
+    ); 
+    gps_velocity.twist.linear.z = (int16_t) can1_->getSignalBE(
+      dv_can_msg::GPS_VEL_XYZ, 32, 16, true, gps_vel_scale
+    );
+
+
+  } catch (int e) {
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occurred, error #%d", 
+      function_name.c_str(), e);
+  }
+}
+
 void CarInterface::getSensorCan() {
   const std::string function_name{"getSensorCan"};
 

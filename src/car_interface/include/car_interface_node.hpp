@@ -171,6 +171,11 @@ private:
   void getIMUData();
 
   /**
+   * @brief Get the GPS data (big endian format). 
+   */
+  void getGPSData();
+
+  /**
    * @brief Get the sensor CAN data.
    */
   void getSensorCan();
