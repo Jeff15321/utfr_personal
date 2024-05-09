@@ -46,7 +46,20 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
      0x0000050F}, // Set Origin on Steering motor
     {(uint8_t)dv_can_msg::SetSTRMotorPosSpeedAcc,
      0x0000060F}, // Set Pos, speed, and accel on Steering motor
-    {(uint8_t)dv_can_msg::StrMotorStatus, 0x0000290F}}; // Get Status of motor
+
+    // GPS CAN Integration 
+    {(uint8_t)dv_can_msg::StrMotorStatus, 0x0000290F},
+    {(uint8_t)dv_can_msg::GPS_ERROR_CODE, 0x001}, 
+    {(uint8_t)dv_can_msg::GPS_SAMPLE_TIME, 0x010},
+    {(uint8_t)dv_can_msg::GPS_ORIENTATION, 0x019},
+    {(uint8_t)dv_can_msg::GPS_LAT_LONG, 0x071},
+    {(uint8_t)dv_can_msg::GPS_ALT_ELLIP, 0x072},
+    {(uint8_t)dv_can_msg::GPS_VEL_XYZ, 0x076},     
+    {(uint8_t)dv_can_msg::GPS_ACCELERATION, 0x034}, 
+
+    {(uint8_t)dv_can_msg::COMMANDED_TORQUE, 0x0C0}, 
+    
+    }; // Get Status of motor
 
 bool CanInterface::connect(const char *canline) {
 

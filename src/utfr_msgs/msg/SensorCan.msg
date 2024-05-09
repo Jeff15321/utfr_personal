@@ -30,10 +30,12 @@ geometry_msgs/Vector3Stamped gps_imu_ang_vel
 sensor_msgs/NavSatFix gps_gnss 
 sensor_msgs/Imu gps_imu_data 
 
-geometry_msgs/Vector3Stamped gps_free_accel
+geometry_msgs/Accel gps_accel
 geometry_msgs/QuaternionStamped gps_orientation 
-geometry_msgs/Vector3Stamped gps_position
+geometry_msgs/Pose gps_position
 geometry_msgs/TwistStamped gps_twist 
 geometry_msgs/TwistStamped gps_velocity 
 
 std_msgs/Bool gps_error 
+
+float64 commanded_torque

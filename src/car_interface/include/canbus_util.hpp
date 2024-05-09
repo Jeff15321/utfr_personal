@@ -70,7 +70,7 @@ enum dv_can_msg {
   // GPS Messages
   GPS_ERROR_CODE = 20, 
   GPS_SAMPLE_TIME = 21, 
-  GPS_EULER_ANGLES = 22, // check if signals can be embedded 
+  GPS_ORIENTATION = 22, // check if signals can be embedded 
   GPS_RATE_OF_TURN = 23, 
   GPS_ACCELERATION = 24, 
   GPS_LAT_LONG = 25, 

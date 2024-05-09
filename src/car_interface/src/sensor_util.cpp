@@ -216,16 +216,16 @@ void CarInterface::getGPSData() {
     // Quaternion Angles (need to change firmware to quaternion angles, euler angles can msg is misleading);
     double gps_quat_scale = pow(2, -7);
     gps_orientation.quaternion.set__x(
-      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_EULER_ANGLES, 0, 16, true, gps_quat_scale)
+      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 0, 16, true, gps_quat_scale)
     );
     gps_orientation.quaternion.set__y(
-      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_EULER_ANGLES, 16, 16, true, gps_quat_scale)
+      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 16, 16, true, gps_quat_scale)
     );
     gps_orientation.quaternion.set__w(
-      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_EULER_ANGLES, 32, 16, true, gps_quat_scale)
+      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 32, 16, true, gps_quat_scale)
     ); 
     gps_orientation.quaternion.set__z(
-      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_EULER_ANGLES, 48, 16, true, gps_quat_scale)
+      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 48, 16, true, gps_quat_scale)
     );
     
     geometry_msgs::msg::TwistStamped gps_velocity; 
@@ -240,7 +240,29 @@ void CarInterface::getGPSData() {
       dv_can_msg::GPS_VEL_XYZ, 32, 16, true, gps_vel_scale
     );
 
+    geometry_msgs::msg::Accel gps_accel; 
+    double gps_accel_scale = pow(2, -8); 
+    gps_accel.linear.x = (int16_t) can1_->getSignalBE(
+      dv_can_msg::GPS_ACCELERATION, 0, 16, true, gps_accel_scale
+    ); 
+    gps_accel.linear.y = (int16_t) can1_->getSignalBE(
+      dv_can_msg::GPS_ACCELERATION, 16, 16, true, gps_accel_scale
+    );
+    gps_accel.linear.z = (int16_t) can1_->getSignalBE( 
+      dv_can_msg::GPS_ACCELERATION, 32, 16, true, gps_accel_scale
+    );
 
+  } catch (int e) {
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occurred, error #%d", 
+      function_name.c_str(), e);
+  }
+}
+
+void CarInterface::getTorque() {
+  const std::string function_name{"getTorque"};
+
+  try {
+    
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occurred, error #%d", 
       function_name.c_str(), e);
@@ -257,6 +279,7 @@ void CarInterface::getSensorCan() {
     getServiceBrakeData();
     getWheelspeedSensorData();
     getIMUData();
+    getGPSData();
 
     sensor_can_.header.stamp = this->get_clock()->now();
     sensor_can_publisher_->publish(sensor_can_);

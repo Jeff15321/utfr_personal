@@ -176,6 +176,11 @@ private:
   void getGPSData();
 
   /**
+   * @brief Get the GPS data (big endian format). 
+   */
+  void getTorque();
+
+  /**
    * @brief Get the sensor CAN data.
    */
   void getSensorCan();
@@ -301,6 +306,8 @@ private:
   double prev_wheelspeed_fr_ = 0;
   double prev_wheelspeed_rl_ = 0;
   double prev_wheelspeed_rr_ = 0;
+
+  double commanded_torque = 0;
 };
 
 } // namespace car_interface
