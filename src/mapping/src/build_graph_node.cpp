@@ -252,7 +252,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       double displacement = utfr_dv::util::euclidianDistance2D(
           position_x_, nearestCone.x, position_y_, nearestCone.y);
 
-      // Do not add if its within 0.5 of an already seen cone
+      // Do not add if its within 1 of an already seen cone
       if (displacement <= 1) {
         // Add the ID to the list
         cones_id_list_.push_back(nearestCone.id);
@@ -319,7 +319,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       if (temp_displacement_ <= 1 && colour == std::get<2>(potentialPoint)) {
         count_ += 1;
         keys.push_back(key_);
-        // Check if three of same detected
+        // Check if 100 of same detected
         true_coordinate_x += std::get<0>(potentialPoint);
         true_coordinate_y += std::get<1>(potentialPoint);
         if (count_ == 100) {
