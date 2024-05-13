@@ -51,7 +51,8 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::StrMotorStatus, 0x0000290F},
     {(uint8_t)dv_can_msg::GPS_ERROR_CODE, 0x001}, 
     {(uint8_t)dv_can_msg::GPS_SAMPLE_TIME, 0x010}, // sample time vs UTC time? check ros driver
-    {(uint8_t)dv_can_msg::GPS_ORIENTATION, 0x019},
+    {(uint8_t)dv_can_msg::GPS_RPY, 0x019},
+    {(uint8_t)dv_can_msg::GPS_ORIENTATION, 0x023},
     {(uint8_t)dv_can_msg::GPS_LAT_LONG, 0x071},
     {(uint8_t)dv_can_msg::GPS_ALT_ELLIP, 0x072},
     {(uint8_t)dv_can_msg::GPS_VEL_XYZ, 0x076},     

@@ -70,17 +70,18 @@ enum dv_can_msg {
   // GPS Messages
   GPS_ERROR_CODE = 20, 
   GPS_SAMPLE_TIME = 21, 
-  GPS_ORIENTATION = 22, // check if signals can be embedded 
-  GPS_RATE_OF_TURN = 23, 
-  GPS_ACCELERATION = 24, 
-  GPS_LAT_LONG = 25, 
-  GPS_ALT_ELLIP = 26, 
-  GPS_VEL_XYZ = 27, 
+  GPS_RPY = 22,
+  GPS_ORIENTATION = 23, // check if signals can be embedded 
+  GPS_RATE_OF_TURN = 24, 
+  GPS_ACCELERATION = 25, 
+  GPS_LAT_LONG = 26, 
+  GPS_ALT_ELLIP = 27, 
+  GPS_VEL_XYZ = 28, 
 
-  COMMANDED_TORQUE = 28, 
-  ACTUAL_TORQUE = 29,
+  COMMANDED_TORQUE = 29, 
+  ACTUAL_TORQUE = 30,
 
-  COUNT = 30
+  COUNT = 31
 };
 
 typedef struct CAN_message_t {

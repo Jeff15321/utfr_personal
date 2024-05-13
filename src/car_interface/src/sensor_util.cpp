@@ -193,6 +193,10 @@ void CarInterface::getGPSData() {
   const std::string function_name{"getGPSData"};
 
   try {
+    std_msgs::msg::Header gps_header; 
+    gps_header.stamp.sec = 
+      (int32_t) can1_->getSignalBE(dv_can_msg::GPS_SAMPLE_TIME, 0, 32, false, 1);
+
     std_msgs::msg::Bool gps_error; 
     gps_error.set__data(
       (bool) can1_->getSignalBE(
@@ -212,12 +216,17 @@ void CarInterface::getGPSData() {
       dv_can_msg::GPS_ALT_ELLIP, 0, 32, false, pow(2, -15)
     ); 
 
-    // Euler Angles ROS msg: Vector3Stamped
     // stamped = time stamped all msgs need time stamp 
+    geometry_msgs::msg::Vector3Stamped gps_rpy; 
+    gps_rpy.header = gps_header;
+    double gps_rpy_scale = pow(2, -7); 
+    gps_rpy.vector.x = (int16_t) can1_->getSignalBE(dv_can_msg::GPS_RPY, 0, 16, true, gps_rpy_scale); 
+    gps_rpy.vector.y = (int16_t) can1_->getSignalBE(dv_can_msg::GPS_RPY, 16, 16, true, gps_rpy_scale); 
+    gps_rpy.vector.z = (int16_t) can1_->getSignalBE(dv_can_msg::GPS_RPY, 32, 16, true, gps_rpy_scale);
 
-    geometry_msgs::msg::QuaternionStamped gps_orientation; 
-    // Quaternion Angles (need to change firmware to quaternion angles, euler angles can msg is misleading);
-    double gps_quat_scale = pow(2, -7);
+    geometry_msgs::msg::QuaternionStamped gps_orientation;
+    gps_orientation.header = gps_header; 
+    double gps_quat_scale = pow((pow(2, 15) - 1), -1);
     gps_orientation.quaternion.x = 
       (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 0, 16, true, gps_quat_scale);
     gps_orientation.quaternion.y =
@@ -228,6 +237,7 @@ void CarInterface::getGPSData() {
       (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 48, 16, true, gps_quat_scale);
     
     geometry_msgs::msg::TwistStamped gps_velocity; 
+    gps_velocity.header = gps_header; 
     double gps_vel_scale = pow(2, -6); 
     gps_velocity.twist.linear.x = (int16_t) can1_->getSignalBE(
       dv_can_msg::GPS_VEL_XYZ, 0, 16, true, gps_vel_scale
