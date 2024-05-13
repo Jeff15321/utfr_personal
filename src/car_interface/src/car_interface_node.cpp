@@ -213,6 +213,8 @@ void CarInterface::setDVLogs() {
                              << (8 * (i++));
     dv_driving_dynamics_1 |= system_status_.brake_hydr_actual << (8 * (i++));
     dv_driving_dynamics_1 |= system_status_.brake_hydr_target << (8 * (i++));
+
+    // Torques
     dv_driving_dynamics_1 |= system_status_.motor_moment_actual << (8 * (i++));
     dv_driving_dynamics_1 |= system_status_.motor_moment_target << (8 * (i++));
 
@@ -347,6 +349,14 @@ void CarInterface::setDVStateAndCommand() {
           dv_can_msg::SetSTRMotorPos,
           ((long)steering_cmd_)
               << 32); // can use different mode to command speed/accel
+
+      // need a throttle command (speed mode) 
+      // parse into msg 
+      // commanded speed 
+      // message to inverter 
+
+      // can 1 write can to primary bus 
+      // use actual function for write_can NEED SET SIGNAL FUNCTION
     }
     // Need to always send dv command so RC always knows DVPC status
     can1_->write_can(dv_can_msg::DV_COMMAND, dv_command);

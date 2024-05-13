@@ -195,6 +195,24 @@ public:
    */
   float getSignalBE(dv_can_msg msgName, uint8_t startBit, uint8_t sigLength, bool sign, float scale);
 
+  /*! Set CAN signals and messages to BUS using little endian.
+    *
+    * @param canfd_frame address of frame used to set data and CAN ID. 
+    * @param msgName DV CAN message name. 
+    * @param startBit little Endian format. 
+    * @param sigLength number of bits. 
+    * @param scale amount the data has been scaled by.
+    * @param data data (e.g. an angle) that has undergone scaling.
+    * @return data received by the DV computer.
+  */
+  void setSignal(canfd_frame *to_send, dv_can_msg msgName, uint8_t startBit, uint8_t sigLength, float scale, double data);
+
+  /*! Send CAN messages over the CAN bus.
+   *
+   *  @brief message is sent over CAN bus in little endian format. 
+   */
+  void sendSignal(canfd_frame to_write);
+
   // private:
   sockaddr_can addr;
   ifreq ifr;

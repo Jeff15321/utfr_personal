@@ -212,21 +212,20 @@ void CarInterface::getGPSData() {
       dv_can_msg::GPS_ALT_ELLIP, 0, 32, false, pow(2, -15)
     ); 
 
+    // Euler Angles ROS msg: Vector3Stamped
+    // stamped = time stamped all msgs need time stamp 
+
     geometry_msgs::msg::QuaternionStamped gps_orientation; 
     // Quaternion Angles (need to change firmware to quaternion angles, euler angles can msg is misleading);
     double gps_quat_scale = pow(2, -7);
-    gps_orientation.quaternion.set__x(
-      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 0, 16, true, gps_quat_scale)
-    );
-    gps_orientation.quaternion.set__y(
-      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 16, 16, true, gps_quat_scale)
-    );
-    gps_orientation.quaternion.set__w(
-      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 32, 16, true, gps_quat_scale)
-    ); 
-    gps_orientation.quaternion.set__z(
-      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 48, 16, true, gps_quat_scale)
-    );
+    gps_orientation.quaternion.x = 
+      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 0, 16, true, gps_quat_scale);
+    gps_orientation.quaternion.y =
+      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 16, 16, true, gps_quat_scale);
+    gps_orientation.quaternion.w = 
+      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 32, 16, true, gps_quat_scale); 
+    gps_orientation.quaternion.z =
+      (int16_t) can1_->getSignalBE(dv_can_msg::GPS_ORIENTATION, 48, 16, true, gps_quat_scale);
     
     geometry_msgs::msg::TwistStamped gps_velocity; 
     double gps_vel_scale = pow(2, -6); 
@@ -262,7 +261,14 @@ void CarInterface::getTorque() {
   const std::string function_name{"getTorque"};
 
   try {
-    
+    // ROS message uint
+    // get torque inverter -> dv computer 
+    // system status msgs <- check 
+    system_status_.motor_moment_actual = (int16_t) can1_->getSignal(
+      dv_can_msg::ACTUAL_TORQUE, 16, 16, false, 1
+    );
+    // check speed mode torque commanded docs
+
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occurred, error #%d", 
       function_name.c_str(), e);
