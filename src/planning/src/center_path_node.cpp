@@ -39,6 +39,10 @@ void CenterPathNode::initParams() {
   this->declare_parameter("small_radius", 7.625);
   this->declare_parameter("threshold_radius", 0.8);
   this->declare_parameter("threshold_cones", 3);
+  this->declare_parameter("global_path", 0);
+  this->declare_parameter("max_velocity", 5.0);
+  this->declare_parameter("lookahead_scaling_factor", 0.6);
+  this->declare_parameter("base_lookahead_distance", 3.0);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   event_ = this->get_parameter("event").as_string();
@@ -46,6 +50,16 @@ void CenterPathNode::initParams() {
   big_radius_ = this->get_parameter("big_radius").as_double();
   threshold_radius_ = this->get_parameter("threshold_radius").as_double();
   threshold_cones_ = this->get_parameter("threshold_cones").as_int();
+  max_velocity_ = this->get_parameter("max_velocity").as_double();
+
+  waypoints = this->getWaypoints("src/planning/global_waypoints/Waypoints.csv");
+  global_path_ = this->get_parameter("global_path").as_int();
+  lookahead_scaling_factor_ =
+      this->get_parameter("lookahead_scaling_factor").as_double();
+  base_lookahead_distance_ =
+      this->get_parameter("base_lookahead_distance").as_double();
+
+  RCLCPP_INFO(this->get_logger(), "Event: %s", event_.c_str());
 }
 
 void CenterPathNode::initSubscribers() {
@@ -59,6 +73,11 @@ void CenterPathNode::initSubscribers() {
       this->create_subscription<utfr_msgs::msg::ConeDetections>(
           topics::kConeDetections, 10,
           std::bind(&CenterPathNode::coneDetectionsCB, this, _1));
+
+  cone_map_closure_subscriber_ =
+      this->create_subscription<std_msgs::msg::Bool>(
+          topics::kLoopClosed, 10,
+          std::bind(&CenterPathNode::coneMapClosureCB, this, _1));
 }
 
 void CenterPathNode::initPublishers() {
@@ -66,6 +85,10 @@ void CenterPathNode::initPublishers() {
       this->create_publisher<utfr_msgs::msg::ParametricSpline>(
           topics::kCenterPath, 10);
 
+  center_point_publisher_ =
+      this->create_publisher<geometry_msgs::msg::Pose>(
+          topics::kSkidpadCenterPoint, 10);
+  
   accel_path_publisher_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kAccelPath, 10);
@@ -214,9 +237,26 @@ void CenterPathNode::egoStateCB(const utfr_msgs::msg::EgoState &msg) {
     ego_state_->pose.pose.position.x = 0.0;
     ego_state_->pose.pose.position.y = 0.0;
     ego_state_->pose.pose.position.z = 0.0;
+    ego_state_->pose.pose.orientation = util::yawToQuaternion(0.0);
     ego_state_->vel = msg.vel;
     ego_state_->accel = msg.accel;
     ego_state_->steering_angle = msg.steering_angle;
+  }
+
+  if(event_ == "skidpad"){
+    // add points to the visited array for global skidpad path finding
+    double curX = ego_state_->pose.pose.position.x;
+    double curY = ego_state_->pose.pose.position.y;
+    double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
+    if(visited.empty()){
+      visited.push_back({curX,curY,yaw});
+    }
+    else{
+      auto [lastX,lastY,_] = visited.back();
+      if(util::euclidianDistance2D(lastX, curX, lastY, curY) >= 5){
+        visited.push_back({curX,curY,yaw});
+      }
+    }
   }
 }
 
@@ -226,12 +266,18 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     utfr_msgs::msg::ConeMap template_cone_map;
     cone_map_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
   }
+  if (cone_map_raw_ == nullptr) {
+    // first initialization:
+    utfr_msgs::msg::ConeMap template_cone_map;
+    cone_map_raw_ = std::make_shared<utfr_msgs::msg::ConeMap>(template_cone_map);
+  }
   if (use_mapping_ && (event_ == "autocross" || event_ == "trackdrive")) {
     cone_map_->header = msg.header;
     cone_map_->left_cones = msg.left_cones;
     cone_map_->right_cones = msg.right_cones;
     cone_map_->large_orange_cones = msg.large_orange_cones;
     cone_map_->small_orange_cones = msg.small_orange_cones;
+    (*cone_map_raw_) = msg;
   }
   else if (use_mapping_ && (event_ == "skidpad" || event_ == "accel")){
     cone_map_->header = msg.header;
@@ -239,6 +285,11 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     cone_map_->right_cones = getConesInHemisphere(msg.right_cones, 15.0);
     cone_map_->large_orange_cones = getConesInHemisphere(msg.large_orange_cones, 15.0);
     cone_map_->small_orange_cones = getConesInHemisphere(msg.small_orange_cones, 15.0);
+    (*cone_map_raw_) = msg;
+    if(event_ == "skidpad"){
+      this->createTransform(); // generate transform for global path
+      // this->GlobalWaypoints(); // visualize the transformed points in map view
+    }
   }
 }
 
@@ -270,6 +321,11 @@ void CenterPathNode::coneDetectionsCB(
     cone_map_->large_orange_cones = cone_detections_->large_orange_cones;
     cone_map_->small_orange_cones = cone_detections_->small_orange_cones;
   }
+}
+
+void CenterPathNode::coneMapClosureCB(const std_msgs::msg::Bool &msg) {
+  // RCLCPP_WARN(this->get_logger(), "Cone Map Closure Callback");
+  loop_closed_ = msg.data;
 }
 
 void CenterPathNode::timerCBAccel() {
@@ -330,9 +386,19 @@ void CenterPathNode::timerCBSkidpad() {
                   function_name.c_str());
       return;
     }
-    skidPadFit();
+    if(global_path_ && skidpadTransform_ != nullptr){
+      RCLCPP_INFO(this->get_logger(), "USING GLOBAL PATH");
+      this->nextWaypoint();
+    }
+    else{
+      RCLCPP_INFO(this->get_logger(), "USING LOCAL PATH");
+      if (cone_map_ == nullptr) {
+        RCLCPP_WARN(get_logger(), "%s Cone Map is empty", function_name.c_str());
+        return;
+      }
+      skidPadFit();
+    }
     skidpadLapCounter();
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
     publishLapTime();
   } catch (int e) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ERROR);
@@ -347,6 +413,10 @@ void CenterPathNode::timerCBAutocross() {
         ego_state_ == nullptr) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+    if (cone_map_ == nullptr) {
+      RCLCPP_WARN(get_logger(), "%s Cone Map is empty", function_name.c_str());
       return;
     }
 
@@ -408,6 +478,10 @@ void CenterPathNode::timerCBTrackdrive() {
     if (!cone_detections_ || cone_map_ == nullptr || ego_state_ == nullptr) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
+      return;
+    }
+    if (cone_map_ == nullptr) {
+      RCLCPP_WARN(get_logger(), "%s Cone Map is empty", function_name.c_str());
       return;
     }
 
@@ -508,6 +582,12 @@ bool CenterPathNode::coneDistComparitor(const utfr_msgs::msg::Cone &a,
 
 std::vector<double> CenterPathNode::getAccelPath() {
   std::vector<utfr_msgs::msg::Cone> all_cones;
+
+  if (cone_map_ == nullptr) {
+    RCLCPP_WARN(this->get_logger(), "Cone Map is empty");
+    return std::vector<double>();
+  }
+  
   if (curr_sector_ < 5) {
     all_cones.insert(all_cones.end(), cone_map_->left_cones.begin(),
                     cone_map_->left_cones.end());
@@ -584,10 +664,11 @@ std::vector<double> CenterPathNode::getAccelPath() {
       }
     }
   }
+
   bool found_2 = false;
   for (int i = 0; i < static_cast<int>(all_cones.size()) - 1; i++) {
     for (int j = i + 1; j < static_cast<int>(all_cones.size()); j++) {
-      if (i != j && i != ind_1 && j != ind_1 && i != ind_2 && j != ind_2) {
+      if (i != j && found_1 && i != ind_1 && j != ind_1 && i != ind_2 && j != ind_2) {
         utfr_msgs::msg::ConeMap test_cones;
         utfr_msgs::msg::Cone test_cone;
         test_cone.type = utfr_msgs::msg::Cone::UNKNOWN;
@@ -1209,24 +1290,115 @@ void CenterPathNode::skidpadLapCounter() {
   case 13:
   case 14:
   case 15:
-    if (time_diff > 10.0 && !lock_sector_ && found_4_large_orange &&
-        large_orange_cones_size < 4 && average_distance_to_cones < 5.0) {
-      last_time = curr_time;
-      curr_sector_ += 1;
-      lock_sector_ = true;
+    if (time_diff > 5.0 && !lock_sector_) {
+      if (loop_closed_) {
+        if (checkPassedDatum(getSkidpadDatum(*cone_map_raw_), *ego_state_)) {
+          last_time = curr_time;
+          curr_sector_ += 1;
+          lock_sector_ = true;
+          RCLCPP_INFO(this->get_logger(), "Lap incremented: Global trigger");
+        }
+      } else {
+        if (found_4_large_orange &&
+            large_orange_cones_size < 4 && 
+            average_distance_to_cones < 5.0) {
+          last_time = curr_time;
+          curr_sector_ += 1;
+          lock_sector_ = true;
+          RCLCPP_INFO(this->get_logger(), "Lap incremented: Local trigger");
+        }
+      }
     }
-
+    
     if (found_4_large_orange && lock_sector_ && large_orange_cones_size == 0 &&
         time_diff > 5.0) {
       lock_sector_ = false;
       found_4_large_orange = false;
     }
+    // if (loop_closed_ && checkPassedDatum(getSkidpadDatum(*cone_map_raw_), *ego_state_)) {
+    //   RCLCPP_WARN(this->get_logger(), "Global lap incremented");
+    // }
     break;
   case 16:
     if (left_size == 0 && right_size == 0) {
       curr_sector_ += 1;
     }
   }
+}
+
+bool CenterPathNode::checkPassedDatum(const utfr_msgs::msg::EgoState reference,
+                      const utfr_msgs::msg::EgoState &current) {
+  double ref_x = reference.pose.pose.position.x;
+  double ref_y = reference.pose.pose.position.y;
+  double ref_yaw = util::quaternionToYaw(reference.pose.pose.orientation);
+
+  double cur_x = current.pose.pose.position.x + 2.0; // offset forward to represent nose of car
+  double cur_y = current.pose.pose.position.y;
+  double cur_yaw = util::quaternionToYaw(current.pose.pose.orientation);
+
+  //for testing
+  ref_yaw = cur_yaw;
+
+  double dx = ref_x - cur_x;
+  double dy = ref_y - cur_y;
+
+  double tdist = sqrt(dx * dx + dy * dy);
+
+  double dx_local = dx * cos(-ref_yaw) - dy * sin(-ref_yaw);
+
+  if (abs(ref_yaw - cur_yaw) < 3.1415 / 2 && tdist < 3.0 && dx_local < 0.0 && datum_last_local_x_ >= 0.0) {
+    //if alignment within 90 deg, distance less than 3m
+    datum_last_local_x_ = dx_local;
+    return true;
+  }
+  datum_last_local_x_ = dx_local;
+  return false;
+
+}
+
+utfr_msgs::msg::EgoState CenterPathNode::getSkidpadDatum(const utfr_msgs::msg::ConeMap &cone_map) {
+  utfr_msgs::msg::EgoState datum;
+
+  if (cone_map.large_orange_cones.size() == 3) {
+    double x = 0.0;
+    double y = 0.0;
+    //do x
+    double baseX = cone_map.large_orange_cones[0].pos.x;
+    for (int i = 0; i < 2; i++) {
+      if (abs(baseX - cone_map.large_orange_cones[i].pos.x) > 0.5) {
+        x += cone_map.large_orange_cones[i].pos.x;
+        break;
+      }
+    }
+    x = x / 2.0;
+    //do y
+    for (utfr_msgs::msg::Cone cone : cone_map.large_orange_cones) {
+      y += cone.pos.y;
+    }
+    y = y / 3.0;
+
+    datum.pose.pose.position.x = x;
+    datum.pose.pose.position.y = y;
+    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
+  } else if (cone_map.large_orange_cones.size() >= 4) {
+    double x = 0.0;
+    double y = 0.0;
+    for (utfr_msgs::msg::Cone cone : cone_map.large_orange_cones) {
+      x += cone.pos.x;
+      y += cone.pos.y;
+    }
+    datum.pose.pose.position.x = x / cone_map.large_orange_cones.size();
+    datum.pose.pose.position.y = y / cone_map.large_orange_cones.size();
+    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
+  } else {
+    datum.pose.pose.position.x = -100.0;
+    datum.pose.pose.position.y = -100.0;
+    datum.pose.pose.position.z = -100.0;
+    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
+  }
+
+  return datum;
+
 }
 
 void CenterPathNode::trackdriveLapCounter() {
@@ -1891,6 +2063,355 @@ std::vector<utfr_msgs::msg::Cone> CenterPathNode::getConesInHemisphere(std::vect
     }
   }
   return cones_in_hemisphere;
+}
+
+void CenterPathNode::nextWaypoint(){
+  unsigned int i = 0;
+  unsigned int j = 0;
+  
+  double carX = ego_state_->pose.pose.position.x;
+  double carY = ego_state_->pose.pose.position.y;
+  double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
+
+  visited.push_back({carX,carY,yaw});
+  while(i < waypoints.size() && j < visited.size()){
+    auto[pointX, pointY] = this->transformWaypoint(waypoints[i]);
+    auto [carX,carY,yaw] = visited[j];
+    double localY = (cos(yaw) * (pointY-carY)) - (sin(yaw) * (pointX-carX));
+    double localX = (sin(yaw) * (pointY-carY)) + (cos(yaw) * (pointX-carX));
+    double angle = util::wrapDeg(util::radToDeg(atan2(localY, localX)));
+    if(angle >= 90 && angle <= 270){
+      i++;
+    }
+    else{
+      j++;
+    }
+  }
+  visited.pop_back();
+
+  double vx = ego_state_->vel.twist.linear.x, vy = ego_state_->vel.twist.linear.y;
+  double current_velocity = sqrt(vx * vx + vy * vy);
+  double lookahead_distance = base_lookahead_distance_ + lookahead_scaling_factor_ * current_velocity;
+  while(i < waypoints.size()){
+    auto [x,y] = this->transformWaypoint(waypoints[i]);
+    double localX = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
+    double localY = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
+    double dx = localX + 0.79;
+    double dy = localY;
+    double dist = sqrt(dx * dx + dy * dy);
+    if(dist >= lookahead_distance) break;
+    i++;
+  }
+
+  if(i == waypoints.size()){
+    RCLCPP_INFO(this->get_logger(), "NO GLOBAL PATH FOUND, USING LOCAL PATH");
+    skidPadFit();
+    return;
+  }
+
+  geometry_msgs::msg::Pose point;
+  auto [x,y] = this->transformWaypoint(waypoints[i]);
+  point.position.x = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
+  point.position.y = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
+  center_point_publisher_->publish(point);
+  // static std::ofstream out("Waypoints.txt");
+  // out << "(" << x << "," << y << ")" << std::endl;
+}
+
+void CenterPathNode::GlobalWaypoints(){
+  if(skidpadTransform_ == nullptr) return;
+
+  using geometry_msgs::msg::PolygonStamped;
+  static rclcpp::Publisher<PolygonStamped>::SharedPtr waypoints_pub =
+    this->create_publisher<PolygonStamped>("Waypoints", 1);
+
+  PolygonStamped points_stamped;
+  points_stamped.header.frame_id = "map";
+  points_stamped.header.stamp = this->get_clock()->now();
+
+  for(auto &p : waypoints) {
+    auto [x,y] = this->transformWaypoint(p);
+    geometry_msgs::msg::Point32 point;
+    point.x = x;
+    point.y = -y;
+    point.z = 0;
+    points_stamped.polygon.points.push_back(point);
+  }
+  waypoints_pub->publish(points_stamped);
+
+
+  double carX = ego_state_->pose.pose.position.x;
+  double carY = ego_state_->pose.pose.position.y;
+  double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
+  points_stamped.header.frame_id = "base_footprint";
+  points_stamped.header.stamp = this->get_clock()->now();
+  points_stamped.polygon.points.clear();
+
+  for(auto &p : waypoints) {
+    auto [x,y] = this->transformWaypoint(p);
+    geometry_msgs::msg::Point32 point;
+    double localX = (sin(yaw) * (y-carY)) + (cos(yaw) * (x-carX));
+    double localY = (cos(yaw) * (y-carY)) - (sin(yaw) * (x-carX));
+    point.x = localX;
+    point.y = -localY;
+    point.z = 0;
+    points_stamped.polygon.points.push_back(point);
+  }
+  waypoints_pub->publish(points_stamped);
+}
+
+std::vector<std::pair<double,double>> CenterPathNode::getWaypoints(std::string path){
+  std::ifstream in(path);
+  std::vector<std::pair<double,double>> v;
+  while(!in.eof()){
+    double x,y;
+    in >> x >> y;
+    v.push_back({x,y});
+  }
+  return v;
+}
+
+void CenterPathNode::createTransform(){
+  double xLeft1,yLeft1;
+  std::ifstream("src/planning/global_waypoints/LeftCentre.csv") >> xLeft1 >> yLeft1;
+  double xRight1, yRight1;
+  std::ifstream("src/planning/global_waypoints/RightCentre.csv") >> xRight1 >> yRight1;
+
+  auto [xLeft2,yLeft2,xRight2,yRight2] = this->getCentres();
+  // static std::ofstream out("Centres.txt");
+  // out << "(" << xLeft2 << "," << yLeft2 << "), (" << xRight2 << "," << yRight2 << ")" << std::endl;
+  if(isnan(xLeft2) || isnan(xLeft2) || isnan(xRight2) || isnan(yRight2)){
+    skidpadTransform_ = nullptr;
+    return;
+  } 
+
+  auto getIntersect = [&](double x0, double y0, double x1, double y1, int sign){
+    double d = util::euclidianDistance2D(x0, x1, y0, y1);
+    double a = d/2;
+    double h = sqrt((15.25/2+3)*(15.25/2+3)-a*a);
+    double xt = x0+a*(x1-x0)/d;
+    double yt = y0+a*(y1-y0)/d;
+    double x = xt+h*(y1-y0)/d;
+    double y = yt-h*(x1-x0)/d;
+    // return the coordinates that give the same signed cross product
+    double cross = (x1-x) * (y0-y) - (x0-x) * (y1-y);
+    if(cross * sign < 0){
+      x = xt-h*(y1-y0)/d;
+      y = yt+h*(x1-x0)/d;
+    }
+    return std::make_pair(x, y);
+  };
+
+  auto [xInter1, yInter1] = getIntersect(xLeft1, yLeft1, xRight1, yRight1, 1);
+  auto [xInter2, yInter2] = getIntersect(xLeft2, yLeft2, xRight2, yRight2, -1);
+  MatrixXd X(3,3); // a b tx
+  X << xLeft1, yLeft1, 1,
+       xRight1, yRight1, 1,
+       xInter1, yInter1, 1;
+  VectorXd Xb(3);
+  Xb << xLeft2, xRight2, xInter2;
+  VectorXd Xres = X.fullPivLu().solve(Xb);
+  MatrixXd Y(3,3); // c d ty
+  Y << xLeft1, yLeft1, 1,
+       xRight1, yRight1, 1,
+       xInter1, yInter1, 1;
+  VectorXd Yb(3);
+  Yb << yLeft2, yRight2, yInter2;
+  VectorXd Yres = Y.fullPivLu().solve(Yb);
+  MatrixXd T(3,3);
+  T << Xres(0), Xres(1), Xres(2), Yres(0), Yres(1), Yres(2), 0, 0, 1;
+
+  skidpadTransform_ = std::make_unique<MatrixXd>(T);
+}
+
+std::pair<double,double> CenterPathNode::transformWaypoint(const std::pair<double,double> &point){
+  auto [x,y] = point;
+  VectorXd v(3);
+  v << x, y, 1;
+
+  VectorXd out = *skidpadTransform_ * v;
+  return {out(0), out(1)};
+}
+
+std::tuple<double,double,double,double> CenterPathNode::getCentres(){
+  std::vector<utfr_msgs::msg::Cone> &orange = cone_map_raw_->large_orange_cones;
+  if(orange.size() < 4){
+    return {NAN,NAN,NAN,NAN};
+  }
+  auto [xLeft,yLeft,xRight,yRight] = this->skidpadCircleCentres();
+  if(isnan(xLeft) || isnan(xRight) || isnan(yLeft) || isnan(yRight)){
+    return {NAN,NAN,NAN,NAN};
+  }
+  double xMid = (orange[0].pos.x+orange[1].pos.x+orange[2].pos.x+orange[3].pos.x)/4;
+  double yMid = (orange[0].pos.y+orange[1].pos.y+orange[2].pos.y+orange[3].pos.y)/4;
+  double rightDist = util::euclidianDistance2D(xRight, xMid, yRight, yMid);
+  double leftDist = util::euclidianDistance2D(xMid, xLeft, yMid, yLeft);
+  double totalDist = util::euclidianDistance2D(xRight, xLeft, yRight, yLeft);
+  if(abs(rightDist-centre_distance_) > 0.25){ // improper right centre
+    return {NAN,NAN,NAN,NAN};
+  }
+  // improper left centre, extrapolate it
+  if(abs(totalDist-2*centre_distance_) > 0.5 || abs(leftDist-centre_distance_) > 0.25){
+    xLeft = xMid*2-xRight;
+    yLeft = yMid*2-yRight;
+  }
+  return {xLeft, yLeft, xRight, yRight};
+}
+
+std::tuple<double,double,double,double> CenterPathNode::skidpadCircleCentres(){
+  using geometry_msgs::msg::PolygonStamped;
+  static rclcpp::Publisher<PolygonStamped>::SharedPtr small_blue_pub =
+    this->create_publisher<PolygonStamped>("SmallBlue", 1);
+  static rclcpp::Publisher<PolygonStamped>::SharedPtr small_yellow_pub =
+    this->create_publisher<PolygonStamped>("SmallYellow", 1);
+  static rclcpp::Publisher<PolygonStamped>::SharedPtr large_blue_pub = 
+    this->create_publisher<PolygonStamped>("LargeBlue", 1);
+  static rclcpp::Publisher<PolygonStamped>::SharedPtr large_yellow_pub = 
+    this->create_publisher<PolygonStamped>("LargeYellow", 1);
+  
+  std::vector<utfr_msgs::msg::Cone> &blue = cone_map_raw_->left_cones;
+  std::vector<utfr_msgs::msg::Cone> &yellow = cone_map_raw_->right_cones;
+
+  // auto print = [&](auto &out, auto &c){
+  //   auto [x,y,r,t] = c;
+  //   out << "(" << x << "," << y << "," << r << "," << t << ")" << std::endl;
+  // };
+
+  auto smallBlue = this->circleCentre(blue, small_radius_, small_circle_cones_/2);
+  // static std::ofstream a("SmallBlue.txt");
+  // print(a, smallBlue);
+  auto smallYellow = this->circleCentre(yellow, small_radius_, small_circle_cones_/2);
+  // static std::ofstream b("SmallYellow.txt");
+  // print(b, smallYellow);
+  auto largeBlue = this->circleCentre(blue, big_radius_, big_circle_cones_/2);
+  // static std::ofstream c("LargeBlue.txt");
+  // print(c, largeBlue);
+  auto largeYellow = this->circleCentre(yellow, big_radius_, big_circle_cones_/2);
+  // static std::ofstream d("LargeYellow.txt");
+  // print(d, largeYellow);
+  
+  auto drawCircle = [this](auto publisher, auto &cord, double radius){
+    auto [xc, yc, r, t] = cord;
+    PolygonStamped circle_stamped_global;
+    circle_stamped_global.header.frame_id = "map";
+    circle_stamped_global.header.stamp = this->get_clock()->now();
+    PolygonStamped circle_stamped_local;
+    circle_stamped_local.header.frame_id = "base_footprint";
+    circle_stamped_local.header.stamp = this->get_clock()->now();
+
+    double carX = ego_state_->pose.pose.position.x;
+    double carY = ego_state_->pose.pose.position.y;
+    double yaw = -util::quaternionToYaw(ego_state_->pose.pose.orientation);
+
+    for(int i = 0; i < 360; i++) {
+      geometry_msgs::msg::Point32 point;  
+      double angle = 2.0 * M_PI * i / 360;
+      point.x = xc + radius * cos(angle);
+      point.y = -yc + radius * sin(angle);
+      point.z = 0;
+      circle_stamped_global.polygon.points.push_back(point);
+
+      double localX = (sin(yaw) * (-point.y-carY)) + (cos(yaw) * (point.x-carX));
+      double localY = (cos(yaw) * (-point.y-carY)) - (sin(yaw) * (point.x-carX));
+      point.x = localX;
+      point.y = localY;
+      circle_stamped_local.polygon.points.push_back(point);
+    }
+    publisher->publish(circle_stamped_global);
+    publisher->publish(circle_stamped_local);
+  };
+
+  drawCircle(small_blue_pub, smallBlue, 0.1);
+  drawCircle(small_yellow_pub, smallYellow, 0.1);
+  drawCircle(large_blue_pub, largeBlue, 0.1);
+  drawCircle(large_yellow_pub, largeYellow, 0.1);
+  
+  auto getBetterCentre = [](auto &first, auto &second){
+    auto [x1,y1,r1,t1] = first;
+    auto [x2,y2,r2,t2] = second;
+    double x, y;
+    if(r1 < r2) x = x1, y = y1;
+    else if(r2 < r1) x = x2, y = y2;
+    else{
+      if(t1 < t2) x = x1, y = y1;
+      else x = x2, y = y2;
+    }
+    return std::make_pair(x,y);
+  };
+  auto [xLeft, yLeft] = getBetterCentre(smallBlue, largeYellow);
+  auto [xRight, yRight] = getBetterCentre(smallYellow, largeBlue);
+  return {xLeft,yLeft,xRight,yRight};
+}
+
+std::tuple<double,double,double,double> CenterPathNode::circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double target_radius, int inlier_count){
+  int n = cones.size();
+  if(n < inlier_count) return {NAN,NAN,DBL_MAX,DBL_MAX};
+  auto get_threshold = [&](double xc, double yc, double radius){
+    // get the distances from the circle's centre
+    std::vector<double> distances(n);
+    for(int i = 0; i < n; i++){
+      auto &pos = cones[i].pos;
+      distances[i] = util::euclidianDistance2D(pos.x, xc, pos.y, yc); 
+    }
+    // sort the distances by closeness to the radius
+    auto cmp = [&](double a, double b){
+      return abs(a-radius) < abs(b-radius);
+    };
+    sort(distances.begin(), distances.end(), cmp);
+    // find the threshold that contains inlier_count points
+    double threshold;
+    if(n < inlier_count) threshold = abs(radius-distances[n-1]);
+    else threshold = abs(radius-distances[inlier_count-1]);
+    return threshold;
+  };
+
+  auto circle = [](std::vector<utfr_msgs::msg::Cone> &cones){
+    MatrixXd A(2,2); // A -> [X Y]
+    VectorXd B(2);
+    auto x = [&](int i){return cones[i].pos.x;};
+    auto y = [&](int i){return cones[i].pos.y;};
+    // Solve 3 circle equations (x-a)^2 + (y-b)^2 = r^2
+    // equation 1 - equation 2
+    A(0,0) = 2*(x(0)-x(1));
+    A(0,1) = 2*(y(0)-y(1));
+    B(0) = (x(0)*x(0) + y(0)*y(0)) - (x(1)*x(1) + y(1)*y(1));
+    // equation 1 - equation 3
+    A(1,0) = 2*(x(0)-x(2));
+    A(1,1) = 2*(y(0)-y(2));
+    B(1) = (x(0)*x(0) + y(0)*y(0)) - (x(2)*x(2) + y(2)*y(2));
+    // Solve for X & Y
+    VectorXd ans = A.fullPivLu().solve(B);
+    double xc = ans(0), yc = ans(1);
+    double r = sqrt(pow(x(0)-xc, 2) + pow(y(0)-yc, 2));
+    return std::make_tuple(xc, yc, r);
+  };
+
+  // find the circle with the lowest threshold
+  double best_x = NAN, best_y = NAN, best_radius = DBL_MAX, best_threshold = DBL_MAX; 
+  std::vector<utfr_msgs::msg::Cone> ransacCones(3);
+  for(int i = 0; i < n; i++){
+    ransacCones[0] = cones[i];
+    for(int j = i+1; j < n; j++){
+      ransacCones[1] = cones[j];
+      for(int k = j+1; k < n; k++){
+        ransacCones[2] = cones[k];
+        auto [xc,yc,radius] = circle(ransacCones);
+        double threshold = get_threshold(xc, yc, target_radius);
+        if(threshold < best_threshold){
+          best_threshold = threshold;
+          best_x = xc;
+          best_y = yc;
+          best_radius = abs(radius-target_radius);
+        }
+        else if(threshold == best_threshold && radius < best_radius){
+          best_x = xc;
+          best_y = yc;
+          best_radius = abs(radius-target_radius);
+        }
+      }
+    }
+  }
+  return {best_x, best_y, best_radius, best_threshold};
 }
 
 } // namespace center_path
