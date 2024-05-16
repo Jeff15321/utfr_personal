@@ -390,6 +390,7 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       skidpad_path_publisher_avg_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr delauny_midpoint_path_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       delaunay_path_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
