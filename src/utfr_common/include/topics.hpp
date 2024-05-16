@@ -64,6 +64,7 @@ const std::string kSkidpadFitting{"planning/skidpad_fitting"};
 const std::string kSkidpadFitting2{"planning/skidpad_fitting_2"};
 const std::string kSkidpadFittingavg{"planning/skidpad_fitting_avg"};
 const std::string kLapTime{"planning/lap_time"};
+const std::string kLapDatum{"planning/lap_start_datum"};
 const std::string kSkidpadCenterPoint{"planning/skidpad_center_point"};
 
 // Controls
