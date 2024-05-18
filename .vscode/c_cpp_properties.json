@@ -3,9 +3,26 @@
         {
             "browse": {
                 "databaseFilename": "${default}",
-                "limitSymbolsToIncludedHeaders": true
+                "limitSymbolsToIncludedHeaders": false
             },
             "includePath": [
+                "/home/yubo/dv24/install/velodyne_pointcloud/include/**",
+                "/home/yubo/dv24/install/velodyne_driver/include/**",
+                "/home/yubo/dv24/install/velodyne_msgs/include/**",
+                "/home/yubo/dv24/install/velodyne_laserscan/include/**",
+                "/home/yubo/dv24/install/utfr_sim_bridge/include/**",
+                "/home/yubo/dv24/install/planning/include/**",
+                "/home/yubo/dv24/install/perception/include/**",
+                "/home/yubo/dv24/install/mapping/include/**",
+                "/home/yubo/dv24/install/example/include/**",
+                "/home/yubo/dv24/install/controls/include/**",
+                "/home/yubo/dv24/install/car_interface/include/**",
+                "/home/yubo/dv24/install/utfr_common/include/**",
+                "/home/yubo/dv24/install/utfr_msgs/include/**",
+                "/home/yubo/dv24/install/ros2_ouster/include/**",
+                "/home/yubo/dv24/install/ouster_msgs/include/**",
+                "/home/yubo/dv24/install/eufs_models/include/**",
+                "/home/yubo/dv24/install/eufs_msgs/include/**",
                 "/opt/ros/humble/include/**",
                 "/usr/include/**",
                 "/home/${USER}/dv24/src/car_interface/include/**",
@@ -34,13 +51,14 @@
                 "/home/${USER}/dv24/install/ros2_ouster/include/**",
                 "/home/${USER}/dv24/install/ouster_msgs/include/**",
                 "/home/${USER}/dv24/install/eufs_models/include/**",
-                "/home/${USER}/dv24/install/eufs_msgs/include/**"
+                "/home/${USER}/dv24/install/eufs_msgs/include/**",
+                "${workspaceFolder}/src/mapping/external/g2o"
             ],
             "name": "ROS",
-            "intelliSenseMode": "linux-gcc-x64",
+            "intelliSenseMode": "gcc-x64",
             "compilerPath": "/usr/bin/gcc",
-            "cStandard": "c11",
-            "cppStandard": "c++17"
+            "cStandard": "gnu11",
+            "cppStandard": "c++14"
         }
     ],
     "version": 4

@@ -24,12 +24,12 @@ def generate_launch_description():
         )
     )
 
-    controls_dir = get_package_share_directory("controls")
-    controls_launch = IncludeLaunchDescription(
-        launch_description_sources.PythonLaunchDescriptionSource(
-            controls_dir + "/launch/controls.launch.py"
-        )
-    )
+    # controls_dir = get_package_share_directory("controls")
+    # controls_launch = IncludeLaunchDescription(
+    #     launch_description_sources.PythonLaunchDescriptionSource(
+    #         controls_dir + "/launch/controls.launch.py"
+    #     )
+    # )
 
     # Sim
     bridge_dir = get_package_share_directory("utfr_sim_bridge")
@@ -48,7 +48,7 @@ def generate_launch_description():
 
     ld.add_action(mapping_launch)
     ld.add_action(planning_launch)
-    ld.add_action(controls_launch)
+    # ld.add_action(controls_launch)
 
     ld.add_action(bridge_launch)
     ld.add_action(sim_launch)
