@@ -1109,7 +1109,7 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
     q.push_back({midpoint_indices_by_dist[i]});
   }
 
-  for (int i = 0; i < 3; ++i) {
+  for (int i = 0; i < 8; ++i) {
     std::deque<std::vector<int>> nextQ;
     while (!q.empty()) {
       std::vector<int> path = q.front();
@@ -1435,7 +1435,7 @@ void CenterPathNode::trackdriveLapCounter() {
   }
 
   if (time_diff > 20.0 && !lock_sector_ && found_4_large_orange &&
-      large_orange_cones_size < 4 && average_distance_to_cones < 5.0) {
+      large_orange_cones_size < 4 && average_distance_to_cones < 2.0) {
     last_time = curr_time;
     curr_sector_ += 1;
     lock_sector_ = true;
@@ -1446,6 +1446,7 @@ void CenterPathNode::trackdriveLapCounter() {
     lock_sector_ = false;
     found_4_large_orange = false;
   }
+  RCLCPP_INFO(this->get_logger(), "Sector: %d", curr_sector_);
 }
 
 void CenterPathNode::skidPadFit() {
