@@ -1363,8 +1363,8 @@ bool CenterPathNode::checkPassedDatum(const utfr_msgs::msg::EgoState reference,
 
   double dx_local = dx * cos(-ref_yaw) - dy * sin(-ref_yaw);
 
-  if (abs(ref_yaw - cur_yaw) < 3.1415 / 2 && tdist < 2.0 && dx_local < 0.0 && datum_last_local_x_ >= 0.0) {
-    //if alignment within 90 deg, distance less than 2m
+  if (abs(ref_yaw - cur_yaw) < 3.1415 / 2 && tdist < 3.0 && dx_local < 0.0 && datum_last_local_x_ >= 0.0) {
+    //if alignment within 90 deg, distance less than 3m
     datum_last_local_x_ = dx_local;
     return true;
   }
@@ -1439,7 +1439,7 @@ void CenterPathNode::trackdriveLapCounter() {
 
   
 
-  if (large_orange_cones_size == 4) {
+  if (large_orange_cones_size > 0) {
     found_4_large_orange = true;
   }
 
@@ -1454,7 +1454,7 @@ void CenterPathNode::trackdriveLapCounter() {
     } else {
       if (!lock_sector_ && found_4_large_orange &&
           large_orange_cones_size == 0
-          && average_distance_to_cones_ < 3.0) {
+          && average_distance_to_cones_ < 4.0) {
         last_time = curr_time;
         curr_sector_ += 1;
         lock_sector_ = true;
@@ -1470,60 +1470,6 @@ void CenterPathNode::trackdriveLapCounter() {
     found_4_large_orange = false;
   }
   RCLCPP_INFO(this->get_logger(), "Sector: %d", curr_sector_);
-}
-
-utfr_msgs::msg::EgoState CenterPathNode::getTrackDriveDatum(const utfr_msgs::msg::ConeMap &cone_map) {
-  utfr_msgs::msg::EgoState datum;
-
-  // RCLCPP_INFO(this->get_logger(), "Conecnt: %d", cone_map.large_orange_cones.size());
-
-
-  if (cone_map.large_orange_cones.size() == 1) {
-    datum.pose.pose.position.x = cone_map.large_orange_cones[0].pos.x;
-    datum.pose.pose.position.y = cone_map.large_orange_cones[0].pos.y;
-    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
-  } else if (cone_map.large_orange_cones.size() >= 2) {
-    double x = (cone_map.large_orange_cones[0].pos.x + cone_map.large_orange_cones[1].pos.x) / 2.0;
-    double y = (cone_map.large_orange_cones[0].pos.y + cone_map.large_orange_cones[1].pos.y) / 2.0;
-    datum.pose.pose.position.x = x;
-    datum.pose.pose.position.y = y;
-    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
-  } else {
-    datum.pose.pose.position.x = -100.0;
-    datum.pose.pose.position.y = -100.0;
-    datum.pose.pose.position.z = -100.0;
-    datum.pose.pose.orientation = util::yawToQuaternion(0.0);
-  }
-
-  // RCLCPP_INFO(this->get_logger(), "Datum: %f, %f", datum.pose.pose.position.x, datum.pose.pose.position.y);
-
-  // visualize to lap_datum_publisher_ as rviz marker
-  visualization_msgs::msg::Marker datum_marker;
-  datum_marker.header.frame_id = "base_footprint";
-  datum_marker.header.stamp = this->get_clock()->now();
-  datum_marker.ns = "datum";
-  datum_marker.id = 0;
-  datum_marker.type = visualization_msgs::msg::Marker::SPHERE;
-  datum_marker.action = visualization_msgs::msg::Marker::ADD;
-
-  double translated_x = datum.pose.pose.position.x - ego_state_->pose.pose.position.x;
-  double translated_y = datum.pose.pose.position.y - ego_state_->pose.pose.position.y;
-  double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
-  datum_marker.pose.position.x = translated_x * cos(-yaw) - translated_y * sin(-yaw);
-  datum_marker.pose.position.y = -(translated_x * sin(-yaw) + translated_y * cos(-yaw));
-  datum_marker.pose.position.z = 0.0;
-  
-  datum_marker.scale.x = 0.5;
-  datum_marker.scale.y = 0.5;
-  datum_marker.scale.z = 0.1;
-  datum_marker.color.a = 1.0;
-  datum_marker.color.r = 0.0;
-  datum_marker.color.g = 0.0;
-  datum_marker.color.b = 1.0;
-
-  lap_datum_publisher_->publish(datum_marker);
-
-  return datum;
 }
 
 utfr_msgs::msg::EgoState CenterPathNode::getTrackDriveDatum(const utfr_msgs::msg::ConeMap &cone_map) {
