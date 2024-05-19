@@ -319,10 +319,10 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       if (temp_displacement_ <= 1 && colour == std::get<2>(potentialPoint)) {
         count_ += 1;
         keys.push_back(key_);
-        // Check if 15 of same detected
+        // Check if 30 of same detected
         true_coordinate_x += std::get<0>(potentialPoint);
         true_coordinate_y += std::get<1>(potentialPoint);
-        int count_threshold = 15;
+        int count_threshold = 30;
         if (count_ == count_threshold) {
 
           
