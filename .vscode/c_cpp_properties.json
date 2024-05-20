@@ -34,7 +34,8 @@
                 "/home/${USER}/dv24/install/ros2_ouster/include/**",
                 "/home/${USER}/dv24/install/ouster_msgs/include/**",
                 "/home/${USER}/dv24/install/eufs_models/include/**",
-                "/home/${USER}/dv24/install/eufs_msgs/include/**"
+                "/home/${USER}/dv24/install/eufs_msgs/include/**",
+                "${workspaceFolder}/src/mapping/external/g2o"
             ],
             "name": "ROS",
             "intelliSenseMode": "linux-gcc-x64",

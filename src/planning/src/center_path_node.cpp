@@ -93,6 +93,10 @@ void CenterPathNode::initPublishers() {
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kAccelPath, 10);
 
+  delauny_midpoint_path_publisher_ = 
+      this->create_publisher<visualization_msgs::msg::Marker>(
+          topics::kDelaunayMidpoints, 10);
+  
   delaunay_path_publisher_ =
       this->create_publisher<geometry_msgs::msg::PolygonStamped>(
           topics::kDelaunayWaypoints, 10);
@@ -1046,12 +1050,21 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
     }
   }
 
-  geometry_msgs::msg::PolygonStamped midpoint_viz;
+  visualization_msgs::msg::Marker midpoint_viz;
+  midpoint_viz.type = visualization_msgs::msg::Marker::SPHERE_LIST;
   midpoint_viz.header.stamp = this->get_clock()->now();
   midpoint_viz.header.frame_id = "base_footprint";
-  geometry_msgs::msg::Point32 point32;
+  midpoint_viz.scale.x = 0.1;
+  midpoint_viz.scale.y = 0.1;
+  midpoint_viz.scale.z = 0.1;
+  midpoint_viz.color.a = 1.0;
+  midpoint_viz.color.r = 1.0;
+  midpoint_viz.color.g = 0.0;
+  midpoint_viz.color.b = 0.0;
+
+  geometry_msgs::msg::Point point;
+  double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
   for (int i = 0; i < static_cast<int>(midpoints.size()); i++) {
-    double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
     double global_x = midpoints[i].x();
     double global_y = midpoints[i].y();
     double translated_x = global_x - ego_state_->pose.pose.position.x;
@@ -1059,13 +1072,12 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
     double local_x = translated_x * cos(-yaw) - translated_y * sin(-yaw);
     double local_y = translated_x * sin(-yaw) + translated_y * cos(-yaw);
 
-    point32.x = local_x;
-    point32.y = -local_y;
-    point32.z = 0.0;
-    midpoint_viz.polygon.points.push_back(point32);
+    point.x = local_x;
+    point.y = -local_y;
+    point.z = 0.0;
+    midpoint_viz.points.push_back(point);
   }
-
-  skidpad_path_publisher_->publish(midpoint_viz);
+  delauny_midpoint_path_publisher_->publish(midpoint_viz);
 
   std::vector<int> midpoint_indices_by_dist(midpoints.size());
   std::iota(midpoint_indices_by_dist.begin(), midpoint_indices_by_dist.end(),
@@ -1073,10 +1085,10 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
 
   double car_tip_x =
       ego_state_->pose.pose.position.x +
-      1.2 / 2.0 * cos(util::quaternionToYaw(ego_state_->pose.pose.orientation));
+      1.58 / 2.0 * cos(util::quaternionToYaw(ego_state_->pose.pose.orientation));
   double car_tip_y =
       ego_state_->pose.pose.position.y +
-      1.2 / 2.0 * sin(util::quaternionToYaw(ego_state_->pose.pose.orientation));
+      1.58 / 2.0 * sin(util::quaternionToYaw(ego_state_->pose.pose.orientation));
 
   std::sort(midpoint_indices_by_dist.begin(), midpoint_indices_by_dist.end(),
             [&midpoints, &car_tip_x, &car_tip_y](int a, int b) {
@@ -1097,7 +1109,7 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
     q.push_back({midpoint_indices_by_dist[i]});
   }
 
-  for (int i = 0; i < 3; ++i) {
+  for (int i = 0; i < 8; ++i) {
     std::deque<std::vector<int>> nextQ;
     while (!q.empty()) {
       std::vector<int> path = q.front();
@@ -1423,7 +1435,7 @@ void CenterPathNode::trackdriveLapCounter() {
   }
 
   if (time_diff > 20.0 && !lock_sector_ && found_4_large_orange &&
-      large_orange_cones_size < 4 && average_distance_to_cones < 5.0) {
+      large_orange_cones_size < 4 && average_distance_to_cones < 2.0) {
     last_time = curr_time;
     curr_sector_ += 1;
     lock_sector_ = true;
@@ -1434,6 +1446,7 @@ void CenterPathNode::trackdriveLapCounter() {
     lock_sector_ = false;
     found_4_large_orange = false;
   }
+  RCLCPP_INFO(this->get_logger(), "Sector: %d", curr_sector_);
 }
 
 void CenterPathNode::skidPadFit() {

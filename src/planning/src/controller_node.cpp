@@ -40,8 +40,8 @@ void ControllerNode::initParams() {
   this->declare_parameter("cte_angle_error", 1.0);
   this->declare_parameter("ds", 0.01);
   this->declare_parameter("max_velocity", 3.0);
-  this->declare_parameter("max_steering_angle", 0.34);
-  this->declare_parameter("max_steering_rate", 0.2);
+  this->declare_parameter("max_steering_angle", 1.0);
+  this->declare_parameter("max_steering_rate", 0.4);
   this->declare_parameter("max_tire", 1.5);
   this->declare_parameter("baselink_location", 0.79);
   this->declare_parameter("wheel_base", 1.58);
@@ -814,14 +814,14 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
 
   double max_steering_rate = static_cast<double>(109 * 100 / 22.0 / 60.0 / update_rate_);
-  double last_steering_angle = ego_state_->steering_angle;
-  if (abs(delta - last_steering_angle) > max_steering_rate) {
-    if (delta > last_steering_angle) {
-      delta = last_steering_angle + max_steering_rate;
+  if (abs(delta - last_steering_angle_) > max_steering_rate) {
+    if (delta > last_steering_angle_) {
+      delta = last_steering_angle_ + max_steering_rate;
     } else {
-      delta = last_steering_angle - max_steering_rate;
+      delta = last_steering_angle_ - max_steering_rate;
     }
   }
+  last_steering_angle_ = delta;
 
   // Reduce speed if turning sharply or near max steering.
   // if ((abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
