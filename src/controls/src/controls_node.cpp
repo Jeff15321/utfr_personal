@@ -88,7 +88,7 @@ void ControlsNode::initController() {
 void ControlsNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kControlsHeartbeat, 10);
-  heartbeat_.module.data = "controls_node";
+  heartbeat_.module.data = "controls";
   heartbeat_.update_rate = update_rate_;
 }
 

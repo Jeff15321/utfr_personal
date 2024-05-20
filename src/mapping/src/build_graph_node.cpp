@@ -115,7 +115,7 @@ void BuildGraphNode::initTimers() {
 void BuildGraphNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kMappingBuildHeartbeat, 10);
-  heartbeat_.module.data = "build_graph_node";
+  heartbeat_.module.data = "mapping_build";
   heartbeat_.update_rate = update_rate_;
 }
 
@@ -324,7 +324,6 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
         true_coordinate_y += std::get<1>(potentialPoint);
         if (count_ == 100) {
 
-          
           double average_x = position_x_;
           double average_y = position_y_;
           double number_of_points = 1;
