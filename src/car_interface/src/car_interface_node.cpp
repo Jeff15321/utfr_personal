@@ -114,14 +114,14 @@ void CarInterface::initTimers() {
 }
 
 void CarInterface::initCAN() {
-  can1_ = std::make_unique<CanInterface>();
+  can0_ = std::make_unique<CanInterface>();
 
-  if (can1_->connect("can1")) {
+  if (can0_->connect("can0")) {
     RCLCPP_INFO(this->get_logger(), "Finished Initializing CAN");
   } else
     RCLCPP_ERROR(this->get_logger(), "Failed To Initialize CAN");
 
-  while (can1_->read_can())
+  while (can0_->read_can())
     ;
 
   return;
@@ -194,8 +194,8 @@ void CarInterface::ConeMapCB(const utfr_msgs::msg::ConeMap &msg) {
       msg.unknown_cones.size();
 }
 
-void CarInterface::setDVLogs() {
-  const std::string function_name{"setDVLogs"};
+void CarInterface::sendDVLogs() {
+  const std::string function_name{"sendDVLogs"};
 
   // TODO: Check all values to follow FSG format
 
@@ -218,7 +218,7 @@ void CarInterface::setDVLogs() {
     dv_driving_dynamics_1 |= system_status_.motor_moment_actual << (8 * (i++));
     dv_driving_dynamics_1 |= system_status_.motor_moment_target << (8 * (i++));
 
-    can1_->write_can(dv_can_msg::DVDrivingDynamics1, dv_driving_dynamics_1);
+    can0_->write_can(dv_can_msg::DVDrivingDynamics1, dv_driving_dynamics_1);
 
     // Dv driving dynamics 2
     long dv_driving_dynamics_2 = 0;
@@ -230,7 +230,7 @@ void CarInterface::setDVLogs() {
                              << (16 * (i++));
     dv_driving_dynamics_2 |= system_status_.yaw_rate << (16 * (i++));
 
-    can1_->write_can(dv_can_msg::DVDrivingDynamics2, dv_driving_dynamics_2);
+    can0_->write_can(dv_can_msg::DVDrivingDynamics2, dv_driving_dynamics_2);
 
     // DV system status
     long dv_system_status = 0;
@@ -249,7 +249,7 @@ void CarInterface::setDVLogs() {
     system_status_.header.stamp = this->get_clock()->now();
     system_status_publisher_->publish(system_status_);
 
-    can1_->write_can(dv_can_msg::DVSystemStatus, dv_system_status);
+    can0_->write_can(dv_can_msg::DVSystemStatus, dv_system_status);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
@@ -257,8 +257,8 @@ void CarInterface::setDVLogs() {
   }
 }
 
-void CarInterface::setDVStateAndCommand() {
-  const std::string function_name{"setDVStateAndCommand"};
+void CarInterface::DVCompStateMachine() {
+  const std::string function_name{"DVCompStateMachine"};
 
   try {
     bool heartbeat_status =
@@ -276,7 +276,7 @@ void CarInterface::setDVStateAndCommand() {
                          utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS) &&
           !launched_) {
         launched_ = launchMission(); // Launch other dv nodes
-      } else if (heartbeat_status) {
+      } else if (heartbeat_status || str_motor_state_ > 0) {
         dv_pc_state_ = DV_PC_STATE::READY;
         cmd_ = false;
       } else {
@@ -286,7 +286,7 @@ void CarInterface::setDVStateAndCommand() {
       break;
     }
     case utfr_msgs::msg::SystemStatus::AS_STATE_READY: {
-      if (heartbeat_status) {
+      if (heartbeat_status || str_motor_state_ > 0) {
         dv_pc_state_ = DV_PC_STATE::READY;
         cmd_ = false;
       } else {
@@ -297,7 +297,7 @@ void CarInterface::setDVStateAndCommand() {
       break;
     }
     case utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING: {
-      if (heartbeat_status) {
+      if (heartbeat_status || str_motor_state_ > 0) {
         dv_pc_state_ = DV_PC_STATE::DRIVING;
         cmd_ = true;
         if (finished_) {
@@ -335,31 +335,71 @@ void CarInterface::setDVStateAndCommand() {
     }
     }
 
-    // Write to can
-    long dv_command = 0;
+  } catch (int e) {
+    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+                 function_name.c_str(), e);
+  }
+}
+
+void CarInterface::sendStateAndCmd() {
+  const std::string function_name{"sendStateAndCmd"};
+
+  try {
+
+    // DV computer state
+    canfd_frame *dv_comp_state = (canfd_frame *)malloc(sizeof(canfd_frame));
+    can0_->setSignal(dv_comp_state, dv_can_msg::DV_COMP_STATE, 0, 3, 1,
+                     dv_pc_state_);
+
+    // Steering motor position
+    // can use different mode to command speed/accel
+    can0_->write_can(dv_can_msg::SetSTRMotorPos, ((long)steering_cmd_) << 32);
+    canfd_frame *steering_canfd = (canfd_frame *)malloc(sizeof(canfd_frame));
+
+    // Motor/inverter command
+    canfd_frame *inverter_canfd = (canfd_frame *)malloc(sizeof(canfd_frame));
+
+    if (braking_cmd_ == 0) {
+      // Zero commanded torque
+      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 0, 16, 1,
+                       0x0000);
+      // Commanded speed
+      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 16, 16, 1,
+                       throttle_cmd_ & 0xFFFF);
+    } else if (braking_cmd_ < 0) {
+      // TODO: review regen
+      // Commanded negative torque
+      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 0, 16, 1,
+                       braking_cmd_ & 0xFFFF);
+      // Zero commanded speed
+      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 16, 16, 1,
+                       0x0000);
+    }
 
     if (cmd_ || testing_) {
-      dv_command |= (long)(dv_pc_state_)&7;
-      dv_command |= (long)(throttle_cmd_ & 0xFFFF) << 3;
-      dv_command |= (long)(braking_cmd_ & 0xFF) << 19;
-
-      // Write to steering motor
-      // RCLCPP_INFO(this->get_logger(), "Steer: %d", steering_cmd_);
-      can1_->write_can(
-          dv_can_msg::SetSTRMotorPos,
-          ((long)steering_cmd_)
-              << 32); // can use different mode to command speed/accel
-
-      // need a throttle command (speed mode) 
-      // parse into msg 
-      // commanded speed 
-      // message to inverter 
-
-      // can 1 write can to primary bus 
-      // use actual function for write_can NEED SET SIGNAL FUNCTION
+      // Enable Inverter
+      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 40, 8, 1,
+                       0x01);
+    } else {
+      // Disable Inverter
+      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 40, 8, 1,
+                       0x00);
     }
-    // Need to always send dv command so RC always knows DVPC status
-    can1_->write_can(dv_can_msg::DV_COMMAND, dv_command);
+
+    // Forward direction.
+    can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 32, 8, 1,
+                     0x01);
+    // Torque limit.
+    can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 48, 16, 1,
+                     0x0000);
+
+    // Transmit
+    can0_->sendSignal(dv_comp_state);
+    can0_->sendSignal(steering_canfd);
+    can0_->sendSignal(inverter_canfd);
+    free(dv_comp_state);
+    free(steering_canfd);
+    free(inverter_canfd);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
@@ -421,12 +461,12 @@ void CarInterface::timerCB() {
   const std::string function_name{"timerCB"};
 
   try {
-    getSensorCan(); // Publish sensor and state data that is read from can
-    getDVState();   // Read DV state from car from can
-    setDVLogs();    // Publish FSG log format over ros and send over can
-    setDVStateAndCommand(); // Send state of dv computer and control cmd to
-                            // car
-
+    getSensorCan();       // Publish sensor and state data that is read from can
+    getDVState();         // Read DV state from car from can
+    sendDVLogs();         // Publish FSG log format over ros and send over can
+    DVCompStateMachine(); // Set DV coputer state
+    sendStateAndCmd();    // Send DV computer state to RC and actuaotor commands
+                          // over can
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
                  function_name.c_str(), e);
