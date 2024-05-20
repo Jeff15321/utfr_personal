@@ -57,6 +57,3 @@ CATKIN_IGNORE
 
 # ouster
 169.254.54-metadata.json
-
-# vscode
-.vscode/
