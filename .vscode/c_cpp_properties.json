@@ -3,7 +3,7 @@
         {
             "browse": {
                 "databaseFilename": "${default}",
-                "limitSymbolsToIncludedHeaders": false
+                "limitSymbolsToIncludedHeaders": true
             },
             "includePath": [
                 "/opt/ros/humble/include/**",
@@ -38,10 +38,10 @@
                 "${workspaceFolder}/src/mapping/external/g2o"
             ],
             "name": "ROS",
-            "intelliSenseMode": "gcc-x64",
+            "intelliSenseMode": "linux-gcc-x64",
             "compilerPath": "/usr/bin/gcc",
-            "cStandard": "gnu11",
-            "cppStandard": "c++14"
+            "cStandard": "c11",
+            "cppStandard": "c++17"
         }
     ],
     "version": 4
