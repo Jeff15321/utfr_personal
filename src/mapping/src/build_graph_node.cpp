@@ -252,7 +252,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       double displacement = utfr_dv::util::euclidianDistance2D(
           position_x_, nearestCone.x, position_y_, nearestCone.y);
 
-      // Do not add if its within 0.5 of an already seen cone
+      // Do not add if its within 1 of an already seen cone
       if (displacement <= 1) {
         // Add the ID to the list
         cones_id_list_.push_back(nearestCone.id);
@@ -319,10 +319,11 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       if (temp_displacement_ <= 1 && colour == std::get<2>(potentialPoint)) {
         count_ += 1;
         keys.push_back(key_);
-        // Check if three of same detected
+        // Check if 30 of same detected
         true_coordinate_x += std::get<0>(potentialPoint);
         true_coordinate_y += std::get<1>(potentialPoint);
-        if (count_ == 100) {
+        int count_threshold = 30;
+        if (count_ == count_threshold) {
 
           double average_x = position_x_;
           double average_y = position_y_;
@@ -347,8 +348,8 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           cone_id_to_color_map_[cones_found_] = newCone.type;
           utfr_msgs::msg::PoseGraphData cone_data;
           cone_data.id = cones_found_;
-          cone_data.x = true_coordinate_x / 100;
-          cone_data.y = true_coordinate_y / 100;
+          cone_data.x = true_coordinate_x / count_threshold;
+          cone_data.y = true_coordinate_y / count_threshold;
           cone_nodes_.push_back(cone_data);
           average_position_[cones_found_] = {position_x_, position_y_, 1};
           cone_id_to_vertex_map_[cones_found_] = cone_data;
@@ -359,8 +360,8 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           edge_data.dx = newCone.pos.x;
           edge_data.dy = newCone.pos.y;
           pose_to_cone_edges_.push_back(edge_data);
-          kd_tree_knn::Point newPoint(true_coordinate_x / 100,
-                                      true_coordinate_y / 100, cones_found_);
+          kd_tree_knn::Point newPoint(true_coordinate_x / count_threshold,
+                                      true_coordinate_y / count_threshold, cones_found_);
           detection_counts[cones_found_] = 3;
           // std::cout << "Cone x: " << position_x_ << " Cone y: " <<
           // position_y_ << " Cone id: " << cones_found_ << std::endl;

@@ -4,5 +4,20 @@
 		"args": {
 			"WORKSPACE": "${containerWorkspaceFolder}"
 		}
+	},
+	"features": {
+		"ghcr.io/devcontainers/features/desktop-lite:1": {
+      "version": "latest",
+      "noVncVersion": "1.2.0",
+      "password": "vscode",
+      "webPort": "6080",
+      "vncPort": "5901"
+    }
+	},
+	"forwardPorts": [6080],
+	"portsAttributes": {
+	  "6080": {
+		"label": "desktop"
+	  }
 	}
 }

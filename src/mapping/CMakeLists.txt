@@ -108,17 +108,27 @@ install(
 #############
 ## Testing ##
 #############
-# Add your testing code here...
 find_package(ament_cmake_gtest REQUIRED)
 
-## Define Test Executables
+## Define Test Executable for mapping_test
 ament_add_gtest(mapping_test
   test/mapping_test.cpp
 )
 ament_target_dependencies(mapping_test ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
+## Define Test Executable for build_graph_tests 
+ament_add_gtest(build_graph_tests
+  test/build_graph_tests.cpp 
+)
+ament_target_dependencies(build_graph_tests ${THIS_PACKAGE_INCLUDE_DEPENDS})
+
 ## Find Headers for Testing files
 target_include_directories(mapping_test
+PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+target_include_directories(build_graph_tests
 PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
@@ -127,15 +137,27 @@ set(G2O_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/g2o")
 target_include_directories(mapping_test PUBLIC /usr/include/eigen3/)
 target_include_directories(mapping_test PUBLIC ${G2O_INCLUDE_DIR})
 
+target_include_directories(build_graph_tests PUBLIC /usr/include/eigen3/)
+target_include_directories(build_graph_tests PUBLIC ${G2O_INCLUDE_DIR})
+
 ## Link required files for testing:
 target_link_libraries(mapping_test fmt::fmt)
 target_link_libraries(mapping_test g2o_core g2o_stuff g2o_types_data g2o_types_slam2d)
+
+target_link_libraries(build_graph_tests fmt::fmt)
+target_link_libraries(build_graph_tests g2o_core g2o_stuff g2o_types_data g2o_types_slam2d)
+
+## Add source files related to the tests
 target_sources(mapping_test PRIVATE src/build_graph_node.cpp)
 target_sources(mapping_test PRIVATE src/compute_graph_node.cpp)
 target_sources(mapping_test PRIVATE src/ekf_node.cpp)
 
+target_sources(build_graph_tests PRIVATE src/build_graph_node.cpp)
+target_sources(build_graph_tests PRIVATE src/compute_graph_node.cpp)
+target_sources(build_graph_tests PRIVATE src/ekf_node.cpp)
+
 ## Install testing files
-install(TARGETS mapping_test
+install(TARGETS mapping_test build_graph_tests
     DESTINATION test/${PROJECT_NAME})
 
 ament_package()

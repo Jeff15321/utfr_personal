@@ -56,6 +56,7 @@ const std::string kVelocityProfile{"planning/velocity_profile"};
 const std::string kCenterPathHeartbeat{"planning/center_path/heartbeat"};
 const std::string kControllerHeartbeat{"planning/controller/heartbeat"};
 const std::string kAccelPath{"planning/accel_path"};
+const std::string kDelaunayMidpoints{"planning/delaunay_midpoints"};
 const std::string kDelaunayWaypoints{"planning/delaunay_waypoints"};
 const std::string kControllerPath{"planning/controller/path"};
 const std::string kPurePursuitPoint{"planning/pure_pursuit_point"};
