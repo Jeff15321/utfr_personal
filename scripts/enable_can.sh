@@ -2,7 +2,7 @@
 
 # Define the CAN interface and bitrate
 CAN_INTERFACE="can0"
-BITRATE="500000"
+BITRATE="1000000"
 
 # Load the necessary CAN modules
 sudo modprobe can
