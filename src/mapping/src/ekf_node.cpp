@@ -68,7 +68,7 @@ void EkfNode::initTimers() {
 void EkfNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kEKFHeartbeat, 10);
-  heartbeat_.module.data = "ekf_node";
+  heartbeat_.module.data = "ekf";
   heartbeat_.update_rate = update_rate_;
 }
 

@@ -39,35 +39,52 @@ enum dv_can_msg {
   FBP = 1,
   SPEEDFL = 2,
   SPEEDRL = 3,
-  SPEEDFR = 21,
-  SPEEDRR = 22,
-  ImuY = 4,
-  ImuX = 5,
-  ImuZ = 6,
-  ANGSENREC = 7,
-  ANGSENTRA = 8,
+  SPEEDFR = 4,
+  SPEEDRR = 5,
+  ImuY = 6,
+  ImuX = 7,
+  ImuZ = 8,
+  ANGSENREC = 9,
+  ANGSENTRA = 10,
 
-  // Inverter
-  MOTPOS = 9,
-  APPS = 10,
+  // Motor/inverter
+  MOTPOS = 11,
+  COMMANDED_TORQUE = 12,
+  ACTUAL_TORQUE = 13,
 
   // FSG DV Log
-  DVDrivingDynamics1 = 11,
-  DVDrivingDynamics2 = 12,
-  DVSystemStatus = 13,
+  DVDrivingDynamics1 = 14,
+  DVDrivingDynamics2 = 15,
+  DVSystemStatus = 16,
 
   // Dv state sent from car
-  DV_STATE = 14,
+  FULL_AS_STATE = 17,
 
   // DV command + state sent from pc
-  DV_COMMAND = 15,
+  DV_COMP_STATE = 18,
 
-  SetSTRMotorPos = 16,
-  SetSTRMotorOrigin = 17,
-  SetSTRMotorPosSpeedAcc = 18,
-  StrMotorStatus = 19,
+  // DV Mission select
+  MISSION = 19,
 
-  COUNT = 20
+  // Steering Motor
+  SetSTRMotorPos = 20,
+  SetSTRMotorOrigin = 21,
+  SetSTRMotorPosSpeedAcc = 22,
+  StrMotorInfo = 23,
+
+  // GPS Messages
+  GPS_ERROR_CODE = 24,
+  GPS_SAMPLE_TIME = 25,
+  GPS_RPY = 26,
+  GPS_ORIENTATION = 27, // check if signals can be embedded
+  GPS_RATE_OF_TURN = 28,
+  GPS_ACCELERATION = 29,
+  GPS_LAT_LONG = 30,
+  GPS_ALT_ELLIP = 31,
+  GPS_VEL_XYZ = 32,
+  GPS_RTK_STATUS = 33,
+
+  COUNT = 34
 };
 
 typedef struct CAN_message_t {
@@ -88,12 +105,31 @@ typedef struct CAN_message_t {
   bool seq = 0; // sequential frames
 } CAN_message_t;
 
+typedef struct CAN_signal_t {
+  const uint8_t startBit = 0;
+  uint8_t len = 8;
+  const bool littleEndian = true;
+  const bool sign = false;
+  const float scale = 1.0;
+  const float offset = 0.0;
+  const float min = 0;
+  const float max = 10000;
+} CAN_signal_t;
+
 // From UTFR_CAN_TEENSY
+// Little Endian
 #define ARRAY_TO_INT64(array)                                                  \
   ((array[0]) | ((uint64_t)array[1] << 8) | ((uint64_t)array[2] << 16) |       \
    ((uint64_t)array[3] << 24) | ((uint64_t)array[4] << 32) |                   \
    ((uint64_t)array[5] << 40) | ((uint64_t)array[6] << 48) |                   \
    ((uint64_t)array[7] << 56))
+
+// Big Endian
+#define ARRAY_TO_INT64_BE(array)                                               \
+  ((array[7]) | ((uint64_t)array[6] << 8) | ((uint64_t)array[5] << 16) |       \
+   ((uint64_t)array[4] << 24) | ((uint64_t)array[3] << 32) |                   \
+   ((uint64_t)array[2] << 40) | ((uint64_t)array[1] << 48) |                   \
+   ((uint64_t)array[0] << 56))
 
 #define INT64_TO_ARRAY(num, array)                                             \
   do {                                                                         \
@@ -134,7 +170,7 @@ public:
    *
    *  @return the last read can data frame from can_id
    */
-  int get_can(dv_can_msg msgName);
+  uint64_t get_can(dv_can_msg msgName);
 
   /*! Read current CAN Frame
    *
@@ -148,6 +184,39 @@ public:
    */
   void write_can(dv_can_msg msgName, long long signalData);
 
+  /*! Get CAN signals and messages with little endian.
+   *
+   *  @return data received by the DV computer.
+   */
+  float getSignal(dv_can_msg msgName, uint8_t startBit, uint8_t sigLength,
+                  bool sign, float scale);
+
+  /*! Get CAN signals and messages with big endian.
+   *
+   *  @return data received by the DV computer.
+   */
+  float getSignalBE(dv_can_msg msgName, uint8_t startBit, uint8_t sigLength,
+                    bool sign, float scale);
+
+  /*! Set CAN signals and messages to BUS using little endian.
+   *
+   * @param canfd_frame address of frame used to set data and CAN ID.
+   * @param msgName DV CAN message name.
+   * @param startBit little Endian format.
+   * @param sigLength number of bits.
+   * @param scale amount the data has been scaled by.
+   * @param data data (e.g. an angle) that has undergone scaling.
+   * @return data received by the DV computer.
+   */
+  void setSignal(canfd_frame *to_send, dv_can_msg msgName, uint8_t startBit,
+                 uint8_t sigLength, float scale, double data);
+
+  /*! Send CAN messages over the CAN bus.
+   *
+   *  @brief message is sent over CAN bus in little endian format.
+   */
+  void sendSignal(canfd_frame *to_write);
+
   // private:
   sockaddr_can addr;
   ifreq ifr;
@@ -158,7 +227,7 @@ public:
   int signal;
   pthread_mutex_t lock;
   pthread_mutex_t readlock;
-  std::map<int, struct canfd_frame> messages;
+  std::map<canid_t, struct canfd_frame> messages;
 };
 
 using CanInterfaceUPtr = std::unique_ptr<CanInterface>;
