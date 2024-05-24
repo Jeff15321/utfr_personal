@@ -21,7 +21,12 @@
 #include <string>
 
 // Message Requirements
+#include <geometry_msgs/msg/accel_stamped.hpp>
+#include <geometry_msgs/msg/quaternion_stamped.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
+#include <geometry_msgs/msg/vector3_stamped.hpp>
 #include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <utfr_msgs/msg/cone_detections.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/control_cmd.hpp>
@@ -143,7 +148,7 @@ private:
   /**
    * @brief Get the steering angle sensor data.
    */
-  void getSteeringAngleSensorData();
+  void getSteeringMotorData();
 
   /**
    * @brief Get the motor speed data.
@@ -171,6 +176,11 @@ private:
   void getIMUData();
 
   /**
+   * @brief Get the GPS data (big endian format).
+   */
+  void getGPSData();
+
+  /**
    * @brief Get the sensor CAN data.
    */
   void getSensorCan();
@@ -183,12 +193,17 @@ private:
   /**
    * @brief Set the DV logs.
    */
-  void setDVLogs();
+  void sendDVLogs();
 
   /**
-   * @brief Set the DV state and command.
+   * @brief Set the DV computer state.
    */
-  void setDVStateAndCommand();
+  void DVCompStateMachine();
+
+  /**
+   * @brief Send the DV state and control commands
+   */
+  void sendStateAndCmd();
 
   /**
    * @brief Launch the mission.
@@ -246,7 +261,7 @@ private:
   // TODO: Change global to local vars
   // Commands to rest of car
   int steering_cmd_;
-  uint8_t braking_cmd_;
+  int braking_cmd_;
   int throttle_cmd_;
   int testing_;
   // TODO: GNSS/INS
@@ -256,6 +271,8 @@ private:
   bool shutdown_ = false;
   bool cmd_ = false;
   bool finished_ = false;
+  uint8_t str_motor_state_ = 0;
+
   enum DV_PC_STATE {
     OFF = 1,
     READY = 2,
@@ -263,10 +280,11 @@ private:
     EMERGENCY = 4,
     FINISH = 5
   };
+
   uint8_t dv_pc_state_;
 
   // CAN objects
-  CanInterfaceUPtr can1_{nullptr};
+  CanInterfaceUPtr can0_{nullptr};
   rclcpp::TimerBase::SharedPtr can_timer_;
 
   // Heartbeat object
@@ -296,6 +314,8 @@ private:
   double prev_wheelspeed_fr_ = 0;
   double prev_wheelspeed_rl_ = 0;
   double prev_wheelspeed_rr_ = 0;
+
+  double commanded_torque = 0;
 };
 
 } // namespace car_interface

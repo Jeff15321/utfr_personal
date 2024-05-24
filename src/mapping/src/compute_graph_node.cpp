@@ -104,7 +104,7 @@ void ComputeGraphNode::initTimers() {
 void ComputeGraphNode::initHeartbeat() {
   heartbeat_publisher_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
       topics::kMappingComputeHeartbeat, 10);
-  heartbeat_.module.data = "compute_graph_node";
+  heartbeat_.module.data = "mapping_compute";
   heartbeat_.update_rate = update_rate_;
 }
 
