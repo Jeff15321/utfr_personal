@@ -282,6 +282,16 @@ private:
   /*! Autox/Trackdrive Lap Counter
    */
   void trackdriveLapCounter();
+
+
+  /**
+   * Trackdrive get datum finds the point where the lap starts given a conemap. used in global lapcounter. 
+   * 
+   * @param cone_map 
+   * @return utfr_msgs::msg::EgoState 
+   */
+  utfr_msgs::msg::EgoState getTrackDriveDatum(const utfr_msgs::msg::ConeMap &cone_map);
+
   
   /*! Skidpad path finder when there are enough blue and yellow cones to fit a line
    * @param[out] std::tuple<double, double, double, double, double, double>, x center left, y center left, radius left, x center right, y center right, radius right
@@ -357,6 +367,8 @@ private:
 
   bool loop_closed_ = false;
 
+  double average_distance_to_cones_ = 10.0;
+
   double datum_last_local_x_ = 0;
 
   double total_distance_traveled_ = 0.0;
@@ -397,6 +409,8 @@ private:
       first_midpoint_path_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::LapTime>::SharedPtr
       lap_time_publisher_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr
+      lap_datum_publisher_;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
 
