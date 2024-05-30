@@ -215,7 +215,7 @@ public:
    *
    *  @brief message is sent over CAN bus in little endian format.
    */
-  void sendSignal(canfd_frame *to_write);
+  void sendSignal(canfd_frame **to_write);
 
   // private:
   sockaddr_can addr;

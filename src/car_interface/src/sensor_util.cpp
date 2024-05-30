@@ -214,10 +214,16 @@ void CarInterface::getGPSData() {
     double gps_rpy_scale = pow(2, -7);
     gps_rpy.vector.x = (int16_t)can0_->getSignalBE(dv_can_msg::GPS_RPY, 0, 16,
                                                    true, gps_rpy_scale);
+    RCLCPP_ERROR(this->get_logger(), "%s: ROLL: %f",function_name.c_str(), can0_->getSignalBE(dv_can_msg::GPS_RPY, 0, 16,
+                                                   true, gps_rpy_scale));
     gps_rpy.vector.y = (int16_t)can0_->getSignalBE(dv_can_msg::GPS_RPY, 16, 16,
                                                    true, gps_rpy_scale);
+    RCLCPP_ERROR(this->get_logger(), "%s: PITCH: %f",function_name.c_str(), can0_->getSignalBE(dv_can_msg::GPS_RPY, 16, 16,
+                                                   true, gps_rpy_scale));
     gps_rpy.vector.z = (int16_t)can0_->getSignalBE(dv_can_msg::GPS_RPY, 32, 16,
                                                    true, gps_rpy_scale);
+    RCLCPP_ERROR(this->get_logger(), "%s: YAW: %f",function_name.c_str(), can0_->getSignalBE(dv_can_msg::GPS_RPY, 32, 16,
+                                                   true, gps_rpy_scale));
 
     geometry_msgs::msg::QuaternionStamped gps_orientation;
     gps_orientation.header = gps_header;

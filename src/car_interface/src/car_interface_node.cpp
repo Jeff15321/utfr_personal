@@ -249,7 +249,7 @@ void CarInterface::sendDVLogs() {
     system_status_.header.stamp = this->get_clock()->now();
     system_status_publisher_->publish(system_status_);
 
-    can0_->write_can(dv_can_msg::DVSystemStatus, dv_system_status);
+    //can0_->write_can(dv_can_msg::DVSystemStatus, dv_system_status);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
@@ -313,7 +313,7 @@ void CarInterface::DVCompStateMachine() {
       dv_pc_state_ = DV_PC_STATE::EMERGENCY;
       cmd_ = false;
       if (!shutdown_) {
-        shutdown_ = shutdownNodes();
+        //shutdown_ = shutdownNodes();
       }
       break;
     }
@@ -321,7 +321,7 @@ void CarInterface::DVCompStateMachine() {
       dv_pc_state_ = DV_PC_STATE::FINISH; // Should already be finish
       cmd_ = false;                       // Should already be false
       if (!shutdown_) {
-        shutdown_ = shutdownNodes();
+        //shutdown_ = shutdownNodes();
       }
       break;
     }
@@ -329,7 +329,7 @@ void CarInterface::DVCompStateMachine() {
       dv_pc_state_ = DV_PC_STATE::OFF;
       cmd_ = false;
       if (!shutdown_) {
-        shutdown_ = shutdownNodes();
+        //shutdown_ = shutdownNodes();
       }
       break;
     }
@@ -394,9 +394,9 @@ void CarInterface::sendStateAndCmd() {
                      0x0000);
 
     // Transmit
-    can0_->sendSignal(dv_comp_state);
-    can0_->sendSignal(steering_canfd);
-    can0_->sendSignal(inverter_canfd);
+    can0_->sendSignal(&dv_comp_state);
+    can0_->sendSignal(&steering_canfd);
+    can0_->sendSignal(&inverter_canfd);
     free(dv_comp_state);
     free(steering_canfd);
     free(inverter_canfd);
@@ -465,7 +465,7 @@ void CarInterface::timerCB() {
     getDVState();         // Read DV state from car from can
     sendDVLogs();         // Publish FSG log format over ros and send over can
     DVCompStateMachine(); // Set DV coputer state
-    sendStateAndCmd();    // Send DV computer state to RC and actuaotor commands
+    sendStateAndCmd();    // Send DV computer state to RC and actuator commands
                           // over can
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",

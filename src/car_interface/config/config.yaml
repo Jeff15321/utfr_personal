@@ -6,4 +6,4 @@ car_interface: # Name of Module
     heartbeat_modules: ["controls"]
     heartbeat_modules_accel: ["controls"]
     heartbeat_modules_inspection: ["controls"]
-    testing: 1 #0 - no test, 1 - testing
+    testing: 0 #0 - no test, 1 - testing

@@ -188,7 +188,7 @@ void CanInterface::write_can(dv_can_msg msgName, long long data) {
   ssize_t bytes = write(sock, &to_write, sizeof(can_frame));
 
   if (bytes < 0)
-    perror("CAN...'T WRITE (<0)");
+    perror("CAN...'T WRITE (<0) HERE");
 
   else if ((long unsigned int)bytes < sizeof(can_frame))
     perror("CAN...'T WRITE (<size)");
@@ -311,20 +311,33 @@ void CanInterface::setSignal(canfd_frame *to_send, dv_can_msg msgName,
   for (uint8_t i = startBit / 8; i < startBit / 8 + sigLength / 8; i++) {
     (to_send->data)[i] = signalArray[i];
   }
+
+  // Works: problem with sendSignal
+  ssize_t bytes = write(sock, to_send, sizeof(can_frame));
+
+  if (bytes < 0) {
+    perror("CANT SET SIGNAL");
+  }
 }
 
 /*! Send CAN messages over the CAN bus.
  *
  *  @brief message is sent over CAN bus in little endian format.
  */
-void CanInterface::sendSignal(canfd_frame *to_write) {
-  ssize_t bytes = write(sock, to_write, sizeof(can_frame));
+void CanInterface::sendSignal(canfd_frame **to_write) {
+  // Check if a double pointer for to_write is needed. 
+  ssize_t bytes = write(sock, *to_write, sizeof(canfd_frame));
+
+  const char * error_msg = std::to_string((*to_write)->can_id).c_str();
+
+  perror("CAN ID: ");
+  perror(error_msg);
 
   if (bytes < 0)
-    perror("CAN...'T WRITE (<0)");
+    perror("CAN...'T WR ITE SEND SIGNAL (<0)");
 
   else if ((long unsigned int)bytes < sizeof(can_frame))
-    perror("CAN...'T WRITE (<size)");
+    perror("CAN...'T WRITE SEND SIGNAL (<size)");
 }
 
 } // namespace car_interface
