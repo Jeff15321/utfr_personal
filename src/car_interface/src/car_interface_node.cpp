@@ -345,18 +345,18 @@ void CarInterface::sendStateAndCmd() {
   const std::string function_name{"sendStateAndCmd"};
 
   try {
-
     // DV computer state
-    uint64_t dv_comp_state;
-    dv_comp_state = can0_->setSignalArray(dv_comp_state, 0, 3, 1, dv_pc_state_);
+    uint64_t dv_comp_state = 0;
+    //dv_comp_state = can0_->setSignalArray(dv_comp_state, 0, 3, 1, dv_pc_state_);
+    dv_comp_state = can0_->setSignalArray(dv_comp_state, 0, 3, 1, 2);
 
     // Steering motor position
     // can use different mode to command speed/accel
     can0_->write_can(dv_can_msg::SetSTRMotorPos, ((long)steering_cmd_) << 32);
-    uint64_t steering_canfd;
+    uint64_t steering_canfd = 0;
 
     // Motor/inverter command
-    uint64_t inverter_canfd;
+    uint64_t inverter_canfd = 0;
 
     if (braking_cmd_ == 0) {
       // Zero commanded torque
@@ -387,7 +387,7 @@ void CarInterface::sendStateAndCmd() {
     // Transmit
     can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state);
     //can0_->sendSignal(dv_can_msg::SET);
-    //can0_->sendSignal(dv_can_msg::);
+    can0_->write_can(dv_can_msg::COMMANDED_TORQUE, inverter_canfd);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",

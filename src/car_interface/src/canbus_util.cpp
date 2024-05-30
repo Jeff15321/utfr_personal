@@ -171,7 +171,18 @@ void CanInterface::write_can(dv_can_msg msgName, long long data) {
   to_write.can_id = dv_can_msg_map[(int)msgName];
   to_write.len = 8;
   uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  INT64_TO_ARRAY(data, signalArray); // Convert to array of bytes
+
+  // Little Endian: reverse data bits.
+  // Since many signals are not in multiple of 8s, cannot simply move everything in bytes.
+  unsigned long long littleEndianData = 0; 
+
+  // Bit Reversal 
+  for (int i = 0; i < 64; i++) {
+    littleEndianData = littleEndianData | ((data & 1) << (64 - i - 1)); 
+    data = data >> 1;
+  }
+
+  INT64_TO_ARRAY(littleEndianData, signalArray); // Convert to array of bytes
 
   // The steering motor uses EXTENDED CAN, and sends in Little Endian.
   if (msgName == dv_can_msg::SetSTRMotorPos ||
@@ -336,15 +347,14 @@ void CanInterface::sendSignal(canfd_frame to_write) {
     perror("CAN...'T WRITE SEND SIGNAL (<size)");
 }
 
-uint64_t setSignalArray(uint64_t to_send, uint8_t startBit, uint8_t sigLength, double scale, double data) 
-{
+uint64_t CanInterface::setSignalArray(uint64_t to_send, uint8_t startBit, uint8_t sigLength, double scale, double data) {
   uint64_t can_data = (uint64_t) (data / scale); 
 
   uint64_t mask = pow(2, sigLength) - 1; 
 
-  can_data = can_data | ((can_data & mask) << (64 - startBit - sigLength));
+  to_send = to_send | ((can_data & mask) << (64 - startBit - sigLength));
 
-  return can_data;
+  return to_send;
 }
 
 } // namespace car_interface
