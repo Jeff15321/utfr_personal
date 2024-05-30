@@ -84,7 +84,9 @@ enum dv_can_msg {
   GPS_VEL_XYZ = 32,
   GPS_RTK_STATUS = 33,
 
-  COUNT = 34
+  STR_MOTOR_CMD = 34,
+
+  COUNT = 35
 };
 
 typedef struct CAN_message_t {
@@ -182,7 +184,7 @@ public:
    *
    *  @param[in] to_write CAN Frame to push into CAN Bus
    */
-  void write_can(dv_can_msg msgName, long long signalData);
+  void write_can(dv_can_msg msgName, long long signalData, bool byteWise);
 
   /*! Get CAN signals and messages with little endian.
    *

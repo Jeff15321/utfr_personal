@@ -218,7 +218,7 @@ void CarInterface::sendDVLogs() {
     dv_driving_dynamics_1 |= system_status_.motor_moment_actual << (8 * (i++));
     dv_driving_dynamics_1 |= system_status_.motor_moment_target << (8 * (i++));
 
-    can0_->write_can(dv_can_msg::DVDrivingDynamics1, dv_driving_dynamics_1);
+    can0_->write_can(dv_can_msg::DVDrivingDynamics1, dv_driving_dynamics_1, true);
 
     // Dv driving dynamics 2
     long dv_driving_dynamics_2 = 0;
@@ -230,7 +230,7 @@ void CarInterface::sendDVLogs() {
                              << (16 * (i++));
     dv_driving_dynamics_2 |= system_status_.yaw_rate << (16 * (i++));
 
-    can0_->write_can(dv_can_msg::DVDrivingDynamics2, dv_driving_dynamics_2);
+    can0_->write_can(dv_can_msg::DVDrivingDynamics2, dv_driving_dynamics_2, true);
 
     // DV system status
     long dv_system_status = 0;
@@ -352,8 +352,19 @@ void CarInterface::sendStateAndCmd() {
 
     // Steering motor position
     // can use different mode to command speed/accel
-    can0_->write_can(dv_can_msg::SetSTRMotorPos, ((long)steering_cmd_) << 32);
+    // can0_->write_can(dv_can_msg::SetSTRMotorPos, ((long)steering_cmd_) << 32, true);
+    uint64_t position = 000000; // 30 degrees 
     uint64_t steering_canfd = 0;
+
+    // Extended CAN 
+    // Speed0: Start Bit = 24, Length = 8
+    // Set SCALE TO 0 for INITIAL CAN TESTING
+    steering_canfd = can0_->setSignalArray(steering_canfd, 24, 8, 1, 0x000000FF & position); 
+    steering_canfd = can0_->setSignalArray(steering_canfd, 16, 8, 1, (0x0000FF00 & position) >> 8);
+    steering_canfd = can0_->setSignalArray(steering_canfd, 8, 8, 1, (0x00FF0000 & position) >> 16);
+    steering_canfd = can0_->setSignalArray(steering_canfd, 0, 8, 1, (0xFF000000 & position) >> 24); 
+     
+    can0_->write_can(dv_can_msg::STR_MOTOR_CMD, steering_canfd, true); 
 
     // Motor/inverter command
     uint64_t inverter_canfd = 0;
@@ -385,9 +396,9 @@ void CarInterface::sendStateAndCmd() {
     inverter_canfd = can0_->setSignalArray(inverter_canfd, 48, 16, 1, 0x0000);
 
     // Transmit
-    can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state);
+    can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state, false);
     //can0_->sendSignal(dv_can_msg::SET);
-    can0_->write_can(dv_can_msg::COMMANDED_TORQUE, inverter_canfd);
+    can0_->write_can(dv_can_msg::COMMANDED_TORQUE, inverter_canfd, true);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",

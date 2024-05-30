@@ -62,7 +62,9 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::GPS_ALT_ELLIP, 0x072},
     {(uint8_t)dv_can_msg::GPS_VEL_XYZ, 0x076},
     {(uint8_t)dv_can_msg::GPS_ACCELERATION, 0x034},
-    {(uint8_t)dv_can_msg::GPS_RTK_STATUS, 0x009}};
+    {(uint8_t)dv_can_msg::GPS_RTK_STATUS, 0x009}, 
+    {(uint8_t)dv_can_msg::STR_MOTOR_CMD, 0x0000040F}
+    };
 
 bool CanInterface::connect(const char *canline) {
 
@@ -165,29 +167,34 @@ int CanInterface::read_can() {
   return 1;
 }
 
-void CanInterface::write_can(dv_can_msg msgName, long long data) {
+void CanInterface::write_can(dv_can_msg msgName, long long data, bool byteWise) {
   // can_frame to_write;
   struct canfd_frame to_write;
   to_write.can_id = dv_can_msg_map[(int)msgName];
   to_write.len = 8;
   uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-  // Little Endian: reverse data bits.
-  // Since many signals are not in multiple of 8s, cannot simply move everything in bytes.
-  unsigned long long littleEndianData = 0; 
+  if (byteWise) {
+    INT64_TO_ARRAY(data, signalArray);
+  } else {
+    // Little Endian: reverse data bits.
+    // Since many signals are not in multiple of 8s, cannot simply move everything in bytes.
+    unsigned long long littleEndianData = 0; 
 
-  // Bit Reversal 
-  for (int i = 0; i < 64; i++) {
-    littleEndianData = littleEndianData | ((data & 1) << (64 - i - 1)); 
-    data = data >> 1;
+    // Bit Reversal 
+    for (int i = 0; i < 64; i++) {
+      littleEndianData = littleEndianData | ((data & 1) << (64 - i - 1)); 
+      data = data >> 1;
+    }
+
+    INT64_TO_ARRAY(littleEndianData, signalArray); // Convert to array of bytes
   }
-
-  INT64_TO_ARRAY(littleEndianData, signalArray); // Convert to array of bytes
-
+  
   // The steering motor uses EXTENDED CAN, and sends in Little Endian.
   if (msgName == dv_can_msg::SetSTRMotorPos ||
       msgName == dv_can_msg::SetSTRMotorOrigin ||
-      msgName == dv_can_msg::SetSTRMotorPosSpeedAcc) {
+      msgName == dv_can_msg::SetSTRMotorPosSpeedAcc || 
+      msgName == dv_can_msg::STR_MOTOR_CMD) {
     to_write.can_id = dv_can_msg_map[(int)msgName] | (CAN_EFF_FLAG);
     INT64_TO_ARRAY_REVERSE(data, signalArray); // Little Endian (bytes reversed)
   }
