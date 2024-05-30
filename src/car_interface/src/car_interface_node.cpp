@@ -347,59 +347,47 @@ void CarInterface::sendStateAndCmd() {
   try {
 
     // DV computer state
-    canfd_frame *dv_comp_state = (canfd_frame *)malloc(sizeof(canfd_frame));
-    can0_->setSignal(dv_comp_state, dv_can_msg::DV_COMP_STATE, 0, 3, 1,
-                     dv_pc_state_);
+    uint64_t dv_comp_state;
+    dv_comp_state = can0_->setSignalArray(dv_comp_state, 0, 3, 1, dv_pc_state_);
 
     // Steering motor position
     // can use different mode to command speed/accel
     can0_->write_can(dv_can_msg::SetSTRMotorPos, ((long)steering_cmd_) << 32);
-    canfd_frame *steering_canfd = (canfd_frame *)malloc(sizeof(canfd_frame));
+    uint64_t steering_canfd;
 
     // Motor/inverter command
-    canfd_frame *inverter_canfd = (canfd_frame *)malloc(sizeof(canfd_frame));
+    uint64_t inverter_canfd;
 
     if (braking_cmd_ == 0) {
       // Zero commanded torque
-      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 0, 16, 1,
-                       0x0000);
+      inverter_canfd = can0_->setSignalArray(inverter_canfd, 0, 16, 1, 0x0000);
       // Commanded speed
-      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 16, 16, 1,
-                       throttle_cmd_ & 0xFFFF);
+      inverter_canfd = can0_->setSignalArray(inverter_canfd, 16, 16, 1, throttle_cmd_ & 0xFFFF);
     } else if (braking_cmd_ < 0) {
       // TODO: review regen
       // Commanded negative torque
-      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 0, 16, 1,
-                       braking_cmd_ & 0xFFFF);
+      inverter_canfd = can0_->setSignalArray(inverter_canfd, 0, 16, 1, braking_cmd_ & 0xFFFF);
       // Zero commanded speed
-      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 16, 16, 1,
-                       0x0000);
+      inverter_canfd = can0_->setSignalArray(inverter_canfd, 16, 16, 1, 0x0000);
     }
 
     if (cmd_ || testing_) {
       // Enable Inverter
-      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 40, 8, 1,
-                       0x01);
+      inverter_canfd = can0_->setSignalArray(inverter_canfd, 40, 8, 1, 0x01);
     } else {
       // Disable Inverter
-      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 40, 8, 1,
-                       0x00);
+      inverter_canfd = can0_->setSignalArray(inverter_canfd, 40, 8, 1, 0x00);
     }
 
     // Forward direction.
-    can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 32, 8, 1,
-                     0x01);
+    inverter_canfd = can0_->setSignalArray(inverter_canfd, 32, 8, 1, 0x01);
     // Torque limit.
-    can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 48, 16, 1,
-                     0x0000);
+    inverter_canfd = can0_->setSignalArray(inverter_canfd, 48, 16, 1, 0x0000);
 
     // Transmit
-    can0_->sendSignal(&dv_comp_state);
-    can0_->sendSignal(&steering_canfd);
-    can0_->sendSignal(&inverter_canfd);
-    free(dv_comp_state);
-    free(steering_canfd);
-    free(inverter_canfd);
+    can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state);
+    //can0_->sendSignal(dv_can_msg::SET);
+    //can0_->sendSignal(dv_can_msg::);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",

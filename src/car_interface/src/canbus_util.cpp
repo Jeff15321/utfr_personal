@@ -287,21 +287,21 @@ float CanInterface::getSignalBE(dv_can_msg msgName, uint8_t startBit,
  * @param data data (e.g. an angle) that has undergone scaling.
  * @return data received by the DV computer.
  */
-void CanInterface::setSignal(canfd_frame *to_send, dv_can_msg msgName,
+canfd_frame CanInterface::setSignal(canfd_frame to_send, dv_can_msg msgName,
                              uint8_t startBit, uint8_t sigLength, float scale,
                              double data) {
-  to_send->can_id = dv_can_msg_map[(int)msgName];
-  to_send->len = 8;
+  to_send.can_id = dv_can_msg_map[(int)msgName];
+  to_send.len = 8;
   uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
   // Take raw data and scale it if necessary.
   uint64_t can_data = (uint64_t)(data / scale);
 
   // Convert to byte format.
-  uint64_t mask = pow(2, 8) - 1; // 8 Bit Mask
+  uint64_t mask = 0xFF; // 8 Bit Mask
 
   for (int i = startBit / 8 + sigLength / 8 - 1; i >= startBit / 8; i--) {
-    uint64_t byte = can_data & mask;
+    uint8_t byte = can_data & mask;
     signalArray[i] = byte;
 
     can_data = can_data >> 8;
@@ -309,26 +309,22 @@ void CanInterface::setSignal(canfd_frame *to_send, dv_can_msg msgName,
 
   // Set data within data frame.
   for (uint8_t i = startBit / 8; i < startBit / 8 + sigLength / 8; i++) {
-    (to_send->data)[i] = signalArray[i];
+    (to_send.data)[i] = signalArray[i];
   }
 
   // Works: problem with sendSignal
-  ssize_t bytes = write(sock, to_send, sizeof(can_frame));
-
-  if (bytes < 0) {
-    perror("CANT SET SIGNAL");
-  }
+  return to_send;
 }
 
 /*! Send CAN messages over the CAN bus.
  *
  *  @brief message is sent over CAN bus in little endian format.
  */
-void CanInterface::sendSignal(canfd_frame **to_write) {
+void CanInterface::sendSignal(canfd_frame to_write) {
   // Check if a double pointer for to_write is needed. 
-  ssize_t bytes = write(sock, *to_write, sizeof(canfd_frame));
+  ssize_t bytes = write(sock, &to_write, sizeof(canfd_frame));
 
-  const char * error_msg = std::to_string((*to_write)->can_id).c_str();
+  const char * error_msg = std::to_string(to_write.can_id).c_str();
 
   perror("CAN ID: ");
   perror(error_msg);
@@ -338,6 +334,17 @@ void CanInterface::sendSignal(canfd_frame **to_write) {
 
   else if ((long unsigned int)bytes < sizeof(can_frame))
     perror("CAN...'T WRITE SEND SIGNAL (<size)");
+}
+
+uint64_t setSignalArray(uint64_t to_send, uint8_t startBit, uint8_t sigLength, double scale, double data) 
+{
+  uint64_t can_data = (uint64_t) (data / scale); 
+
+  uint64_t mask = pow(2, sigLength) - 1; 
+
+  can_data = can_data | ((can_data & mask) << (64 - startBit - sigLength));
+
+  return can_data;
 }
 
 } // namespace car_interface
