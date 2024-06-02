@@ -134,6 +134,7 @@ void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
   utfr_msgs::msg::EgoState res = updateState(x, y, -yaw);
   // std::cout << "x: " << res.pose.pose.position.x << " y: " <<
   // res.pose.pose.position.y << std::endl;
+  res.header.stamp = this->get_clock()->now();
   res.vel.twist.linear.x = vel_x;
   res.vel.twist.linear.y = vel_y;
   res.vel.twist.angular.z = vel_yaw;
@@ -147,6 +148,7 @@ void EkfNode::imuCB(const sensor_msgs::msg::Imu msg) {
   prev_time_ = this->now();
 
   utfr_msgs::msg::EgoState res = extrapolateState(msg, dt);
+  res.header.stamp = this->get_clock()->now();
   current_state_ = res;
 
   res.pose.pose.position.y = -res.pose.pose.position.y;
