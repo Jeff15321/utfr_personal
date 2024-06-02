@@ -369,16 +369,16 @@ void CenterPathNode::timerCBAccel() {
     int right_size = cone_detections_->right_cones.size();
     int large_orange_size = cone_detections_->large_orange_cones.size();
 
-    if (!accel_sector_increase && left_size == 0 && right_size == 0 &&
+    if (!accel_sector_increase_ && left_size == 0 && right_size == 0 &&
         large_orange_size == 0) {
-      accel_sector_increase = true;
+      accel_sector_increase_ = true;
       curr_sector_ += 1;
       RCLCPP_INFO(this->get_logger(), "Accel ended due to cone detections.");
     }
 
-    if (!accel_sector_increase &&
+    if (!accel_sector_increase_ &&
         total_distance_traveled_ > 80) { // accel length 75 m
-      accel_sector_increase = true;
+      accel_sector_increase_ = true;
       curr_sector_ += 1;
       RCLCPP_INFO(this->get_logger(), "Accel ended due to distance traveled.");
     }
