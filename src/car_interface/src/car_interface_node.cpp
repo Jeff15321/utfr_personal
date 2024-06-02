@@ -347,22 +347,22 @@ void CarInterface::sendStateAndCmd() {
   try {
     // DV computer state
     uint64_t dv_comp_state = 0;
-    //dv_comp_state = can0_->setSignalArray(dv_comp_state, 0, 3, 1, dv_pc_state_);
-    dv_comp_state = can0_->setSignalArray(dv_comp_state, 0, 3, 1, 2);
+    //dv_comp_state = can0_->setSignal(dv_comp_state, 0, 3, 1, dv_pc_state_);
+    dv_comp_state = can0_->setSignal(dv_comp_state, 0, 3, 1, 2);
 
     // Steering motor position
     // can use different mode to command speed/accel
     // can0_->write_can(dv_can_msg::SetSTRMotorPos, ((long)steering_cmd_) << 32, true);
-    uint64_t position = 000000; // 30 degrees 
+    uint64_t position = 30; // 30 degrees 
     uint64_t steering_canfd = 0;
 
     // Extended CAN 
     // Speed0: Start Bit = 24, Length = 8
     // Set SCALE TO 0 for INITIAL CAN TESTING
-    steering_canfd = can0_->setSignalArray(steering_canfd, 24, 8, 1, 0x000000FF & position); 
-    steering_canfd = can0_->setSignalArray(steering_canfd, 16, 8, 1, (0x0000FF00 & position) >> 8);
-    steering_canfd = can0_->setSignalArray(steering_canfd, 8, 8, 1, (0x00FF0000 & position) >> 16);
-    steering_canfd = can0_->setSignalArray(steering_canfd, 0, 8, 1, (0xFF000000 & position) >> 24); 
+    steering_canfd = can0_->setSignal(steering_canfd, 24, 8, 0.0001, 0x000000FF & position); 
+    steering_canfd = can0_->setSignal(steering_canfd, 16, 8, 0.0001, (0x0000FF00 & position) >> 8);
+    steering_canfd = can0_->setSignal(steering_canfd, 8, 8, 0.0001, (0x00FF0000 & position) >> 16);
+    steering_canfd = can0_->setSignal(steering_canfd, 0, 8, 0.0001, (0xFF000000 & position) >> 24); 
      
     can0_->write_can(dv_can_msg::STR_MOTOR_CMD, steering_canfd, true); 
 
@@ -371,29 +371,29 @@ void CarInterface::sendStateAndCmd() {
 
     if (braking_cmd_ == 0) {
       // Zero commanded torque
-      inverter_canfd = can0_->setSignalArray(inverter_canfd, 0, 16, 1, 0x0000);
+      inverter_canfd = can0_->setSignal(inverter_canfd, 0, 16, 1, 0x0000);
       // Commanded speed
-      inverter_canfd = can0_->setSignalArray(inverter_canfd, 16, 16, 1, throttle_cmd_ & 0xFFFF);
+      inverter_canfd = can0_->setSignal(inverter_canfd, 16, 16, 1, throttle_cmd_ & 0xFFFF);
     } else if (braking_cmd_ < 0) {
       // TODO: review regen
       // Commanded negative torque
-      inverter_canfd = can0_->setSignalArray(inverter_canfd, 0, 16, 1, braking_cmd_ & 0xFFFF);
+      inverter_canfd = can0_->setSignal(inverter_canfd, 0, 16, 1, braking_cmd_ & 0xFFFF);
       // Zero commanded speed
-      inverter_canfd = can0_->setSignalArray(inverter_canfd, 16, 16, 1, 0x0000);
+      inverter_canfd = can0_->setSignal(inverter_canfd, 16, 16, 1, 0x0000);
     }
 
     if (cmd_ || testing_) {
       // Enable Inverter
-      inverter_canfd = can0_->setSignalArray(inverter_canfd, 40, 8, 1, 0x01);
+      inverter_canfd = can0_->setSignal(inverter_canfd, 40, 8, 1, 0x01);
     } else {
       // Disable Inverter
-      inverter_canfd = can0_->setSignalArray(inverter_canfd, 40, 8, 1, 0x00);
+      inverter_canfd = can0_->setSignal(inverter_canfd, 40, 8, 1, 0x00);
     }
 
     // Forward direction.
-    inverter_canfd = can0_->setSignalArray(inverter_canfd, 32, 8, 1, 0x01);
+    inverter_canfd = can0_->setSignal(inverter_canfd, 32, 8, 1, 0x01);
     // Torque limit.
-    inverter_canfd = can0_->setSignalArray(inverter_canfd, 48, 16, 1, 0x0000);
+    inverter_canfd = can0_->setSignal(inverter_canfd, 48, 16, 1, 0x0000);
 
     // Transmit
     can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state, false);

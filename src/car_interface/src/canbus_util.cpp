@@ -175,13 +175,14 @@ void CanInterface::write_can(dv_can_msg msgName, long long data, bool byteWise) 
   uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
   if (byteWise) {
-    INT64_TO_ARRAY(data, signalArray);
+    // Little Endian (initially)
+    INT64_TO_ARRAY_REVERSE(data, signalArray);
   } else {
     // Little Endian: reverse data bits.
     // Since many signals are not in multiple of 8s, cannot simply move everything in bytes.
     unsigned long long littleEndianData = 0; 
 
-    // Bit Reversal 
+    // Bit Reversal
     for (int i = 0; i < 64; i++) {
       littleEndianData = littleEndianData | ((data & 1) << (64 - i - 1)); 
       data = data >> 1;
@@ -295,16 +296,7 @@ float CanInterface::getSignalBE(dv_can_msg msgName, uint8_t startBit,
   return signalData * scale;
 }
 
-/*! Set CAN signals and messages to BUS using little endian.
- *
- * @param canfd_frame address of frame used to set data and CAN ID.
- * @param msgName DV CAN message name.
- * @param startBit little Endian format.
- * @param sigLength number of bits.
- * @param scale amount the data has been scaled by.
- * @param data data (e.g. an angle) that has undergone scaling.
- * @return data received by the DV computer.
- */
+/*
 canfd_frame CanInterface::setSignal(canfd_frame to_send, dv_can_msg msgName,
                              uint8_t startBit, uint8_t sigLength, float scale,
                              double data) {
@@ -333,6 +325,7 @@ canfd_frame CanInterface::setSignal(canfd_frame to_send, dv_can_msg msgName,
   // Works: problem with sendSignal
   return to_send;
 }
+*/
 
 /*! Send CAN messages over the CAN bus.
  *
@@ -354,7 +347,17 @@ void CanInterface::sendSignal(canfd_frame to_write) {
     perror("CAN...'T WRITE SEND SIGNAL (<size)");
 }
 
-uint64_t CanInterface::setSignalArray(uint64_t to_send, uint8_t startBit, uint8_t sigLength, double scale, double data) {
+/*! Set CAN signals and messages to BUS using little endian.
+ *
+ * @param canfd_frame address of frame used to set data and CAN ID.
+ * @param msgName DV CAN message name.
+ * @param startBit little Endian format.
+ * @param sigLength number of bits.
+ * @param scale amount the data has been scaled by.
+ * @param data data (e.g. an angle) that has undergone scaling.
+ * @return data received by the DV computer.
+ */
+uint64_t CanInterface::setSignal(uint64_t to_send, uint8_t startBit, uint8_t sigLength, double scale, double data) {
   uint64_t can_data = (uint64_t) (data / scale); 
 
   uint64_t mask = pow(2, sigLength) - 1; 

@@ -209,17 +209,14 @@ public:
    * @param scale amount the data has been scaled by.
    * @param data data (e.g. an angle) that has undergone scaling.
    * @return data received by the DV computer.
-   */
-  canfd_frame setSignal(canfd_frame to_send, dv_can_msg msgName, uint8_t startBit,
-                 uint8_t sigLength, float scale, double data);
+  */
+  uint64_t setSignal(uint64_t to_send, uint8_t startBit, uint8_t sigLength, double scale, double data); 
 
   /*! Send CAN messages over the CAN bus.
    *
    *  @brief message is sent over CAN bus in little endian format.
    */
   void sendSignal(canfd_frame to_write);
-
-  uint64_t setSignalArray(uint64_t to_send, uint8_t startBit, uint8_t sigLength, double scale, double data); 
 
   // private:
   sockaddr_can addr;
