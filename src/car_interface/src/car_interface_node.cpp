@@ -368,7 +368,7 @@ void CarInterface::sendStateAndCmd() {
 
     // Motor/inverter command
     uint64_t inverter_canfd = 0;
-
+    /*
     if (braking_cmd_ == 0) {
       // Zero commanded torque
       inverter_canfd = can0_->setSignal(inverter_canfd, 0, 16, 1, 0x0000);
@@ -394,6 +394,15 @@ void CarInterface::sendStateAndCmd() {
     inverter_canfd = can0_->setSignal(inverter_canfd, 32, 8, 1, 0x01);
     // Torque limit.
     inverter_canfd = can0_->setSignal(inverter_canfd, 48, 16, 1, 0x0000);
+    */
+
+    inverter_canfd = can0_->setSignal(inverter_canfd, 0, 8, 1, 100);
+    inverter_canfd = can0_->setSignal(inverter_canfd, 8, 8, 1, 0);
+    inverter_canfd = can0_->setSignal(inverter_canfd, 16, 8, 1, 0);
+    inverter_canfd = can0_->setSignal(inverter_canfd, 24, 8, 1, 0);
+    inverter_canfd = can0_->setSignal(inverter_canfd, 32, 8, 1, 1);
+    inverter_canfd = can0_->setSignal(inverter_canfd, 40, 8, 1, (1 | 2));
+    inverter_canfd = can0_->setSignal(inverter_canfd, 48, 8, 1, 20);
 
     // Transmit
     can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state, false);
