@@ -368,10 +368,7 @@ void CarInterface::sendStateAndCmd() {
 
     // Motor/inverter command
     uint64_t inverter_canfd = 0;
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
     /*
     if (braking_cmd_ == 0) {
       // Zero commanded torque
@@ -400,17 +397,26 @@ void CarInterface::sendStateAndCmd() {
     inverter_canfd = can0_->setSignal(inverter_canfd, 48, 16, 1, 0x0000);
     */
 
-    inverter_canfd = can0_->setSignal(inverter_canfd, 0, 8, 1, 100);
-    inverter_canfd = can0_->setSignal(inverter_canfd, 8, 8, 1, 0);
-    inverter_canfd = can0_->setSignal(inverter_canfd, 16, 8, 1, 0);
-    inverter_canfd = can0_->setSignal(inverter_canfd, 24, 8, 1, 0);
+    int torque_commanded = 10; 
+    int speed_commanded = 0;
+
+    inverter_canfd = can0_->setSignal(inverter_canfd, 0, 8, 1, torque_commanded % 256);
+    inverter_canfd = can0_->setSignal(inverter_canfd, 8, 8, 1, torque_commanded / 256);
+    can0_->write_can(dv_can_msg::DV_COMMANDED, inverter_canfd, true);
+
+    inverter_canfd = can0_->setSignal(inverter_canfd, 16, 8, 1, speed_commanded % 256);
+    inverter_canfd = can0_->setSignal(inverter_canfd, 24, 8, 1, speed_commanded / 256);
+    /*
     inverter_canfd = can0_->setSignal(inverter_canfd, 32, 8, 1, 1);
-    inverter_canfd = can0_->setSignal(inverter_canfd, 40, 8, 1, (1 | 2));
-    inverter_canfd = can0_->setSignal(inverter_canfd, 48, 8, 1, 20);
+    inverter_canfd = can0_->setSignal(inverter_canfd, 40, 8, 1, (1 | 4));
+    inverter_canfd = can0_->setSignal(inverter_canfd, 48, 8, 1, 0);
+    inverter_canfd = can0_->setSignal(inverter_canfd, 56, 8, 1, 0);
+    */
+
 
     // Transmit
     can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state, false);
-    can0_->write_can(dv_can_msg::COMMANDED_TORQUE, inverter_canfd, true);
+    //can0_->write_can(dv_can_msg::COMMANDED_TORQUE, inverter_canfd, true);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",

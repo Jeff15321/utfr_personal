@@ -63,7 +63,8 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::GPS_VEL_XYZ, 0x076},
     {(uint8_t)dv_can_msg::GPS_ACCELERATION, 0x034},
     {(uint8_t)dv_can_msg::GPS_RTK_STATUS, 0x009}, 
-    {(uint8_t)dv_can_msg::STR_MOTOR_CMD, 0x0000040F}
+    {(uint8_t)dv_can_msg::STR_MOTOR_CMD, 0x0000040F}, 
+    {(uint8_t)dv_can_msg::DV_COMMANDED, 0x0D0}
     };
 
 bool CanInterface::connect(const char *canline) {
