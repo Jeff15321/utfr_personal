@@ -368,6 +368,10 @@ void CarInterface::sendStateAndCmd() {
 
     // Motor/inverter command
     uint64_t inverter_canfd = 0;
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
     /*
     if (braking_cmd_ == 0) {
       // Zero commanded torque
@@ -406,7 +410,6 @@ void CarInterface::sendStateAndCmd() {
 
     // Transmit
     can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state, false);
-    //can0_->sendSignal(dv_can_msg::SET);
     can0_->write_can(dv_can_msg::COMMANDED_TORQUE, inverter_canfd, true);
 
   } catch (int e) {
