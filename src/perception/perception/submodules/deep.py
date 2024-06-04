@@ -178,7 +178,7 @@ def bounding_boxes_to_cone_detections(
     i = 0
     skip_counter = 0
     for x, y, w, h in bounding_boxes:
-        if y >= 930:
+        if y >= 930 and w <= 7 or h <= 7:
             skip_counter += 1
             continue
         color = labelColor(classes[i])  # int for color
