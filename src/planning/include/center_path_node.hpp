@@ -359,7 +359,7 @@ private:
   int last_sector = 0;
   float best_lap_time = 0.0;
   float last_lap_time = 0.0;
-  bool accel_sector_increase;
+  bool accel_sector_increase_ = false;
   int detections_in_row_ = 0;
   bool use_mapping_ = false;
   double base_lookahead_distance_;
