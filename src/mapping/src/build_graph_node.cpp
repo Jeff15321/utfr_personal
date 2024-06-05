@@ -192,7 +192,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       cone_data.id = cones_found_;
       cone_data.x = position_x_;
       cone_data.y = position_y_;
-      cone_nodes_.push_back(cone_data);
+      cone_nodes_[cones_found_] = (cone_data);
       average_position_[cones_found_] = {position_x_, position_y_, 1};
       cone_id_to_vertex_map_[cones_found_] = cone_data;
 
@@ -220,7 +220,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       cone_data.id = cones_found_;
       cone_data.x = position_x_;
       cone_data.y = position_y_;
-      cone_nodes_.push_back(cone_data);
+      cone_nodes_[cones_found_] = (cone_data);
       average_position_[cones_found_] = {position_x_, position_y_, 1};
       cone_id_to_vertex_map_[cones_found_] = cone_data;
 
@@ -350,7 +350,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           cone_data.id = cones_found_;
           cone_data.x = true_coordinate_x / count_threshold;
           cone_data.y = true_coordinate_y / count_threshold;
-          cone_nodes_.push_back(cone_data);
+          cone_nodes_[cones_found_] = (cone_data);
           average_position_[cones_found_] = {position_x_, position_y_, 1};
           cone_id_to_vertex_map_[cones_found_] = cone_data;
 
@@ -476,7 +476,7 @@ void BuildGraphNode::timerCB() {
   pose_data.y = current_state_.pose.pose.position.y;
   pose_data.theta =
       utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation);
-  pose_nodes_.push_back(pose_data);
+  pose_nodes_[current_pose_id_] = (pose_data);
   id_to_pose_map_[current_pose_id_] = pose_data;
 
   if (current_pose_id_ == 1001) {
@@ -505,20 +505,32 @@ void BuildGraphNode::timerCB() {
 
   std::vector<int> cones = KNN(current_cone_detections_);
   loopClosure(cones);
+
+  std::vector<utfr_msgs::msg::PoseGraphData> cones_;
+  std::vector<utfr_msgs::msg::PoseGraphData> states_;
+
+  // Add all values from the map to the vector
+  for (const auto& pair : cone_nodes_) {
+      cones_.push_back(pair.second);
+  }
+
+  for (const auto& pair : pose_nodes_) {
+      states_.push_back(pair.second);
+  }
+
+  // Make pose_to_cone_edges_ have a max size of 4501
+  if (pose_to_cone_edges_.size() > 4500) {
+    // Delete all the edges before 4501
+    pose_to_cone_edges_.erase(pose_to_cone_edges_.begin(),
+                              pose_to_cone_edges_.begin() + 4500);
+  }
+
   if (cones_found_ > 3) {
     utfr_msgs::msg::PoseGraph poseGraph;
     poseGraph.header.stamp = this->get_clock()->now();
-    /*for(int i = 0; i < cone_nodes_.size();i++){
-      std::cout << std::get<0>(true_cone_positions[cone_nodes_[i].id]) <<
-    std::endl; std::cout << cone_nodes_.size() << std::endl; std::cout.flush();
-      (cone_nodes_[i]).x =
-    (std::get<1>(true_cone_positions[cone_nodes_[i].id])[0])/(std::get<0>(true_cone_positions[cone_nodes_[i].id]));
-      (cone_nodes_[i]).y =
-    (std::get<1>(true_cone_positions[cone_nodes_[i].id])[1])/(std::get<0>(true_cone_positions[cone_nodes_[i].id]));
 
-    }*/
-    poseGraph.cones = cone_nodes_;
-    poseGraph.states = pose_nodes_;
+    poseGraph.cones = cones_;
+    poseGraph.states = states_;
     poseGraph.motion_edge = pose_to_pose_edges_;
     poseGraph.measurement_edges = pose_to_cone_edges_;
 

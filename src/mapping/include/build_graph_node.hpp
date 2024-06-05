@@ -176,8 +176,8 @@ public:
   utfr_msgs::msg::EgoState current_ego_state_;
 
   // Lists for poses, cones, and edges
-  std::vector<utfr_msgs::msg::PoseGraphData> pose_nodes_;
-  std::vector<utfr_msgs::msg::PoseGraphData> cone_nodes_;
+  std::map<int, utfr_msgs::msg::PoseGraphData> pose_nodes_;
+  std::map<int, utfr_msgs::msg::PoseGraphData> cone_nodes_;
   std::vector<utfr_msgs::msg::PoseGraphData> pose_to_pose_edges_;
   std::vector<utfr_msgs::msg::PoseGraphData> pose_to_cone_edges_;
   std::map<double, int> detection_counts;
