@@ -24,7 +24,9 @@
 #include <std_msgs/msg/bool.hpp>
 #include <stdexcept> // std::runtime_error
 #include <string>
+#include <optional>
 #include <vector>
+#include <map>
 
 // Message Requirements
 #include "tf2_ros/transform_broadcaster.h"
@@ -110,9 +112,8 @@ public:
 
   /*! Implement functionalty to detect loop closures
    *  @param[in] cones std::vector<int>&, ids of detected cones
-   *  @param[out] cones_id_list std::vector<int> of cones found
    */
-  void loopClosure(const std::vector<int> &cones);
+  void loopClosure(std::vector<int> const& current_frame_cones);
 
   /*! Primary callback function
    */
@@ -144,8 +145,7 @@ public:
       state_estimation_subscriber_2_;
 
   // Global variables
-  std::vector<std::pair<float, utfr_msgs::msg::Cone>>
-      past_detections_; // Previous cone detections
+  std::map<int, utfr_msgs::msg::Cone> past_cone_detections_;
   std::map<int, utfr_msgs::msg::PoseGraphData> cone_id_to_vertex_map_;
   utfr_msgs::msg::ConeMap current_cone_map_; // Current cone map estimate
   utfr_msgs::msg::EgoState current_state_;   // Current state estimate
@@ -161,8 +161,7 @@ public:
   int cones_potential_;
   int count_;
   bool loop_closed_; // True if loop is closed
-  bool landmarked_;
-  int landmarkedID_;
+  std::optional<int> landmarked_cone_id_;
   int out_of_frame_;
   int cones_found_;
   int current_pose_id_;
