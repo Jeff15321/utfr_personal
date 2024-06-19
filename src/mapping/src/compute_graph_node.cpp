@@ -49,6 +49,9 @@ void ComputeGraphNode::initParams() {
   this->declare_parameter("update_rate", 33.33);
   this->declare_parameter("slam_timer_", 33.33);
 
+  this->declare_parameter("mapping_mode", 0);
+  mapping_mode_ = this->get_parameter("mapping_mode").as_int();
+
   // Will have to tune these later depending on the accuracy of our sensors
   Eigen::DiagonalMatrix<double, 3> P2P;
   Eigen::DiagonalMatrix<double, 2> P2C;
@@ -82,23 +85,29 @@ void ComputeGraphNode::initParams() {
 }
 
 void ComputeGraphNode::initSubscribers() {
-  pose_graph_subscriber_ = this->create_subscription<utfr_msgs::msg::PoseGraph>(
+  if (mapping_mode_ == 0) {
+    pose_graph_subscriber_ = this->create_subscription<utfr_msgs::msg::PoseGraph>(
       topics::kPoseGraph, 1,
       std::bind(&ComputeGraphNode::poseGraphCB, this, std::placeholders::_1));
+  }
 }
 
 void ComputeGraphNode::initPublishers() {
-  cone_map_publisher_ =
+  if (mapping_mode_ == 0) {
+    cone_map_publisher_ =
       this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
 
-  slam_state_publisher_ = this->create_publisher<utfr_msgs::msg::PoseGraphData>(
-      topics::kSlamPose, 10);
+    slam_state_publisher_ = 
+      this->create_publisher<utfr_msgs::msg::PoseGraphData>(topics::kSlamPose, 10);
+  }
 }
 
 void ComputeGraphNode::initTimers() {
-  main_timer_ = this->create_wall_timer(
+  if (mapping_mode_ == 0) {
+    main_timer_ = this->create_wall_timer(
       std::chrono::duration<double, std::milli>(this->slam_rate_),
       std::bind(&ComputeGraphNode::timerCB, this));
+  }
 }
 
 void ComputeGraphNode::initHeartbeat() {

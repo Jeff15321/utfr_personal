@@ -168,6 +168,7 @@ public:
   int first_detection_pose_id_;
   std::unique_ptr<kd_tree_knn::KDTree> globalKDTreePtr_;
   double heartbeat_rate_;
+  int mapping_mode_;
   bool do_graph_slam_;
   std_msgs::msg::Bool closed_loop_once;
   std::shared_ptr<tf2_ros::TransformBroadcaster> broadcaster_;

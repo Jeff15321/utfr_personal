@@ -47,6 +47,9 @@ using SlamLinearSolver =
 void BuildGraphNode::initParams() {
   this->declare_parameter("update_rate", 33.33);
   update_rate_ = this->get_parameter("update_rate").as_double();
+  this->declare_parameter("mapping_mode", 0);
+  mapping_mode_ = this->get_parameter("mapping_mode").as_int();
+  
   loop_closed_ = false;
   landmarked_cone_id_ = std::nullopt;
   out_of_frame_ = -1;
@@ -81,7 +84,8 @@ void BuildGraphNode::initParams() {
 }
 
 void BuildGraphNode::initSubscribers() {
-  cone_detection_subscriber_ =
+  if (mapping_mode_ == 0) {
+    cone_detection_subscriber_ =
       this->create_subscription<utfr_msgs::msg::ConeDetections>(
           topics::kConeDetections, 1,
           std::bind(&BuildGraphNode::coneDetectionCB, this,
@@ -92,23 +96,28 @@ void BuildGraphNode::initSubscribers() {
           topics::kEgoState, 1,
           std::bind(&BuildGraphNode::stateEstimationCB, this,
                     std::placeholders::_1));
+  }
 }
 
 void BuildGraphNode::initPublishers() {
-  pose_graph_publisher_ =
+  if (mapping_mode_ == 0) {
+    pose_graph_publisher_ =
       this->create_publisher<utfr_msgs::msg::PoseGraph>(topics::kPoseGraph, 10);
 
-  cone_map_publisher_ =
-      this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
+    // cone_map_publisher_ =
+    //     this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
 
-  loop_closure_publisher_ =
-      this->create_publisher<std_msgs::msg::Bool>(topics::kLoopClosed, 10);
+    loop_closure_publisher_ =
+        this->create_publisher<std_msgs::msg::Bool>(topics::kLoopClosed, 10);
+  }
 }
 
 void BuildGraphNode::initTimers() {
-  main_timer_ = this->create_wall_timer(
+  if (mapping_mode_ == 0) {
+    main_timer_ = this->create_wall_timer(
       std::chrono::duration<double, std::milli>(this->update_rate_),
       std::bind(&BuildGraphNode::timerCB, this));
+  }
 }
 
 void BuildGraphNode::initHeartbeat() {

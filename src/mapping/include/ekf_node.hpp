@@ -204,6 +204,8 @@ public:
   VehicleParameters vehicle_params_;
   utfr_msgs::msg::Heartbeat heartbeat_;
   double update_rate_;
+  int mapping_mode_;
+  int ekf_on_;
   rclcpp::TimerBase::SharedPtr main_timer_;
 
   rclcpp::Time prev_time_;

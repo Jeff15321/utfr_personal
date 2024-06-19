@@ -185,6 +185,7 @@ public:
   double slam_rate_;
   utfr_msgs::msg::Heartbeat heartbeat_;
   double update_rate_;
+  int mapping_mode_;
   rclcpp::TimerBase::SharedPtr main_timer_;
 };
 } // namespace compute_graph
