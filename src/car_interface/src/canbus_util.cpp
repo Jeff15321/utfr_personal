@@ -208,7 +208,7 @@ void CanInterface::write_can(dv_can_msg msgName, long long data, bool byteWise) 
   ssize_t bytes = write(sock, &to_write, sizeof(can_frame));
 
   if (bytes < 0)
-    perror("CAN...'T WRITE (<0) HERE");
+    perror("CAN...'T WRITE (<0)");
 
   else if ((long unsigned int)bytes < sizeof(can_frame))
     perror("CAN...'T WRITE (<size)");
@@ -324,7 +324,11 @@ canfd_frame CanInterface::setSignal(canfd_frame to_send, dv_can_msg msgName,
   }
 
   // Works: problem with sendSignal
-  return to_send;
+  ssize_t bytes = write(sock, to_send, sizeof(can_frame));
+
+  if (bytes < 0) {
+    perror("CANT SET SIGNAL");
+  }
 }
 */
 
@@ -332,14 +336,8 @@ canfd_frame CanInterface::setSignal(canfd_frame to_send, dv_can_msg msgName,
  *
  *  @brief message is sent over CAN bus in little endian format.
  */
-void CanInterface::sendSignal(canfd_frame to_write) {
-  // Check if a double pointer for to_write is needed. 
-  ssize_t bytes = write(sock, &to_write, sizeof(canfd_frame));
-
-  const char * error_msg = std::to_string(to_write.can_id).c_str();
-
-  perror("CAN ID: ");
-  perror(error_msg);
+void CanInterface::sendSignal(canfd_frame *to_write) {
+  ssize_t bytes = write(sock, to_write, sizeof(can_frame));
 
   if (bytes < 0)
     perror("CAN...'T WR ITE SEND SIGNAL (<0)");
