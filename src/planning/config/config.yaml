@@ -6,11 +6,17 @@ center_path_node: # Name of Module
     wheel_base: 1.58 # [m]
 
     ds: 0.025 # [m] discretization step
-    max_velocity: 5.0 # [m/s]
+    max_velocity: 6.0 # [m/s]
     num_points: 150 # number of points to discretize the path
 
     threshold_radius: 0.5 #[m]
     threshold_cones: 3 # number of cones to check for radius
+    global_path: 1
+    colourblind: 0
+
+    # Pure Pursuit Controller Parameters
+    base_lookahead_distance: 3.0 # [m]
+    lookahead_scaling_factor: 0.6 # [m]
 
 controller_node: # Name of Module
   ros__parameters:
@@ -19,19 +25,19 @@ controller_node: # Name of Module
     controller: "pure_pursuit" #['stanley', 'pure_pursuit', 'mpc']
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
+    max_steering_angle: 0.34 # [rad]
+    max_steering_rate: 0.1 # [rad/s]
 
     ds: 0.025 # [m] discretization step
-    max_velocity: 4.0 # [m/s]
+    max_velocity: 6.0 # [m/s]
     num_points: 150 # number of points to discretize the path
 
     # Stanley Controller Parameters
     discretized_points: 5000
     cte_error: 0.01
     cte_angle_error: 1.0
-    max_steering_rate: 0.2
     max_tire: 1.5
-    max_steering_angle: 0.34
 
     # Pure Pursuit Controller Parameters
-    base_lookahead_distance: 1.5 # [m]
-    lookahead_scaling_factor: 0.25 # [m]
+    base_lookahead_distance: 3.0 # [m]
+    lookahead_scaling_factor: 0.6 # [m]

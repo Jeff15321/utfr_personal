@@ -42,6 +42,8 @@
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
 #include <utfr_msgs/msg/trajectory_point.hpp>
+#include <utfr_msgs/msg/lap_time.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -76,6 +78,56 @@ public:
   typedef CGAL::Triangulation_data_structure_2<Vb> Tds;
   typedef CGAL::Delaunay_triangulation_2<K, Tds> Delaunay;
   typedef Delaunay::Vertex_handle Vertex_handle;
+  
+  /*! This function tries to get global waypoints if possible and sets path_ */
+  void GlobalWaypoints();
+  
+  /*! This function reads waypoints from a file
+  * @param path the file path for the waypoints to read
+  * @returns vector of the waypoints read
+  */
+  std::vector<std::pair<double,double>> getWaypoints(std::string path);
+  
+  /*! This function finds the next waypoint to follow and sends the current path
+      to the controller
+  */
+  void nextWaypoint();
+  
+  /*! This function generates the transform by using the centres of the skipad 
+      circle and the intersection of the circle
+  */
+  void createTransform();
+
+  /*! This function transforms points from one frame of reference to cone coords
+  * @param point the point to be transformed
+  * @returns point transformed using the skidpad transform
+  */
+  std::pair<double,double> transformWaypoint(const std::pair<double,double> &point);
+  
+  /*! This function returns the left and right skidpad circle centres 
+      respectively if they are valid. If only the right one is valid, the left 
+      one is calculated. If none are valid it returns NAN.
+  * @returns <left_x, left_y, right_x, right_y>
+  */
+  std::tuple<double,double,double,double> getCentres();
+  
+  /*! This function returns most feasible skidpad centres based on cone map
+  * @returns <left_x, left_y, right_x, right_y>
+  */
+  std::tuple<double,double,double,double> skidpadCircleCentres();
+  
+  /*! This function calculates the circle of best fit with the radius for the 
+      cones that satisfy the inlier count
+  * @param cones the cones to find circle of best fit
+  * @param radius the radius of the circle
+  * @param inlier_count the number of cones the circle should contain at least
+  * @returns <centre_x, centre_y, radius, threshold>
+  */
+  std::tuple<double,double,double,double> circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count);
+
+  std::tuple<double,double,double,double> getSkidpadCircleCentresColourblind();
+
+  std::tuple<double, double, double, double> getCentresColourblind();
 
 private:
   /*! Initialize and load params from config.yaml:
@@ -130,6 +182,12 @@ private:
     * @param[in] msg utfr_msgs::msg::ConeDetections incoming cone detections msg
    */
   void coneDetectionsCB(const utfr_msgs::msg::ConeDetections &msg);
+
+  /**
+   * ConeMap Closure Subscriber Callback:
+   * @param[in] msg utfr_msgs::msg::ConeDetections incoming cone detections msg
+   */
+  void coneMapClosureCB(const std_msgs::msg::Bool &msg);
 
   /*! Accel Timer Callback:
    */
@@ -216,13 +274,30 @@ private:
              std::vector<double>>
   BezierPoints(std::vector<CGAL::Point_2<CGAL::Epick>> midpoints);
 
-  /*! Skidpad Lap Counter based off of local cone detections:
+  /*! Skidpad Lap Counter:
    */
   void skidpadLapCounter();
 
-  /*! Autox/Trackdrive Lap Counter based off of local cone detections:
+  void skidpadLapCounterColourblind();
+
+  bool checkPassedDatum(const utfr_msgs::msg::EgoState reference,
+                        const utfr_msgs::msg::EgoState &current);
+
+  utfr_msgs::msg::EgoState getSkidpadDatum(const utfr_msgs::msg::ConeMap &cone_map);
+
+  /*! Autox/Trackdrive Lap Counter
    */
   void trackdriveLapCounter();
+
+
+  /**
+   * Trackdrive get datum finds the point where the lap starts given a conemap. used in global lapcounter. 
+   * 
+   * @param cone_map 
+   * @return utfr_msgs::msg::EgoState 
+   */
+  utfr_msgs::msg::EgoState getTrackDriveDatum(const utfr_msgs::msg::ConeMap &cone_map);
+
   
   /*! Skidpad path finder when there are enough blue and yellow cones to fit a line
    * @param[out] std::tuple<double, double, double, double, double, double>, x center left, y center left, radius left, x center right, y center right, radius right
@@ -238,6 +313,10 @@ private:
    * @param[out] std::tuple<double, double, double, double, double, double>, x center left, y center left, radius left, x center right, y center right, radius right
    */
   std::tuple<double, double, double, double, double, double> skidpadLeft();
+
+  /*! Function to calculate and publish lap times
+   */
+  void publishLapTime();
 
   /*! Converts something from global to local coordinates
    * @param[in] x, y, yaw in global coordinates
@@ -258,11 +337,21 @@ private:
    * @param[out] list of cones in himesphere
    */
   std::vector<utfr_msgs::msg::Cone> getConesInHemisphere(std::vector<utfr_msgs::msg::Cone> cones, double r);
-  
+
   /*! Initialize global variables:
    */
   double update_rate_;
   std::string event_;
+
+  const double centre_distance_ = 9.125; // skidpad centres to track centre dist
+  const int small_circle_cones_ = 16; // number of cones in small circle
+  const int big_circle_cones_ = 13; // number of cones in large circle
+  std::unique_ptr<MatrixXd> skidpadTransform_{nullptr};
+  std::vector<std::pair<double,double>> waypoints;
+  std::vector<std::tuple<double,double,double>> visited;
+  bool global_path_;
+  double max_velocity_;
+
   double small_radius_;
   double big_radius_;
   double threshold_radius_;
@@ -272,18 +361,39 @@ private:
   bool cones_detected_ = false;
   bool found_4_large_orange;
   rclcpp::Time last_time;
-  bool accel_sector_increase;
+  rclcpp::Time last_switch_time;
+  int last_sector = 0;
+  float best_lap_time = 0.0;
+  float last_lap_time = 0.0;
+  bool accel_sector_increase_ = false;
   int detections_in_row_ = 0;
   bool use_mapping_ = false;
+  double base_lookahead_distance_;
+  double lookahead_scaling_factor_;
+
+  bool loop_closed_ = false;
+
+  double average_distance_to_cones_ = 10.0;
+
+  double datum_last_local_x_ = 0;
+
+  double total_distance_traveled_ = 0.0;
+
+  double switch_distance = 0.0;
+
+  bool colourblind_;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
+  utfr_msgs::msg::ConeMap::SharedPtr cone_map_raw_{nullptr};
   utfr_msgs::msg::ConeDetections::SharedPtr cone_detections_{nullptr};
   geometry_msgs::msg::Point reference_point_;
 
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_subscriber_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr
+      cone_map_closure_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr
       cone_detection_subscriber_;
   rclcpp::Subscription<utfr_msgs::msg::SystemStatus>::SharedPtr
@@ -291,6 +401,8 @@ private:
 
   rclcpp::Publisher<utfr_msgs::msg::ParametricSpline>::SharedPtr
       center_path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr
+      center_point_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       accel_path_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
@@ -300,10 +412,15 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       skidpad_path_publisher_avg_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr delauny_midpoint_path_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       delaunay_path_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr
       first_midpoint_path_publisher_;
+  rclcpp::Publisher<utfr_msgs::msg::LapTime>::SharedPtr
+      lap_time_publisher_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr
+      lap_datum_publisher_;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
 
