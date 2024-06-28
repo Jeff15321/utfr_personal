@@ -344,30 +344,34 @@ void CarInterface::sendStateAndCmd() {
 
     // DV computer state
     uint64_t dv_comp_state = 0;
-    // dv_comp_state = can0_->setSignal(dv_comp_state, 0, 3, 1, dv_pc_state_);
-    dv_comp_state =
-        can0_->setSignal(dv_comp_state, 0, 3, 1, 2); // TEMP FOR TESTING
+    // Todo: need to be tested. 
+    dv_comp_state = can0_->setSignal(dv_comp_state, 0, 3, 1, dv_pc_state_);
+    // dv_comp_state = can0_->setSignal(dv_comp_state, 0, 3, 1, 2);
 
+    // uint64_t position = steering_cmd_;
+    uint64_t steering_position = 30; // TEMP FOR TESTING
+    
+    if (dv_pc_state_ == DV_PC_STATE::READY) {
+      // Origin inspection.
+      steering_position = 0; 
+    }
     // Steering motor position
     // can use different mode to command speed/accel
     // can0_->write_can(dv_can_msg::SetSTRMotorPos, ((long)steering_cmd_) << 32,
     // true);
 
-    // uint64_t position = steering_cmd_;
-    uint64_t position = 30; // TEMP FOR TESTING
     uint64_t steering_canfd = 0;
-
     // Extended CAN
     // Speed0: Start Bit = 24, Length = 8
     // Set SCALE TO 0 for INITIAL CAN TESTING
     steering_canfd =
-        can0_->setSignal(steering_canfd, 24, 8, 0.0001, 0x000000FF & position);
+        can0_->setSignal(steering_canfd, 24, 8, 0.0001, 0x000000FF & steering_position);
     steering_canfd = can0_->setSignal(steering_canfd, 16, 8, 0.0001,
-                                      (0x0000FF00 & position) >> 8);
+                                      (0x0000FF00 & steering_position) >> 8);
     steering_canfd = can0_->setSignal(steering_canfd, 8, 8, 0.0001,
-                                      (0x00FF0000 & position) >> 16);
+                                      (0x00FF0000 & steering_position) >> 16);
     steering_canfd = can0_->setSignal(steering_canfd, 0, 8, 0.0001,
-                                      (0xFF000000 & position) >> 24);
+                                      (0xFF000000 & steering_position) >> 24);
 
     can0_->write_can(dv_can_msg::STR_MOTOR_CMD, steering_canfd, true);
 
