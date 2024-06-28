@@ -345,7 +345,8 @@ void CarInterface::sendStateAndCmd() {
     // DV computer state
     uint64_t dv_comp_state = 0;
     // dv_comp_state = can0_->setSignal(dv_comp_state, 0, 3, 1, dv_pc_state_);
-    dv_comp_state = can0_->setSignal(dv_comp_state, 0, 3, 1, 2);
+    dv_comp_state =
+        can0_->setSignal(dv_comp_state, 0, 3, 1, 2); // TEMP FOR TESTING
 
     // Steering motor position
     // can use different mode to command speed/accel
