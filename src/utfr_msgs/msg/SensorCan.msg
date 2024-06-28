@@ -37,6 +37,7 @@ geometry_msgs/QuaternionStamped gps_orientation
 geometry_msgs/Pose gps_position
 geometry_msgs/TwistStamped gps_twist 
 geometry_msgs/TwistStamped gps_velocity 
+std_msgs/NavSatFix latlong
 
 std_msgs/Bool gps_error 
 

@@ -360,8 +360,6 @@ void CarInterface::sendStateAndCmd() {
     // can use different mode to command speed/accel
     // can0_->write_can(dv_can_msg::SetSTRMotorPos, ((long)steering_cmd_) << 32,
     // true);
-
-    uint64_t steering_canfd = 0;
     // Extended CAN
     // Speed0: Start Bit = 24, Length = 8
     // Set SCALE TO 0 for INITIAL CAN TESTING
