@@ -148,7 +148,7 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
 
   if (cmd_ || testing_) {
     braking_cmd_ = (int16_t)msg.brk_cmd;
-    steering_cmd_ = (((int32_t)(msg.str_cmd * 45454)) & 0xFFFFFFFF);
+    steering_cmd_ = (int16_t)msg.str_cmd;
     throttle_cmd_ = (int16_t)msg.thr_cmd;
   } else {
     braking_cmd_ = 0;
@@ -351,7 +351,7 @@ void CarInterface::sendStateAndCmd() {
 
     // uint64_t steering_position = steering_cmd_;
     uint64_t steering_position = 30; // TEMP FOR TESTING
-    // 36 000 
+    // 36 000
 
     if (dv_pc_state_ == DV_PC_STATE::READY) {
       // TODO: Send reset origin command, else send steering angle
