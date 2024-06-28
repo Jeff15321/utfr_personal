@@ -365,14 +365,19 @@ void CarInterface::sendStateAndCmd() {
     // Extended CAN
     // Speed0: Start Bit = 24, Length = 8
     // Set SCALE TO 0 for INITIAL CAN TESTING
-    steering_canfd = can0_->setSignal(steering_canfd, 24, 8, 0.0001,
-                                      0x00FF0000 & steering_position);
-    steering_canfd = can0_->setSignal(steering_canfd, 16, 8, 0.0001,
-                                      (0xFF000000 & steering_position) >> 8);
-    steering_canfd = can0_->setSignal(steering_canfd, 8, 8, 0.0001,
-                                      (0x000000FF & steering_position) >> 16);
-    steering_canfd = can0_->setSignal(steering_canfd, 0, 8, 0.0001,
-                                      (0x0000FF00 & steering_position) >> 24);
+    // Steering motor position
+    // can use different mode to command speed/accel
+    // can0_->write_can(dv_can_msg::SetSTRMotorPos, ((long)steering_cmd_) << 32, true);
+    uint64_t position = 3000; // 3 degrees 
+    uint64_t steering_canfd = 0;
+
+    // Extended CAN 
+    // Speed0: Start Bit = 24, Length = 8
+    // Set SCALE TO 0 for INITIAL CAN TESTING
+    steering_canfd = can0_->setSignal(steering_canfd, 24, 8, 1, 0x000000FF & position); 
+    steering_canfd = can0_->setSignal(steering_canfd, 16, 8, 1, (0x0000FF00 & position) >> 8);
+    steering_canfd = can0_->setSignal(steering_canfd, 8, 8, 1, (0x00FF0000 & position) >> 16);
+    steering_canfd = can0_->setSignal(steering_canfd, 0, 8, 1, (0xFF000000 & position) >> 24); 
 
     can0_->write_can(dv_can_msg::STR_MOTOR_CMD, steering_canfd, true);
 
