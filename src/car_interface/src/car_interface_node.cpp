@@ -351,6 +351,7 @@ void CarInterface::sendStateAndCmd() {
 
     // uint64_t steering_position = steering_cmd_;
     uint64_t steering_position = 30; // TEMP FOR TESTING
+    // 36 000 
 
     if (dv_pc_state_ == DV_PC_STATE::READY) {
       // TODO: Send reset origin command, else send steering angle
@@ -365,13 +366,13 @@ void CarInterface::sendStateAndCmd() {
     // Speed0: Start Bit = 24, Length = 8
     // Set SCALE TO 0 for INITIAL CAN TESTING
     steering_canfd = can0_->setSignal(steering_canfd, 24, 8, 0.0001,
-                                      0x000000FF & steering_position);
+                                      0x00FF0000 & steering_position);
     steering_canfd = can0_->setSignal(steering_canfd, 16, 8, 0.0001,
-                                      (0x0000FF00 & steering_position) >> 8);
+                                      (0xFF000000 & steering_position) >> 8);
     steering_canfd = can0_->setSignal(steering_canfd, 8, 8, 0.0001,
-                                      (0x00FF0000 & steering_position) >> 16);
+                                      (0x000000FF & steering_position) >> 16);
     steering_canfd = can0_->setSignal(steering_canfd, 0, 8, 0.0001,
-                                      (0xFF000000 & steering_position) >> 24);
+                                      (0x0000FF00 & steering_position) >> 24);
 
     can0_->write_can(dv_can_msg::STR_MOTOR_CMD, steering_canfd, true);
 
