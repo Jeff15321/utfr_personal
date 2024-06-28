@@ -146,7 +146,7 @@ void ControlsNode::brakeTesting() {
     }
   }
 
-  RCLCPP_INFO(this->get_logger(), "PWM: %f", control_cmd_.brk_cmd);
+  RCLCPP_INFO(this->get_logger(), "PWM: %d", control_cmd_.brk_cmd);
 }
 
 void ControlsNode::steerTesting() {
@@ -213,8 +213,8 @@ void ControlsNode::timerCB() {
     ros_time_ = this->now();
 
     control_cmd_.str_cmd =
-        std::clamp((int)utfr_dv::util::radToDeg(target_state_->steering_angle),
-                   MAX_STR, -MAX_STR);
+        (int)utfr_dv::util::radToDeg(target_state_->steering_angle) *
+        STR_GEAR_RATIO;
 
     // //*****   Throttle & Brake  *****
     current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
@@ -226,8 +226,8 @@ void ControlsNode::timerCB() {
       // control_cmd_.thr_cmd =
       //     throttle_pid_->getCommand(target_velocity, current_velocity, dt);
       // TODO: add RPM cap
-      control_cmd_.thr_cmd =
-          target_velocity * 60 / (2 * M_PI * WHEEL_RADIUS) * GEAR_RATIO;
+      control_cmd_.thr_cmd = target_velocity * 60 / (2 * M_PI * WHEEL_RADIUS) *
+                             DRIVETRAIN_GEAR_RATIO;
       control_cmd_.brk_cmd = 0;
     } else {
       // RCLCPP_INFO(this->get_logger(), "Braking to reach: %fm/s",

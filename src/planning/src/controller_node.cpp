@@ -584,7 +584,7 @@ void ControllerNode::timerCBAS() {
   double time_diff = curr_time - start_time_.seconds();
 
   if (time_diff < 30.0) {
-    target_.speed = 5.0;
+    target_.speed = 3.0;
     target_.steering_angle = sin(time_diff * 3.1415);
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
   } else {
@@ -812,7 +812,8 @@ ControllerNode::purePursuitController(double max_steering_angle,
   // Limit steering angle within bounds.
   delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
 
-  double max_steering_rate = static_cast<double>(109 * 100 / 22.0 / 60.0 / update_rate_);
+  double max_steering_rate =
+      static_cast<double>(109 * 100 / 22.0 / 60.0 / update_rate_);
   if (abs(delta - last_steering_angle_) > max_steering_rate) {
     if (delta > last_steering_angle_) {
       delta = last_steering_angle_ + max_steering_rate;
