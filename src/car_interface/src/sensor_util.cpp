@@ -32,6 +32,7 @@ void CarInterface::getSteeringMotorData() { // TODO: Review
     // RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
     //             function_name.c_str(), steering_angle);
     // Check for sensor malfunction
+    RCLCPP_WARN(this->get_logger(), "Steering Motor Angle: %d", steering_angle);
     if ((abs(steering_angle) > 50)) {
       RCLCPP_ERROR(this->get_logger(), "%s: Value error",
                    function_name.c_str());

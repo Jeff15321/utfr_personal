@@ -1,6 +1,7 @@
 car_interface: # Name of Module
   ros__parameters:
-    update_rate: 33.33 #[ms]
+    # update_rate: 33.33 #[ms]
+    update_rate: 66.66
     ema_gain: 0.6
     heartbeat_tolerance: 4.0
     heartbeat_modules: ["controls"]

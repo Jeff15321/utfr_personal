@@ -199,7 +199,7 @@ void ControlsNode::timerCB() {
   }
 
   // Check if other nodes are sending correct messages
-  if (ego_state_ == nullptr || target_state_ == nullptr) {
+  if (target_state_ == nullptr) {
     if (target_state_)
       RCLCPP_INFO(this->get_logger(), "No EGO states");
     if (ego_state_)
@@ -212,30 +212,37 @@ void ControlsNode::timerCB() {
     double dt = (this->now() - ros_time_).seconds();
     ros_time_ = this->now();
 
-    control_cmd_.str_cmd =
-        std::clamp((int)utfr_dv::util::radToDeg(target_state_->steering_angle),
-                   MAX_STR, -MAX_STR);
+    // control_cmd_.str_cmd =
+    //     std::clamp((int)utfr_dv::util::radToDeg(target_state_->steering_angle),
+    //                MAX_STR, -MAX_STR);
+    control_cmd_.str_cmd = (int)(target_state_->steering_angle * 180 / 3.1415);
+    RCLCPP_WARN(this->get_logger(), "Controls converted str cmd: %d",
+                control_cmd_.str_cmd);
 
     // //*****   Throttle & Brake  *****
-    current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
-    target_velocity = target_state_->speed;            // TODO: review
+    // current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
+    // target_velocity = target_state_->speed;            // TODO: review
 
-    if (current_velocity < target_velocity) {
-      // RCLCPP_INFO(this->get_logger(), "Accelerating to reach: %fm/s",
-      // target_velocity);
-      // control_cmd_.thr_cmd =
-      //     throttle_pid_->getCommand(target_velocity, current_velocity, dt);
-      // TODO: add RPM cap
-      control_cmd_.thr_cmd =
-          target_velocity * 60 / (2 * M_PI * WHEEL_RADIUS) * GEAR_RATIO;
-      control_cmd_.brk_cmd = 0;
-    } else {
-      // RCLCPP_INFO(this->get_logger(), "Braking to reach: %fm/s",
-      // target_velocity);
-      control_cmd_.thr_cmd = 0;
-      control_cmd_.brk_cmd =
-          braking_pid_->getCommand(target_velocity, current_velocity, dt);
-    }
+    // if (current_velocity < target_velocity) {
+    //   // RCLCPP_INFO(this->get_logger(), "Accelerating to reach: %fm/s",
+    //   // target_velocity);
+    //   // control_cmd_.thr_cmd =
+    //   //     throttle_pid_->getCommand(target_velocity, current_velocity,
+    //   dt);
+    //   // TODO: add RPM cap
+    //   control_cmd_.thr_cmd =
+    //       target_velocity * 60 / (2 * M_PI * WHEEL_RADIUS) * GEAR_RATIO;
+    //   control_cmd_.brk_cmd = 0;
+    // } else {
+    //   // RCLCPP_INFO(this->get_logger(), "Braking to reach: %fm/s",
+    //   // target_velocity);
+    //   control_cmd_.thr_cmd = 0;
+    //   control_cmd_.brk_cmd =
+    //       braking_pid_->getCommand(target_velocity, current_velocity, dt);
+    // }
+
+    control_cmd_.thr_cmd = 0;
+    control_cmd_.brk_cmd = 0;
 
     control_cmd_.header.stamp = this->get_clock()->now();
 
