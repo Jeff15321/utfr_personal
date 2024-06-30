@@ -194,6 +194,7 @@ void CarInterface::getGPSData() {
     std_msgs::msg::Header gps_header;
     gps_header.stamp.sec = (int32_t)can0_->getSignalBE(
         dv_can_msg::GPS_SAMPLE_TIME, 0, 32, false, 1);
+    sensor_can_.set__gps_header(gps_header);
 
     std_msgs::msg::Bool gps_error;
     gps_error.set__data(
