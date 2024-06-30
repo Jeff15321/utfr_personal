@@ -32,6 +32,7 @@ void CarInterface::getSteeringMotorData() { // TODO: Review
     // RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
     //             function_name.c_str(), steering_angle);
     // Check for sensor malfunction
+    RCLCPP_WARN(this->get_logger(), "Steering Motor Angle: %d", steering_angle);
     if ((abs(steering_angle) > 50)) {
       RCLCPP_ERROR(this->get_logger(), "%s: Value error",
                    function_name.c_str());
@@ -199,6 +200,7 @@ void CarInterface::getGPSData() {
     std_msgs::msg::Bool gps_error;
     gps_error.set__data(
         (bool)can0_->getSignalBE(dv_can_msg::GPS_ERROR_CODE, 0, 8, false, 1));
+    sensor_can_.set__gps_error(gps_error); 
 
     sensor_msgs::msg::NavSatFix latlong;
     // Latitude, Longitude, Altitude
@@ -208,6 +210,7 @@ void CarInterface::getGPSData() {
                                                     32, 32, true, pow(2, -23));
     latlong.altitude = (uint32_t)can0_->getSignalBE(dv_can_msg::GPS_ALT_ELLIP,
                                                     0, 32, false, pow(2, -15));
+    sensor_can_.set__gps_gnss(latlong); 
 
     // stamped = time stamped all msgs need time stamp
     geometry_msgs::msg::Vector3Stamped gps_rpy;
@@ -225,6 +228,7 @@ void CarInterface::getGPSData() {
                                                    true, gps_rpy_scale);
     RCLCPP_ERROR(this->get_logger(), "%s: YAW: %f",function_name.c_str(), can0_->getSignalBE(dv_can_msg::GPS_RPY, 32, 16,
                                                    true, gps_rpy_scale));
+    sensor_can_.set__gps_rpy(gps_rpy);
 
     geometry_msgs::msg::QuaternionStamped gps_orientation;
     gps_orientation.header = gps_header;
@@ -237,6 +241,7 @@ void CarInterface::getGPSData() {
         dv_can_msg::GPS_ORIENTATION, 32, 16, true, gps_quat_scale);
     gps_orientation.quaternion.z = (int16_t)can0_->getSignalBE(
         dv_can_msg::GPS_ORIENTATION, 48, 16, true, gps_quat_scale);
+    sensor_can_.set__gps_orientation(gps_orientation); 
 
     geometry_msgs::msg::TwistStamped gps_velocity;
     gps_velocity.header = gps_header;
@@ -247,16 +252,17 @@ void CarInterface::getGPSData() {
         dv_can_msg::GPS_VEL_XYZ, 16, 16, true, gps_vel_scale);
     gps_velocity.twist.linear.z = (int16_t)can0_->getSignalBE(
         dv_can_msg::GPS_VEL_XYZ, 32, 16, true, gps_vel_scale);
+    sensor_can_.set__gps_velocity(gps_velocity);
 
-    geometry_msgs::msg::AccelStamped gps_accel;
-    gps_accel.header = gps_header;
+    geometry_msgs::msg::Accel gps_accel;
     double gps_accel_scale = pow(2, -8);
-    gps_accel.accel.linear.x = (int16_t)can0_->getSignalBE(
+    gps_accel.linear.x = (int16_t)can0_->getSignalBE(
         dv_can_msg::GPS_ACCELERATION, 0, 16, true, gps_accel_scale);
-    gps_accel.accel.linear.y = (int16_t)can0_->getSignalBE(
+    gps_accel.linear.y = (int16_t)can0_->getSignalBE(
         dv_can_msg::GPS_ACCELERATION, 16, 16, true, gps_accel_scale);
-    gps_accel.accel.linear.z = (int16_t)can0_->getSignalBE(
+    gps_accel.linear.z = (int16_t)can0_->getSignalBE(
         dv_can_msg::GPS_ACCELERATION, 32, 16, true, gps_accel_scale);
+    sensor_can_.set__gps_accel(gps_accel);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occurred, error #%d",

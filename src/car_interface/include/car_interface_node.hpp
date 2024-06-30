@@ -266,6 +266,8 @@ private:
   int testing_;
   // TODO: GNSS/INS
 
+  int counter = 0;
+
   // State vars
   bool launched_ = false;
   bool shutdown_ = false;

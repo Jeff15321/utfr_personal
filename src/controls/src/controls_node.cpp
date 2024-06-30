@@ -199,7 +199,7 @@ void ControlsNode::timerCB() {
   }
 
   // Check if other nodes are sending correct messages
-  if (ego_state_ == nullptr || target_state_ == nullptr) {
+  if (target_state_ == nullptr) {
     if (target_state_)
       RCLCPP_INFO(this->get_logger(), "No EGO states");
     if (ego_state_)
@@ -217,8 +217,8 @@ void ControlsNode::timerCB() {
         STR_GEAR_RATIO;
 
     // //*****   Throttle & Brake  *****
-    current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
-    target_velocity = target_state_->speed;            // TODO: review
+    // current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
+    // target_velocity = target_state_->speed;            // TODO: review
 
     if (current_velocity < target_velocity) {
       // RCLCPP_INFO(this->get_logger(), "Accelerating to reach: %fm/s",
