@@ -444,8 +444,8 @@ void CarInterface::sendStateAndCmd() {
     */
 
     int torque_commanded = 0;
-    int speed_commanded = 20;
-    bool enable_inverter = true; 
+    int speed_commanded = 0;
+    bool enable_inverter = false; 
     bool torque_mode = false; 
     int torque_limit = 20; 
     bool regen = false; // Need to do regen checks.
