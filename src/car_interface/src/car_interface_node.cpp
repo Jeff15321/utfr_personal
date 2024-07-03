@@ -149,9 +149,7 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   const std::string function_name{"controlCmdCB"};
 
   steering_cmd_ = msg.str_cmd;
-  // Clamp steering angle to +/- MAX_STR
-  steering_cmd_ = steering_cmd_ * 130 / 19;
-  steering_cmd_ = std::clamp(steering_cmd_, -130, 130);
+  throttle_cmd_ = msg.thr_cmd;
 
   // Finalize commands
 
@@ -164,7 +162,7 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   //   throttle_cmd_ = 0;
   // }
 
-  throttle_cmd_ = 0;
+  // throttle_cmd_ = 0;
   braking_cmd_ = 0;
 
   // TODO: Map brake PWM to pressure?
@@ -391,13 +389,9 @@ void CarInterface::sendStateAndCmd() {
     // true);
 
     //uint64_t position = steering_cmd_; // 30 degrees, commented out
-    uint64_t position = 0;
+    uint64_t position = steering_cmd_;
     RCLCPP_WARN(this->get_logger(), "steering commanded: %d", steering_cmd_);
     position = position * 10000;
-    uint64_t steering_canfd = 0;
-
-    RCLCPP_WARN(this->get_logger(), "Counter: %d", counter);
-    counter += 1;
 
     // Extended CAN
     // Speed0: Start Bit = 24, Length = 8
@@ -455,10 +449,7 @@ void CarInterface::sendStateAndCmd() {
     double curr_time = this->now().seconds();
     double time_diff = curr_time - start_time;
 
-    int apps_command = 0;
-    if (time_diff > 10 && time_diff < 20){
-      apps_command = 5;
-    }
+    int apps_command = throttle_cmd_;
 
     apps_command = apps_command * 10; // scale factor
     uint64_t apps_canfd = 0;
