@@ -457,7 +457,7 @@ void CarInterface::sendStateAndCmd() {
 
     int apps_command = 0;
     if (time_diff > 10 && time_diff < 20){
-      apps_command = 10;
+      apps_command = 5;
     }
 
     apps_command = apps_command * 10; // scale factor
