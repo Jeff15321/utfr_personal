@@ -266,6 +266,8 @@ private:
   int testing_;
   // TODO: GNSS/INS
 
+  double start_time;
+
   int counter = 0;
 
   // State vars

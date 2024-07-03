@@ -87,7 +87,8 @@ enum dv_can_msg {
   STR_MOTOR_CMD = 34,
 
   DV_COMMANDED = 35, 
-  COUNT = 36
+  APPS = 36,
+  COUNT = 37
 };
 
 typedef struct CAN_message_t {

@@ -64,7 +64,8 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::GPS_ACCELERATION, 0x034},
     {(uint8_t)dv_can_msg::GPS_RTK_STATUS, 0x009}, 
     {(uint8_t)dv_can_msg::STR_MOTOR_CMD, 0x0000040F}, 
-    {(uint8_t)dv_can_msg::DV_COMMANDED, 0x0D0}
+    {(uint8_t)dv_can_msg::DV_COMMANDED, 0x0D0},
+    {(uint8_t)dv_can_msg::APPS, 0x004}
     };
 
 bool CanInterface::connect(const char *canline) {
@@ -174,6 +175,8 @@ void CanInterface::write_can(dv_can_msg msgName, long long data, bool byteWise) 
   to_write.can_id = dv_can_msg_map[(int)msgName];
   to_write.len = 8;
   uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+  std::cout << "write can" << std::endl;
 
   if (byteWise) {
     // Little Endian (initially)

@@ -52,6 +52,8 @@ void CarInterface::initParams() {
       this->get_parameter("heartbeat_modules_inspection").as_string_array();
 
   testing_ = this->get_parameter("testing").as_int();
+
+  start_time = this->now().seconds();
 }
 
 void CarInterface::initSubscribers() {
@@ -412,7 +414,7 @@ void CarInterface::sendStateAndCmd() {
     can0_->write_can(dv_can_msg::STR_MOTOR_CMD, steering_canfd, true);
 
     // Motor/inverter command
-    uint64_t inverter_canfd = 0;
+    // uint64_t inverter_canfd = 0;
 
     /*
     if (braking_cmd_ == 0) {
@@ -449,45 +451,60 @@ void CarInterface::sendStateAndCmd() {
     bool torque_mode = false; 
     int torque_limit = 20; 
     bool regen = false; // Need to do regen checks.
+
+    double curr_time = this->now().seconds();
+    double time_diff = curr_time - start_time;
+
+    int apps_command = 0;
+    if (time_diff > 10 && time_diff < 20){
+      apps_command = 10;
+    }
+
+    apps_command = apps_command * 10; // scale factor
+    uint64_t apps_canfd = 0;
+    apps_canfd = can0_->setSignal(apps_canfd, 0, 8, 1, apps_command % 256);
+    apps_canfd = can0_->setSignal(apps_canfd, 8, 8, 1, apps_command / 256);
+
+    can0_->write_can(dv_can_msg::APPS, apps_canfd, true);
     
     // Direction
-    if (regen) {
-      inverter_canfd = can0_->setSignal(inverter_canfd, 32, 8, 1, 0);
-    }
-    else {
-      inverter_canfd = can0_->setSignal(inverter_canfd, 32, 8, 1, 1);
-    }
+    // if (regen) {
+    //   inverter_canfd = can0_->setSignal(inverter_canfd, 32, 8, 1, 0);
+    // }
+    // else {
+    //   inverter_canfd = can0_->setSignal(inverter_canfd, 32, 8, 1, 1);
+    // }
 
-    // Enable Inverter, Toggle Torque and Speed Mode 
-    if (enable_inverter) {
-      if (torque_mode) {
-        inverter_canfd = can0_->setSignal(inverter_canfd, 40, 8, 1, 1);
+    // // Enable Inverter, Toggle Torque and Speed Mode 
+    // if (enable_inverter) {
+    //   if (torque_mode) {
+    //     inverter_canfd = can0_->setSignal(inverter_canfd, 40, 8, 1, 1);
 
-        inverter_canfd =
-            can0_->setSignal(inverter_canfd, 0, 8, 1, torque_commanded % 256);
-        inverter_canfd =
-            can0_->setSignal(inverter_canfd, 8, 8, 1, torque_commanded / 256);
-      } 
-      else {
-        inverter_canfd = can0_->setSignal(inverter_canfd, 40, 8, 1, 1 | 4);
+    //     inverter_canfd =
+    //         can0_->setSignal(inverter_canfd, 0, 8, 1, torque_commanded % 256);
+    //     inverter_canfd =
+    //         can0_->setSignal(inverter_canfd, 8, 8, 1, torque_commanded / 256);
+    //   } 
+    //   else {
+    //     inverter_canfd = can0_->setSignal(inverter_canfd, 40, 8, 1, 1 | 4);
 
-        inverter_canfd =
-            can0_->setSignal(inverter_canfd, 16, 8, 1, speed_commanded % 256);
-        inverter_canfd =
-            can0_->setSignal(inverter_canfd, 24, 8, 1, speed_commanded / 256);
-      }
-    } 
-    else {
-      inverter_canfd = can0_->setSignal(inverter_canfd, 40, 8, 1, 0); 
-    }  
+    //     inverter_canfd =
+    //         can0_->setSignal(inverter_canfd, 16, 8, 1, speed_commanded % 256);
+    //     inverter_canfd =
+    //         can0_->setSignal(inverter_canfd, 24, 8, 1, speed_commanded / 256);
+    //   }
+    // } 
+    // else {
+    //   inverter_canfd = can0_->setSignal(inverter_canfd, 40, 8, 1, 0); 
+    // }  
 
-    // Torque Limit 
-    inverter_canfd = can0_->setSignal(inverter_canfd, 48, 8, 1, torque_limit % 256);
-    inverter_canfd = can0_->setSignal(inverter_canfd, 56, 8, 1, torque_limit / 256);
+    // // Torque Limit 
+    // inverter_canfd = can0_->setSignal(inverter_canfd, 48, 8, 1, torque_limit % 256);
+    // inverter_canfd = can0_->setSignal(inverter_canfd, 56, 8, 1, torque_limit / 256);
 
     // Transmit
     can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state, false);
-    can0_->write_can(dv_can_msg::DV_COMMANDED, inverter_canfd, true);
+    // can0_->write_can(dv_can_msg::DV_COMMANDED, inverter_canfd, true);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
