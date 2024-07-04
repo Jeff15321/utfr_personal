@@ -176,11 +176,16 @@ def bounding_boxes_to_cone_detections(
     coneDetections = np.zeros((np.shape(bounding_boxes)[0], 4))
     f = intrinsics[0][0]  # focal length in pixels from camera matrix
     i = 0
+    skip_counter = 0
     for x, y, w, h in bounding_boxes:
+        if y >= 930 and w <= 7 or h <= 7:
+            skip_counter += 1
+            continue
         color = labelColor(classes[i])  # int for color
 
         # 3.73mm height of sensor, 1080 px height of image
-        depth = find_depth_mono_tri(3.73, h, f, cone_heights[color], 1080)
+        depth_mm = find_depth_mono_tri(3.73, h, f, cone_heights[color], 1080)
+        depth = depth_mm / 1000  # convert mm to metres
 
         # 3d coordinate mapping
 
@@ -193,7 +198,10 @@ def bounding_boxes_to_cone_detections(
         coneDetections[i][3] = color
 
         i += 1
-    return coneDetections
+    if skip_counter == 0:
+        return coneDetections
+    else:
+        return coneDetections[:-skip_counter]
 
 
 def image_to_3d_point(image_point, camera_matrix, depth):
@@ -211,6 +219,7 @@ def image_to_3d_point(image_point, camera_matrix, depth):
 
     # 3D point multiplied by monocular depth
     point_3d *= depth
+    point_3d /= 250
 
     return point_3d
 
@@ -267,9 +276,13 @@ def transform_det_lidar(detections, transform):
                 PointStamped(point=point_stamped), transform
             ).point
             transformed_point = [
-                transformed_point_stamped.x,
-                transformed_point_stamped.y,
-                transformed_point_stamped.z,
+                -1.0 * transformed_point_stamped.x,
+                -1.0 * transformed_point_stamped.y,
+                -1.0 * transformed_point_stamped.z,
+                # -1.0 * transformed_point_stamped.z,
+                # -1.0 * transformed_point_stamped.x,
+                # -1.0 * transformed_point_stamped.y,
+                point[3],
             ]
             transformed_points.append(transformed_point)
 

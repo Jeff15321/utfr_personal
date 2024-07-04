@@ -125,6 +125,10 @@ public:
   */
   std::tuple<double,double,double,double> circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count);
 
+  std::tuple<double,double,double,double> getSkidpadCircleCentresColourblind();
+
+  std::tuple<double, double, double, double> getCentresColourblind();
+
 private:
   /*! Initialize and load params from config.yaml:
    */
@@ -274,6 +278,8 @@ private:
    */
   void skidpadLapCounter();
 
+  void skidpadLapCounterColourblind();
+
   bool checkPassedDatum(const utfr_msgs::msg::EgoState reference,
                         const utfr_msgs::msg::EgoState &current);
 
@@ -372,6 +378,10 @@ private:
   double datum_last_local_x_ = 0;
 
   double total_distance_traveled_ = 0.0;
+
+  double switch_distance = 0.0;
+
+  bool colourblind_;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};

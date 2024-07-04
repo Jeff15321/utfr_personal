@@ -20,7 +20,8 @@ import matplotlib.pyplot as plot
 import onnxruntime as ort
 import time
 
-# from scipy.spatial.distance import cdist
+from scipy.optimize import linear_sum_assignment
+
 
 # ROS2 Requirements
 import rclpy
@@ -62,8 +63,8 @@ class PerceptionNode(Node):
         super().__init__("perception_node")
 
         self.loadParams()
-        self.initHeartbeat()
         self.initVariables()
+        self.initHeartbeat()
         self.initSubscribers()
         self.initPublishers()
         self.initServices()
@@ -139,6 +140,7 @@ class PerceptionNode(Node):
         self.declare_parameter("confidence", 0.70)
         self.declare_parameter("perception_debug_topic", "/perception/debug")
         self.declare_parameter("cone_heights", [0.0])
+        self.declare_parameter("lidar_only_detection", False)
 
         self.baseline_ = (
             self.get_parameter("baseline").get_parameter_value().double_value
@@ -213,6 +215,10 @@ class PerceptionNode(Node):
             self.get_parameter("cone_heights").get_parameter_value().double_array_value
         )
 
+        self.lidar_only_detection = (
+            self.get_parameter("lidar_only_detection").get_parameter_value().bool_value
+        )
+
         # reshape the arrays into numpy matrix form
 
         self.intrinsics_left = np.array(self.intrinsics_left).reshape(3, 3)
@@ -233,6 +239,7 @@ class PerceptionNode(Node):
         self.left_ready_ = False
         self.right_ready_ = False
         self.saved_count = 0
+        self.lidar_msg = None
 
         # Work
         self.right_img_ = None
@@ -349,6 +356,14 @@ class PerceptionNode(Node):
         """
         self.cone_detections_publisher_ = self.create_publisher(
             ConeDetections, self.cone_detections_topic_, 1
+        )
+
+        self.cone_detections_debug_ = self.create_publisher(
+            ConeDetections, "/perception/detections_debug", 1
+        )
+
+        self.heartbeat_publisher_ = self.create_publisher(
+            Heartbeat, self.heartbeat_topic_, 1
         )
 
         self.perception_debug_publisher_left_ = self.create_publisher(
@@ -491,7 +506,8 @@ class PerceptionNode(Node):
         """
         # TODO - create a variable in initvariables which stores the most recent
         # processed lidar point cloud whenever lidarCB is called
-        pass
+        self.get_logger().warn("Received latest lidar message")
+        self.lidar_msg = msg  # Store the incoming lidar data
 
     def process(self, left_img_, right_img_):
         """
@@ -562,262 +578,302 @@ class PerceptionNode(Node):
         # initialize detection msg
         # TODO - make 1 detections message and combine them at the end
         self.detections_msg = ConeDetections()
-        self.detections_msg.header.frame_id = "left_camera"
+        self.detections_msg.header.frame_id = "os_lidar"
 
         # publish the heartbeat
         self.publishHeartbeat()
 
-        # check if ready
-        if not self.left_ready_ or not self.right_ready_:
+        if not self.lidar_msg:
             return
+        
+        if self.lidar_only_detection == False:
+            # check if ready
+            if not self.left_ready_ or not self.right_ready_:
+                return
 
-        trigger = Trigger.Request()
+            trigger = Trigger.Request()
 
-        # send asynchronous trigger
-        self.future = self.left_camera_client_.call_async(trigger)
-        self.future = self.right_camera_client_.call_async(trigger)
+            # send asynchronous trigger
+            self.future = self.left_camera_client_.call_async(trigger)
+            self.future = self.right_camera_client_.call_async(trigger)
 
-        if not self.left_img_recieved_:
-            return
+            if not self.left_img_recieved_:
+                return
 
-        if not self.right_img_recieved_:
-            return
+            if not self.right_img_recieved_:
+                return
+        
+        
+            # undistort
 
-        # undistort
-
-        undist_left = cv2.remap(
-            self.left_img_,
-            self.mapx_left,
-            self.mapy_left,
-            interpolation=cv2.INTER_NEAREST,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=(0, 0, 0, 0),
-        )
-
-        undist_right = cv2.remap(
-            self.right_img_,
-            self.mapx_right,
-            self.mapy_right,
-            interpolation=cv2.INTER_NEAREST,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=(0, 0, 0, 0),
-        )
-
-        # code to resize the image (for faster fps)
-
-        """
-        frame_left_60, frame_right_60 = self.resize_img(undist_left, undist_right, 60)
-        frame_left = frame_left_60
-        frame_right = frame_right_70
-    
-    if self.save_pic == "True":
-      timestamp = int(time.time())
-      local_time = time.ctime(timestamp).replace(" ", "_")
-      self.save_image(frame_left, frame_right, local_time)
-    """
-
-        # equalize histogram
-        """
-        frame_left = self.equalize_hist(frame_left)
-        frame_right = self.equalize_hist(frame_right)
-        """
-
-        frame_left = undist_left
-        frame_right = undist_right
-        """
-        try:
-            # tf from left_cam to lidar
-
-            tf_leftcam_lidar = self.tf_buffer.lookup_transform(
-                self.lidar_frame,
-                self.left_camera_frame,
-                time=rclpy.time.Time(seconds=0),
-                timeout=rclpy.time.Duration(seconds=0.1),
+            undist_left = cv2.remap(
+                self.left_img_,
+                self.mapx_left,
+                self.mapy_left,
+                interpolation=cv2.INTER_NEAREST,
+                borderMode=cv2.BORDER_CONSTANT,
+                borderValue=(0, 0, 0, 0),
             )
 
-            # tf from right_cam to lidar
-            tf_rightcam_lidar = self.tf_buffer.lookup_transform(
-                self.lidar_frame,
-                self.right_camera_frame,
-                rclpy.time.Time(),
-                timeout=rclpy.duration.Duration(seconds=0.1),
+            undist_right = cv2.remap(
+                self.right_img_,
+                self.mapx_right,
+                self.mapy_right,
+                interpolation=cv2.INTER_NEAREST,
+                borderMode=cv2.BORDER_CONSTANT,
+                borderValue=(0, 0, 0, 0),
             )
 
-        except TransformException as ex:
-            self.get_logger().info(f"{ex}")
-            return
+
+
+            # code to resize the image (for faster fps)
+
+            """
+            frame_left_60, frame_right_60 = self.resize_img(undist_left, undist_right, 60)
+            frame_left = frame_left_60
+            frame_right = frame_right_70
+        
+        if self.save_pic == "True":
+        timestamp = int(time.time())
+        local_time = time.ctime(timestamp).replace(" ", "_")
+        self.save_image(frame_left, frame_right, local_time)
         """
+
+            # equalize histogram
+            """
+            frame_left = self.equalize_hist(frame_left)
+            frame_right = self.equalize_hist(frame_right)
+            """
+
+            frame_left = undist_left
+            frame_right = undist_right
+
+            try:
+                # tf from left_cam to lidar
+
+                tf_leftcam_lidar = self.tf_buffer.lookup_transform(
+                    self.lidar_frame,
+                    self.left_camera_frame,
+                    time=rclpy.time.Time(seconds=0),
+                    timeout=rclpy.time.Duration(seconds=0.1),
+                )
+
+                # tf from right_cam to lidar
+                tf_rightcam_lidar = self.tf_buffer.lookup_transform(
+                    self.lidar_frame,
+                    self.right_camera_frame,
+                    rclpy.time.Time(),
+                    timeout=rclpy.duration.Duration(seconds=0.1),
+                )
+
+            except TransformException as ex:
+                self.get_logger().info(f"{ex}")
+                return
         # get the detections
 
-        (
-            results_left,
-            classes_left,
-            scores_left,
-            results_right,
-            classes_right,
-            scores_right,
-            left_cone_detections,
-            right_cone_detections,
-        ) = self.process(frame_left, frame_right)
+            (
+                results_left,
+                classes_left,
+                scores_left,
+                results_right,
+                classes_right,
+                scores_right,
+                left_cone_detections,
+                right_cone_detections,
+            ) = self.process(frame_left, frame_right)
 
-        # use tf to convert results_left, results_right to lidar frame
-        # transpose to lidar coordinates
-        # Syntax: self.tf_leftcam_lidar.transform.translation.y
-        #        self.tf_leftcam_lidar.transform.rotation.x, y, z, w (quaternion)
-        # or just use doTransform function
-
-        """
-        left_detections_lidar_frame = transform_det_lidar(
-            left_cone_detections, tf_leftcam_lidar
-        )
-        right_detections_lidar_frame = transform_det_lidar(
-            right_cone_detections, tf_rightcam_lidar
-        )
-        """
-
-        # lidar camera fusion logic
-        # make some logic for the clusters that are received from lidar node
-        # all of the 3d camera detections are now in the lidar frame
-        # MAKE SURE TO PASS ONLY FIRST 3 ELEMENTS OF EACH CONE DETECTION,
-        # THE 4TH IS THE LABEL
-        # x y z = detection[:3]
-
-        # get the lidar point cloud
-        # for each single cluster point in the point cloud:
-        # calculate a numpy vector of the distances between the cone detection
-        # and the cluster
-        # choose the min distance one and remove from cone detections array
-        # when you remove it, you need to add it to a new array with the updated
-        # 3d point of the cluster
-
-        # Extract point cloud data
-        # TODO - check self.lidar_msg when lidar callback is updated
-        '''
-        lidar_point_cloud_data = point_cloud2.read_points_numpy(
-            self.lidar_msg, field_names=["x", "y", "z", "intensity"], skip_nans=True
-        )
-
-        # Create a dictionary to track the best match for each cluster
-        best_matches = {}
-
-        # Concatenate transformed detections
-        all_transformed_detections = np.vstack(
-            left_detections_lidar_frame, right_detections_lidar_frame
-        )
-
-        # Associate camera detections to Lidar clusters
-        for detection in all_transformed_detections:
-            distances = cdist([detection[:3]], lidar_point_cloud_data)
-            min_distance = np.min(distances)
-            # TODO - set distance threshold as parameter
-            if min_distance < self.distance_threshold:
-                cluster_index = np.argmin(distances)
-
-                # Check if the cluster is already in best_matches
-                if (
-                    cluster_index not in best_matches
-                    or min_distance < best_matches[cluster_index][1]
-                ):
-                    best_matches[cluster_index] = (detection, min_distance)
-
-        # Convert the best_matches dictionary to a list of associations
-        associations = [
-            (detection, cluster_index)
-            for cluster_index, (detection, _) in best_matches.items()
-        ]
-
-        """
-        TODO - create cone_detections array from associations array
-        print("Associations:")
-        for detection, cluster_index in associations:
-            print(f"Detection: {detection}, Lidar Cluster Index: {cluster_index}")
-        """
-        '''
-
-        # self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
-
-        # perception debug msg
-
-        if len(results_left) == 0:
-            pass
-        else:
-            self.perception_debug_msg_left = PerceptionDebug()
-            self.perception_debug_msg_left.header.stamp = self.left_img_header.stamp
-            for i in range(len(results_left)):
-                bounding_box_left = BoundingBox()
-                bounding_box_left.x = int(results_left[i][0])
-                bounding_box_left.y = int(results_left[i][1])
-                bounding_box_left.width = int(results_left[i][2])
-                bounding_box_left.height = int(results_left[i][3])
-                bounding_box_left.type = labelColor(classes_left[i])
-                bounding_box_left.score = scores_left[i]
-                self.perception_debug_msg_left.left.append(bounding_box_left)
-
-            self.perception_debug_publisher_left_.publish(
-                self.perception_debug_msg_left
+            # transform camera detections to lidar frame
+            left_detections_lidar_frame = transform_det_lidar(
+                left_cone_detections, tf_leftcam_lidar
+            )
+            right_detections_lidar_frame = transform_det_lidar(
+                right_cone_detections, tf_rightcam_lidar
             )
 
-        if len(results_right) == 0:
-            pass
-        else:
-            self.perception_debug_msg_right = PerceptionDebug()
-            self.perception_debug_msg_right.header.stamp = self.right_img_header.stamp
-            for i in range(len(results_right)):
-                bounding_box_right = BoundingBox()
-                bounding_box_right.x = int(results_right[i][0])
-                bounding_box_right.y = int(results_right[i][1])
-                bounding_box_right.width = int(results_right[i][2])
-                bounding_box_right.height = int(results_right[i][3])
-                bounding_box_right.type = labelColor(classes_right[i])
-                bounding_box_right.score = scores_right[i]
-                self.perception_debug_msg_right.right.append(bounding_box_right)
-
-            self.perception_debug_publisher_right_.publish(
-                self.perception_debug_msg_right
+            # Extract point cloud data
+            lidar_point_cloud_data = point_cloud2.read_points_numpy(
+                self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
             )
 
-        # imshow for opencv
-        """
-    cv2.imshow('left_camera', frame_left)
-    k = cv2.waitKey(1)
+            print(left_detections_lidar_frame.shape, right_detections_lidar_frame.shape)
+            # concatenate into one array
+            if left_detections_lidar_frame.shape[0] == 0:
+                total_cam_det = right_detections_lidar_frame
+            elif right_detections_lidar_frame.shape[0] == 0:
+                total_cam_det = left_detections_lidar_frame
+            else:
+                total_cam_det = np.concatenate(
+                    (left_detections_lidar_frame, right_detections_lidar_frame), axis=0
+                )
+            # total_cam_det = left_detections_lidar_frame
+            # total_cam_det = right_detections_lidar_frame
 
-    cv2.imshow('right_camera', frame_right)
-    cv2.waitKey(1)
-    """
-        cone_detections = [[1, 2, 3, 4]]
-        if cone_detections == []:
-            pass
-        else:
-            # order cones by distance
-            # cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
+            # perception detections debug
+            self.detections_debug = ConeDetections()
+            self.detections_debug.header.frame_id = "os_lidar"
 
-            # publish cone detections
-            self.detections_msg.header.stamp = self.get_clock().now().to_msg()
+            self.detections_debug.header.stamp = self.get_clock().now().to_msg()
 
-            for i in range(len(cone_detections)):
+            for i in range(len(total_cam_det)):
                 self.cone_template = Cone()
-                self.cone_template.pos.y = -1.0 * float(cone_detections[i][0])  # left
-                self.cone_template.pos.z = -1.0 * float(cone_detections[i][1])  # up
-                self.cone_template.pos.x = float(cone_detections[i][2])  # front
-                self.cone_template.type = int(cone_detections[i][3])
+                self.cone_template.pos.x = float(total_cam_det[i][0])  # left
+                self.cone_template.pos.y = float(total_cam_det[i][1])  # up
+                self.cone_template.pos.z = float(total_cam_det[i][2])  # front
+                self.cone_template.type = int(total_cam_det[i][3])
 
                 if self.cone_template.type == 1:  # blue
-                    self.detections_msg.left_cones.append(self.cone_template)
+                    self.detections_debug.left_cones.append(self.cone_template)
                 elif self.cone_template.type == 2:  # yellow
-                    self.detections_msg.right_cones.append(self.cone_template)
+                    self.detections_debug.right_cones.append(self.cone_template)
                 elif self.cone_template.type == 3:
-                    self.detections_msg.small_orange_cones.append(self.cone_template)
+                    self.detections_debug.small_orange_cones.append(self.cone_template)
                 elif self.cone_template.type == 4:
-                    self.detections_msg.large_orange_cones.append(self.cone_template)
+                    self.detections_debug.large_orange_cones.append(self.cone_template)
                 else:  # unknown cones cone template type == 0
-                    self.detections_msg.unknown_cones.append(self.cone_template)
+                    self.detections_debug.unknown_cones.append(self.cone_template)
+
+            self.cone_detections_debug_.publish(self.detections_debug)
+
+            # hungarian matching
+            if total_cam_det.shape[0] > 0:
+
+                diffs = lidar_point_cloud_data[:, :3].reshape(-1, 1, 3) - total_cam_det[
+                    :, :3
+                ].reshape(1, -1, 3)
+
+                cost_matrix = np.linalg.norm(diffs, axis=2)
+
+                row_ind, col_ind = linear_sum_assignment(cost_matrix)
+
+                positions = lidar_point_cloud_data[row_ind][:, :3]
+                colours = total_cam_det[col_ind][:, 3:]
+
+                # TODO - cost matrix where indices have cost above certain threshold, make the type unknown
+                costs = cost_matrix[row_ind, col_ind]
+                above_threshold = np.where(costs > 4.0)[0]
+                for ind in above_threshold:
+                    colours[ind] = 0
+
+                cone_detections = np.concatenate((positions, colours), axis=1)
+                print(col_ind)
+                camera_det = np.delete(total_cam_det, col_ind, axis=0)
+                cone_detections = np.concatenate((cone_detections, camera_det), axis=0)
+                print(cone_detections.shape)
+            else:
+
+                positions = lidar_point_cloud_data[:, :3]
+                colours = np.zeros((positions.shape[0], 1))
+                cone_detections = np.concatenate((positions, colours), axis=1)
+
+            # self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
+
+            # perception debug msg
+
+            if len(results_left) == 0:
+                pass
+            else:
+                self.perception_debug_msg_left = PerceptionDebug()
+                self.perception_debug_msg_left.header.stamp = self.left_img_header.stamp
+                for i in range(len(results_left)):
+                    bounding_box_left = BoundingBox()
+                    bounding_box_left.x = int(results_left[i][0])
+                    bounding_box_left.y = int(results_left[i][1])
+                    bounding_box_left.width = int(results_left[i][2])
+                    bounding_box_left.height = int(results_left[i][3])
+                    bounding_box_left.type = labelColor(classes_left[i])
+                    bounding_box_left.score = scores_left[i]
+                    self.perception_debug_msg_left.left.append(bounding_box_left)
+
+                self.perception_debug_publisher_left_.publish(
+                    self.perception_debug_msg_left
+                )
+
+            if len(results_right) == 0:
+                pass
+            else:
+                self.perception_debug_msg_right = PerceptionDebug()
+                self.perception_debug_msg_right.header.stamp = (
+                    self.right_img_header.stamp
+                )
+                for i in range(len(results_right)):
+                    bounding_box_right = BoundingBox()
+                    bounding_box_right.x = int(results_right[i][0])
+                    bounding_box_right.y = int(results_right[i][1])
+                    bounding_box_right.width = int(results_right[i][2])
+                    bounding_box_right.height = int(results_right[i][3])
+                    bounding_box_right.type = labelColor(classes_right[i])
+                    bounding_box_right.score = scores_right[i]
+                    self.perception_debug_msg_right.right.append(bounding_box_right)
+
+                self.perception_debug_publisher_right_.publish(
+                    self.perception_debug_msg_right
+                )
+
+            # imshow for opencv
+            """
+            cv2.imshow('left_camera', frame_left)
+            k = cv2.waitKey(1)
+
+            cv2.imshow('right_camera', frame_right)
+            cv2.waitKey(1)
+            """
+
+            # print("cone detections: " + str(cone_detections))
+
+            if cone_detections.size != 0:
+                # order cones by distance
+                # cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
+
+                # publish cone detections
+                self.detections_msg.header.stamp = self.get_clock().now().to_msg()
+
+                for i in range(len(cone_detections)):
+                    self.cone_template = Cone()
+                    self.cone_template.pos.x = float(cone_detections[i][0])  # left
+                    self.cone_template.pos.y = float(cone_detections[i][1])  # up
+                    self.cone_template.pos.z = float(cone_detections[i][2])  # front
+                    self.cone_template.type = int(cone_detections[i][3])
+
+                    if self.cone_template.type == 1:  # blue
+                        self.detections_msg.left_cones.append(self.cone_template)
+                    elif self.cone_template.type == 2:  # yellow
+                        self.detections_msg.right_cones.append(self.cone_template)
+                    elif self.cone_template.type == 3:
+                        self.detections_msg.small_orange_cones.append(
+                            self.cone_template
+                        )
+                    elif self.cone_template.type == 4:
+                        self.detections_msg.large_orange_cones.append(
+                            self.cone_template
+                        )
+                    else:  # unknown cones cone template type == 0
+                        self.detections_msg.unknown_cones.append(self.cone_template)
+
+                self.detections_msg.header.stamp = self.get_clock().now().to_msg()
+
+                self.cone_detections_publisher_.publish(self.detections_msg)
+
+            self.left_img_recieved_ = False
+            self.right_img_recieved_ = False
+
+        else:
+            print("LIDAR_ONLY")
+            # Extract point cloud data
+            lidar_point_cloud_data = point_cloud2.read_points_numpy(
+                self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
+            )
+
+            for i in range(len(lidar_point_cloud_data)):
+                self.cone_template = Cone()
+                self.cone_template.pos.x = float(lidar_point_cloud_data[i][0])  # left
+                self.cone_template.pos.y = float(lidar_point_cloud_data[i][1])  # up
+                self.cone_template.pos.z = float(lidar_point_cloud_data[i][2])  # front
+                self.cone_template.type = 1
+
+                self.detections_msg.left_cones.append(self.cone_template)
 
             self.detections_msg.header.stamp = self.get_clock().now().to_msg()
-
             self.cone_detections_publisher_.publish(self.detections_msg)
-
-        self.left_img_recieved_ = False
-        self.right_img_recieved_ = False
 
     # Helper functions:
 
@@ -887,8 +943,8 @@ class PerceptionNode(Node):
 
         # visualizing cone detections in right camera
         for x, y, w, h in results_right:
-            if y <= 470:
-                continue
+            # if y <= 470:
+            # continue
             cv2.rectangle(frame_right, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
     def equalize_hist(self, image):
