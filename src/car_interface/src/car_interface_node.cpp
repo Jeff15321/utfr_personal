@@ -396,6 +396,7 @@ void CarInterface::sendStateAndCmd() {
     // Extended CAN
     // Speed0: Start Bit = 24, Length = 8
     // Set SCALE TO 0 for INITIAL CAN TESTING
+    uint64_t steering_canfd = 0;
     steering_canfd =
         can0_->setSignal(steering_canfd, 24, 8, 1, 0x000000FF & position);
     steering_canfd = can0_->setSignal(steering_canfd, 16, 8, 1,
