@@ -193,7 +193,7 @@ void CarInterface::getGPSData() {
 
   try {
     std_msgs::msg::Header gps_header;
-    gps_header.stamp.sec = (int32_t)can0_->getSignalBE(
+    gps_header.stamp.sec = can0_->getSignalBE(
         dv_can_msg::GPS_SAMPLE_TIME, 0, 32, false, 1);
     sensor_can_.set__gps_header(gps_header);
 
@@ -204,11 +204,11 @@ void CarInterface::getGPSData() {
 
     sensor_msgs::msg::NavSatFix latlong;
     // Latitude, Longitude, Altitude
-    latlong.latitude = (int32_t)can0_->getSignalBE(dv_can_msg::GPS_LAT_LONG, 0,
+    latlong.latitude = can0_->getSignalBE(dv_can_msg::GPS_LAT_LONG, 0,
                                                    32, true, pow(2, -24));
-    latlong.longitude = (int32_t)can0_->getSignalBE(dv_can_msg::GPS_LAT_LONG,
+    latlong.longitude = can0_->getSignalBE(dv_can_msg::GPS_LAT_LONG,
                                                     32, 32, true, pow(2, -23));
-    latlong.altitude = (uint32_t)can0_->getSignalBE(dv_can_msg::GPS_ALT_ELLIP,
+    latlong.altitude = can0_->getSignalBE(dv_can_msg::GPS_ALT_ELLIP,
                                                     0, 32, false, pow(2, -15));
     sensor_can_.set__gps_gnss(latlong); 
 
@@ -216,53 +216,52 @@ void CarInterface::getGPSData() {
     geometry_msgs::msg::Vector3Stamped gps_rpy;
     gps_rpy.header = gps_header;
     double gps_rpy_scale = pow(2, -7);
-    gps_rpy.vector.x = (int16_t)can0_->getSignalBE(dv_can_msg::GPS_RPY, 0, 16,
+    gps_rpy.vector.x = can0_->getSignalBE(dv_can_msg::GPS_RPY, 0, 16,
                                                    true, gps_rpy_scale);
-    RCLCPP_ERROR(this->get_logger(), "%s: ROLL: %f",function_name.c_str(), can0_->getSignalBE(dv_can_msg::GPS_RPY, 0, 16,
-                                                   true, gps_rpy_scale));
-    gps_rpy.vector.y = (int16_t)can0_->getSignalBE(dv_can_msg::GPS_RPY, 16, 16,
+    RCLCPP_ERROR(this->get_logger(), "%s: ROLL: %f",function_name.c_str(), gps_rpy.vector.x);
+    gps_rpy.vector.y = can0_->getSignalBE(dv_can_msg::GPS_RPY, 16, 16,
                                                    true, gps_rpy_scale);
-    RCLCPP_ERROR(this->get_logger(), "%s: PITCH: %f",function_name.c_str(), can0_->getSignalBE(dv_can_msg::GPS_RPY, 16, 16,
-                                                   true, gps_rpy_scale));
-    gps_rpy.vector.z = (int16_t)can0_->getSignalBE(dv_can_msg::GPS_RPY, 32, 16,
+    RCLCPP_ERROR(this->get_logger(), "%s: PITCH: %f",function_name.c_str(), gps_rpy.vector.y);
+    gps_rpy.vector.z = can0_->getSignalBE(dv_can_msg::GPS_RPY, 32, 16,
                                                    true, gps_rpy_scale);
-    RCLCPP_ERROR(this->get_logger(), "%s: YAW: %f",function_name.c_str(), can0_->getSignalBE(dv_can_msg::GPS_RPY, 32, 16,
-                                                   true, gps_rpy_scale));
+    RCLCPP_ERROR(this->get_logger(), "%s: YAW: %f",function_name.c_str(), gps_rpy.vector.z);
     sensor_can_.set__gps_rpy(gps_rpy);
 
     geometry_msgs::msg::QuaternionStamped gps_orientation;
     gps_orientation.header = gps_header;
     double gps_quat_scale = pow((pow(2, 15) - 1), -1);
-    gps_orientation.quaternion.x = (int16_t)can0_->getSignalBE(
+    gps_orientation.quaternion.x = can0_->getSignalBE(
         dv_can_msg::GPS_ORIENTATION, 0, 16, true, gps_quat_scale);
-    gps_orientation.quaternion.y = (int16_t)can0_->getSignalBE(
+    gps_orientation.quaternion.y = can0_->getSignalBE(
         dv_can_msg::GPS_ORIENTATION, 16, 16, true, gps_quat_scale);
-    gps_orientation.quaternion.w = (int16_t)can0_->getSignalBE(
+    gps_orientation.quaternion.w = can0_->getSignalBE(
         dv_can_msg::GPS_ORIENTATION, 32, 16, true, gps_quat_scale);
-    gps_orientation.quaternion.z = (int16_t)can0_->getSignalBE(
+    gps_orientation.quaternion.z = can0_->getSignalBE(
         dv_can_msg::GPS_ORIENTATION, 48, 16, true, gps_quat_scale);
     sensor_can_.set__gps_orientation(gps_orientation); 
 
     geometry_msgs::msg::TwistStamped gps_velocity;
     gps_velocity.header = gps_header;
     double gps_vel_scale = pow(2, -6);
-    gps_velocity.twist.linear.x = (int16_t)can0_->getSignalBE(
+    gps_velocity.twist.linear.x = can0_->getSignalBE(
         dv_can_msg::GPS_VEL_XYZ, 0, 16, true, gps_vel_scale);
-    gps_velocity.twist.linear.y = (int16_t)can0_->getSignalBE(
+    gps_velocity.twist.linear.y = can0_->getSignalBE(
         dv_can_msg::GPS_VEL_XYZ, 16, 16, true, gps_vel_scale);
-    gps_velocity.twist.linear.z = (int16_t)can0_->getSignalBE(
+    gps_velocity.twist.linear.z = can0_->getSignalBE(
         dv_can_msg::GPS_VEL_XYZ, 32, 16, true, gps_vel_scale);
     sensor_can_.set__gps_velocity(gps_velocity);
 
     geometry_msgs::msg::Accel gps_accel;
     double gps_accel_scale = pow(2, -8);
-    gps_accel.linear.x = (int16_t)can0_->getSignalBE(
+    gps_accel.linear.x = can0_->getSignalBE(
         dv_can_msg::GPS_ACCELERATION, 0, 16, true, gps_accel_scale);
-    gps_accel.linear.y = (int16_t)can0_->getSignalBE(
+    gps_accel.linear.y = can0_->getSignalBE(
         dv_can_msg::GPS_ACCELERATION, 16, 16, true, gps_accel_scale);
-    gps_accel.linear.z = (int16_t)can0_->getSignalBE(
+    gps_accel.linear.z = can0_->getSignalBE(
         dv_can_msg::GPS_ACCELERATION, 32, 16, true, gps_accel_scale);
     sensor_can_.set__gps_accel(gps_accel);
+
+    RCLCPP_WARN(this->get_logger(), "accel x: %f accel y: %f accel z: %f", gps_accel.linear.x, gps_accel.linear.y, gps_accel.linear.z);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occurred, error #%d",

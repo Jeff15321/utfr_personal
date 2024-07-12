@@ -366,7 +366,7 @@ void CarInterface::sendStateAndCmd() {
 
     // DV computer state
     uint64_t dv_comp_state = 0;
-    dv_comp_state = can0_->setSignal(dv_comp_state, 0, 3, 1, dv_pc_state_);
+    dv_comp_state = can0_->setSignal(dv_comp_state, 0, 8, 1, dv_pc_state_);
     // dv_comp_state = can0_->setSignal(dv_comp_state, 0, 3, 1, 2);
 
     // uint64_t steering_position = steering_cmd_;
@@ -392,6 +392,8 @@ void CarInterface::sendStateAndCmd() {
     uint64_t position = steering_cmd_;
     RCLCPP_WARN(this->get_logger(), "steering commanded: %d", steering_cmd_);
     position = position * 10000;
+
+    RCLCPP_WARN(this->get_logger(), "DV comp state: %d\n", dv_pc_state_);
 
     // Extended CAN
     // Speed0: Start Bit = 24, Length = 8
@@ -495,7 +497,7 @@ void CarInterface::sendStateAndCmd() {
     // inverter_canfd = can0_->setSignal(inverter_canfd, 56, 8, 1, torque_limit / 256);
 
     // Transmit
-    can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state, false);
+    can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state, true);
     // can0_->write_can(dv_can_msg::DV_COMMANDED, inverter_canfd, true);
 
   } catch (int e) {
@@ -567,7 +569,7 @@ void CarInterface::timerCB() {
   try {
     getSensorCan(); // Publish sensor and state data that is read from can
     getDVState(); // Read DV state from car from can
-    // sendDVLogs(); // Publish FSG log format over ros and send over can
+    sendDVLogs(); // Publish FSG log format over ros and send over can
     DVCompStateMachine(); // Set DV coputer state
     sendStateAndCmd();    // Send DV computer state to RC and actuator commands
                           // over can
