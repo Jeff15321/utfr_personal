@@ -8,7 +8,7 @@ left_camera_node: # node name
     trigger_mode: false
     qos_reliability: "system_default"
     pixelformat: "bayer_rggb8"
-    start_delay: 1000.0
+    start_delay: 10000.0
 
 right_camera_node: # node name
   ros__parameters:
@@ -19,4 +19,4 @@ right_camera_node: # node name
     trigger_mode: false
     qos_reliability: "system_default"
     pixelformat: "bayer_rggb8"
-    start_delay: 3000.0
+    start_delay: 15000.0
