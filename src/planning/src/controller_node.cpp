@@ -93,6 +93,11 @@ void ControllerNode::initSubscribers() {
   point_subscriber_ = this->create_subscription<geometry_msgs::msg::Pose>(
       topics::kSkidpadCenterPoint, 10,
       std::bind(&ControllerNode::pointCB, this, _1));
+
+  mission_subscriber_ =
+        this->create_subscription<utfr_msgs::msg::SystemStatus>(
+            topics::kSystemStatus, 10,
+            std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
 }
 
 void ControllerNode::initPublishers() {
@@ -145,33 +150,39 @@ void ControllerNode::initTimers() {
 
 void ControllerNode::initEvent() {
   if (event_ == "read") {
-    mission_subscriber_ =
-        this->create_subscription<utfr_msgs::msg::SystemStatus>(
-            topics::kSystemStatus, 10,
-            std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
+    // mission_subscriber_ =
+    //     this->create_subscription<utfr_msgs::msg::SystemStatus>(
+    //         topics::kSystemStatus, 10,
+    //         std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
   }
 }
 
 void ControllerNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
-  if (msg.ami_state == 1) {
-    event_ = "accel";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 2) {
-    event_ = "skidpad";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 3) {
-    event_ = "trackdrive";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 4) {
-    event_ = "EBSTest";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 5) {
-    event_ = "ASTest";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 6) {
-    event_ = "autocross";
-    mission_subscriber_.reset();
+  // if (msg.ami_state == 1) {
+  //   event_ = "accel";
+  //   mission_subscriber_.reset();
+  // } else if (msg.ami_state == 2) {
+  //   event_ = "skidpad";
+  //   mission_subscriber_.reset();
+  // } else if (msg.ami_state == 3) {
+  //   event_ = "trackdrive";
+  //   mission_subscriber_.reset();
+  // } else if (msg.ami_state == 4) {
+  //   event_ = "EBSTest";
+  //   mission_subscriber_.reset();
+  // } else if (msg.ami_state == 5) {
+  //   event_ = "ASTest";
+  //   mission_subscriber_.reset();
+  // } else if (msg.ami_state == 6) {
+  //   event_ = "autocross";
+  //   mission_subscriber_.reset();
+  // }
+
+  if (as_state == 2 && msg.as_state == 3){
+    start_time_ = this->get_clock()->now();
   }
+
+  as_state = msg.as_state;
 }
 
 void ControllerNode::initGGV(std::string filename) {
@@ -583,14 +594,19 @@ void ControllerNode::timerCBAS() {
   double curr_time = this->now().seconds();
   double time_diff = curr_time - start_time_.seconds();
 
-  if (time_diff < 30.0) {
+  if (as_state == 3 && time_diff < 30.0) {
     target_.speed = 1.0;
     target_.steering_angle = sin(time_diff * 3.1415 / 3) * max_steering_angle_;
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } else {
+  } else if (as_state == 3)
+  {
     target_.speed = 0.0;
     target_.steering_angle = 0.0;
     publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
+  } else{
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    target_.speed = 0.0;
+    target_.steering_angle = 0.0;
   }
   target_state_publisher_->publish(target_);
 }

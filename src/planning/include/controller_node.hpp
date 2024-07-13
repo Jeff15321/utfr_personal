@@ -283,6 +283,8 @@ private:
 
   double last_steering_angle_ = 0;
 
+  int as_state = 0;
+
   // map of GGV data. keys are velocity, values are array of lat. accel
   std::unordered_map<double, std::vector<double>> GGV_vel_to_lat_accel_;
   // map of GGV data. keys are velocity, values are array of long. accel
