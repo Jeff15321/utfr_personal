@@ -1,6 +1,8 @@
+#include <chrono>
 #include <cstring>   // memcopy
 #include <stdexcept> // std::runtime_err
 #include <string>
+#include <thread>
 
 // ROS
 #include "rmw/types.h"
@@ -66,6 +68,10 @@ void ArenaCameraNode::parse_parameters_() {
     nextParameterToDeclare = "qos_reliability";
     pub_qos_reliability_ = this->declare_parameter("qos_reliability", "");
     is_passed_pub_qos_reliability_ = pub_qos_reliability_ != "";
+
+    nextParameterToDeclare = "start_delay";
+    start_delay_ = this->declare_parameter("start_delay", -1.0);
+    is_passed_start_delay_ = start_delay_ >= 0;
 
   } catch (rclcpp::ParameterTypeException &e) {
     log_err(nextParameterToDeclare + " argument");
@@ -229,6 +235,13 @@ void ArenaCameraNode::wait_for_device_timer_callback_() {
 }
 
 void ArenaCameraNode::run_() {
+
+  using namespace std::this_thread;
+  using namespace std;
+
+  log_info("sleeping for... " + std::to_string(start_delay_) + "ms");
+  this_thread::sleep_for(chrono::milliseconds(start_delay_));
+
   auto device = create_device_ros_();
   m_pDevice.reset(device);
   set_nodes_();
