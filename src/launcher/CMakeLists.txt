@@ -15,7 +15,7 @@ endif()
 set(THIS_PACKAGE_INCLUDE_DEPENDS
     ament_cmake
     arena_camera_node
-    bluespace_ai_xsens_mti_driver
+    xsens_mti_ros2_driver
     ouster_ros
     mapping
     planning

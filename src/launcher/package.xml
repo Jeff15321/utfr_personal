@@ -10,7 +10,7 @@
   <license>MIT</license>
 
   <depend>arena_camera_node</depend>
-  <depend>bluespace_ai_xsens_mti_driver</depend>
+  <depend>xsens_mti_ros2_driver</depend>
   <depend>ouster_ros</depend>
 
   <depend>perception</depend>

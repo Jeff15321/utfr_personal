@@ -98,7 +98,7 @@ YAML_CONTENT=$(cat <<EOF
       "packages-ignore":
         [
           "arena_camera_node",
-          "bluespace_ai_xsens_mti_driver",
+          "xsens_mti_ros2_driver",
           "ouster_sensor_msgs",
           "ouster_ros",
           "launcher"
@@ -109,7 +109,7 @@ YAML_CONTENT=$(cat <<EOF
       "packages-ignore":
         [
           "arena_camera_node",
-          "bluespace_ai_xsens_mti_driver",
+          "xsens_mti_ros2_driver",
           "ouster_sensor_msgs",
           "ouster_ros",
           "launcher"
