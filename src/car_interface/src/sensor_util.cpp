@@ -192,39 +192,44 @@ void CarInterface::getGPSData() {
   const std::string function_name{"getGPSData"};
 
   try {
-    std_msgs::msg::Header gps_header;
-    gps_header.stamp.sec = can0_->getSignalBE(
-        dv_can_msg::GPS_SAMPLE_TIME, 0, 32, false, 1);
+    // where is gps_imu_accel, gps_imu_ang_vel, gps_imu_data, gps_position,
+    // gps_twist, gps_velocity.twist.angular, gps_header
+    std_msgs::msg::Header gps_header; // TODO: FIX
+    gps_header.stamp.sec =
+        can0_->getSignalBE(dv_can_msg::GPS_SAMPLE_TIME, 0, 32, false, 1);
     sensor_can_.set__gps_header(gps_header);
 
     std_msgs::msg::Bool gps_error;
     gps_error.set__data(
         (bool)can0_->getSignalBE(dv_can_msg::GPS_ERROR_CODE, 0, 8, false, 1));
-    sensor_can_.set__gps_error(gps_error); 
+    sensor_can_.set__gps_error(gps_error);
 
     sensor_msgs::msg::NavSatFix latlong;
     // Latitude, Longitude, Altitude
-    latlong.latitude = can0_->getSignalBE(dv_can_msg::GPS_LAT_LONG, 0,
-                                                   32, true, pow(2, -24));
-    latlong.longitude = can0_->getSignalBE(dv_can_msg::GPS_LAT_LONG,
-                                                    32, 32, true, pow(2, -23));
-    latlong.altitude = can0_->getSignalBE(dv_can_msg::GPS_ALT_ELLIP,
-                                                    0, 32, false, pow(2, -15));
-    sensor_can_.set__gps_gnss(latlong); 
+    latlong.latitude =
+        can0_->getSignalBE(dv_can_msg::GPS_LAT_LONG, 0, 32, true, pow(2, -24));
+    latlong.longitude =
+        can0_->getSignalBE(dv_can_msg::GPS_LAT_LONG, 32, 32, true, pow(2, -23));
+    latlong.altitude = can0_->getSignalBE(dv_can_msg::GPS_ALT_ELLIP, 0, 32,
+                                          false, pow(2, -15));
+    sensor_can_.set__gps_gnss(latlong);
 
     // stamped = time stamped all msgs need time stamp
     geometry_msgs::msg::Vector3Stamped gps_rpy;
     gps_rpy.header = gps_header;
     double gps_rpy_scale = pow(2, -7);
-    gps_rpy.vector.x = can0_->getSignalBE(dv_can_msg::GPS_RPY, 0, 16,
-                                                   true, gps_rpy_scale);
-    RCLCPP_ERROR(this->get_logger(), "%s: ROLL: %f",function_name.c_str(), gps_rpy.vector.x);
-    gps_rpy.vector.y = can0_->getSignalBE(dv_can_msg::GPS_RPY, 16, 16,
-                                                   true, gps_rpy_scale);
-    RCLCPP_ERROR(this->get_logger(), "%s: PITCH: %f",function_name.c_str(), gps_rpy.vector.y);
-    gps_rpy.vector.z = can0_->getSignalBE(dv_can_msg::GPS_RPY, 32, 16,
-                                                   true, gps_rpy_scale);
-    RCLCPP_ERROR(this->get_logger(), "%s: YAW: %f",function_name.c_str(), gps_rpy.vector.z);
+    gps_rpy.vector.x =
+        can0_->getSignalBE(dv_can_msg::GPS_RPY, 0, 16, true, gps_rpy_scale);
+    RCLCPP_ERROR(this->get_logger(), "%s: ROLL: %f", function_name.c_str(),
+                 gps_rpy.vector.x);
+    gps_rpy.vector.y =
+        can0_->getSignalBE(dv_can_msg::GPS_RPY, 16, 16, true, gps_rpy_scale);
+    RCLCPP_ERROR(this->get_logger(), "%s: PITCH: %f", function_name.c_str(),
+                 gps_rpy.vector.y);
+    gps_rpy.vector.z =
+        can0_->getSignalBE(dv_can_msg::GPS_RPY, 32, 16, true, gps_rpy_scale);
+    RCLCPP_ERROR(this->get_logger(), "%s: YAW: %f", function_name.c_str(),
+                 gps_rpy.vector.z);
     sensor_can_.set__gps_rpy(gps_rpy);
 
     geometry_msgs::msg::QuaternionStamped gps_orientation;
@@ -238,30 +243,31 @@ void CarInterface::getGPSData() {
         dv_can_msg::GPS_ORIENTATION, 32, 16, true, gps_quat_scale);
     gps_orientation.quaternion.z = can0_->getSignalBE(
         dv_can_msg::GPS_ORIENTATION, 48, 16, true, gps_quat_scale);
-    sensor_can_.set__gps_orientation(gps_orientation); 
+    sensor_can_.set__gps_orientation(gps_orientation);
 
     geometry_msgs::msg::TwistStamped gps_velocity;
     gps_velocity.header = gps_header;
     double gps_vel_scale = pow(2, -6);
-    gps_velocity.twist.linear.x = can0_->getSignalBE(
-        dv_can_msg::GPS_VEL_XYZ, 0, 16, true, gps_vel_scale);
+    gps_velocity.twist.linear.x =
+        can0_->getSignalBE(dv_can_msg::GPS_VEL_XYZ, 0, 16, true, gps_vel_scale);
     gps_velocity.twist.linear.y = can0_->getSignalBE(
         dv_can_msg::GPS_VEL_XYZ, 16, 16, true, gps_vel_scale);
     gps_velocity.twist.linear.z = can0_->getSignalBE(
         dv_can_msg::GPS_VEL_XYZ, 32, 16, true, gps_vel_scale);
     sensor_can_.set__gps_velocity(gps_velocity);
 
-    geometry_msgs::msg::Accel gps_accel;
+    geometry_msgs::msg::Accel gps_accel; // TODO: Where is angular?
     double gps_accel_scale = pow(2, -8);
-    gps_accel.linear.x = can0_->getSignalBE(
-        dv_can_msg::GPS_ACCELERATION, 0, 16, true, gps_accel_scale);
-    gps_accel.linear.y = can0_->getSignalBE(
-        dv_can_msg::GPS_ACCELERATION, 16, 16, true, gps_accel_scale);
-    gps_accel.linear.z = can0_->getSignalBE(
-        dv_can_msg::GPS_ACCELERATION, 32, 16, true, gps_accel_scale);
+    gps_accel.linear.x = can0_->getSignalBE(dv_can_msg::GPS_ACCELERATION, 0, 16,
+                                            true, gps_accel_scale);
+    gps_accel.linear.y = can0_->getSignalBE(dv_can_msg::GPS_ACCELERATION, 16,
+                                            16, true, gps_accel_scale);
+    gps_accel.linear.z = can0_->getSignalBE(dv_can_msg::GPS_ACCELERATION, 32,
+                                            16, true, gps_accel_scale);
     sensor_can_.set__gps_accel(gps_accel);
 
-    RCLCPP_WARN(this->get_logger(), "accel x: %f accel y: %f accel z: %f", gps_accel.linear.x, gps_accel.linear.y, gps_accel.linear.z);
+    RCLCPP_WARN(this->get_logger(), "accel x: %f accel y: %f accel z: %f",
+                gps_accel.linear.x, gps_accel.linear.y, gps_accel.linear.z);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occurred, error #%d",
@@ -296,18 +302,23 @@ void CarInterface::getDVState() {
   // Get DV state from car
   system_status_.as_state =
       can0_->getSignal(dv_can_msg::FULL_AS_STATE, 0, 3, true, 1);
-  RCLCPP_ERROR(this->get_logger(), "%s: AS STATE: %d",function_name.c_str(), system_status_.as_state);
+  RCLCPP_ERROR(this->get_logger(), "%s: AS STATE: %d", function_name.c_str(),
+               system_status_.as_state);
   system_status_.ebs_state =
       can0_->getSignal(dv_can_msg::FULL_AS_STATE, 3, 2, true, 1);
-  RCLCPP_ERROR(this->get_logger(), "%s: EBS STATE: %d",function_name.c_str(), system_status_.ebs_state);
+  RCLCPP_ERROR(this->get_logger(), "%s: EBS STATE: %d", function_name.c_str(),
+               system_status_.ebs_state);
   system_status_.ami_state =
       can0_->getSignal(dv_can_msg::FULL_AS_STATE, 5, 3, true, 1);
-  RCLCPP_ERROR(this->get_logger(), "%s: AMI STATE: %d",function_name.c_str(), system_status_.ami_state);
+  RCLCPP_ERROR(this->get_logger(), "%s: AMI STATE: %d", function_name.c_str(),
+               system_status_.ami_state);
   system_status_.steering_state = (str_motor_state_ == 0) ? 1 : 0;
-  RCLCPP_ERROR(this->get_logger(), "%s: STEERING STATE: %d",function_name.c_str(), system_status_.steering_state);
+  RCLCPP_ERROR(this->get_logger(), "%s: STEERING STATE: %d",
+               function_name.c_str(), system_status_.steering_state);
   system_status_.service_brake_state =
       can0_->getSignal(dv_can_msg::FULL_AS_STATE, 9, 2, true, 1);
-  RCLCPP_ERROR(this->get_logger(), "%s: BRAKE STATE: %d",function_name.c_str(), system_status_.service_brake_state);
+  RCLCPP_ERROR(this->get_logger(), "%s: BRAKE STATE: %d", function_name.c_str(),
+               system_status_.service_brake_state);
 }
 
 } // namespace car_interface
