@@ -29,10 +29,7 @@ void CarInterface::getSteeringMotorData() { // TODO: Review
     steering_angle = // degrees
         -(uint16_t)can0_->getSignal(dv_can_msg::StrMotorInfo, 0, 16, true, 0.1);
 
-    // RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
-    //             function_name.c_str(), steering_angle);
-    // Check for sensor malfunction
-    RCLCPP_WARN(this->get_logger(), "Steering Motor Angle: %d", steering_angle);
+    RCLCPP_INFO(this->get_logger(), "Steering Motor Angle: %d", steering_angle);
     if ((abs(steering_angle) > 50)) {
       RCLCPP_ERROR(this->get_logger(), "%s: Value error",
                    function_name.c_str());
@@ -282,7 +279,7 @@ void CarInterface::getSensorCan() {
     // Read sensor CAN messages from car
     getSteeringMotorData();
     getMotorSpeedData();
-    getMotorTorqueData();
+    // getMotorTorqueData();
     // getServiceBrakeData();
     // getWheelspeedSensorData();
     // getIMUData();
