@@ -67,7 +67,8 @@ sudo apt-get upgrade -y
 sudo apt-get install -y libcgal-dev libboost-all-dev \
 ros-humble-rosbag2-storage-mcap clang-format \ 
 ros-humble-foxglove-bridge ros-humble-foxglove-msgs \
-ros-humble-nmea-msgs ros-humble-mavros-msgs
+ros-humble-nmea-msgs ros-humble-mavros-msgs \
+ros-humble-rmw-cyclonedds-cpp
 
 echo "==========================================="
 echo "=            Install rosdeps              ="
@@ -82,10 +83,12 @@ echo "==========================================="
 pip install xgboost scikit-learn imutils xacro
 
 echo "==========================================="
-echo "=               Config sim                ="
+echo "=        Config sim and CycloneDDS        ="
 echo "==========================================="
 DIR="$(pwd)/src/utfr_sim"
 echo "export EUFS_MASTER=$DIR" >> ~/.bashrc
+echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> ~/.bashrc
+echo "net.core.rmem_max=8388608\nnet.core.rmem_default=8388608\n" | sudo tee /etc/sysctl.d/60-cyclonedds.conf
 source ~/.bashrc
 
 echo "==========================================="
@@ -98,7 +101,7 @@ YAML_CONTENT=$(cat <<EOF
       "packages-ignore":
         [
           "arena_camera_node",
-          "bluespace_ai_xsens_mti_driver",
+          "xsens_mti_ros2_driver",
           "ouster_sensor_msgs",
           "ouster_ros",
           "launcher"
@@ -109,7 +112,7 @@ YAML_CONTENT=$(cat <<EOF
       "packages-ignore":
         [
           "arena_camera_node",
-          "bluespace_ai_xsens_mti_driver",
+          "xsens_mti_ros2_driver",
           "ouster_sensor_msgs",
           "ouster_ros",
           "launcher"

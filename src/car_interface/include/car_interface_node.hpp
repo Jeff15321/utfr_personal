@@ -246,6 +246,7 @@ private:
   std::vector<std::string> heartbeat_modules_;
   std::vector<std::string> heartbeat_modules_inspection_;
   std::vector<std::string> heartbeat_modules_accel_;
+  std::vector<std::string> heartbeat_modules_testing_;
 
   // Callback Variables
   // utfr_msgs::msg::ControlCmd control_cmd_;
@@ -285,7 +286,7 @@ private:
     FINISH = 5
   };
 
-  uint8_t dv_pc_state_;
+  uint8_t dv_pc_state_ = DV_PC_STATE::OFF;
 
   // CAN objects
   CanInterfaceUPtr can0_{nullptr};

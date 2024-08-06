@@ -3,7 +3,26 @@ car_interface: # Name of Module
     update_rate: 33.33 #[ms]
     ema_gain: 0.6
     heartbeat_tolerance: 4.0
-    heartbeat_modules: ["controls"]
-    heartbeat_modules_accel: ["controls"]
-    heartbeat_modules_inspection: ["controls"]
+    heartbeat_modules:
+      [
+        "perception",
+        "lidar_proc",
+        "ekf",
+        "mapping_build",
+        "mapping_compute",
+        "planning_cp",
+        "planning_controller",
+        "controls",
+      ]
+    heartbeat_modules_accel:
+      [
+        "perception",
+        "lidar_proc",
+        "planning_cp",
+        "planning_controller",
+        "controls",
+      ]
+    heartbeat_modules_inspection:
+      ["planning_cp", "planning_controller", "controls"]
+    heartbeat_modules_testing: [""]
     testing: 0 #0 - no test, 1 - testing

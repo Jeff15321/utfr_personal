@@ -112,5 +112,4 @@
     "ros.distro": "humble",
     "git.detectSubmodulesLimit": 0,
     "git.detectSubmodules": false,
-    "cmake.sourceDirectory": "/home/allanlzee/dv24/build/eufs_msgs/eufs_msgs__py",
 }

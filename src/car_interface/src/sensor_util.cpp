@@ -283,7 +283,7 @@ void CarInterface::getSensorCan() {
     getSteeringMotorData();
     getMotorSpeedData();
     getMotorTorqueData();
-    getServiceBrakeData();
+    // getServiceBrakeData();
     // getWheelspeedSensorData();
     // getIMUData();
     getGPSData();
@@ -302,23 +302,23 @@ void CarInterface::getDVState() {
   // Get DV state from car
   system_status_.as_state =
       can0_->getSignal(dv_can_msg::FULL_AS_STATE, 0, 3, true, 1);
-  RCLCPP_ERROR(this->get_logger(), "%s: AS STATE: %d", function_name.c_str(),
-               system_status_.as_state);
+  RCLCPP_INFO(this->get_logger(), "%s: AS STATE: %d", function_name.c_str(),
+              system_status_.as_state);
   system_status_.ebs_state =
       can0_->getSignal(dv_can_msg::FULL_AS_STATE, 3, 2, true, 1);
-  RCLCPP_ERROR(this->get_logger(), "%s: EBS STATE: %d", function_name.c_str(),
-               system_status_.ebs_state);
+  RCLCPP_INFO(this->get_logger(), "%s: EBS STATE: %d", function_name.c_str(),
+              system_status_.ebs_state);
   system_status_.ami_state =
       can0_->getSignal(dv_can_msg::FULL_AS_STATE, 5, 3, true, 1);
-  RCLCPP_ERROR(this->get_logger(), "%s: AMI STATE: %d", function_name.c_str(),
-               system_status_.ami_state);
+  RCLCPP_INFO(this->get_logger(), "%s: AMI STATE: %d", function_name.c_str(),
+              system_status_.ami_state);
   system_status_.steering_state = (str_motor_state_ == 0) ? 1 : 0;
-  RCLCPP_ERROR(this->get_logger(), "%s: STEERING STATE: %d",
-               function_name.c_str(), system_status_.steering_state);
+  RCLCPP_INFO(this->get_logger(), "%s: STEERING STATE: %d",
+              function_name.c_str(), system_status_.steering_state);
   system_status_.service_brake_state =
       can0_->getSignal(dv_can_msg::FULL_AS_STATE, 9, 2, true, 1);
-  RCLCPP_ERROR(this->get_logger(), "%s: BRAKE STATE: %d", function_name.c_str(),
-               system_status_.service_brake_state);
+  RCLCPP_INFO(this->get_logger(), "%s: BRAKE STATE: %d", function_name.c_str(),
+              system_status_.service_brake_state);
 }
 
 } // namespace car_interface
