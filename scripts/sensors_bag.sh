@@ -3,6 +3,7 @@
 # Author: Daniel Asadi
 # Description: Record cameras + LIDAR + GNSS/INS data
 # Usage: bash scripts/sensors_bag.sh <bag_name>
+# Service located in /etc/systemd/system/ros_sensors_launch.service
 
 # How to create a service to launch this script on boot:
 
