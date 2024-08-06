@@ -12,6 +12,7 @@ center_path_node: # Name of Module
     threshold_radius: 0.5 #[m]
     threshold_cones: 3 # number of cones to check for radius
     global_path: 1
+    colourblind: 0
 
     # Pure Pursuit Controller Parameters
     base_lookahead_distance: 3.0 # [m]

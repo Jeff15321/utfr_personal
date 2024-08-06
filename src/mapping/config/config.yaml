@@ -1,4 +1,33 @@
-mapping: # Name of Module
+ekf_node: # Name of Module
   ros__parameters:
     update_rate: 33.33 #[ms]
     slam_rate: 33.33 #[ms]
+    # MAPPING MODE
+    # 0: Full SLAM
+    # 1: Only Localize
+    # 2: No Localization or Mapping
+    mapping_mode: 0
+    ekf_on: 1
+
+build_graph_node: # Name of Module
+  ros__parameters:
+    update_rate: 33.33 #[ms]
+    slam_rate: 33.33 #[ms]
+    # MAPPING MODE
+    # 0: Full SLAM
+    # 1: Only Localize
+    # 2: No Localization or Mapping
+    mapping_mode: 0
+    ekf_on: 1
+
+
+compute_graph_node: # Name of Module
+  ros__parameters:
+    update_rate: 33.33 #[ms]
+    slam_rate: 33.33 #[ms]
+    # MAPPING MODE
+    # 0: Full SLAM
+    # 1: Only Localize
+    # 2: No Localization or Mapping
+    mapping_mode: 0
+    ekf_on: 1

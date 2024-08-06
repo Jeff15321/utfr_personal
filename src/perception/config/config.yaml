@@ -7,25 +7,13 @@ perception_node: # Name of Node
     baseline: 10.0
     update_rate: 33.0 #[ms]
     distortion_left:
-      [
-        -0.26170828446607286,
-        0.109830602711457,
-        -0.0009754103281966483,
-        0.0015736897048436397,
-        -0.027459437237028456,
-      ]
+      [-0.2632632062603271, 0.12474952835752845, 0.0, 0.0, 0.0]
     distortion_right:
-      [
-        -0.26170828446607286,
-        0.109830602711457,
-        -0.0009754103281966483,
-        0.0015736897048436397,
-        -0.027459437237028456,
-      ]
+      [-0.269633921151086, 0.12944192627838266, 0.0, 0.0, 0.0]
     intrinsics_left:
-      [1713.4816, 0.0, 712.7942, 0.0, 1710.5325, 517.4372, 0.0, 0.0, 1.0]
+      [1176.4720209159348, 0.0, 717.3175336097887, 0.0, 1176.4502103799837, 555.1127066183973, 0.0, 0.0, 1.0]
     intrinsics_right:
-      [1549.9374, 0.0, 850.7587, 0.0, 1517.6234, 509.1806, 0.0, 0.0, 1.0]
+      [1169.929054195447, 0.0, 732.7234047220617, 0.0, 1168.6955521426203, 539.5227062057302, 0.0, 0.0, 1.0]
     rotation:
       [
         0.9948,
@@ -66,6 +54,7 @@ perception_node: # Name of Node
     save_pic: "False"
     confidence: 0.40
     cone_heights: [0.0, 325.0, 325.0, 325.0, 505.0]
+    lidar_only_detection: False
 
     # shopping cart
     # intrinsics_left:
@@ -105,36 +94,35 @@ lidar_proc_node:
   ros__parameters:
     update_rate: 33.33 #[ms]
     topics: # TODO: fix
-      input: "/velodyne_points"
+      input: "/ouster/points"
       filtered: "/lidar_pipeline/filtered"
       no_ground: "/lidar_pipeline/no_ground"
       clustered: "/lidar_pipeline/clustered"
       detected: "/lidar_pipeline/detected"
       heartbeat: "/lidar_pipeline/heartbeat"
     view_filter:
-      outer_box:
-        xmin: 0.0
-        xmax: 20.0
+      outer_box: #remove all points outside of outer box
+        xmin: -20.0
+        xmax: 0.0
         ymin: -8.0
         ymax: 8.0
-      inner_box:
+      inner_box: #remove all points within inner box
         xmin: -1.0
         xmax: 1.0
         ymin: -1.0
         ymax: 1.0
-      grid_size_x: 40
+      grid_size_x: 40 #create grid of lowest z points for each cell in grid
       grid_size_y: 40
-    ground_ransac:
+    ground_ransac: #use z points for ransac
       max_iterations: 100
-      distance_threshold: 0.15
+      distance_threshold: 0.1
     clustering:
-      cluster_tolerance: 1.5
-      min_cluster_size: 2
-      max_cluster_size: 1000
-      reconstruct_radius: 0.35
+      cluster_tolerance: 0.2
+      min_cluster_size: 3
+      max_cluster_size: 600
+      reconstruct_radius: 0.1
     cone_filter:
-      cone_height: 0.41
-      cone_radius: 0.155
-      inlier_mse_threshold: 0.1
-      ransac_max_iters: 100
-      min_inlier_ratio: 0.9
+      cone_height: 0.43
+      cone_radius: 0.0748
+      mse_threshold: 0.0001 #any point as close as threshold is inlier
+      lin_threshold: 0.002

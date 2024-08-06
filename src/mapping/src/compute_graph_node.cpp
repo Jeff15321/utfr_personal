@@ -49,6 +49,9 @@ void ComputeGraphNode::initParams() {
   this->declare_parameter("update_rate", 33.33);
   this->declare_parameter("slam_timer_", 33.33);
 
+  this->declare_parameter("mapping_mode", 0);
+  mapping_mode_ = this->get_parameter("mapping_mode").as_int();
+
   // Will have to tune these later depending on the accuracy of our sensors
   Eigen::DiagonalMatrix<double, 3> P2P;
   Eigen::DiagonalMatrix<double, 2> P2C;
@@ -82,23 +85,29 @@ void ComputeGraphNode::initParams() {
 }
 
 void ComputeGraphNode::initSubscribers() {
-  pose_graph_subscriber_ = this->create_subscription<utfr_msgs::msg::PoseGraph>(
+  if (mapping_mode_ == 0) {
+    pose_graph_subscriber_ = this->create_subscription<utfr_msgs::msg::PoseGraph>(
       topics::kPoseGraph, 1,
       std::bind(&ComputeGraphNode::poseGraphCB, this, std::placeholders::_1));
+  }
 }
 
 void ComputeGraphNode::initPublishers() {
-  cone_map_publisher_ =
+  if (mapping_mode_ == 0) {
+    cone_map_publisher_ =
       this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
 
-  slam_state_publisher_ = this->create_publisher<utfr_msgs::msg::PoseGraphData>(
-      topics::kSlamPose, 10);
+    slam_state_publisher_ = 
+      this->create_publisher<utfr_msgs::msg::PoseGraphData>(topics::kSlamPose, 10);
+  }
 }
 
 void ComputeGraphNode::initTimers() {
-  main_timer_ = this->create_wall_timer(
+  if (mapping_mode_ == 0) {
+    main_timer_ = this->create_wall_timer(
       std::chrono::duration<double, std::milli>(this->slam_rate_),
       std::bind(&ComputeGraphNode::timerCB, this));
+  }
 }
 
 void ComputeGraphNode::initHeartbeat() {
@@ -182,8 +191,7 @@ void ComputeGraphNode::graphSLAM() {
   int POSE_WINDOW = do_graph_slam_ ? 1500 : 500;
   int CONE_WINDOW = do_graph_slam_ ? 4500 : 1500;
 
-  for (size_t i = std::max(0, (int)pose_nodes_.size() - POSE_WINDOW);
-       i < pose_nodes_.size(); i++) {
+  for (size_t i = 0; i < pose_nodes_.size(); i++) {
     if (fixed_pose_ids_.find(pose_nodes_[i]->id()) == fixed_pose_ids_.end()) {
       optimizer_.addVertex(pose_nodes_[i]);
     } else {
@@ -205,8 +213,7 @@ void ComputeGraphNode::graphSLAM() {
   // for (g2o::EdgeSE2 *edge : pose_to_pose_edges_) {
   //   optimizer_.addEdge(edge);
   // }
-  for (size_t i = std::max(0, (int)pose_to_pose_edges_.size() - POSE_WINDOW);
-       i < pose_to_pose_edges_.size(); i++) {
+  for (size_t i = 0; i < pose_to_pose_edges_.size(); i++) {
     // Check if the edge exists already
     // if (pose_to_pose_edge_map_.find(
     //         std::make_pair(pose_to_pose_edges_[i]->vertex(0)->id(),
@@ -218,8 +225,7 @@ void ComputeGraphNode::graphSLAM() {
     optimizer_.addEdge(pose_to_pose_edges_[i]);
   }
 
-  for (size_t i = std::max(0, (int)pose_to_cone_edges_.size() - CONE_WINDOW);
-       i < pose_to_cone_edges_.size(); i++) {
+  for (size_t i = 0; i < pose_to_cone_edges_.size(); i++) {
     optimizer_.addEdge(pose_to_cone_edges_[i]);
   }
 
@@ -313,24 +319,24 @@ void ComputeGraphNode::graphSLAM() {
 
   optimizer_.clear();
 
-  // Loop through all the pose nodes from pose_nodes_.size() - POSE_WINDOW to
-  // the end and delete them
-  for (int i = 0; i < std::max(0, (int)pose_nodes_.size() - POSE_WINDOW - 1);
-       i++) {
-    delete pose_nodes_[i];
-  }
+  // // Loop through all the pose nodes from pose_nodes_.size() - POSE_WINDOW to
+  // // the end and delete them
+  // for (int i = 0; i < std::max(0, (int)pose_nodes_.size() - POSE_WINDOW - 1);
+  //      i++) {
+  //   delete pose_nodes_[i];
+  // }
 
-  for (int i = 0;
-       i < std::max(0, (int)pose_to_pose_edges_.size() - POSE_WINDOW - 1);
-       i++) {
-    delete pose_to_pose_edges_[i];
-  }
+  // for (int i = 0;
+  //      i < std::max(0, (int)pose_to_pose_edges_.size() - POSE_WINDOW - 1);
+  //      i++) {
+  //   delete pose_to_pose_edges_[i];
+  // }
 
-  for (int i = 0;
-       i < std::max(0, (int)pose_to_cone_edges_.size() - CONE_WINDOW - 1);
-       i++) {
-    delete pose_to_cone_edges_[i];
-  }
+  // for (int i = 0;
+  //      i < std::max(0, (int)pose_to_cone_edges_.size() - CONE_WINDOW - 1);
+  //      i++) {
+  //   delete pose_to_cone_edges_[i];
+  // }
 }
 
 void ComputeGraphNode::timerCB() {
@@ -339,6 +345,9 @@ void ComputeGraphNode::timerCB() {
   if (data.states.size() == 0) {
     return;
   }
+
+  int POSE_WINDOW = do_graph_slam_ ? 1500 : 500;
+  int CONE_WINDOW = do_graph_slam_ ? 4500 : 1500;
 
   utfr_msgs::msg::PoseGraph local_data = data;
   pose_nodes_.clear();
@@ -353,14 +362,11 @@ void ComputeGraphNode::timerCB() {
   cone_map_.large_orange_cones.clear();
   cone_map_.header.frame_id = "map";
 
-  for (utfr_msgs::msg::PoseGraphData pose : local_data.states) {
+  int startPoseIndex = std::max(0, (int)data.states.size() - POSE_WINDOW);
+  for (int i = startPoseIndex; i < local_data.states.size(); i++) {
+    utfr_msgs::msg::PoseGraphData pose = local_data.states[i];
     g2o::VertexSE2 *poseVertex =
         createPoseNode(pose.id, pose.x, pose.y, pose.theta);
-    // If the pose already exists in the map, free the memory
-    // if (pose_id_to_vertex_map_.find(pose.id) != pose_id_to_vertex_map_.end())
-    // {
-    //   delete pose_id_to_vertex_map_[pose.id];
-    // }
     if (pose.id == 1001) {
       poseVertex->setFixed(true);
     }
@@ -374,8 +380,9 @@ void ComputeGraphNode::timerCB() {
     cone_nodes_.push_back(coneVertex);
   }
 
-  for (utfr_msgs::msg::PoseGraphData edge : local_data.motion_edge) {
+  for (int i = startPoseIndex; i < local_data.motion_edge.size(); i++) {
 
+    utfr_msgs::msg::PoseGraphData edge = local_data.motion_edge[i];
     std::string key = std::to_string(edge.id) + "_" + std::to_string(edge.id2);
 
     if (pose_to_pose_edge_map_.find(key) != pose_to_pose_edge_map_.end()) {
@@ -388,7 +395,9 @@ void ComputeGraphNode::timerCB() {
     }
   }
 
-  for (utfr_msgs::msg::PoseGraphData edge : local_data.measurement_edges) {
+  int startConeIndex = std::max(0, (int)local_data.measurement_edges.size() - CONE_WINDOW);
+  for (int i = startConeIndex; i < local_data.measurement_edges.size(); i++) {
+    utfr_msgs::msg::PoseGraphData edge = local_data.measurement_edges[i];
     std::string key = std::to_string(edge.id) + "_" + std::to_string(edge.id2);
     if (pose_to_cone_edge_map_.find(key) != pose_to_cone_edge_map_.end()) {
       pose_to_cone_edges_.push_back(pose_to_cone_edge_map_[key]);

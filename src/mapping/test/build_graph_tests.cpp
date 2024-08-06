@@ -14,7 +14,7 @@
 #include <compute_graph_node.hpp>
 #include <ekf_node.hpp>
 #include <gtest/gtest.h>
-#include <math.h>
+#include <cmath>
 #include <rclcpp/rclcpp.hpp>
 
 using namespace utfr_dv::build_graph;
@@ -54,8 +54,8 @@ TEST(KNNSearchNodeTest, KNNConeDetections) {
 
   // check if tree created
   ASSERT_EQ(false, node.globalKDTreePtr_ == nullptr);
-  // check is added to past_detections_
-  ASSERT_EQ(1, node.past_detections_.size());
+  // check is added to past_cone_detections_
+  ASSERT_EQ(1, node.past_cone_detections_.size());
   // check to see that map works
   ASSERT_EQ(1, node.cone_id_to_color_map_[0]);
   
@@ -73,7 +73,7 @@ TEST(KNNSearchNodeTest, KNNConeDetections) {
   // second cone also added to past detections
   node.KNN(cones);
 
-  ASSERT_EQ(2, node.past_detections_.size());
+  ASSERT_EQ(2, node.past_cone_detections_.size());
   ASSERT_EQ(0, node.potential_cones_.size());
 
   cones = empty;
@@ -89,7 +89,7 @@ TEST(KNNSearchNodeTest, KNNConeDetections) {
   node.KNN(cones);
 
   ASSERT_EQ(1, node.potential_cones_.size());
-  ASSERT_EQ(2, node.past_detections_.size()); 
+  ASSERT_EQ(2, node.past_cone_detections_.size()); 
 
   cones = empty;
 
@@ -104,11 +104,11 @@ TEST(KNNSearchNodeTest, KNNConeDetections) {
   node.KNN(cones);
 
   ASSERT_EQ(2, node.potential_cones_.size());
-  ASSERT_EQ(2, node.past_detections_.size()); 
+  ASSERT_EQ(2, node.past_cone_detections_.size()); 
 
   cones = empty;
 
-  // detect same cone a total of 100 times for it to be added to past_detections_
+  // detect same cone a total of 100 times for it to be added to past_cone_detections_
   double initial_x = 0;
   double initial_y = 3;
 
@@ -124,7 +124,7 @@ TEST(KNNSearchNodeTest, KNNConeDetections) {
   }
 
   ASSERT_EQ(1, node.potential_cones_.size()); // actually not too sure on why it's 1 here not 0
-  ASSERT_EQ(3, node.past_detections_.size()); 
+  ASSERT_EQ(3, node.past_cone_detections_.size()); 
 
 
   // see that newly detected cone is marked correctly as existing
@@ -142,7 +142,7 @@ TEST(KNNSearchNodeTest, KNNConeDetections) {
       node.KNN(cones);  
   }
 
-  ASSERT_EQ(3, node.past_detections_.size()); 
+  ASSERT_EQ(3, node.past_cone_detections_.size()); 
 
   cones = empty;
 
@@ -160,8 +160,8 @@ TEST(KNNSearchNodeTest, KNNConeDetections) {
 //   blue_cone.type = 1;
 //   utfr_msgs::msg::Cone orange_cone;
 //   orange_cone.type = 4;
-//   node.past_detections_.push_back(std::make_pair(1, blue_cone));
-//   node.past_detections_.push_back(std::make_pair(2, orange_cone));
+//   node.past_cone_detections_.push_back(std::make_pair(1, blue_cone));
+//   node.past_cone_detections_.push_back(std::make_pair(2, orange_cone));
 //   std::vector<int> detected_cone_ids;
 //   detected_cone_ids.push_back(1);
 //   detected_cone_ids.push_back(2);
@@ -220,6 +220,103 @@ TEST(KNNSearchNodeTest, KNNConeDetections) {
 //   ASSERT_NEAR(vec3a[2], res2[2], 1e-8);
 // }
 
+TEST(LoopClosureTest, LoopAlreadyClosed)
+{
+    BuildGraphNode node;
+    node.loop_closed_ = true;
+
+    node.loopClosure({ 1, 2, 3 });
+
+    EXPECT_TRUE(node.loop_closed_);
+}
+
+TEST(LoopClosureTest, LandmarkFirstLargeOrangeCone)
+{
+    BuildGraphNode node;
+    node.loop_closed_ = false;
+    utfr_msgs::msg::Cone cone;
+    cone.type = 4; // large orange cone
+    node.past_cone_detections_[1] = cone;
+    node.landmarked_cone_id_ = std::nullopt;
+    node.current_pose_id_ = 42;
+
+    std::vector<int> current_frame_cones{ 1 };
+    node.loopClosure(current_frame_cones);
+
+    ASSERT_TRUE(node.landmarked_cone_id_.has_value());
+    EXPECT_EQ(node.landmarked_cone_id_.value(), 1);
+    EXPECT_EQ(node.first_detection_pose_id_, 42);
+    EXPECT_EQ(node.out_of_frame_, 0);
+}
+
+TEST(LoopClosureTest, LandmarkedConeOutOfFrame)
+{
+    BuildGraphNode node;
+    node.loop_closed_ = false;
+    node.landmarked_cone_id_ = 1;
+    node.out_of_frame_ = 500;
+
+    std::vector<int> current_frame_cones{ 2, 3 };
+    node.loopClosure(current_frame_cones);
+
+    EXPECT_EQ(node.out_of_frame_, 502);
+}
+
+TEST(LoopClosureTest, LandmarkedConeInFrame)
+{
+    BuildGraphNode node;
+    node.loop_closed_ = false;
+    node.landmarked_cone_id_ = 1;
+    node.out_of_frame_ = 500;
+
+    std::vector<int> current_frame_cones{ 1, 2 };
+    node.loopClosure(current_frame_cones);
+
+    EXPECT_EQ(node.out_of_frame_, 0);
+}
+
+TEST(LoopClosureTest, LoopClosureDetected)
+{
+    BuildGraphNode node;
+    node.loop_closed_ = false;
+    node.landmarked_cone_id_ = 1;
+    node.out_of_frame_ = 1000;
+    node.current_pose_id_ = 100;
+    node.first_detection_pose_id_ = 50;
+
+    utfr_msgs::msg::EgoState ego_state50;
+    ego_state50.pose.pose.position.x = 0;
+    ego_state50.pose.pose.position.y = 0;
+    ego_state50.pose.pose.position.z = 0;
+    ego_state50.pose.pose.orientation = utfr_dv::util::yawToQuaternion(0);
+    node.id_to_ego_map_[50] = ego_state50;
+
+    utfr_msgs::msg::EgoState ego_state100;
+    ego_state100.pose.pose.position.x = 1;
+    ego_state100.pose.pose.position.y = 1;
+    ego_state100.pose.pose.position.z = 0;
+    ego_state100.pose.pose.orientation = utfr_dv::util::yawToQuaternion(M_PI);
+    node.id_to_ego_map_[100] = ego_state100;
+
+    std::vector<int> current_frame_cones{ 1 };
+    node.loopClosure(current_frame_cones);
+
+    EXPECT_FALSE(node.landmarked_cone_id_.has_value());
+    EXPECT_EQ(node.out_of_frame_, -1);
+    EXPECT_EQ(node.first_detection_pose_id_, 0);
+    EXPECT_TRUE(node.loop_closed_);
+    EXPECT_TRUE(node.do_graph_slam_);
+    EXPECT_TRUE(node.closed_loop_once.data);
+
+    // Verify pose_to_pose_edges_ contains new edge
+    ASSERT_EQ(node.pose_to_pose_edges_.size(), 1);
+    EXPECT_EQ(node.pose_to_pose_edges_[0].id, 50);
+    EXPECT_EQ(node.pose_to_pose_edges_[0].id2, 100);
+    EXPECT_NEAR(node.pose_to_pose_edges_[0].dx, 1.0, 1e-5);
+    EXPECT_NEAR(node.pose_to_pose_edges_[0].dy, 1.0, 1e-5);
+    EXPECT_NEAR(node.pose_to_pose_edges_[0].dtheta, M_PI, 1e-5);
+    EXPECT_TRUE(node.pose_to_pose_edges_[0].loop_closure);
+}
 
 // initialize ROS
 int main(int argc, char **argv) {

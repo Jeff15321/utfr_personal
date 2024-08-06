@@ -47,9 +47,11 @@ using SlamLinearSolver =
 void BuildGraphNode::initParams() {
   this->declare_parameter("update_rate", 33.33);
   update_rate_ = this->get_parameter("update_rate").as_double();
+  this->declare_parameter("mapping_mode", 0);
+  mapping_mode_ = this->get_parameter("mapping_mode").as_int();
+  
   loop_closed_ = false;
-  landmarked_ = false;
-  landmarkedID_ = -1;
+  landmarked_cone_id_ = std::nullopt;
   out_of_frame_ = -1;
   cones_found_ = 0;
   current_pose_id_ = 1000;
@@ -82,7 +84,8 @@ void BuildGraphNode::initParams() {
 }
 
 void BuildGraphNode::initSubscribers() {
-  cone_detection_subscriber_ =
+  if (mapping_mode_ == 0) {
+    cone_detection_subscriber_ =
       this->create_subscription<utfr_msgs::msg::ConeDetections>(
           topics::kConeDetections, 1,
           std::bind(&BuildGraphNode::coneDetectionCB, this,
@@ -93,23 +96,28 @@ void BuildGraphNode::initSubscribers() {
           topics::kEgoState, 1,
           std::bind(&BuildGraphNode::stateEstimationCB, this,
                     std::placeholders::_1));
+  }
 }
 
 void BuildGraphNode::initPublishers() {
-  pose_graph_publisher_ =
+  if (mapping_mode_ == 0) {
+    pose_graph_publisher_ =
       this->create_publisher<utfr_msgs::msg::PoseGraph>(topics::kPoseGraph, 10);
 
-  cone_map_publisher_ =
-      this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
+    // cone_map_publisher_ =
+    //     this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
 
-  loop_closure_publisher_ =
-      this->create_publisher<std_msgs::msg::Bool>(topics::kLoopClosed, 10);
+    loop_closure_publisher_ =
+        this->create_publisher<std_msgs::msg::Bool>(topics::kLoopClosed, 10);
+  }
 }
 
 void BuildGraphNode::initTimers() {
-  main_timer_ = this->create_wall_timer(
+  if (mapping_mode_ == 0) {
+    main_timer_ = this->create_wall_timer(
       std::chrono::duration<double, std::milli>(this->update_rate_),
       std::bind(&BuildGraphNode::timerCB, this));
+  }
 }
 
 void BuildGraphNode::initHeartbeat() {
@@ -184,7 +192,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
     // Check if the KD tree is not created, and create it
     if (globalKDTreePtr_ == nullptr) {
       // Update vars
-      past_detections_.emplace_back(cones_found_, newCone);
+      past_cone_detections_[cones_found_] = newCone;
       cones_id_list_.push_back(cones_found_);
       cone_id_to_color_map_[cones_found_] = newCone.type;
 
@@ -192,7 +200,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       cone_data.id = cones_found_;
       cone_data.x = position_x_;
       cone_data.y = position_y_;
-      cone_nodes_.push_back(cone_data);
+      cone_nodes_[cones_found_] = (cone_data);
       average_position_[cones_found_] = {position_x_, position_y_, 1};
       cone_id_to_vertex_map_[cones_found_] = cone_data;
 
@@ -212,7 +220,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
     int number_cones = globalKDTreePtr_->getNumberOfCones();
 
     if (number_cones == 1) {
-      past_detections_.emplace_back(cones_found_, newCone);
+      past_cone_detections_[cones_found_] = newCone;
       cones_id_list_.push_back(cones_found_);
       cone_id_to_color_map_[cones_found_] = newCone.type;
 
@@ -220,7 +228,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
       cone_data.id = cones_found_;
       cone_data.x = position_x_;
       cone_data.y = position_y_;
-      cone_nodes_.push_back(cone_data);
+      cone_nodes_[cones_found_] = (cone_data);
       average_position_[cones_found_] = {position_x_, position_y_, 1};
       cone_id_to_vertex_map_[cones_found_] = cone_data;
 
@@ -343,14 +351,14 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
             }
           }
 
-          // Update cone_id_list_ and past_detections_ and KD tree
+          // Update cone_id_list_ and past_cone_detections_ and KD tree
           cones_id_list_.push_back(cones_found_);
           cone_id_to_color_map_[cones_found_] = newCone.type;
           utfr_msgs::msg::PoseGraphData cone_data;
           cone_data.id = cones_found_;
           cone_data.x = true_coordinate_x / count_threshold;
           cone_data.y = true_coordinate_y / count_threshold;
-          cone_nodes_.push_back(cone_data);
+          cone_nodes_[cones_found_] = (cone_data);
           average_position_[cones_found_] = {position_x_, position_y_, 1};
           cone_id_to_vertex_map_[cones_found_] = cone_data;
 
@@ -365,7 +373,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           detection_counts[cones_found_] = 3;
           // std::cout << "Cone x: " << position_x_ << " Cone y: " <<
           // position_y_ << " Cone id: " << cones_found_ << std::endl;
-          past_detections_.emplace_back(cones_found_, newCone);
+          past_cone_detections_[cones_found_] = newCone;
           globalKDTreePtr_->insert(newPoint);
           cones_found_ += 1;
           break;
@@ -379,78 +387,74 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
   return cones_id_list_;
 }
 
-void BuildGraphNode::loopClosure(const std::vector<int> &cones) {
-  // Loop hasn't been completed yet
-  if (!loop_closed_) {
-    // Go through cone list
-    for (int coneID : cones) {
-      // No landmark cone yet
-      // We gotta fix this later when Mark finishes his thing.
-      // IDK why I chose past_detections_ to be a vector of pairs
-      // but it should probably be a map :(
-      for (auto cone : past_detections_) {
-        if (cone.first == coneID &&
-            utfr_dv::util::isLargeOrangeCone(cone.second.type) &&
-            !landmarked_) {
-          // Set first large orange cone listed to be landmark cone
-          landmarkedID_ = coneID;
-          landmarked_ = true;
-          first_detection_pose_id_ = current_pose_id_;
-          out_of_frame_ = 0;
-        }
+void BuildGraphNode::loopClosure(std::vector<int> const& current_frame_cones)
+{
+  if (loop_closed_)
+    return;
+
+  for (int current_frame_cone_id : current_frame_cones)
+  {
+    for (auto const& [past_cone_id, past_cone] : past_cone_detections_)
+    {
+      if (past_cone_id == current_frame_cone_id &&
+          utfr_dv::util::isLargeOrangeCone(past_cone.type) &&
+          !landmarked_cone_id_.has_value())
+      {
+        // Set first large orange cone listed to be landmark cone
+        landmarked_cone_id_ = current_frame_cone_id;
+        first_detection_pose_id_ = current_pose_id_;
+        out_of_frame_ = 0;
       }
+    }
 
-      // Cone has been landmarked and still in frame for the first time
-      if (landmarked_ == true && out_of_frame_ > -1 && out_of_frame_ < 1000) {
-        auto seen_status = std::find(cones.begin(), cones.end(), landmarkedID_);
-        // If cone not in frame anymore
-        if (seen_status == cones.end()) {
-          // Set out of frame to be true
-          out_of_frame_ += 1;
-        } else {
-          // Set out of frame to be false
-          out_of_frame_ = 0;
-        }
+    // Cone has been landmarked and still in frame for the first time
+    if (landmarked_cone_id_.has_value() && out_of_frame_ > -1 && out_of_frame_ < 1000) {
+      auto seen_status = std::find(current_frame_cones.begin(), current_frame_cones.end(), *landmarked_cone_id_);
+      // If cone not in frame anymore
+      if (seen_status == current_frame_cones.end()) {
+        out_of_frame_ += 1;
       }
-      // Cone has been landmarked and is no longer in frame
-      if (landmarked_ == true && out_of_frame_ >= 1000) {
-        // Check if cone appears in frame again
-        auto seen_status = std::find(cones.begin(), cones.end(), landmarkedID_);
-        // If cone in frame again
-        if (seen_status != cones.end()) {
-          // Car has returned back to landmark cone position, made full loop
+      else {
+        out_of_frame_ = 0;
+      }
+    }
+    
+    // Cone has been landmarked and is no longer in frame
+    if (landmarked_cone_id_.has_value() && out_of_frame_ >= 1000) {
+      // Check if cone appears in frame again
+      auto seen_status = std::find(current_frame_cones.begin(), current_frame_cones.end(), *landmarked_cone_id_);
+      // If cone in frame again
+      if (seen_status != current_frame_cones.end()) {
+        // Car has returned back to landmark cone position, made full loop
 
-          double dx =
-              id_to_ego_map_[current_pose_id_].pose.pose.position.x -
-              id_to_ego_map_[first_detection_pose_id_].pose.pose.position.x;
-          double dy =
-              id_to_ego_map_[current_pose_id_].pose.pose.position.y -
-              id_to_ego_map_[first_detection_pose_id_].pose.pose.position.y;
-          double dtheta =
-              utfr_dv::util::quaternionToYaw(
-                  id_to_ego_map_[current_pose_id_].pose.pose.orientation) -
-              utfr_dv::util::quaternionToYaw(
-                  id_to_ego_map_[first_detection_pose_id_]
-                      .pose.pose.orientation);
-          loop_closed_ = true;
+        double dx =
+            id_to_ego_map_[current_pose_id_].pose.pose.position.x -
+            id_to_ego_map_[first_detection_pose_id_].pose.pose.position.x;
+        double dy =
+            id_to_ego_map_[current_pose_id_].pose.pose.position.y -
+            id_to_ego_map_[first_detection_pose_id_].pose.pose.position.y;
+        double dtheta =
+            utfr_dv::util::quaternionToYaw(
+                id_to_ego_map_[current_pose_id_].pose.pose.orientation) -
+            utfr_dv::util::quaternionToYaw(
+                id_to_ego_map_[first_detection_pose_id_]
+                    .pose.pose.orientation);
 
-          utfr_msgs::msg::PoseGraphData edge_data;
-          edge_data.id = first_detection_pose_id_;
-          edge_data.id2 = current_pose_id_;
-          edge_data.dx = dx;
-          edge_data.dy = dy;
-          edge_data.dtheta = dtheta;
-          edge_data.loop_closure = true;
-          pose_to_pose_edges_.push_back(edge_data);
+        utfr_msgs::msg::PoseGraphData edge_data;
+        edge_data.id = first_detection_pose_id_;
+        edge_data.id2 = current_pose_id_;
+        edge_data.dx = dx;
+        edge_data.dy = dy;
+        edge_data.dtheta = dtheta;
+        edge_data.loop_closure = true;
+        pose_to_pose_edges_.push_back(edge_data);
 
-          landmarked_ = false;
-          landmarkedID_ = -1;
-          out_of_frame_ = -1;
-          first_detection_pose_id_ = 0;
-          loop_closed_ = false;
-          do_graph_slam_ = true;
-          closed_loop_once.data = true;
-        }
+        landmarked_cone_id_ = std::nullopt;
+        out_of_frame_ = -1;
+        first_detection_pose_id_ = 0;
+        loop_closed_ = true;
+        do_graph_slam_ = true;
+        closed_loop_once.data = true;
       }
     }
   }
@@ -476,7 +480,7 @@ void BuildGraphNode::timerCB() {
   pose_data.y = current_state_.pose.pose.position.y;
   pose_data.theta =
       utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation);
-  pose_nodes_.push_back(pose_data);
+  pose_nodes_[current_pose_id_] = (pose_data);
   id_to_pose_map_[current_pose_id_] = pose_data;
 
   if (current_pose_id_ == 1001) {
@@ -505,20 +509,32 @@ void BuildGraphNode::timerCB() {
 
   std::vector<int> cones = KNN(current_cone_detections_);
   loopClosure(cones);
+
+  std::vector<utfr_msgs::msg::PoseGraphData> cones_;
+  std::vector<utfr_msgs::msg::PoseGraphData> states_;
+
+  // Add all values from the map to the vector
+  for (const auto& pair : cone_nodes_) {
+      cones_.push_back(pair.second);
+  }
+
+  for (const auto& pair : pose_nodes_) {
+      states_.push_back(pair.second);
+  }
+
+  // Make pose_to_cone_edges_ have a max size of 4501
+  if (pose_to_cone_edges_.size() > 4500) {
+    // Delete all the edges before 4501
+    pose_to_cone_edges_.erase(pose_to_cone_edges_.begin(),
+                              pose_to_cone_edges_.begin() + 4500);
+  }
+
   if (cones_found_ > 3) {
     utfr_msgs::msg::PoseGraph poseGraph;
     poseGraph.header.stamp = this->get_clock()->now();
-    /*for(int i = 0; i < cone_nodes_.size();i++){
-      std::cout << std::get<0>(true_cone_positions[cone_nodes_[i].id]) <<
-    std::endl; std::cout << cone_nodes_.size() << std::endl; std::cout.flush();
-      (cone_nodes_[i]).x =
-    (std::get<1>(true_cone_positions[cone_nodes_[i].id])[0])/(std::get<0>(true_cone_positions[cone_nodes_[i].id]));
-      (cone_nodes_[i]).y =
-    (std::get<1>(true_cone_positions[cone_nodes_[i].id])[1])/(std::get<0>(true_cone_positions[cone_nodes_[i].id]));
 
-    }*/
-    poseGraph.cones = cone_nodes_;
-    poseGraph.states = pose_nodes_;
+    poseGraph.cones = cones_;
+    poseGraph.states = states_;
     poseGraph.motion_edge = pose_to_pose_edges_;
     poseGraph.measurement_edges = pose_to_cone_edges_;
 

@@ -22,6 +22,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     geometry_msgs
     utfr_common
     PCL
+    Eigen3
 )
 
 ## Find Dependencies

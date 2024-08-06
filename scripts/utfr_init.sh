@@ -64,7 +64,10 @@ echo "=           Install Ubuntu deps           ="
 echo "==========================================="
 sudo apt-get update -y
 sudo apt-get upgrade -y
-sudo apt-get install -y libcgal-dev libboost-all-dev ros-humble-rosbag2-storage-mcap clang-format ros-humble-foxglove-bridge ros-humble-foxglove-msgs
+sudo apt-get install -y libcgal-dev libboost-all-dev \
+ros-humble-rosbag2-storage-mcap clang-format \ 
+ros-humble-foxglove-bridge ros-humble-foxglove-msgs \
+ros-humble-nmea-msgs ros-humble-mavros-msgs
 
 echo "==========================================="
 echo "=            Install rosdeps              ="

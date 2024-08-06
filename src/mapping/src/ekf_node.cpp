@@ -32,6 +32,11 @@ EkfNode::EkfNode() : Node("ekf_node") {
 void EkfNode::initParams() {
   this->declare_parameter("update_rate", 33.33);
   update_rate_ = this->get_parameter("update_rate").as_double();
+  this->declare_parameter("mapping_mode", 0);
+  mapping_mode_ = this->get_parameter("mapping_mode").as_int();
+  this->declare_parameter("ekf_on", 1);
+  ekf_on_ = this->get_parameter("ekf_on").as_int();
+
   P_ = 1 * Eigen::MatrixXd::Identity(6, 6);
   prev_time_ = this->now();
   current_state_.pose.pose.position.x = 0.0;
@@ -42,27 +47,33 @@ void EkfNode::initParams() {
 
 void EkfNode::initSubscribers() {
 
-  sensorcan_subscriber_ = this->create_subscription<utfr_msgs::msg::SensorCan>(
+  if (mapping_mode_ != 2 && ekf_on_ == 1) {
+    sensorcan_subscriber_ = this->create_subscription<utfr_msgs::msg::SensorCan>(
       topics::kSensorCan, 1,
       std::bind(&EkfNode::sensorCB, this, std::placeholders::_1));
 
-  gps_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
-      "/ground_truth/odom", 1,
-      std::bind(&EkfNode::gpsCB, this, std::placeholders::_1));
+    gps_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
+        "/ground_truth/odom", 1,
+        std::bind(&EkfNode::gpsCB, this, std::placeholders::_1));
 
-  imu_subscriber_ = this->create_subscription<sensor_msgs::msg::Imu>(
-      "/imu/data", 1, std::bind(&EkfNode::imuCB, this, std::placeholders::_1));
+    imu_subscriber_ = this->create_subscription<sensor_msgs::msg::Imu>(
+        "/imu/data", 1, std::bind(&EkfNode::imuCB, this, std::placeholders::_1));
+  }
 }
 
 void EkfNode::initPublishers() {
-  ego_state_publisher_ =
-      this->create_publisher<utfr_msgs::msg::EgoState>(topics::kEgoState, 10);
+  if (mapping_mode_ != 2 && ekf_on_ == 1) {
+    ego_state_publisher_ =
+        this->create_publisher<utfr_msgs::msg::EgoState>(topics::kEgoState, 10);
+  }
 }
 
 void EkfNode::initTimers() {
-  main_timer_ = this->create_wall_timer(
+  if (mapping_mode_ != 2 && ekf_on_ == 1) {
+    main_timer_ = this->create_wall_timer(
       std::chrono::duration<double, std::milli>(this->update_rate_),
       std::bind(&EkfNode::timerCB, this));
+  }
 }
 
 void EkfNode::initHeartbeat() {
@@ -134,6 +145,7 @@ void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
   utfr_msgs::msg::EgoState res = updateState(x, y, -yaw);
   // std::cout << "x: " << res.pose.pose.position.x << " y: " <<
   // res.pose.pose.position.y << std::endl;
+  res.header.stamp = this->get_clock()->now();
   res.vel.twist.linear.x = vel_x;
   res.vel.twist.linear.y = vel_y;
   res.vel.twist.angular.z = vel_yaw;
@@ -147,6 +159,7 @@ void EkfNode::imuCB(const sensor_msgs::msg::Imu msg) {
   prev_time_ = this->now();
 
   utfr_msgs::msg::EgoState res = extrapolateState(msg, dt);
+  res.header.stamp = this->get_clock()->now();
   current_state_ = res;
 
   res.pose.pose.position.y = -res.pose.pose.position.y;

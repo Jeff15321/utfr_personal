@@ -125,6 +125,10 @@ public:
   */
   std::tuple<double,double,double,double> circleCentre(std::vector<utfr_msgs::msg::Cone> &cones, double radius, int inlier_count);
 
+  std::tuple<double,double,double,double> getSkidpadCircleCentresColourblind();
+
+  std::tuple<double, double, double, double> getCentresColourblind();
+
 private:
   /*! Initialize and load params from config.yaml:
    */
@@ -274,6 +278,8 @@ private:
    */
   void skidpadLapCounter();
 
+  void skidpadLapCounterColourblind();
+
   bool checkPassedDatum(const utfr_msgs::msg::EgoState reference,
                         const utfr_msgs::msg::EgoState &current);
 
@@ -282,6 +288,16 @@ private:
   /*! Autox/Trackdrive Lap Counter
    */
   void trackdriveLapCounter();
+
+
+  /**
+   * Trackdrive get datum finds the point where the lap starts given a conemap. used in global lapcounter. 
+   * 
+   * @param cone_map 
+   * @return utfr_msgs::msg::EgoState 
+   */
+  utfr_msgs::msg::EgoState getTrackDriveDatum(const utfr_msgs::msg::ConeMap &cone_map);
+
   
   /*! Skidpad path finder when there are enough blue and yellow cones to fit a line
    * @param[out] std::tuple<double, double, double, double, double, double>, x center left, y center left, radius left, x center right, y center right, radius right
@@ -349,7 +365,7 @@ private:
   int last_sector = 0;
   float best_lap_time = 0.0;
   float last_lap_time = 0.0;
-  bool accel_sector_increase;
+  bool accel_sector_increase_ = false;
   int detections_in_row_ = 0;
   bool use_mapping_ = false;
   double base_lookahead_distance_;
@@ -357,9 +373,15 @@ private:
 
   bool loop_closed_ = false;
 
+  double average_distance_to_cones_ = 10.0;
+
   double datum_last_local_x_ = 0;
 
   double total_distance_traveled_ = 0.0;
+
+  double switch_distance = 0.0;
+
+  bool colourblind_;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
@@ -397,6 +419,8 @@ private:
       first_midpoint_path_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::LapTime>::SharedPtr
       lap_time_publisher_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr
+      lap_datum_publisher_;
   rclcpp::TimerBase::SharedPtr main_timer_;
   rclcpp::Time ros_time_;
 
