@@ -280,7 +280,7 @@ class PerceptionNode(Node):
         # Get the current device for inference
         device = ort.get_device()
         print("Current Device for Inference:", device)
-        self.session = ort.InferenceSession("src/perception/perception/best.onnx")
+        self.session = ort.InferenceSession("src/perception/perception/yolov8n.onnx")
 
         # create transform frame variables
         self.lidar_frame = "lidar"
