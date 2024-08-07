@@ -24,6 +24,6 @@ def generate_launch_description():
     )
 
     ld.add_action(cam_launch)
-    # ld.add_action(lidar_launch)
+    ld.add_action(lidar_launch)
 
     return ld

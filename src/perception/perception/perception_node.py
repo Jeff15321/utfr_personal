@@ -281,7 +281,7 @@ class PerceptionNode(Node):
         device = ort.get_device()
         print("Current Device for Inference:", device)
         self.session = ort.InferenceSession(
-            "src/perception/perception/yolov8n.onnx",
+            "src/perception/perception/best.onnx",
             providers=["CUDAExecutionProvider"],
         )
 
