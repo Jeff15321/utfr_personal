@@ -585,7 +585,7 @@ class PerceptionNode(Node):
 
         if not self.lidar_msg:
             return
-        
+
         if self.lidar_only_detection == False:
             # check if ready
             if not self.left_ready_ or not self.right_ready_:
@@ -602,8 +602,7 @@ class PerceptionNode(Node):
 
             if not self.right_img_recieved_:
                 return
-        
-        
+
             # undistort
 
             undist_left = cv2.remap(
@@ -623,8 +622,6 @@ class PerceptionNode(Node):
                 borderMode=cv2.BORDER_CONSTANT,
                 borderValue=(0, 0, 0, 0),
             )
-
-
 
             # code to resize the image (for faster fps)
 
@@ -669,7 +666,7 @@ class PerceptionNode(Node):
             except TransformException as ex:
                 self.get_logger().info(f"{ex}")
                 return
-        # get the detections
+            # get the detections
 
             (
                 results_left,
