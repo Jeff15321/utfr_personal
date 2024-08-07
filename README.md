@@ -8,7 +8,7 @@
 * If facing errors with `clang-format`, install with `sudo apt install clang-format`
 * VsCode settings are configured under `.vscode/`. Some paths might need to be changed to enable intellisense.
 
-### After installing ROS 2 Humble and cloning the repo, run
+### After installing ROS 2 Humble and cloning the repo, run this *one-time* setup script
 > [ROS 2 Humble installation guide](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html)
 ```
 bash scripts/utfr_init

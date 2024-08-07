@@ -108,6 +108,9 @@ private:
   std::string pub_qos_reliability_;
   bool is_passed_pub_qos_reliability_;
 
+  int start_delay_;
+  bool is_passed_start_delay_;
+
   void parse_parameters_();
   void initialize_();
 

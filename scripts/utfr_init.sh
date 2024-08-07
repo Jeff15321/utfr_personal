@@ -64,7 +64,10 @@ echo "=           Install Ubuntu deps           ="
 echo "==========================================="
 sudo apt-get update -y
 sudo apt-get upgrade -y
-sudo apt-get install -y libcgal-dev libboost-all-dev ros-humble-rosbag2-storage-mcap clang-format ros-humble-foxglove-bridge ros-humble-foxglove-msgs
+sudo apt-get install -y libcgal-dev libboost-all-dev \
+ros-humble-rosbag2-storage-mcap clang-format \ 
+ros-humble-foxglove-bridge ros-humble-foxglove-msgs \
+ros-humble-nmea-msgs ros-humble-mavros-msgs
 
 echo "==========================================="
 echo "=            Install rosdeps              ="
@@ -95,7 +98,7 @@ YAML_CONTENT=$(cat <<EOF
       "packages-ignore":
         [
           "arena_camera_node",
-          "bluespace_ai_xsens_mti_driver",
+          "xsens_mti_ros2_driver",
           "ouster_sensor_msgs",
           "ouster_ros",
           "launcher"
@@ -106,7 +109,7 @@ YAML_CONTENT=$(cat <<EOF
       "packages-ignore":
         [
           "arena_camera_node",
-          "bluespace_ai_xsens_mti_driver",
+          "xsens_mti_ros2_driver",
           "ouster_sensor_msgs",
           "ouster_ros",
           "launcher"
