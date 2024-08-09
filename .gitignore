@@ -63,3 +63,7 @@ CATKIN_IGNORE
 
 #G2O
 pose_graph.g2o
+\build*
+\.vs
+\.vscode
+\.cache
