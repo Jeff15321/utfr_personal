@@ -13,7 +13,3 @@
 [submodule "src/planning/external/spline"]
 	path = src/planning/external/spline
 	url = git@github.com:ttk592/spline.git
-[submodule "src/drivers/Xsens_MTi_ROS_Driver_and_Ntrip_Client"]
-	path = src/drivers/Xsens_MTi_ROS_Driver_and_Ntrip_Client
-	url = git@github.com:xsenssupport/Xsens_MTi_ROS_Driver_and_Ntrip_Client.git
-	branch = ros2
