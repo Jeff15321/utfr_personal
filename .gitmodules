@@ -2,6 +2,3 @@
 	path = src/utfr_sim
 	url = git@github.com:UTFR/utfr_sim.git
 	branch = main
-[submodule "src/planning/external/spline"]
-	path = src/planning/external/spline
-	url = git@github.com:ttk592/spline.git
