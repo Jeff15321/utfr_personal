@@ -2,10 +2,6 @@
 	path = src/utfr_sim
 	url = git@github.com:UTFR/utfr_sim.git
 	branch = main
-[submodule "src/mapping/external/g2o"]
-	path = src/mapping/external/g2o
-	url = git@github.com:RainerKuemmerle/g2o.git
-	branch = master
 [submodule "src/planning/external/spline"]
 	path = src/planning/external/spline
 	url = git@github.com:ttk592/spline.git
