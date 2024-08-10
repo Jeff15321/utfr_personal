@@ -32,49 +32,47 @@ endforeach()
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
 ## Setup G2O
-set(G2O_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/g2o")
-if(EXISTS "${G2O_DIR}/CMakeLists.txt")
-  execute_process(
-    COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/external/g2o_config.sh
-    WORKING_DIRECTORY ${G2O_DIR}
-  )
-  set(G2O_INCLUDE_DIR "${G2O_DIR}/include")
-  set(G2O_LIB_DIR "${G2O_DIR}/lib")
-else()
-  message(FATAL_ERROR "G2O directory not found: ${G2O_DIR}")
-endif()
+set(SETUP "${CMAKE_CURRENT_SOURCE_DIR}/external/g2o_config.sh")
+execute_process(
+    COMMAND sh ${SETUP}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/external
+)
+link_directories(${CMAKE_SOURCE_DIR}/external/g2o/lib)
 
-## Include G2O Headers
-include_directories(${G2O_INCLUDE_DIR})
-link_directories(${G2O_LIB_DIR})
+# Assume your G2O library files are in the following directory
+set(G2O_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/g2o/lib")
 
-## Add Libraries and Executables
+# Install the libraries
+install(DIRECTORY ${G2O_LIB_DIR}/
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+        FILES_MATCHING PATTERN "*.so*")
+
+## Add Libaries and Executables
 function(add_node NODE_NAME)
   add_library(${NODE_NAME}_library
     src/${NODE_NAME}_node.cpp
     # Add other source files as needed
   )
   ament_target_dependencies(${NODE_NAME}_library ${THIS_PACKAGE_INCLUDE_DEPENDS})
-
   target_include_directories(${NODE_NAME}_library
-    PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
-      ${G2O_INCLUDE_DIR}
-  )
+      PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
+  set(G2O_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/g2o")
+  target_include_directories(${NODE_NAME}_library PUBLIC /usr/include/eigen3/)
+  target_include_directories(${NODE_NAME}_library PUBLIC ${G2O_INCLUDE_DIR})
+  
   add_executable(${NODE_NAME} src/${NODE_NAME}.cpp)
-  target_link_libraries(${NODE_NAME}_library
-    g2o_core
-    g2o_stuff
-    g2o_types_data
-    g2o_types_slam2d
-    g2o_solver_eigen
-    g2o_solver_slam2d_linear
-  )
-
+  target_link_libraries(${NODE_NAME}_library fmt::fmt)
+  target_link_libraries(${NODE_NAME}_library g2o_core g2o_stuff g2o_types_data g2o_types_slam2d g2o_solver_eigen g2o_solver_slam2d_linear)
+  
   target_link_libraries(${NODE_NAME} ${NODE_NAME}_library)
   ament_target_dependencies(${NODE_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})
+  target_include_directories(${NODE_NAME}
+      PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
   install(TARGETS ${NODE_NAME}_library
       ARCHIVE DESTINATION lib
@@ -126,33 +124,28 @@ ament_target_dependencies(build_graph_tests ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
 ## Find Headers for Testing files
 target_include_directories(mapping_test
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-    ${G2O_INCLUDE_DIR}
-)
+PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
 
 target_include_directories(build_graph_tests
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-    ${G2O_INCLUDE_DIR}
-)
+PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+set(G2O_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/external/g2o")
+target_include_directories(mapping_test PUBLIC /usr/include/eigen3/)
+target_include_directories(mapping_test PUBLIC ${G2O_INCLUDE_DIR})
+
+target_include_directories(build_graph_tests PUBLIC /usr/include/eigen3/)
+target_include_directories(build_graph_tests PUBLIC ${G2O_INCLUDE_DIR})
 
 ## Link required files for testing:
-target_link_libraries(mapping_test
-  g2o_core
-  g2o_stuff
-  g2o_types_data
-  g2o_types_slam2d
-)
+target_link_libraries(mapping_test fmt::fmt)
+target_link_libraries(mapping_test g2o_core g2o_stuff g2o_types_data g2o_types_slam2d)
 
-target_link_libraries(build_graph_tests
-  g2o_core
-  g2o_stuff
-  g2o_types_data
-  g2o_types_slam2d
-)
+target_link_libraries(build_graph_tests fmt::fmt)
+target_link_libraries(build_graph_tests g2o_core g2o_stuff g2o_types_data g2o_types_slam2d)
 
 ## Add source files related to the tests
 target_sources(mapping_test PRIVATE src/build_graph_node.cpp)
