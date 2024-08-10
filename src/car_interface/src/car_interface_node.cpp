@@ -152,7 +152,7 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   throttle_cmd_ = msg.thr_cmd;
 
   // Finalize commands
-
+  // TODO: Re-add one state machine verified
   // if (cmd_ || testing_) {
   //   braking_cmd_ = (int16_t)msg.brk_cmd;
   //   throttle_cmd_ = (int16_t)msg.thr_cmd;

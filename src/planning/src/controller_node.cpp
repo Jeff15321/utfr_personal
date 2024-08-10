@@ -94,10 +94,9 @@ void ControllerNode::initSubscribers() {
       topics::kSkidpadCenterPoint, 10,
       std::bind(&ControllerNode::pointCB, this, _1));
 
-  mission_subscriber_ =
-        this->create_subscription<utfr_msgs::msg::SystemStatus>(
-            topics::kSystemStatus, 10,
-            std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
+  mission_subscriber_ = this->create_subscription<utfr_msgs::msg::SystemStatus>(
+      topics::kSystemStatus, 10,
+      std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
 }
 
 void ControllerNode::initPublishers() {
@@ -148,12 +147,13 @@ void ControllerNode::initTimers() {
   }
 }
 
-void ControllerNode::initEvent() {
+void ControllerNode::initEvent() { // TODO: TEST
   if (event_ == "read") {
     // mission_subscriber_ =
     //     this->create_subscription<utfr_msgs::msg::SystemStatus>(
     //         topics::kSystemStatus, 10,
-    //         std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
+    //         std::bind(&ControllerNode::missionCB, this,
+    //         std::placeholders::_1));
   }
 }
 
@@ -178,7 +178,7 @@ void ControllerNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
   //   mission_subscriber_.reset();
   // }
 
-  if (as_state == 2 && msg.as_state == 3){
+  if (as_state == 2 && msg.as_state == 3) {
     start_time_ = this->get_clock()->now();
   }
 
@@ -598,12 +598,11 @@ void ControllerNode::timerCBAS() {
     target_.speed = 1.0;
     target_.steering_angle = sin(time_diff * 3.1415 / 3) * max_steering_angle_;
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } else if (as_state == 3)
-  {
+  } else if (as_state == 3) {
     target_.speed = 0.0;
     target_.steering_angle = 0.0;
     publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
-  } else{
+  } else {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
     target_.speed = 0.0;
     target_.steering_angle = 0.0;

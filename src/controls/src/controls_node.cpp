@@ -212,21 +212,22 @@ void ControlsNode::timerCB() {
     double dt = (this->now() - ros_time_).seconds();
     ros_time_ = this->now();
 
-    control_cmd_.str_cmd = 
+    control_cmd_.str_cmd =
         (int)(utfr_dv::util::radToDeg(target_state_->steering_angle) *
-        STR_GEAR_RATIO);
+              STR_GEAR_RATIO);
 
     // //*****   Throttle & Brake  *****
     // current_velocity = ego_state_->vel.twist.linear.x; // TODO: review
-    int target_throttle = (int)(target_state_->speed * 60 / (2 * M_PI * WHEEL_RADIUS) * DRIVETRAIN_GEAR_RATIO);            // TODO: review
 
     // if (current_velocity < target_velocity) {
     //   // RCLCPP_INFO(this->get_logger(), "Accelerating to reach: %fm/s",
     //   // target_velocity);
     //   // control_cmd_.thr_cmd =
-    //   //     throttle_pid_->getCommand(target_velocity, current_velocity, dt);
+    //   //     throttle_pid_->getCommand(target_velocity, current_velocity,
+    //   dt);
     //   // TODO: add RPM cap
-    //   control_cmd_.thr_cmd = target_velocity * 60 / (2 * M_PI * WHEEL_RADIUS) *
+    //   control_cmd_.thr_cmd = target_velocity * 60 / (2 * M_PI * WHEEL_RADIUS)
+    //   *
     //                          DRIVETRAIN_GEAR_RATIO;
     //   control_cmd_.brk_cmd = 0;
     // } else {
@@ -236,7 +237,10 @@ void ControlsNode::timerCB() {
     //   control_cmd_.brk_cmd =
     //       braking_pid_->getCommand(target_velocity, current_velocity, dt);
     // }
-    control_cmd_.thr_cmd = target_throttle;
+    control_cmd_.thr_cmd =
+        (int)(target_state_->speed * 60 / (2 * M_PI * WHEEL_RADIUS) *
+              DRIVETRAIN_GEAR_RATIO);
+    ;
     control_cmd_.header.stamp = this->get_clock()->now();
 
     // Publish message

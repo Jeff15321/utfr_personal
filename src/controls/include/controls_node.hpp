@@ -45,9 +45,9 @@ namespace controls {
 #define PI 3.1415926535
 #define RadToDeg(ang) ang * 180 / PI
 #define DegToRad(ang) ang *PI / 180
-#define STR_GEAR_RATIO 7.2 // MAX TESTED TO BE 150, this is 148
-#define DRIVETRAIN_GEAR_RATIO 3.0833333
-#define WHEEL_RADIUS 0.1955 // meters
+#define STR_GEAR_RATIO 7.63        // MAX TESTED TO BE 150, this is 148
+#define DRIVETRAIN_GEAR_RATIO 3.41 // USA: 3.083
+#define WHEEL_RADIUS 0.1955        // meters
 
 class ControlsNode : public rclcpp::Node {
 public:
