@@ -124,46 +124,59 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
     classes = []
     scores = []
 
-    for i, (batch_id, x0, y0, x1, y1, cls_id, score) in enumerate(outputs):
+    # YOLOv7 output format: [batch_id, x0, y0, x1, y1, cls_id, score]
+    # for i, (batch_id, x0, y0, x1, y1, cls_id, score) in enumerate(outputs):
+    #
+    # YOLOv8 output format: [x, y, w, h, conf, class0_conf, class1_conf, ...]
+    for output in outputs:
+        x, y, w, h = output[:4]
+        conf = output[4]
+        class_scores = output[5:]
+        cls_id = np.argmax(class_scores)
+        score = class_scores[cls_id]
+        
         if score < confidence:
-            # if it is less than the config confidence value, than it is unknown random cone
-            cls_id = 0
-        image = ori_images[int(batch_id)]
+            cls_id = 0  # unknown random cone
+        
+        x0 = x - w / 2
+        y0 = y - h / 2
+        x1 = x + w / 2
+        y1 = y + h / 2
+        
+        image = ori_images[0]  # Assuming batch size of 1
         box = np.array([x0, y0, x1, y1])
         box -= np.array(dwdh * 2)
         box /= ratio
         box = box.round().astype(np.int32).tolist()
         cls_id = int(cls_id)
-
         score = round(float(score), 3)
         name = names[cls_id]
-
+        
         if box[0] < 10 or box[1] < 10:
             continue
-
+        
         box[2] = abs(box[0] - box[2])
         box[3] = abs(box[1] - box[3])
-
-        # TODO: Modify bounding_box datastructure to include class and scoring information. Discuss with downstream.
+        
         bounding_boxes.append(box)
         classes.append(name)
         scores.append(score)
-
-        if visualize == True:
+        
+        if visualize:
             color = colors[name]
-            name += " " + str(score)
-            x0, y0, x1, y1 = box
-            cv2.rectangle(image, (x0, y0), (x1, y1), color, 2)
+            label = f"{name} {score}"
+            x0, y0, w, h = box
+            cv2.rectangle(image, (x0, y0), (x0 + w, y0 + h), color, 2)
             cv2.putText(
                 image,
-                name,
-                (box[0], box[1] - 2),
+                label,
+                (x0, y0 - 2),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.75,
                 [225, 255, 255],
                 thickness=2,
             )
-
+    
     return bounding_boxes, classes, scores, image
 
 
