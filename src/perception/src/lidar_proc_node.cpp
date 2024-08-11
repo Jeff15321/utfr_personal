@@ -120,7 +120,7 @@ void LidarProcNode::initParams() {
   double lin_threshold =
       this->get_parameter("cone_filter.lin_threshold").as_double();
   ConeLRFilterParams cone_filter_params = {cone_height, cone_radius,
-                                         mse_threshold, lin_threshold};
+                                           mse_threshold, lin_threshold};
 
   cone_filter = ConeLRFilter(cone_filter_params);
 }
@@ -128,7 +128,7 @@ void LidarProcNode::initParams() {
 void LidarProcNode::initSubscribers() {
   point_cloud_subscriber_ =
       this->create_subscription<sensor_msgs::msg::PointCloud2>(
-          "/ouster/points", 
+          "/ouster/points",
           rclcpp::QoS(10).reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT),
           std::bind(&LidarProcNode::pointCloudCallback, this, _1));
 } // TODO - check topic name
@@ -181,9 +181,9 @@ void LidarProcNode::publishPointCloud(
 PointCloud LidarProcNode::convertToCustomPointCloud(
     const sensor_msgs::msg::PointCloud2::SharedPtr &input) {
   PointCloud custom_cloud;
-    // change according to pitch
-    float c = 1.0;//cos(8/180.0*3.14);
-    float s = 0.0;//sin(8/180.0*3.14);
+  // change according to pitch
+  float c = 1.0; // cos(8/180.0*3.14);
+  float s = 0.0; // sin(8/180.0*3.14);
   for (uint32_t i = 0; i < input->height * input->width; ++i) {
     Point pt;
 
@@ -199,8 +199,8 @@ PointCloud LidarProcNode::convertToCustomPointCloud(
         &input->data[i * input->point_step + y_offset]);
     pt[2] = *reinterpret_cast<const float *>(
         &input->data[i * input->point_step + z_offset]);
-    float xn = c*pt[0] - s*pt[2];
-    pt[2] = s*pt[0] + c*pt[2] + 1.05;
+    float xn = c * pt[0] - s * pt[2];
+    pt[2] = s * pt[0] + c * pt[2] + 1.05;
     pt[0] = xn;
 
     custom_cloud.push_back(pt);
@@ -213,7 +213,7 @@ void LidarProcNode::timerCB() {
   const std::string function_name{"timerCB"};
   publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 
-  if (latest_point_cloud){
+  if (latest_point_cloud) {
     PointCloud custom_cloud = convertToCustomPointCloud(latest_point_cloud);
 
     // Filtering
@@ -223,21 +223,21 @@ void LidarProcNode::timerCB() {
     Grid min_points_grid = std::get<1>(filtered_cloud_and_grid);
     publishPointCloud(filtered_cloud, pub_filtered);
 
-    //Debug grid of minimum z points
-    // PointCloud grid_points;
-    // for(std::vector<Point> row : min_points_grid){
-    //   for(Point point : row){
-    //     grid_points.push_back(point);
-    //   }
-    // }
-    // publishPointCloud(grid_points, pub_filtered);
-
+    // Debug grid of minimum z points
+    //  PointCloud grid_points;
+    //  for(std::vector<Point> row : min_points_grid){
+    //    for(Point point : row){
+    //      grid_points.push_back(point);
+    //    }
+    //  }
+    //  publishPointCloud(grid_points, pub_filtered);
 
     // Clustering and reconstruction
     std::tuple<PointCloud, std::vector<PointCloud>> cluster_results =
         clusterer.clean_and_cluster(filtered_cloud, min_points_grid);
     PointCloud no_ground_cloud = std::get<0>(cluster_results);
-    std::vector<PointCloud> reconstructed_clusters = std::get<1>(cluster_results);
+    std::vector<PointCloud> reconstructed_clusters =
+        std::get<1>(cluster_results);
 
     publishPointCloud(no_ground_cloud, pub_no_ground);
 
@@ -296,7 +296,7 @@ sensor_msgs::msg::PointCloud2 LidarProcNode::convertToPointCloud2(
   cloud.data.resize(cloud.row_step * cloud.height);
 
   auto float_ptr = reinterpret_cast<float *>(&cloud.data[0]);
-  
+
   for (const auto &point : points) {
     *float_ptr++ = point[0];
     *float_ptr++ = point[1];

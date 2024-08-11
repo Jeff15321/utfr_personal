@@ -47,9 +47,6 @@ from utfr_msgs.msg import PerceptionDebug
 # Service Requirements
 from std_srvs.srv import Trigger
 
-# Service Requirements
-from std_srvs.srv import Trigger
-
 # Import deep and classical process functions
 from perception.submodules.deep import deep_process
 from perception.submodules.deep import bounding_boxes_to_cone_detections
@@ -281,12 +278,12 @@ class PerceptionNode(Node):
         device = ort.get_device()
         print("Current Device for Inference:", device)
         self.session = ort.InferenceSession(
-            "src/perception/perception/best.onnx",
+            "src/perception/perception/yolov8n.onnx",
             providers=["CUDAExecutionProvider"],
         )
 
         # create transform frame variables
-        self.lidar_frame = "lidar"
+        self.lidar_frame = "os_sensor"
         self.left_camera_frame = "left_camera"
         self.right_camera_frame = "right_camera"
 

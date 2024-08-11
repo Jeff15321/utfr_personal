@@ -622,9 +622,9 @@ class VisualizationNode(Node):
         self.right_image_text_publisher_.publish(right_image_annotation)
 
     def perceptionConeDetectionsCB(self, msg):
-        '''
+        """
         Publish the cone detections as yellow cube markers
-        '''
+        """
         self.get_logger().warn("Recieved cone detections msg")
         cube_cone_dets = MarkerArray()
         left_cones = msg.left_cones
