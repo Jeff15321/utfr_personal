@@ -199,9 +199,9 @@ PointCloud LidarProcNode::convertToCustomPointCloud(
         &input->data[i * input->point_step + y_offset]);
     pt[2] = *reinterpret_cast<const float *>(
         &input->data[i * input->point_step + z_offset]);
-    float xn = c * pt[0] - s * pt[2];
-    pt[2] = s * pt[0] + c * pt[2] + 1.05;
-    pt[0] = xn;
+    // float xn = c * pt[0] - s * pt[2];
+    // pt[2] = s * pt[0] + c * pt[2] + 1.05;
+    // pt[0] = xn;
 
     custom_cloud.push_back(pt);
   }
