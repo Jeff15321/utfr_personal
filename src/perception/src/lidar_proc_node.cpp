@@ -29,6 +29,7 @@ LidarProcNode::LidarProcNode() : Node("lidar_proc_node") {
 
 void LidarProcNode::initParams() {
   this->declare_parameter("update_rate", 33.33);
+  this->declare_parameter("debug", false);
   this->declare_parameter("topics.input", rclcpp::PARAMETER_STRING);
   this->declare_parameter("view_filter.outer_box.xmin",
                           rclcpp::PARAMETER_DOUBLE);
@@ -68,6 +69,7 @@ void LidarProcNode::initParams() {
                           rclcpp::PARAMETER_DOUBLE);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
+  debug_ = this->get_parameter("debug").as_bool();
   double outer_xmin =
       this->get_parameter("view_filter.outer_box.xmin").as_double();
   double outer_xmax =
@@ -139,9 +141,9 @@ void LidarProcNode::initPublishers() {
   pub_no_ground = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       topics::kNoGround, 10);
   pub_clustered = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-      "/lidar_pipeline/cluster_debug", 10);
-  pub_clustered_center = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       topics::kClustered, 10);
+  pub_lidar_detected = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+      topics::kDetected, 10);
 }
 
 void LidarProcNode::initTimers() {
@@ -182,8 +184,8 @@ PointCloud LidarProcNode::convertToCustomPointCloud(
     const sensor_msgs::msg::PointCloud2::SharedPtr &input) {
   PointCloud custom_cloud;
   // change according to pitch
-  float c = 1.0; // cos(8/180.0*3.14);
-  float s = 0.0; // sin(8/180.0*3.14);
+  //   float c = 1.0; // cos(8/180.0*3.14);
+  //   float s = 0.0; // sin(8/180.0*3.14);
   for (uint32_t i = 0; i < input->height * input->width; ++i) {
     Point pt;
 
@@ -221,7 +223,9 @@ void LidarProcNode::timerCB() {
         filter.view_filter(custom_cloud);
     PointCloud filtered_cloud = std::get<0>(filtered_cloud_and_grid);
     Grid min_points_grid = std::get<1>(filtered_cloud_and_grid);
-    publishPointCloud(filtered_cloud, pub_filtered);
+    if (debug_) {
+      publishPointCloud(filtered_cloud, pub_filtered);
+    }
 
     // Debug grid of minimum z points
     //  PointCloud grid_points;
@@ -239,7 +243,9 @@ void LidarProcNode::timerCB() {
     std::vector<PointCloud> reconstructed_clusters =
         std::get<1>(cluster_results);
 
-    publishPointCloud(no_ground_cloud, pub_no_ground);
+    if (debug_) {
+      publishPointCloud(no_ground_cloud, pub_no_ground);
+    }
 
     // // Publishing each reconstructed cluster in a loop
 
@@ -249,13 +255,16 @@ void LidarProcNode::timerCB() {
         combined_clusters.push_back(reconstructed_clusters[i][j]);
       }
     }
-    publishPointCloud(combined_clusters, pub_clustered);
+
+    if (debug_) {
+      publishPointCloud(combined_clusters, pub_clustered);
+    }
 
     // Gather the cluster centers into a single point cloud
     PointCloud cluster_centers =
         cone_filter.filter_clusters(reconstructed_clusters);
     if (cluster_centers.size() > 0) {
-      publishPointCloud(cluster_centers, pub_clustered_center);
+      publishPointCloud(cluster_centers, pub_lidar_detected);
     }
   }
   RCLCPP_INFO(this->get_logger(), "Published Processed Point Clouds");

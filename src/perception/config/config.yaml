@@ -3,7 +3,7 @@ perception_node: # Name of Node
     left_camera_topic: "/left_camera_node/images"
     right_camera_topic: "/right_camera_node/images"
     cone_detections_topic: "perception/cone_detections"
-    processed_lidar_topic: "/lidar_pipeline/clustered"
+    processed_lidar_topic: "/lidar_pipeline/detected"
     baseline: 10.0
     update_rate: 33.0 #[ms]
     distortion_left: [-0.2632632062603271, 0.12474952835752845, 0.0, 0.0, 0.0]
@@ -111,6 +111,7 @@ perception_node: # Name of Node
 lidar_proc_node:
   ros__parameters:
     update_rate: 33.33 #[ms]
+    debug: True
     topics: # TODO: fix
       input: "/ouster/points"
       filtered: "/lidar_pipeline/filtered"
