@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = -DUNIX -Dfreeglut_minimal_EXPORTS
 
-CXX_INCLUDES = -I/home/daniel/dv24/src/mapping/external/g2o
+CXX_INCLUDES = -I${CMAKE_SOURCE_DIR}
 
 CXX_FLAGS =   -Wall -W -O3 -DNDEBUG -O3 -fPIC -msse2 -msse3 -mssse3 -msse4.1 -msse4.2
 

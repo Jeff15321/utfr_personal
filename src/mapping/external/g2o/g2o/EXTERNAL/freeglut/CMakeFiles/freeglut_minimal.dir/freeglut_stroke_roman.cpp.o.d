@@ -1,5 +1,5 @@
 g2o/EXTERNAL/freeglut/CMakeFiles/freeglut_minimal.dir/freeglut_stroke_roman.cpp.o: \
- /home/daniel/dv24/src/mapping/external/g2o/g2o/EXTERNAL/freeglut/freeglut_stroke_roman.cpp \
+ ${CMAKE_SOURCE_DIR}/g2o/g2o/EXTERNAL/freeglut/freeglut_stroke_roman.cpp \
  /usr/include/stdc-predef.h /usr/include/c++/11/stdlib.h \
  /usr/include/c++/11/cstdlib \
  /usr/include/x86_64-linux-gnu/c++/11/bits/c++config.h \
@@ -51,8 +51,8 @@ g2o/EXTERNAL/freeglut/CMakeFiles/freeglut_minimal.dir/freeglut_stroke_roman.cpp.
  /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
  /usr/include/x86_64-linux-gnu/bits/stdlib.h \
  /usr/include/c++/11/bits/std_abs.h \
- /home/daniel/dv24/src/mapping/external/g2o/g2o/EXTERNAL/freeglut/freeglut_minimal.h \
- /home/daniel/dv24/src/mapping/external/g2o/g2o/config.h \
+ ${CMAKE_SOURCE_DIR}/g2o/g2o/EXTERNAL/freeglut/freeglut_minimal.h \
+ ${CMAKE_SOURCE_DIR}/g2o/g2o/config.h \
  /usr/include/GL/gl.h /usr/include/GL/glext.h \
  /usr/include/KHR/khrplatform.h \
  /usr/lib/gcc/x86_64-linux-gnu/11/include/stdint.h /usr/include/stdint.h \

@@ -9,7 +9,6 @@
 # (e.g. CPACK_NSIS_EXTRA_INSTALL_COMMANDS). The generator specific variables
 # usually begin with CPACK_<GENNAME>_xxxx.
 
-
 set(CPACK_BINARY_DEB "OFF")
 set(CPACK_BINARY_FREEBSD "OFF")
 set(CPACK_BINARY_IFW "OFF")
@@ -20,7 +19,8 @@ set(CPACK_BINARY_TBZ2 "OFF")
 set(CPACK_BINARY_TGZ "ON")
 set(CPACK_BINARY_TXZ "OFF")
 set(CPACK_BINARY_TZ "ON")
-set(CPACK_BUILD_SOURCE_DIRS "/home/daniel/dv24/src/mapping/external/g2o;/home/daniel/dv24/src/mapping/external/g2o")
+
+set(CPACK_BUILD_SOURCE_DIRS "${CMAKE_SOURCE_DIR};${CMAKE_SOURCE_DIR}")
 set(CPACK_CMAKE_GENERATOR "Unix Makefiles")
 set(CPACK_COMPONENTS_ALL "")
 set(CPACK_COMPONENT_UNSPECIFIED_HIDDEN "TRUE")
@@ -29,7 +29,8 @@ set(CPACK_DEFAULT_PACKAGE_DESCRIPTION_FILE "/usr/share/cmake-3.22/Templates/CPac
 set(CPACK_DEFAULT_PACKAGE_DESCRIPTION_SUMMARY "g2o built using CMake")
 set(CPACK_GENERATOR "TBZ2;TGZ;TXZ;TZ")
 set(CPACK_IGNORE_FILES "/CVS/;/\\.svn/;/\\.bzr/;/\\.hg/;/\\.git/;\\.swp\$;\\.#;/#")
-set(CPACK_INSTALLED_DIRECTORIES "/home/daniel/dv24/src/mapping/external/g2o;/")
+
+set(CPACK_INSTALLED_DIRECTORIES "${CMAKE_SOURCE_DIR};/")
 set(CPACK_INSTALL_CMAKE_PROJECTS "")
 set(CPACK_INSTALL_PREFIX "/usr/local")
 set(CPACK_MODULE_PATH "")
@@ -39,7 +40,8 @@ set(CPACK_NSIS_INSTALLER_MUI_ICON_CODE "")
 set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES")
 set(CPACK_NSIS_PACKAGE_NAME "g2o 0.1.1")
 set(CPACK_NSIS_UNINSTALL_NAME "Uninstall")
-set(CPACK_OUTPUT_CONFIG_FILE "/home/daniel/dv24/src/mapping/external/g2o/CPackConfig.cmake")
+
+set(CPACK_OUTPUT_CONFIG_FILE "${CMAKE_BINARY_DIR}/CPackConfig.cmake")
 set(CPACK_PACKAGE_DEFAULT_LOCATION "/")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "/usr/share/cmake-3.22/Templates/CPack.GenericDescription.txt")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "g2o built using CMake")
@@ -60,8 +62,9 @@ set(CPACK_RPM_PACKAGE_SOURCES "ON")
 set(CPACK_SET_DESTDIR "OFF")
 set(CPACK_SOURCE_GENERATOR "TBZ2;TGZ;TXZ;TZ")
 set(CPACK_SOURCE_IGNORE_FILES "/CVS/;/\\.svn/;/\\.bzr/;/\\.hg/;/\\.git/;\\.swp\$;\\.#;/#")
-set(CPACK_SOURCE_INSTALLED_DIRECTORIES "/home/daniel/dv24/src/mapping/external/g2o;/")
-set(CPACK_SOURCE_OUTPUT_CONFIG_FILE "/home/daniel/dv24/src/mapping/external/g2o/CPackSourceConfig.cmake")
+
+set(CPACK_SOURCE_INSTALLED_DIRECTORIES "${CMAKE_SOURCE_DIR};/")
+set(CPACK_SOURCE_OUTPUT_CONFIG_FILE "${CMAKE_BINARY_DIR}/CPackSourceConfig.cmake")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "g2o-0.1.1-Source")
 set(CPACK_SOURCE_RPM "OFF")
 set(CPACK_SOURCE_TBZ2 "ON")
@@ -77,7 +80,7 @@ set(CPACK_TOPLEVEL_TAG "Linux-Source")
 set(CPACK_WIX_SIZEOF_VOID_P "8")
 
 if(NOT CPACK_PROPERTIES_FILE)
-  set(CPACK_PROPERTIES_FILE "/home/daniel/dv24/src/mapping/external/g2o/CPackProperties.cmake")
+  set(CPACK_PROPERTIES_FILE "${CMAKE_SOURCE_DIR}/CPackProperties.cmake")
 endif()
 
 if(EXISTS ${CPACK_PROPERTIES_FILE})

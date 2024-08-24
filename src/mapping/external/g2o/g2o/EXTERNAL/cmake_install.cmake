@@ -44,6 +44,6 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("/home/daniel/dv24/src/mapping/external/g2o/g2o/EXTERNAL/freeglut/cmake_install.cmake")
+  include("${CMAKE_SOURCE_DIR}/g2o/EXTERNAL/freeglut/cmake_install.cmake")
 endif()
 

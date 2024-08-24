@@ -57,10 +57,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/daniel/dv24/src/mapping/external/g2o
+CMAKE_SOURCE_DIR = ${CMAKE_SOURCE_DIR}
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/daniel/dv24/src/mapping/external/g2o
+CMAKE_BINARY_DIR = ${CMAKE_BINARY_DIR}
 
 #=============================================================================
 # Targets provided globally by CMake.
