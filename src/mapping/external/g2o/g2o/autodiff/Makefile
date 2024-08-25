@@ -68,7 +68,7 @@ CMAKE_BINARY_DIR = ${CMAKE_BINARY_DIR}
 # Special rule for the target package
 package: preinstall
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Run CPack packaging tool..."
-	cd /home/daniel/dv24/src/mapping/external/g2o && /usr/bin/cpack --config ./CPackConfig.cmake
+	cd ${CMAKE_BINARY_DIR} && /usr/bin/cpack --config ./CPackConfig.cmake
 .PHONY : package
 
 # Special rule for the target package
@@ -78,7 +78,7 @@ package/fast: package
 # Special rule for the target package_source
 package_source:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Run CPack packaging tool for source..."
-	cd /home/daniel/dv24/src/mapping/external/g2o && /usr/bin/cpack --config ./CPackSourceConfig.cmake /home/daniel/dv24/src/mapping/external/g2o/CPackSourceConfig.cmake
+	cd ${CMAKE_BINARY_DIR} && /usr/bin/cpack --config ./CPackSourceConfig.cmake ${CMAKE_BINARY_DIR}/CPackSourceConfig.cmake
 .PHONY : package_source
 
 # Special rule for the target package_source
@@ -152,14 +152,14 @@ install/strip/fast: preinstall/fast
 
 # The main all target
 all: cmake_check_build_system
-	cd /home/daniel/dv24/src/mapping/external/g2o && $(CMAKE_COMMAND) -E cmake_progress_start /home/daniel/dv24/src/mapping/external/g2o/CMakeFiles /home/daniel/dv24/src/mapping/external/g2o/g2o/autodiff//CMakeFiles/progress.marks
-	cd /home/daniel/dv24/src/mapping/external/g2o && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 g2o/autodiff/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/daniel/dv24/src/mapping/external/g2o/CMakeFiles 0
+	cd ${CMAKE_BINARY_DIR} && $(CMAKE_COMMAND) -E cmake_progress_start ${CMAKE_BINARY_DIR}/CMakeFiles ${CMAKE_BINARY_DIR}/g2o/autodiff//CMakeFiles/progress.marks
+	cd ${CMAKE_BINARY_DIR} && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 g2o/autodiff/all
+	$(CMAKE_COMMAND) -E cmake_progress_start ${CMAKE_BINARY_DIR}/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	cd /home/daniel/dv24/src/mapping/external/g2o && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 g2o/autodiff/clean
+	cd ${CMAKE_BINARY_DIR} && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 g2o/autodiff/clean
 .PHONY : clean
 
 # The main clean target
@@ -168,17 +168,17 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	cd /home/daniel/dv24/src/mapping/external/g2o && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 g2o/autodiff/preinstall
+	cd ${CMAKE_BINARY_DIR} && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 g2o/autodiff/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	cd /home/daniel/dv24/src/mapping/external/g2o && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 g2o/autodiff/preinstall
+	cd ${CMAKE_BINARY_DIR} && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 g2o/autodiff/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	cd /home/daniel/dv24/src/mapping/external/g2o && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	cd ${CMAKE_BINARY_DIR} && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
 # Help Target
@@ -197,8 +197,6 @@ help:
 	@echo "... rebuild_cache"
 .PHONY : help
 
-
-
 #=============================================================================
 # Special targets to cleanup operation of make.
 
@@ -206,6 +204,5 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	cd /home/daniel/dv24/src/mapping/external/g2o && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	cd ${CMAKE_BINARY_DIR} && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
-
