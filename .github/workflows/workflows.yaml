@@ -22,7 +22,7 @@ jobs:
 
       - name: Clone and build g2o
         run: |
-          sudo apt-get install -y cmake libeigen3-dev libsuitesparse-dev qt5-qmake qt5-default
+          sudo apt-get install -y cmake libeigen3-dev libsuitesparse-devcol
           git clone https://github.com/RainerKuemmerle/g2o.git
           cd g2o
           mkdir build && cd build
