@@ -14,11 +14,13 @@ jobs:
         uses: ros-tooling/setup-ros@0.7.0
         with:
           required-ros-distributions: humble
+
       - name: Install CGAL and Boost
         run: |
           sudo apt-get update
           sudo apt-get install -y libcgal-dev libboost-all-dev
-       - name: Clone and build g2o
+
+      - name: Clone and build g2o
         run: |
           sudo apt-get install -y cmake libeigen3-dev libsuitesparse-dev qt5-qmake qt5-default
           git clone https://github.com/RainerKuemmerle/g2o.git
