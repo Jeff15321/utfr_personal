@@ -72,7 +72,7 @@ perception_node: # Name of Node
     save_pic: "False"
     confidence: 0.40
     cone_heights: [0.0, 325.0, 325.0, 325.0, 505.0]
-    lidar_only_detection: True
+    lidar_only_detection: False
 
     # shopping cart
     # intrinsics_left:
@@ -121,8 +121,8 @@ lidar_proc_node:
       heartbeat: "/lidar_pipeline/heartbeat"
     view_filter:
       outer_box: #remove all points outside of outer box
-        xmin: -20.0
-        xmax: 0.0
+        xmin: 0.0
+        xmax: 20.0
         ymin: -8.0
         ymax: 8.0
       inner_box: #remove all points within inner box

@@ -176,7 +176,7 @@ void LidarProcNode::publishPointCloud(
     const PointCloud &cloud,
     const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub) {
   sensor_msgs::msg::PointCloud2 output =
-      convertToPointCloud2(cloud, "os_lidar");
+      convertToPointCloud2(cloud, "os_sensor");
   pub->publish(output);
 }
 

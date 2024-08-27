@@ -278,7 +278,7 @@ class PerceptionNode(Node):
         device = ort.get_device()
         print("Current Device for Inference:", device)
         self.session = ort.InferenceSession(
-            "src/perception/perception/yolov8n.onnx",
+            "src/perception/perception/best.onnx",
             providers=["CUDAExecutionProvider"],
         )
 
@@ -578,7 +578,7 @@ class PerceptionNode(Node):
         # initialize detection msg
         # TODO - make 1 detections message and combine them at the end
         self.detections_msg = ConeDetections()
-        self.detections_msg.header.frame_id = "os_lidar"
+        self.detections_msg.header.frame_id = "os_sensor"
 
         # publish the heartbeat
         self.publishHeartbeat()
@@ -707,7 +707,7 @@ class PerceptionNode(Node):
 
             # perception detections debug
             self.detections_debug = ConeDetections()
-            self.detections_debug.header.frame_id = "os_lidar"
+            self.detections_debug.header.frame_id = "os_sensor"
 
             self.detections_debug.header.stamp = self.get_clock().now().to_msg()
 
