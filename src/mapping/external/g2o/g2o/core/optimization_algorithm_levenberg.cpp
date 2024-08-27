@@ -27,6 +27,7 @@
 #include "optimization_algorithm_levenberg.h"
 
 #include <cassert>
+#include <cmath>
 #include <iostream>
 
 #include "batch_stats.h"
@@ -41,11 +42,11 @@ namespace g2o {
 OptimizationAlgorithmLevenberg::OptimizationAlgorithmLevenberg(
     std::unique_ptr<Solver> solver)
     : OptimizationAlgorithmWithHessian(*solver.get()),
-      _currentLambda(cst(-1.)),
-      _tau(cst(1e-5)),
-      _goodStepLowerScale(cst(1. / 3.)),
-      _goodStepUpperScale(cst(2. / 3.)),
-      _ni(cst(2.)),
+      _currentLambda(-1),
+      _tau(1e-5),
+      _goodStepLowerScale(1. / 3.),
+      _goodStepUpperScale(2. / 3.),
+      _ni(2.),
       _levenbergIterations(0),
       m_solver{std::move(solver)} {
   _userLambdaInit =
@@ -66,7 +67,7 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(
       !online) {  // built up the CCS structure, here due to easy time measure
     bool ok = _solver.buildStructure();
     if (!ok) {
-      G2O_WARN("{}: Failure while building CCS structure", __PRETTY_FUNCTION__);
+      G2O_WARN("Failure while building CCS structure");
       return OptimizationAlgorithm::Fail;
     }
   }
@@ -123,10 +124,10 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(
 
     rho = (currentChi - tempChi);
     double scale =
-        ok2 ? computeScale() + cst(1e-3) : 1;  // make sure it's non-zero :)
+        ok2 ? computeScale() + 1e-3 : 1;  // make sure it's non-zero :)
     rho /= scale;
 
-    if (rho > 0 && g2o_isfinite(tempChi) && ok2) {  // last step was good
+    if (rho > 0 && std::isfinite(tempChi) && ok2) {  // last step was good
       double alpha = 1. - pow((2 * rho - 1), 3);
       // crop lambda between minimum and maximum factors
       alpha = (std::min)(alpha, _goodStepUpperScale);
@@ -139,14 +140,14 @@ OptimizationAlgorithm::SolverResult OptimizationAlgorithmLevenberg::solve(
       _currentLambda *= _ni;
       _ni *= 2;
       _optimizer->pop();  // restore the last state before trying to optimize
-      if (!g2o_isfinite(_currentLambda)) break;
+      if (!std::isfinite(_currentLambda)) break;
     }
     qmax++;
   } while (rho < 0 && qmax < _maxTrialsAfterFailure->value() &&
            !_optimizer->terminate());
 
   if (qmax == _maxTrialsAfterFailure->value() || rho == 0 ||
-      !g2o_isfinite(_currentLambda))
+      !std::isfinite(_currentLambda))
     return Terminate;
   return OK;
 }

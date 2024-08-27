@@ -28,11 +28,11 @@
 #define G2O_MACROS_H
 
 #ifndef DEG2RAD
-#define DEG2RAD(x) ((x)*0.01745329251994329575)
+#define DEG2RAD(x) ((x) * 0.01745329251994329575)
 #endif
 
 #ifndef RAD2DEG
-#define RAD2DEG(x) ((x)*57.29577951308232087721)
+#define RAD2DEG(x) ((x) * 57.29577951308232087721)
 #endif
 
 // GCC the one and only
@@ -42,18 +42,11 @@
   static void func(void)
 
 #define G2O_ATTRIBUTE_UNUSED __attribute__((unused))
-#define G2O_ATTRIBUTE_FORMAT12 __attribute__((format(printf, 1, 2)))
-#define G2O_ATTRIBUTE_FORMAT23 __attribute__((format(printf, 2, 3)))
 #define G2O_ATTRIBUTE_WARNING(func) func __attribute__((warning))
 #define G2O_ATTRIBUTE_DEPRECATED(func) func __attribute__((deprecated))
 
-#define g2o_isnan(x) std::isnan(x)
-#define g2o_isinf(x) std::isinf(x)
-#define g2o_isfinite(x) std::isfinite(x)
-
 // MSVC on Windows
 #elif defined _MSC_VER
-#define __PRETTY_FUNCTION__ __FUNCTION__
 
 /**
 Modified by Mark Pupilli from:
@@ -73,33 +66,17 @@ for static C++ objects. For GCC, uses a constructor attribute."
   static void __cdecl f(void)
 
 #define G2O_ATTRIBUTE_UNUSED
-#define G2O_ATTRIBUTE_FORMAT12
-#define G2O_ATTRIBUTE_FORMAT23
 #define G2O_ATTRIBUTE_WARNING(func) func
 #define G2O_ATTRIBUTE_DEPRECATED(func) func
 
 #include <float.h>
 
-#define g2o_isnan(x) _isnan(x)
-#define g2o_isinf(x) (_finite(x) == 0)
-#define g2o_isfinite(x) (_finite(x) != 0)
-
 // unknown compiler
 #else
-#ifndef __PRETTY_FUNCTION__
-#define __PRETTY_FUNCTION__ ""
-#endif
 #define G2O_ATTRIBUTE_CONSTRUCTOR(func) func
 #define G2O_ATTRIBUTE_UNUSED
-#define G2O_ATTRIBUTE_FORMAT12
-#define G2O_ATTRIBUTE_FORMAT23
 #define G2O_ATTRIBUTE_WARNING(func) func
 #define G2O_ATTRIBUTE_DEPRECATED(func) func
-
-#include <math.h>
-#define g2o_isnan(x) isnan(x)
-#define g2o_isinf(x) isinf(x)
-#define g2o_isfinite(x) isfinite(x)
 
 #endif
 

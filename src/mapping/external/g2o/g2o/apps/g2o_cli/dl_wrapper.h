@@ -34,6 +34,7 @@
 // clang-format on
 
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "g2o_cli_api.h"
@@ -47,6 +48,12 @@ class G2O_CLI_API DlWrapper {
  public:
   DlWrapper();
   virtual ~DlWrapper();
+
+  /**
+   * it's not allowed to draw a copy of the wrapper
+   */
+  DlWrapper(const DlWrapper&) = delete;
+  DlWrapper& operator=(const DlWrapper&) = delete;
 
   /**
    * open all libs from a directory matching a specific pattern.
@@ -71,14 +78,7 @@ class G2O_CLI_API DlWrapper {
 #elif defined(WINDOWS)
   std::vector<HMODULE> _handles;
 #endif
-  std::vector<std::string> _filenames;
-
- private:
-  /**
-   * it's not allowed to draw a copy of the wrapper
-   */
-  DlWrapper(const DlWrapper&);
-  DlWrapper& operator=(const DlWrapper&);
+  std::unordered_set<std::string> _filenames;
 };
 
 }  // namespace g2o

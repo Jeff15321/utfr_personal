@@ -29,6 +29,7 @@
 #include <fstream>
 #include <iomanip>
 
+#include "g2o/core/eigen_types.h"
 #include "g2o/stuff/logger.h"
 #include "g2o/stuff/macros.h"
 #include "g2o/stuff/misc.h"
@@ -318,7 +319,7 @@ bool BlockSolver<Traits>::updateStructure(
           PoseMatrixType* m = _Hpp->block(ind1, ind2, true);
           e->mapHessianMemory(m->data(), viIdx, vjIdx, transposedBlock);
         } else {
-          G2O_ERROR("{}: not supported", __PRETTY_FUNCTION__);
+          G2O_ERROR("not supported");
         }
       }
     }
@@ -530,8 +531,12 @@ bool BlockSolver<Traits>::buildSystem() {
       const OptimizableGraph::Vertex* v =
           static_cast<const OptimizableGraph::Vertex*>(e->vertex(i));
       if (!v->fixed()) {
-        bool hasANan = arrayHasNaN(jacobianWorkspace.workspaceForVertex(i),
-                                   e->dimension() * v->dimension());
+        bool hasANan =
+            g2o::VectorX::MapType(jacobianWorkspace.workspaceForVertex(i),
+                                  e->dimension() * v->dimension())
+                .array()
+                .isNaN()
+                .any();
         if (hasANan) {
           G2O_WARN(
               "buildSystem(): NaN within Jacobian for edge {} for vertex {}",

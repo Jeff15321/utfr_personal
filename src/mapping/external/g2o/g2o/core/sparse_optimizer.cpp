@@ -28,23 +28,36 @@
 
 #include <algorithm>
 #include <cassert>
-#include <iomanip>
 #include <iostream>
-#include <iterator>
 #include <utility>
 
 #include "batch_stats.h"
 #include "estimate_propagator.h"
-#include "g2o/config.h"
+#include "g2o/config.h"  // IWYU pragma: keep
 #include "g2o/core/optimizable_graph.h"
 #include "g2o/core/ownership.h"
 #include "g2o/stuff/logger.h"
 #include "g2o/stuff/macros.h"
-#include "g2o/stuff/misc.h"
 #include "g2o/stuff/timeutil.h"
 #include "hyper_graph_action.h"
 #include "optimization_algorithm.h"
 #include "robust_kernel.h"
+
+#ifndef NDEBUG
+namespace {
+/**
+ * tests whether there is a NaN in the array
+ */
+bool arrayHasNaN(const double* array, int size, int* nanIndex = 0) {
+  for (int i = 0; i < size; ++i)
+    if (std::isnan(array[i])) {
+      if (nanIndex) *nanIndex = i;
+      return true;
+    }
+  return false;
+}
+}  // namespace
+#endif
 
 namespace g2o {
 using namespace std;
@@ -255,8 +268,7 @@ bool SparseOptimizer::initializeOptimization(HyperGraph::VertexSet& vset,
           int k;
           bool hasNan = arrayHasNaN(estimateData.data(), estimateDim, &k);
           if (hasNan)
-            G2O_WARN("{}: Vertex {} contains a nan entry at index {}",
-                     __PRETTY_FUNCTION__, v->id(), k);
+            G2O_WARN("Vertex {} contains a nan entry at index {}", v->id(), k);
         }
       }
 #endif
@@ -381,9 +393,8 @@ void SparseOptimizer::computeInitialGuess(
 int SparseOptimizer::optimize(int iterations, bool online) {
   if (_ivMap.size() == 0) {
     G2O_WARN(
-        "{}: 0 vertices to optimize, maybe forgot to call "
-        "initializeOptimization()",
-        __PRETTY_FUNCTION__);
+        "0 vertices to optimize, maybe forgot to call "
+        "initializeOptimization()");
     return -1;
   }
 
@@ -393,7 +404,7 @@ int SparseOptimizer::optimize(int iterations, bool online) {
 
   ok = _algorithm->init(online);
   if (!ok) {
-    G2O_ERROR("{}: Error while initializing", __PRETTY_FUNCTION__);
+    G2O_ERROR("Error while initializing");
     return -1;
   }
 
@@ -449,9 +460,7 @@ void SparseOptimizer::update(const double* update) {
     OptimizableGraph::Vertex* v = _ivMap[i];
 #ifndef NDEBUG
     bool hasNan = arrayHasNaN(update, v->dimension());
-    if (hasNan)
-      G2O_WARN("{}: Update contains a nan for vertex {}", __PRETTY_FUNCTION__,
-               v->id());
+    if (hasNan) G2O_WARN("Update contains a nan for vertex {}", v->id());
 #endif
     v->oplus(update);
     update += v->dimension();

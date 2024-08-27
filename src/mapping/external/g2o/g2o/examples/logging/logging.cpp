@@ -1,5 +1,5 @@
 // g2o - General Graph Optimization
-// Copyright (C) 2011 R. Kuemmerle, G. Grisetti, W. Burgard
+// Copyright (C) 2011 G. Grisetti, R. Kuemmerle, W. Burgard
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -24,31 +24,12 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef G2O_EDGE_SE3_CALIB_H
-#define G2O_EDGE_SE3_CALIB_H
+#include "g2o/stuff/logger.h"
 
-#include "g2o/core/base_variable_sized_edge.h"
-#include "g2o/types/slam3d/isometry3d_mappings.h"
-#include "g2o/types/slam3d/vertex_se3.h"
-#include "g2o_types_slam3d_addons_api.h"
-
-namespace g2o {
-/**
- * \brief Landmark measurement that also calibrates an offset for the landmark
- * measurement
- */
-class EdgeSE3Calib
-    : public BaseVariableSizedEdge<6, Isometry3>  // Avoid redefinition of
-                                                  // BaseEdge in MSVC
-{
- public:
-  G2O_TYPES_SLAM3D_ADDONS_API EdgeSE3Calib();
-
-  G2O_TYPES_SLAM3D_ADDONS_API void computeError();
-  G2O_TYPES_SLAM3D_ADDONS_API virtual bool read(std::istream& is);
-  G2O_TYPES_SLAM3D_ADDONS_API virtual bool write(std::ostream& os) const;
-};
-
-}  // namespace g2o
-
-#endif
+int main() {
+  G2O_TRACE("TRACE Hello World");
+  G2O_DEBUG("DEBUG Hello World");
+  G2O_WARN("WARN Hello World");
+  G2O_ERROR("ERROR Hello World");
+  G2O_INFO("INFO Hello World {}", 123);
+}

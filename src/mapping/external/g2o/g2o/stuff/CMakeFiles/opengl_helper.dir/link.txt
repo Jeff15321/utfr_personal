@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC   -Wall -W -O3 -DNDEBUG -O3 -shared -Wl,-soname,libg2o_opengl_helper.so.0.1 -o ../../lib/libg2o_opengl_helper.so.0.1.0 CMakeFiles/opengl_helper.dir/opengl_primitives.cpp.o  /usr/lib/x86_64-linux-gnu/libGLU.so /usr/lib/x86_64-linux-gnu/libGLX.so /usr/lib/x86_64-linux-gnu/libOpenGL.so 

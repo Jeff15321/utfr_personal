@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC   -Wall -W -O3 -DNDEBUG -O3 -shared -Wl,-soname,libg2o_solver_pcg.so.0.1 -o ../../../lib/libg2o_solver_pcg.so.0.1.0 CMakeFiles/solver_pcg.dir/solver_pcg.cpp.o  -Wl,-rpath,/home/daniel/dv24/src/mapping/external/g2o/lib: ../../../lib/libg2o_core.so.0.1.0 ../../../lib/libg2o_stuff.so.0.1.0 -lrt 
