@@ -2,3 +2,15 @@
 	path = src/utfr_sim
 	url = git@github.com:UTFR/utfr_sim.git
 	branch = main
+[submodule "src/drivers/ouster_ros"]
+	path = src/drivers/ouster_ros
+	url = git@github.com:UTFR/ouster_ros.git
+[submodule "src/drivers/xsens_ros"]
+	path = src/drivers/xsens_ros
+	url = git@github.com:UTFR/xsens_ros.git
+[submodule "src/mapping/external/g2o"]
+	path = src/mapping/external/g2o
+	url = git@github.com:UTFR/g2o.git
+[submodule "src/planning/external/spline"]
+	path = src/planning/external/spline
+	url = git@github.com:UTFR/spline.git
