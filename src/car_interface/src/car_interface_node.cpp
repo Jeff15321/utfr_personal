@@ -415,13 +415,13 @@ bool CarInterface::launchMission() {
   case utfr_msgs::msg::SystemStatus::AMI_STATE_TESTING:
     RCLCPP_INFO(this->get_logger(), "%s: Launching daq mission",
                 function_name.c_str());
-    launchCmd = "ros2 launch launcher sensors.launch.py";
+    launchCmd = "ros2 launch launcher sensors.launch.py &";
     modules = heartbeat_modules_testing_;
     break;
   case utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION:
     RCLCPP_INFO(this->get_logger(), "%s: Launching Inspection mission",
                 function_name.c_str());
-    launchCmd = "ros2 launch launcher dv_inspection.launch.py";
+    launchCmd = "ros2 launch launcher dv_inspection.launch.py &";
     modules = heartbeat_modules_inspection_;
     break;
 
@@ -429,20 +429,25 @@ bool CarInterface::launchMission() {
   case utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION:
     RCLCPP_INFO(this->get_logger(), "%s: Launching Accel/EBS test mission",
                 function_name.c_str());
-    launchCmd = "ros2 launch launcher dv_accel.launch.py";
+    launchCmd = "ros2 launch launcher dv_accel.launch.py &";
     modules = heartbeat_modules_accel_;
     break;
-
-  default:
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_SKIDPAD:
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS:
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_TRACKDRIVE:
     RCLCPP_INFO(this->get_logger(), "%s: Launching DV mission",
                 function_name.c_str());
-    launchCmd = "ros2 launch launcher dv.launch.py";
+    launchCmd = "ros2 launch launcher dv.launch.py &";
     modules = heartbeat_modules_;
+    break;
+  default:
+    RCLCPP_INFO(this->get_logger(), "%s: Not launching anything. Dying now",
+                function_name.c_str());
+    shutdownNodes();
     break;
   }
   // Execute the launch command
   int result = std::system(launchCmd.c_str());
-
   heartbeat_monitor_->updateModules(modules, this->get_clock()->now());
 
   if (result != 0) {
@@ -459,6 +464,7 @@ bool CarInterface::shutdownNodes() {
   try {
     RCLCPP_INFO(this->get_logger(), "%s: Shutting down car_interface node",
                 function_name.c_str());
+
     rclcpp::shutdown();
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occurred",
@@ -473,12 +479,11 @@ void CarInterface::timerCB() {
 
   try {
     getSensorCan(); // Publish sensor and state data that is read from can
-    // getDVState();   // Read DV state from car from can
+    getDVState();   // Read DV state from car from can
     // // sendDVLogs();   // Publish FSG log format over ros and send over can
-    // DVCompStateMachine(); // Set DV coputer state
-    // sendStateAndCmd();    // Send DV computer state to RC and actuator
-    // commands
-    //                       // over can
+    DVCompStateMachine(); // Set DV coputer state
+    sendStateAndCmd();    // Send DV computer state to RC and actuator commands
+                          // over can
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
                  function_name.c_str(), e);
