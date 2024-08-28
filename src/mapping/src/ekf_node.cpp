@@ -48,16 +48,18 @@ void EkfNode::initParams() {
 void EkfNode::initSubscribers() {
 
   if (mapping_mode_ != 2 && ekf_on_ == 1) {
-    sensorcan_subscriber_ = this->create_subscription<utfr_msgs::msg::SensorCan>(
-      topics::kSensorCan, 1,
-      std::bind(&EkfNode::sensorCB, this, std::placeholders::_1));
+    sensorcan_subscriber_ =
+        this->create_subscription<utfr_msgs::msg::SensorCan>(
+            topics::kSensorCan, 1,
+            std::bind(&EkfNode::sensorCB, this, std::placeholders::_1));
 
     gps_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
         "/ground_truth/odom", 1,
         std::bind(&EkfNode::gpsCB, this, std::placeholders::_1));
 
     imu_subscriber_ = this->create_subscription<sensor_msgs::msg::Imu>(
-        "/imu/data", 1, std::bind(&EkfNode::imuCB, this, std::placeholders::_1));
+        "/imu/data", 1,
+        std::bind(&EkfNode::imuCB, this, std::placeholders::_1));
   }
 }
 
@@ -71,8 +73,8 @@ void EkfNode::initPublishers() {
 void EkfNode::initTimers() {
   if (mapping_mode_ != 2 && ekf_on_ == 1) {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(this->update_rate_),
-      std::bind(&EkfNode::timerCB, this));
+        std::chrono::duration<double, std::milli>(this->update_rate_),
+        std::bind(&EkfNode::timerCB, this));
   }
 }
 
@@ -108,7 +110,7 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   } else if (is_imu) {
 
     float dt = 0.01; // TODO: Get this from the message
-    extrapolateState(msg.imu_data, dt);
+    extrapolateState(msg.imu, dt);
   }
 
   // Publish the state estimation
@@ -399,8 +401,7 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y,
 }
 
 utfr_msgs::msg::EgoState
-EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu_data,
-                          const double dt) {
+EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
 
   Eigen::MatrixXd F; // State transition matrix
   Eigen::MatrixXd G; // Control input matrix
@@ -435,8 +436,8 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu_data,
       current_state_.vel.twist.angular.z;
 
   Eigen::VectorXd input = Eigen::VectorXd(3);
-  input << imu_data.linear_acceleration.x, imu_data.linear_acceleration.y,
-      -imu_data.angular_velocity.z;
+  input << imu.linear_acceleration.x, imu.linear_acceleration.y,
+      -imu.angular_velocity.z;
   state = F * state + G * input;
 
   // Extrapolate uncertainty
@@ -461,7 +462,7 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu_data,
   state_msg.vel.twist.linear.x = state(2);
   state_msg.vel.twist.linear.y = state(3);
   state_msg.pose.pose.orientation = utfr_dv::util::yawToQuaternion(state(4));
-  state_msg.vel.twist.angular.z = -imu_data.angular_velocity.z;
+  state_msg.vel.twist.angular.z = -imu.angular_velocity.z;
 
   return state_msg;
 }
