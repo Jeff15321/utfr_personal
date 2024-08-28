@@ -36,10 +36,10 @@
           "colorMode": "colormap",
           "colorMap": "turbo"
         },
-        "/right_camera_node/images/compressed": {
+        "/right_image/compressed": {
           "visible": false
         },
-        "/right_camera_node/images": {
+        "/right_image": {
           "visible": false
         }
       },
@@ -97,7 +97,7 @@
         "poseEstimateThetaDeviation": 0.26179939
       },
       "imageMode": {
-        "imageTopic": "/right_camera_node/images"
+        "imageTopic": "/right_image"
       }
     }
   },

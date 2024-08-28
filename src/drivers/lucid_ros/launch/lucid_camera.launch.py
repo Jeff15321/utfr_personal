@@ -13,7 +13,7 @@ def generate_launch_description():
     left_camera = Node(
         package="arena_camera_node",
         executable="start",
-        name="left_camera_node",
+        name="left_camera",
         output="screen",
         emulate_tty=True,
         parameters=[config],
@@ -22,7 +22,7 @@ def generate_launch_description():
     right_camera = Node(
         package="arena_camera_node",
         executable="start",
-        name="right_camera_node",
+        name="right_camera",
         output="screen",
         emulate_tty=True,
         parameters=[config],

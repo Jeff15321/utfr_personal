@@ -12,7 +12,7 @@
     </subscriber>
 
     <!-- publisher profile for topic sync_topic -->
-    <publisher profile_name="/right_camera_node/images">
+    <publisher profile_name="/right_image">
         <historyMemoryPolicy>DYNAMIC</historyMemoryPolicy>
         <qos>
             <publishMode>
@@ -22,7 +22,7 @@
     </publisher>
 
     <!-- publisher profile for topic async_topic -->
-    <publisher profile_name="/left_camera_node/images">
+    <publisher profile_name="/left_image">
         <historyMemoryPolicy>DYNAMIC</historyMemoryPolicy>
         <qos>
             <publishMode>
@@ -32,3 +32,4 @@
     </publisher>
 
 </profiles>
+

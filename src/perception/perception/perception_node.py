@@ -119,8 +119,8 @@ class PerceptionNode(Node):
 
         """
         self.declare_parameter("baseline", 10.0)
-        self.declare_parameter("left_camera_topic", "/left_camera_node/images")
-        self.declare_parameter("right_camera_topic", "/right_camera_node/images")
+        self.declare_parameter("left_camera_topic", "/left_image/compressed")
+        self.declare_parameter("right_camera_topic", "/right_image/compressed")
         self.declare_parameter("cone_detections_topic", "/perception/cone_detections")
         self.declare_parameter("heartbeat_topic", "/perception/heartbeat")
         self.declare_parameter("processed_lidar_topic", "/lidar_pipeline/clustered")
@@ -325,11 +325,11 @@ class PerceptionNode(Node):
         )
 
         self.left_cam_ready_subscriber_ = self.create_subscription(
-            Bool, "/left_camera_node/ready", self.leftCameraReadyCB, qos_latching
+            Bool, "/left_image/ready", self.leftCameraReadyCB, qos_latching
         )
 
         self.right_cam_ready_subscriber_ = self.create_subscription(
-            Bool, "/right_camera_node/ready", self.rightCameraReadyCB, qos_latching
+            Bool, "/right_image/ready", self.rightCameraReadyCB, qos_latching
         )
 
         # Call the left_cam_subscriber_ and right_cam_subscriber_ to prevent
@@ -379,19 +379,19 @@ class PerceptionNode(Node):
         Initialize Services
 
         left_camera_client_ : triggers left camera shutter
-          Trigger, topic: left_camera_node/trigger_image
+          Trigger, topic: left_image/trigger_image
 
         right_camera_client_ : triggers right camera shutter
-          Trigger, topic: right_camera_node/trigger_image
+          Trigger, topic: right_image/trigger_image
         """
 
         self.left_camera_client_ = self.create_client(
-            Trigger, "left_camera_node/trigger_image"
+            Trigger, "left_image/trigger_image"
         )
         self.left_camera_request_ = Trigger.Request()
 
         self.right_camera_client_ = self.create_client(
-            Trigger, "right_camera_node/trigger_image"
+            Trigger, "right_image/trigger_image"
         )
         self.right_camera_request_ = Trigger.Request()
 

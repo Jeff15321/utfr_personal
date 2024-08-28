@@ -61,7 +61,13 @@ PID_LAUNCH=$!
 sleep 30 # Wait for nodes to boot up
 
 cd "/media/utfr-dv/1tb ssd/rosbags"
-ros2 bag record -s mcap -a &
+ros2 bag record -s mcap \
+/car_interface/sensor_can \
+/left_image/compressed \
+/right_image/compressed \
+/ouster/points \
+/tf \
+/tf_static &
 PID_RECORD=$!
 
 sleep 120 # Record for 2 minutes
