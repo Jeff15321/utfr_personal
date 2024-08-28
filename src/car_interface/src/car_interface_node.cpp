@@ -473,11 +473,12 @@ void CarInterface::timerCB() {
 
   try {
     getSensorCan(); // Publish sensor and state data that is read from can
-    getDVState();   // Read DV state from car from can
-    // sendDVLogs();   // Publish FSG log format over ros and send over can
-    DVCompStateMachine(); // Set DV coputer state
-    sendStateAndCmd();    // Send DV computer state to RC and actuator commands
-                          // over can
+    // getDVState();   // Read DV state from car from can
+    // // sendDVLogs();   // Publish FSG log format over ros and send over can
+    // DVCompStateMachine(); // Set DV coputer state
+    // sendStateAndCmd();    // Send DV computer state to RC and actuator
+    // commands
+    //                       // over can
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
                  function_name.c_str(), e);

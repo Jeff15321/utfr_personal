@@ -21,10 +21,8 @@
 #include <string>
 
 // Message Requirements
-#include <geometry_msgs/msg/accel_stamped.hpp>
-#include <geometry_msgs/msg/quaternion_stamped.hpp>
-#include <geometry_msgs/msg/twist_stamped.hpp>
-#include <geometry_msgs/msg/vector3_stamped.hpp>
+#include <geometry_msgs/msg/twist.hpp>
+#include <geometry_msgs/msg/vector3.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <utfr_msgs/msg/cone_detections.hpp>
