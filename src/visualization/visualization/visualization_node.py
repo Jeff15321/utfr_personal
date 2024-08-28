@@ -637,7 +637,7 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "os_lidar"
+            cube_marker.header.frame_id = "os_sensor"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
@@ -662,7 +662,7 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "os_lidar"
+            cube_marker.header.frame_id = "os_sensor"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
@@ -687,7 +687,7 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "os_lidar"
+            cube_marker.header.frame_id = "os_sensor"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
@@ -712,7 +712,7 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "os_lidar"
+            cube_marker.header.frame_id = "os_sensor"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
@@ -737,7 +737,7 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "os_lidar"
+            cube_marker.header.frame_id = "os_sensor"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
