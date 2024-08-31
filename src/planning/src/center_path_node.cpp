@@ -136,22 +136,23 @@ void CenterPathNode::initEvent() {
 }
 
 void CenterPathNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
-  if (msg.ami_state == 1) {
+  if (msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION) {
     event_ = "accel";
     mission_subscriber_.reset();
-  } else if (msg.ami_state == 2) {
+  } else if (msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_SKIDPAD) {
     event_ = "skidpad";
     mission_subscriber_.reset();
-  } else if (msg.ami_state == 3) {
+  } else if (msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_TRACKDRIVE) {
     event_ = "trackdrive";
     mission_subscriber_.reset();
-  } else if (msg.ami_state == 4) {
+  } else if (msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_EBSTEST) {
     event_ = "EBSTest";
     mission_subscriber_.reset();
-  } else if (msg.ami_state == 5) {
+  } else if (msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_TESTING 
+        || msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION) {
     event_ = "ASTest";
     mission_subscriber_.reset();
-  } else if (msg.ami_state == 6) {
+  } else if (msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS) {
     event_ = "autocross";
     mission_subscriber_.reset();
   }

@@ -280,10 +280,10 @@ void CarInterface::DVCompStateMachine() {
       if (system_status_.ami_state ==
               std::clamp(system_status_.ami_state,
                          utfr_msgs::msg::SystemStatus::AMI_STATE_TESTING,
-                         utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS) &&
+                         utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION) &&
           !launched_) {
         launched_ = launchMission(); // Launch other dv nodes
-      } else if (heartbeat_status || str_motor_state_ > 0) {
+      } else if (heartbeat_status && str_motor_state_) {
         // Computer is ready
         dv_pc_state_ = DV_PC_STATE::READY;
         cmd_ = false;
@@ -294,16 +294,17 @@ void CarInterface::DVCompStateMachine() {
       break;
     }
     case utfr_msgs::msg::SystemStatus::AS_STATE_READY: {
-      if (heartbeat_status || str_motor_state_ > 0) {
+      if (heartbeat_status && str_motor_state_) {
         dv_pc_state_ = DV_PC_STATE::READY;
         cmd_ = false;
       } else {
         dv_pc_state_ = DV_PC_STATE::OFF;
+        cmd_ = false;
       }
       break;
     }
     case utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING: {
-      if (heartbeat_status || str_motor_state_ > 0) {
+      if (heartbeat_status && str_motor_state_) {
         dv_pc_state_ = DV_PC_STATE::DRIVING;
         cmd_ = true;
         if (finished_) {
@@ -315,11 +316,11 @@ void CarInterface::DVCompStateMachine() {
       }
       break;
     }
-    case utfr_msgs::msg::SystemStatus::AS_STATE_EMERGENCY_BRAKE: {
+    case utfr_msgs::msg::SystemStatus::AS_STATE_EMERGENCY: {
       dv_pc_state_ = DV_PC_STATE::EMERGENCY;
       cmd_ = false;
       if (!shutdown_) {
-        // shutdown_ = shutdownNodes();
+        shutdown_ = shutdownNodes();
       }
       break;
     }
@@ -327,7 +328,7 @@ void CarInterface::DVCompStateMachine() {
       dv_pc_state_ = DV_PC_STATE::FINISH; // Should already be finish
       cmd_ = false;                       // Should already be false
       if (!shutdown_) {
-        // shutdown_ = shutdownNodes();
+        shutdown_ = shutdownNodes();
       }
       break;
     }
@@ -408,7 +409,7 @@ void CarInterface::sendStateAndCmd() {
 bool CarInterface::launchMission() {
   const std::string function_name{"launchMission"};
 
-  std::string launchCmd;
+  std::string launchCmd = "";
   std::vector<std::string> modules;
 
   switch (system_status_.ami_state) {
@@ -425,7 +426,7 @@ bool CarInterface::launchMission() {
     modules = heartbeat_modules_inspection_;
     break;
 
-  case utfr_msgs::msg::SystemStatus::AMI_STATE_BRAKETEST:
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_EBSTEST:
   case utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION:
     RCLCPP_INFO(this->get_logger(), "%s: Launching Accel/EBS test mission",
                 function_name.c_str());
@@ -478,9 +479,9 @@ void CarInterface::timerCB() {
   const std::string function_name{"timerCB"};
 
   try {
-    getSensorCan(); // Publish sensor and state data that is read from can
-    getDVState();   // Read DV state from car from can
-    // // sendDVLogs();   // Publish FSG log format over ros and send over can
+    getSensorCan();       // Publish sensor and state data that is read from can
+    getDVState();         // Read DV state from car from can
+    sendDVLogs();         // Publish FSG log format over ros and send over can
     DVCompStateMachine(); // Set DV coputer state
     sendStateAndCmd();    // Send DV computer state to RC and actuator commands
                           // over can

@@ -23,13 +23,15 @@ void CarInterface::getSteeringMotorData() { // TODO: Review
   try {
     // servo mode
     str_motor_state_ =
-        (uint8_t)can0_->getSignal(dv_can_msg::StrMotorInfo, 56, 8, false, 1);
+        (uint8_t)can0_->getSignal(dv_can_msg::StrMotorInfo, 48, 8, false, 1);
     // TODO: figure out whether getSignal can be used with high byte / low byte
     // format
     steering_angle = // degrees
         -(uint16_t)can0_->getSignal(dv_can_msg::StrMotorInfo, 0, 16, true, 0.1);
 
     RCLCPP_INFO(this->get_logger(), "Steering Motor Angle: %d", steering_angle);
+    RCLCPP_INFO(this->get_logger(), "Steering Motor State: %d",
+                str_motor_state_);
     if ((abs(steering_angle) > 50)) {
       RCLCPP_ERROR(this->get_logger(), "%s: Value error",
                    function_name.c_str());
@@ -244,7 +246,7 @@ void CarInterface::getSensorCan() {
 
   try {
     // Read sensor CAN messages from car
-    // getSteeringMotorData();
+    getSteeringMotorData();
     // getMotorSpeedData();
     // getMotorTorqueData();
     // getServiceBrakeData();
@@ -266,24 +268,24 @@ void CarInterface::getDVState() {
   // Get DV state from car
   system_status_.as_state =
       can0_->getSignal(dv_can_msg::FULL_AS_STATE, 0, 3, false, 1);
-  RCLCPP_INFO(this->get_logger(), "%s: AS STATE: %d", function_name.c_str(),
-              system_status_.as_state);
+  // RCLCPP_INFO(this->get_logger(), "%s: AS STATE: %d", function_name.c_str(),
+  //             system_status_.as_state);
   system_status_.ebs_state =
       can0_->getSignal(dv_can_msg::FULL_AS_STATE, 3, 2, false, 1);
-  RCLCPP_INFO(this->get_logger(), "%s: EBS STATE: %d", function_name.c_str(),
-              system_status_.ebs_state);
+  // RCLCPP_INFO(this->get_logger(), "%s: EBS STATE: %d", function_name.c_str(),
+  //             system_status_.ebs_state);
   system_status_.ami_state =
       can0_->getSignal(dv_can_msg::FULL_AS_STATE, 5, 3, false, 1);
-  RCLCPP_INFO(this->get_logger(), "%s: AMI STATE: %d", function_name.c_str(),
-              system_status_.ami_state);
+  // RCLCPP_INFO(this->get_logger(), "%s: AMI STATE: %d", function_name.c_str(),
+  // system_status_.ami_state);
   system_status_.steering_state = (str_motor_state_ == 0) ? 1 : 0;
-  RCLCPP_INFO(this->get_logger(), "%s: STEERING STATE: %d",
-              function_name.c_str(), system_status_.steering_state);
+  // RCLCPP_INFO(this->get_logger(), "%s: STEERING STATE: %d",
+  //             function_name.c_str(), system_status_.steering_state);
   system_status_.service_brake_state =
       can0_->getSignal(dv_can_msg::FULL_AS_STATE, 9, 2, false, 1);
-  RCLCPP_INFO(this->get_logger(), "%s: BRAKE STATE: %d", function_name.c_str(),
-              system_status_.service_brake_state);
+  // RCLCPP_INFO(this->get_logger(), "%s: BRAKE STATE: %d",
+  // function_name.c_str(),
+  //             system_status_.service_brake_state);
 }
-
 } // namespace car_interface
 } // namespace utfr_dv

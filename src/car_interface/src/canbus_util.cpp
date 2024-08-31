@@ -176,7 +176,7 @@ void CanInterface::write_can(dv_can_msg msgName, long long data, bool byteWise) 
   to_write.len = 8;
   uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-  std::cout << "write can" << std::endl;
+  // std::cout << "write can" << std::endl;
 
   if (byteWise) {
     // Little Endian (initially)
