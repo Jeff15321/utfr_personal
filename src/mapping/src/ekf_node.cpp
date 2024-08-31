@@ -53,13 +53,14 @@ void EkfNode::initSubscribers() {
             topics::kSensorCan, 1,
             std::bind(&EkfNode::sensorCB, this, std::placeholders::_1));
 
-    gps_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
+    /* gps_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
         "/ground_truth/odom", 1,
         std::bind(&EkfNode::gpsCB, this, std::placeholders::_1));
 
     imu_subscriber_ = this->create_subscription<sensor_msgs::msg::Imu>(
         "/imu/data", 1,
         std::bind(&EkfNode::imuCB, this, std::placeholders::_1));
+    */
   }
 }
 
@@ -92,31 +93,59 @@ void EkfNode::publishHeartbeat(const int status) {
 }
 
 void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
-  // We gotta figure out a way to determine if we're getting a GPS message or
-  // an IMU one. Just follow our train of thought here:
+    double gps_x = msg.position.latitude;
+    double gps_y = msg.position.longitude;
 
-  bool is_gps = false;
-  bool is_imu = false;
+    std::vector<double> gps_enu = lla2enu({gps_x, gps_y, msg.position.altitude});
+    gps_x = gps_enu[0];
+    gps_y = gps_enu[1];
 
-  if (is_gps) {
+    // Initialize a random number generator for noise
+    double standardDeviation = std::sqrt(0.001);  // Define or pass as a parameter
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<double> distribution(0.0, standardDeviation);
 
-    // Get the position from the GPS
-    // ...
-    // throwing in random value for now
-    double x = 1.0;
-    double y = 2.0;
-    updateState(x, y, 0);
+    std::uniform_real_distribution<double> angle_distribution(0.0, 2 * M_PI);
+    double angle = angle_distribution(gen);
+    gps_x += distribution(gen) * cos(angle);
+    gps_y += distribution(gen) * sin(angle);
 
-  } else if (is_imu) {
+    // Get yaw directly from IMU
+    double imu_yaw = utfr_dv::util::quaternionToYaw(msg.imu.orientation);
 
-    float dt = 0.01; // TODO: Get this from the message
-    extrapolateState(msg.imu, dt);
-  }
+    // Extract velocity data from SensorCan message
+    double vel_x = msg.velocity.linear.x;
+    double vel_y = msg.velocity.linear.y;
+    double vel_yaw = msg.velocity.angular.z;
 
-  // Publish the state estimation
-  // ...
+    // Update state with GPS position, IMU yaw, and extracted velocities
+    utfr_msgs::msg::EgoState res = updateState(gps_x, gps_y, -imu_yaw);
+    res.header.stamp = this->get_clock()->now();
+
+    res.vel.twist.linear.x = vel_x;
+    res.vel.twist.linear.y = vel_y;
+    res.vel.twist.angular.z = vel_yaw;
+
+    current_state_ = res;
+
+    // Extrapolate state using IMU data
+    double dt = (this->now() - prev_time_).seconds();
+    prev_time_ = this->now();
+    res = extrapolateState(msg.imu, dt);
+    res.header.stamp = this->get_clock()->now();
+    current_state_ = res;
+
+    // Adjust position y for specific coordinate system handling
+    res.pose.pose.position.y = -res.pose.pose.position.y;
+
+    // Publish the updated state
+    ego_state_publisher_->publish(res);
 }
 
+// sensor_msgs/NavSatFix position
+// sensor_msgs/Imu imu
+/*
 void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
   double x = msg.pose.pose.position.x;
   double y = msg.pose.pose.position.y;
@@ -152,6 +181,7 @@ void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
   res.vel.twist.linear.y = vel_y;
   res.vel.twist.angular.z = vel_yaw;
   current_state_ = res;
+
   res.pose.pose.position.y = -res.pose.pose.position.y;
   ego_state_publisher_->publish(res);
 }
@@ -169,6 +199,7 @@ void EkfNode::imuCB(const sensor_msgs::msg::Imu msg) {
   // std::cout << "x: " << res.pose.pose.position.x << " y: " <<
   // res.pose.pose.position.y << std::endl;
 }
+*/
 
 void EkfNode::kinematicBicycleModel(const float &throttle, const float &brake,
                                     const float &steering_angle,
@@ -467,7 +498,7 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
   return state_msg;
 }
 
-std::vector<double> EkfNode::lla2ecr(std::vector<double> &inputVector) {
+std::vector<double> EkfNode::lla2ecr(const std::vector<double> &inputVector) {
   double lat = inputVector[0];
   double lon = inputVector[1];
   double h = inputVector[2];
@@ -510,7 +541,7 @@ void EkfNode::ecr2enu(double &x, double &y, double &z,
   y = d[1] - b[1];
   z = d[2] - b[2];
 }
-std::vector<double> EkfNode::lla2enu(std::vector<double> &inputVector) {
+std::vector<double> EkfNode::lla2enu(const std::vector<double> &inputVector) {
 
   std::vector<double> resultVector = {0, 0, 0};
   if (std::isnan(datum_lla[0])) {
