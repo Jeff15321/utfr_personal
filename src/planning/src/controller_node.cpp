@@ -149,34 +149,34 @@ void ControllerNode::initTimers() {
 
 void ControllerNode::initEvent() { // TODO: TEST
   if (event_ == "read") {
-    // mission_subscriber_ =
-    //     this->create_subscription<utfr_msgs::msg::SystemStatus>(
-    //         topics::kSystemStatus, 10,
-    //         std::bind(&ControllerNode::missionCB, this,
-    //         std::placeholders::_1));
+    mission_subscriber_ =
+        this->create_subscription<utfr_msgs::msg::SystemStatus>(
+            topics::kSystemStatus, 10,
+            std::bind(&ControllerNode::missionCB, this,
+            std::placeholders::_1));
   }
 }
 
 void ControllerNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
-  // if (msg.ami_state == 1) {
-  //   event_ = "accel";
-  //   mission_subscriber_.reset();
-  // } else if (msg.ami_state == 2) {
-  //   event_ = "skidpad";
-  //   mission_subscriber_.reset();
-  // } else if (msg.ami_state == 3) {
-  //   event_ = "trackdrive";
-  //   mission_subscriber_.reset();
-  // } else if (msg.ami_state == 4) {
-  //   event_ = "EBSTest";
-  //   mission_subscriber_.reset();
-  // } else if (msg.ami_state == 5) {
-  //   event_ = "ASTest";
-  //   mission_subscriber_.reset();
-  // } else if (msg.ami_state == 6) {
-  //   event_ = "autocross";
-  //   mission_subscriber_.reset();
-  // }
+  if (msg.ami_state == 1) {
+    event_ = "accel";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 2) {
+    event_ = "skidpad";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 3) {
+    event_ = "trackdrive";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 4) {
+    event_ = "EBSTest";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 5) {
+    event_ = "ASTest";
+    mission_subscriber_.reset();
+  } else if (msg.ami_state == 6) {
+    event_ = "autocross";
+    mission_subscriber_.reset();
+  }
 
   if (as_state == 2 && msg.as_state == 3) {
     start_time_ = this->get_clock()->now();
@@ -323,6 +323,10 @@ void ControllerNode::pointCB(const geometry_msgs::msg::Pose &msg) {
 void ControllerNode::timerCBAccel() {
   const std::string function_name{"controller_timerCB:"};
 
+  if (as_state != 3){
+    return;
+  }
+
   try {
     if (!path_ || !ego_state_) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
@@ -374,6 +378,10 @@ void ControllerNode::timerCBAccel() {
 
 void ControllerNode::timerCBSkidpad() {
   const std::string function_name{"controller_timerCB:"};
+
+  if (as_state != 3){
+    return;
+  }
 
   try {
     if (!(path_ || point_) || !ego_state_) {
@@ -437,8 +445,11 @@ void ControllerNode::timerCBSkidpad() {
 void ControllerNode::timerCBAutocross() {
   const std::string function_name{"controller_timerCB:"};
 
-  try {
+  if (as_state != 3){
+    return;
+  }
 
+  try {
     if (!path_ || !ego_state_) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
@@ -489,6 +500,10 @@ void ControllerNode::timerCBAutocross() {
 
 void ControllerNode::timerCBTrackdrive() {
   const std::string function_name{"controller_timerCB:"};
+
+  if (as_state != 3){
+    return;
+  }
 
   try {
 
@@ -543,6 +558,10 @@ void ControllerNode::timerCBTrackdrive() {
 
 void ControllerNode::timerCBEBS() {
   const std::string function_name{"controller_timerCB:"};
+
+  if (as_state != 3){
+    return;
+  }
 
   try {
     if (!path_) {

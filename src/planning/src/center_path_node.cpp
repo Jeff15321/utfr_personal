@@ -156,6 +156,15 @@ void CenterPathNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
     event_ = "autocross";
     mission_subscriber_.reset();
   }
+
+  if (as_state == 2 && msg.as_state == 3) {
+    last_time = this->get_clock()->now();
+    last_switch_time = this->get_clock()->now();
+    lock_sector_ = true;
+    found_4_large_orange = false;
+  }
+
+  as_state = msg.as_state;
 }
 
 void CenterPathNode::initTimers() {
@@ -202,10 +211,6 @@ void CenterPathNode::initSector() {
   } else {
     curr_sector_ = 0;
   }
-  last_time = this->get_clock()->now();
-  last_switch_time = this->get_clock()->now();
-  lock_sector_ = true;
-  found_4_large_orange = false;
 }
 
 void CenterPathNode::initHeartbeat() {
@@ -344,6 +349,9 @@ void CenterPathNode::coneMapClosureCB(const std_msgs::msg::Bool &msg) {
 }
 
 void CenterPathNode::timerCBAccel() {
+  if (as_state != 3){
+    return;
+  }
   try {
     const std::string function_name{"center_path_timerCB:"};
 
@@ -394,6 +402,9 @@ void CenterPathNode::timerCBAccel() {
 }
 
 void CenterPathNode::timerCBSkidpad() {
+  if (as_state != 3){
+    return;
+  }
   const std::string function_name{"center_path_timerCB:"};
   try {
     if (cone_detections_ == nullptr || ego_state_ == nullptr) {
@@ -427,6 +438,9 @@ void CenterPathNode::timerCBSkidpad() {
 }
 
 void CenterPathNode::timerCBAutocross() {
+  if (as_state != 3){
+    return;
+  }
   const std::string function_name{"center_path_timerCB:"};
 
   try {
@@ -493,6 +507,9 @@ void CenterPathNode::timerCBAutocross() {
 }
 
 void CenterPathNode::timerCBTrackdrive() {
+  if (as_state != 3){
+    return;
+  }
   const std::string function_name{"center_path_timerCB:"};
 
   try {
@@ -558,6 +575,9 @@ void CenterPathNode::timerCBTrackdrive() {
 }
 
 void CenterPathNode::timerCBEBS() {
+  if (as_state != 3){
+    return;
+  }
   try {
     const std::string function_name{"center_path_timerCB:"};
 
@@ -590,6 +610,9 @@ void CenterPathNode::timerCBEBS() {
 }
 
 void CenterPathNode::timerCBAS() {
+  if (as_state != 3){
+    return;
+  }
   publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
 }
 
