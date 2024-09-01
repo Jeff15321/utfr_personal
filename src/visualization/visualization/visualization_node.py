@@ -637,12 +637,13 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "os_sensor"
+            cube_marker.header.frame_id = "ground"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
             cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
@@ -662,12 +663,13 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "os_sensor"
+            cube_marker.header.frame_id = "ground"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
             cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
@@ -687,12 +689,13 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "os_sensor"
+            cube_marker.header.frame_id = "ground"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
             cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
@@ -712,12 +715,13 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "os_sensor"
+            cube_marker.header.frame_id = "ground"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
             cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
@@ -737,12 +741,13 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "os_sensor"
+            cube_marker.header.frame_id = "ground"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
             cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0

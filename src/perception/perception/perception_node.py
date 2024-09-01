@@ -598,7 +598,7 @@ class PerceptionNode(Node):
         # initialize detection msg
         # TODO - make 1 detections message and combine them at the end
         self.detections_msg = ConeDetections()
-        self.detections_msg.header.frame_id = "os_sensor"
+        self.detections_msg.header.frame_id = "ground"
 
         # publish the heartbeat
         self.publishHeartbeat()
@@ -712,7 +712,7 @@ class PerceptionNode(Node):
                 self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
             )
 
-            print(left_detections_lidar_frame.shape, right_detections_lidar_frame.shape)
+            # print(left_detections_lidar_frame.shape, right_detections_lidar_frame.shape)
             # concatenate into one array
             if left_detections_lidar_frame.shape[0] == 0:
                 total_cam_det = right_detections_lidar_frame
@@ -727,7 +727,7 @@ class PerceptionNode(Node):
 
             # perception detections debug
             self.detections_debug = ConeDetections()
-            self.detections_debug.header.frame_id = "os_sensor"
+            self.detections_debug.header.frame_id = "ground"
 
             self.detections_debug.header.stamp = self.get_clock().now().to_msg()
 
@@ -772,10 +772,10 @@ class PerceptionNode(Node):
                     colours[ind] = 0
 
                 cone_detections = np.concatenate((positions, colours), axis=1)
-                print(col_ind)
+                # print(col_ind)
                 camera_det = np.delete(total_cam_det, col_ind, axis=0)
                 cone_detections = np.concatenate((cone_detections, camera_det), axis=0)
-                print(cone_detections.shape)
+                # print(cone_detections.shape)
             else:
 
                 positions = lidar_point_cloud_data[:, :3]
