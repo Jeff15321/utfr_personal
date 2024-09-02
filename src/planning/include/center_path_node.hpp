@@ -370,6 +370,7 @@ private:
   bool use_mapping_ = false;
   double base_lookahead_distance_;
   double lookahead_scaling_factor_;
+  int as_state = 0;
 
   bool loop_closed_ = false;
 

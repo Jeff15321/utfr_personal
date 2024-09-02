@@ -2,18 +2,20 @@
 	path = src/utfr_sim
 	url = git@github.com:UTFR/utfr_sim.git
 	branch = main
+	ignore = all
+[submodule "src/drivers/ouster_ros"]
+	path = src/drivers/ouster_ros
+	url = git@github.com:UTFR/ouster_ros.git
+	ignore = all
+[submodule "src/drivers/xsens_ros"]
+	path = src/drivers/xsens_ros
+	url = git@github.com:UTFR/xsens_ros.git
+	ignore = all
 [submodule "src/mapping/external/g2o"]
 	path = src/mapping/external/g2o
-	url = git@github.com:RainerKuemmerle/g2o.git
-	branch = master
-[submodule "src/drivers/ouster-ros"]
-	path = src/drivers/ouster-ros
-	url = git@github.com:ouster-lidar/ouster-ros.git
-	branch = ros2
+	url = git@github.com:UTFR/g2o.git
+	ignore = all
 [submodule "src/planning/external/spline"]
 	path = src/planning/external/spline
-	url = git@github.com:ttk592/spline.git
-[submodule "src/drivers/Xsens_MTi_ROS_Driver_and_Ntrip_Client"]
-	path = src/drivers/Xsens_MTi_ROS_Driver_and_Ntrip_Client
-	url = git@github.com:xsenssupport/Xsens_MTi_ROS_Driver_and_Ntrip_Client.git
-	branch = ros2
+	url = git@github.com:UTFR/spline.git
+	ignore = all

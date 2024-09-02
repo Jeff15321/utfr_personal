@@ -14,10 +14,22 @@ jobs:
         uses: ros-tooling/setup-ros@0.7.0
         with:
           required-ros-distributions: humble
+
       - name: Install CGAL and Boost
         run: |
           sudo apt-get update
           sudo apt-get install -y libcgal-dev libboost-all-dev
+
+      - name: Clone and build g2o
+        run: |
+          sudo apt-get install -y cmake libeigen3-dev libsuitesparse-dev
+          git clone https://github.com/RainerKuemmerle/g2o.git
+          cd g2o
+          mkdir build && cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+          make -j$(nproc)
+          sudo make install
+      
       - name: Build and run tests
         uses: ros-tooling/action-ros-ci@0.3.3
         with:

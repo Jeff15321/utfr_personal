@@ -124,17 +124,18 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
     classes = []
     scores = []
 
-    for i, (batch_id, x0, y0, x1, y1, cls_id, score) in enumerate(outputs):
+    for output in outputs:
+        x0, y0, x1, y1, cls_id, score = output[1:7]
+
         if score < confidence:
-            # if it is less than the config confidence value, than it is unknown random cone
-            cls_id = 0
-        image = ori_images[int(batch_id)]
+            cls_id = 0  # unknown random cone
+
+        image = ori_images[0]  # Assuming batch size of 1
         box = np.array([x0, y0, x1, y1])
         box -= np.array(dwdh * 2)
         box /= ratio
         box = box.round().astype(np.int32).tolist()
         cls_id = int(cls_id)
-
         score = round(float(score), 3)
         name = names[cls_id]
 
@@ -144,20 +145,19 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
         box[2] = abs(box[0] - box[2])
         box[3] = abs(box[1] - box[3])
 
-        # TODO: Modify bounding_box datastructure to include class and scoring information. Discuss with downstream.
         bounding_boxes.append(box)
         classes.append(name)
         scores.append(score)
 
-        if visualize == True:
+        if visualize:
             color = colors[name]
-            name += " " + str(score)
-            x0, y0, x1, y1 = box
-            cv2.rectangle(image, (x0, y0), (x1, y1), color, 2)
+            label = f"{name} {score}"
+            x0, y0, w, h = box
+            cv2.rectangle(image, (x0, y0), (x0 + w, y0 + h), color, 2)
             cv2.putText(
                 image,
-                name,
-                (box[0], box[1] - 2),
+                label,
+                (x0, y0 - 2),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.75,
                 [225, 255, 255],
@@ -266,25 +266,16 @@ def transform_det_lidar(detections, transform):
     transformed_points = []
     for point in detections:
         # Create a PointStamped message
-        point_stamped = Point()
-        point_stamped.x = point[0]
-        point_stamped.y = point[1]
-        point_stamped.z = point[2]
+        p = Point()
+        p.x = point[0]
+        p.y = point[1]
+        p.z = point[2]
 
         try:
-            transformed_point_stamped = tf2_geometry_msgs.do_transform_point(
-                PointStamped(point=point_stamped), transform
+            p_tf = tf2_geometry_msgs.do_transform_point(
+                PointStamped(point=p), transform
             ).point
-            transformed_point = [
-                -1.0 * transformed_point_stamped.x,
-                -1.0 * transformed_point_stamped.y,
-                -1.0 * transformed_point_stamped.z,
-                # -1.0 * transformed_point_stamped.z,
-                # -1.0 * transformed_point_stamped.x,
-                # -1.0 * transformed_point_stamped.y,
-                point[3],
-            ]
-            transformed_points.append(transformed_point)
+            transformed_points.append([p_tf.x, p_tf.y, p_tf.z, point[3]])
 
         except TransformException as ex:
             print(ex)

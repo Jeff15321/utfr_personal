@@ -93,6 +93,10 @@ void ControllerNode::initSubscribers() {
   point_subscriber_ = this->create_subscription<geometry_msgs::msg::Pose>(
       topics::kSkidpadCenterPoint, 10,
       std::bind(&ControllerNode::pointCB, this, _1));
+
+  mission_subscriber_ = this->create_subscription<utfr_msgs::msg::SystemStatus>(
+      topics::kSystemStatus, 10,
+      std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
 }
 
 void ControllerNode::initPublishers() {
@@ -143,12 +147,13 @@ void ControllerNode::initTimers() {
   }
 }
 
-void ControllerNode::initEvent() {
+void ControllerNode::initEvent() { // TODO: TEST
   if (event_ == "read") {
     mission_subscriber_ =
         this->create_subscription<utfr_msgs::msg::SystemStatus>(
             topics::kSystemStatus, 10,
-            std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
+            std::bind(&ControllerNode::missionCB, this,
+            std::placeholders::_1));
   }
 }
 
@@ -172,6 +177,12 @@ void ControllerNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
     event_ = "autocross";
     mission_subscriber_.reset();
   }
+
+  if (as_state == 2 && msg.as_state == 3) {
+    start_time_ = this->get_clock()->now();
+  }
+
+  as_state = msg.as_state;
 }
 
 void ControllerNode::initGGV(std::string filename) {
@@ -312,6 +323,10 @@ void ControllerNode::pointCB(const geometry_msgs::msg::Pose &msg) {
 void ControllerNode::timerCBAccel() {
   const std::string function_name{"controller_timerCB:"};
 
+  if (as_state != 3){
+    return;
+  }
+
   try {
     if (!path_ || !ego_state_) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
@@ -363,6 +378,10 @@ void ControllerNode::timerCBAccel() {
 
 void ControllerNode::timerCBSkidpad() {
   const std::string function_name{"controller_timerCB:"};
+
+  if (as_state != 3){
+    return;
+  }
 
   try {
     if (!(path_ || point_) || !ego_state_) {
@@ -426,8 +445,11 @@ void ControllerNode::timerCBSkidpad() {
 void ControllerNode::timerCBAutocross() {
   const std::string function_name{"controller_timerCB:"};
 
-  try {
+  if (as_state != 3){
+    return;
+  }
 
+  try {
     if (!path_ || !ego_state_) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
@@ -478,6 +500,10 @@ void ControllerNode::timerCBAutocross() {
 
 void ControllerNode::timerCBTrackdrive() {
   const std::string function_name{"controller_timerCB:"};
+
+  if (as_state != 3){
+    return;
+  }
 
   try {
 
@@ -533,6 +559,10 @@ void ControllerNode::timerCBTrackdrive() {
 void ControllerNode::timerCBEBS() {
   const std::string function_name{"controller_timerCB:"};
 
+  if (as_state != 3){
+    return;
+  }
+
   try {
     if (!path_) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
@@ -583,14 +613,18 @@ void ControllerNode::timerCBAS() {
   double curr_time = this->now().seconds();
   double time_diff = curr_time - start_time_.seconds();
 
-  if (time_diff < 30.0) {
-    target_.speed = 5.0;
-    target_.steering_angle = sin(time_diff * 3.1415);
+  if (as_state == 3 && time_diff < 30.0) {
+    target_.speed = 1.0;
+    target_.steering_angle = sin(time_diff * 3.1415 / 3) * max_steering_angle_;
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } else {
+  } else if (as_state == 3) {
     target_.speed = 0.0;
     target_.steering_angle = 0.0;
     publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
+  } else {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    target_.speed = 0.0;
+    target_.steering_angle = 0.0;
   }
   target_state_publisher_->publish(target_);
 }
@@ -812,7 +846,8 @@ ControllerNode::purePursuitController(double max_steering_angle,
   // Limit steering angle within bounds.
   delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
 
-  double max_steering_rate = static_cast<double>(109 * 100 / 22.0 / 60.0 / update_rate_);
+  double max_steering_rate =
+      static_cast<double>(109 * 100 / 22.0 / 60.0 / update_rate_);
   if (abs(delta - last_steering_angle_) > max_steering_rate) {
     if (delta > last_steering_angle_) {
       delta = last_steering_angle_ + max_steering_rate;

@@ -34,7 +34,7 @@ from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 
 # Message Requirements
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import CompressedImage
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2
 from std_msgs.msg import Bool
@@ -43,9 +43,6 @@ from utfr_msgs.msg import Heartbeat
 from utfr_msgs.msg import Cone
 from utfr_msgs.msg import BoundingBox
 from utfr_msgs.msg import PerceptionDebug
-
-# Service Requirements
-from std_srvs.srv import Trigger
 
 # Service Requirements
 from std_srvs.srv import Trigger
@@ -122,8 +119,12 @@ class PerceptionNode(Node):
 
         """
         self.declare_parameter("baseline", 10.0)
-        self.declare_parameter("left_camera_topic", "/left_camera_node/images")
-        self.declare_parameter("right_camera_topic", "/right_camera_node/images")
+        self.declare_parameter(
+            "left_camera_topic", "/left_camera_node/images/compressed"
+        )
+        self.declare_parameter(
+            "right_camera_topic", "/right_camera_node/images/compressed"
+        )
         self.declare_parameter("cone_detections_topic", "/perception/cone_detections")
         self.declare_parameter("heartbeat_topic", "/perception/heartbeat")
         self.declare_parameter("processed_lidar_topic", "/lidar_pipeline/clustered")
@@ -280,10 +281,13 @@ class PerceptionNode(Node):
         # Get the current device for inference
         device = ort.get_device()
         print("Current Device for Inference:", device)
-        self.session = ort.InferenceSession("src/perception/perception/yolov8n.onnx")
+        self.session = ort.InferenceSession(
+            "src/perception/perception/best.onnx",
+            providers=["CUDAExecutionProvider"],
+        )
 
         # create transform frame variables
-        self.lidar_frame = "lidar"
+        self.lidar_frame = "os_sensor"
         self.left_camera_frame = "left_camera"
         self.right_camera_frame = "right_camera"
 
@@ -308,11 +312,11 @@ class PerceptionNode(Node):
           msg: sensor_msgs::PointCloud2, topic:
         """
         self.left_cam_subscriber_ = self.create_subscription(
-            Image, self.left_camera_topic, self.leftCameraCB, 1
+            CompressedImage, self.left_camera_topic, self.leftCameraCB, 1
         )
 
         self.right_cam_subscriber_ = self.create_subscription(
-            Image, self.right_camera_topic, self.rightCameraCB, 1
+            CompressedImage, self.right_camera_topic, self.rightCameraCB, 1
         )
 
         self.processed_lidar_subscriber_ = self.create_subscription(
@@ -325,11 +329,11 @@ class PerceptionNode(Node):
         )
 
         self.left_cam_ready_subscriber_ = self.create_subscription(
-            Bool, "/left_camera_node/ready", self.leftCameraReadyCB, qos_latching
+            Bool, "/left_image/ready", self.leftCameraReadyCB, qos_latching
         )
 
         self.right_cam_ready_subscriber_ = self.create_subscription(
-            Bool, "/right_camera_node/ready", self.rightCameraReadyCB, qos_latching
+            Bool, "/right_image/ready", self.rightCameraReadyCB, qos_latching
         )
 
         # Call the left_cam_subscriber_ and right_cam_subscriber_ to prevent
@@ -379,19 +383,19 @@ class PerceptionNode(Node):
         Initialize Services
 
         left_camera_client_ : triggers left camera shutter
-          Trigger, topic: left_camera_node/trigger_image
+          Trigger, topic: left_image/trigger_image
 
         right_camera_client_ : triggers right camera shutter
-          Trigger, topic: right_camera_node/trigger_image
+          Trigger, topic: right_image/trigger_image
         """
 
         self.left_camera_client_ = self.create_client(
-            Trigger, "left_camera_node/trigger_image"
+            Trigger, "left_image/trigger_image"
         )
         self.left_camera_request_ = Trigger.Request()
 
         self.right_camera_client_ = self.create_client(
-            Trigger, "right_camera_node/trigger_image"
+            Trigger, "right_image/trigger_image"
         )
         self.right_camera_request_ = Trigger.Request()
 
@@ -450,42 +454,58 @@ class PerceptionNode(Node):
 
     def leftCameraCB(self, msg):
         """
-        Callback function for left_cam_subscriber_
+        Callback function for left_cam_subscriber_ with CompressedImage message
         """
         try:
-            self.left_img_header = msg.header
-            self.left_img_ = self.bridge.imgmsg_to_cv2(
-                msg, desired_encoding="passthrough"
-            )
-            self.left_img_ = cv2.cvtColor(self.left_img_, cv2.COLOR_BayerRG2RGB)
-            self.left_img_recieved_ = True
+            # Convert the CompressedImage message to a CV2 image
+            np_arr = np.frombuffer(msg.data, np.uint8)
+            self.left_img_ = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode JPEG image
 
-            if self.first_img_arrived_ == False:
-                self.previous_left_img_ = self.left_img_
-                self.first_img_arrived_ = True
+            # Check if the image is valid
+            if self.left_img_ is not None:
+                self.left_img_header = msg.header
+                self.left_img_recieved_ = True
+
+                if not self.first_img_arrived_:
+                    self.previous_left_img_ = self.left_img_
+                    self.first_img_arrived_ = True
+            else:
+                self.get_logger().warn("Received an empty image")
 
         except CvBridgeError as e:
-            exception = "Perception::leftCameraCB: " + e
+            exception = "Perception::leftCameraCB: " + str(e)
+            self.get_logger().error(exception)
+        except Exception as e:
+            exception = "Perception::leftCameraCB: " + str(e)
             self.get_logger().error(exception)
 
     def rightCameraCB(self, msg):
         """
-        Callback function for right_cam_subscriber_
+        Callback function for right_cam_subscriber_ with CompressedImage message
         """
         try:
-            self.right_img_header = msg.header
-            self.right_img_ = self.bridge.imgmsg_to_cv2(
-                msg, desired_encoding="passthrough"
-            )
-            self.right_img_ = cv2.cvtColor(self.right_img_, cv2.COLOR_BayerRG2RGB)
-            self.right_img_recieved_ = True
+            # Convert the CompressedImage message to a CV2 image
+            np_arr = np.frombuffer(msg.data, np.uint8)
+            self.right_img_ = cv2.imdecode(
+                np_arr, cv2.IMREAD_COLOR
+            )  # Decode JPEG image
 
-            if self.first_img_arrived_ == False:
-                self.previous_right_img_ = self.right_img_
-                self.first_img_arrived_ = True
+            # Check if the image is valid
+            if self.right_img_ is not None:
+                self.right_img_header = msg.header
+                self.right_img_recieved_ = True
+
+                if not self.first_img_arrived_:
+                    self.previous_right_img_ = self.right_img_
+                    self.first_img_arrived_ = True
+            else:
+                self.get_logger().warn("Received an empty image")
 
         except CvBridgeError as e:
-            exception = "Perception::rightCameraCB: " + e
+            exception = "Perception::rightCameraCB: " + str(e)
+            self.get_logger().error(exception)
+        except Exception as e:
+            exception = "Perception::rightCameraCB: " + str(e)
             self.get_logger().error(exception)
 
     def leftCameraReadyCB(self, msg):
@@ -506,7 +526,7 @@ class PerceptionNode(Node):
         """
         # TODO - create a variable in initvariables which stores the most recent
         # processed lidar point cloud whenever lidarCB is called
-        self.get_logger().warn("Received latest lidar message")
+        # self.get_logger().warn("Received latest lidar message")
         self.lidar_msg = msg  # Store the incoming lidar data
 
     def process(self, left_img_, right_img_):
@@ -578,32 +598,31 @@ class PerceptionNode(Node):
         # initialize detection msg
         # TODO - make 1 detections message and combine them at the end
         self.detections_msg = ConeDetections()
-        self.detections_msg.header.frame_id = "os_lidar"
+        self.detections_msg.header.frame_id = "ground"
 
         # publish the heartbeat
         self.publishHeartbeat()
 
         if not self.lidar_msg:
             return
-        
+
         if self.lidar_only_detection == False:
             # check if ready
-            if not self.left_ready_ or not self.right_ready_:
-                return
+            # if not self.left_ready_ or not self.right_ready_:
+            #     return
 
-            trigger = Trigger.Request()
+            # trigger = Trigger.Request()
 
-            # send asynchronous trigger
-            self.future = self.left_camera_client_.call_async(trigger)
-            self.future = self.right_camera_client_.call_async(trigger)
+            # # send asynchronous trigger
+            # self.future = self.left_camera_client_.call_async(trigger)
+            # self.future = self.right_camera_client_.call_async(trigger)
 
             if not self.left_img_recieved_:
                 return
 
             if not self.right_img_recieved_:
                 return
-        
-        
+
             # undistort
 
             undist_left = cv2.remap(
@@ -623,8 +642,6 @@ class PerceptionNode(Node):
                 borderMode=cv2.BORDER_CONSTANT,
                 borderValue=(0, 0, 0, 0),
             )
-
-
 
             # code to resize the image (for faster fps)
 
@@ -669,7 +686,7 @@ class PerceptionNode(Node):
             except TransformException as ex:
                 self.get_logger().info(f"{ex}")
                 return
-        # get the detections
+            # get the detections
 
             (
                 results_left,
@@ -695,7 +712,7 @@ class PerceptionNode(Node):
                 self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
             )
 
-            print(left_detections_lidar_frame.shape, right_detections_lidar_frame.shape)
+            # print(left_detections_lidar_frame.shape, right_detections_lidar_frame.shape)
             # concatenate into one array
             if left_detections_lidar_frame.shape[0] == 0:
                 total_cam_det = right_detections_lidar_frame
@@ -710,7 +727,7 @@ class PerceptionNode(Node):
 
             # perception detections debug
             self.detections_debug = ConeDetections()
-            self.detections_debug.header.frame_id = "os_lidar"
+            self.detections_debug.header.frame_id = "ground"
 
             self.detections_debug.header.stamp = self.get_clock().now().to_msg()
 
@@ -755,10 +772,10 @@ class PerceptionNode(Node):
                     colours[ind] = 0
 
                 cone_detections = np.concatenate((positions, colours), axis=1)
-                print(col_ind)
+                # print(col_ind)
                 camera_det = np.delete(total_cam_det, col_ind, axis=0)
                 cone_detections = np.concatenate((cone_detections, camera_det), axis=0)
-                print(cone_detections.shape)
+                # print(cone_detections.shape)
             else:
 
                 positions = lidar_point_cloud_data[:, :3]

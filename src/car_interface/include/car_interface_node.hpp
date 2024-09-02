@@ -21,10 +21,8 @@
 #include <string>
 
 // Message Requirements
-#include <geometry_msgs/msg/accel_stamped.hpp>
-#include <geometry_msgs/msg/quaternion_stamped.hpp>
-#include <geometry_msgs/msg/twist_stamped.hpp>
-#include <geometry_msgs/msg/vector3_stamped.hpp>
+#include <geometry_msgs/msg/twist.hpp>
+#include <geometry_msgs/msg/vector3.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <utfr_msgs/msg/cone_detections.hpp>
@@ -246,6 +244,7 @@ private:
   std::vector<std::string> heartbeat_modules_;
   std::vector<std::string> heartbeat_modules_inspection_;
   std::vector<std::string> heartbeat_modules_accel_;
+  std::vector<std::string> heartbeat_modules_testing_;
 
   // Callback Variables
   // utfr_msgs::msg::ControlCmd control_cmd_;
@@ -266,6 +265,10 @@ private:
   int testing_;
   // TODO: GNSS/INS
 
+  double start_time;
+
+  int counter = 0;
+
   // State vars
   bool launched_ = false;
   bool shutdown_ = false;
@@ -281,7 +284,7 @@ private:
     FINISH = 5
   };
 
-  uint8_t dv_pc_state_;
+  uint8_t dv_pc_state_ = DV_PC_STATE::OFF;
 
   // CAN objects
   CanInterfaceUPtr can0_{nullptr};

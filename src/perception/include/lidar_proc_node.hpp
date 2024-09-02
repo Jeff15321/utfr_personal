@@ -26,10 +26,10 @@
 #include <string>
 #include <vector>
 
+#include "rclcpp/qos.hpp"
 #include <clusterer.hpp>
 #include <cone_filter.hpp>
 #include <filter.hpp>
-#include "rclcpp/qos.hpp"
 
 // Message Requirements
 #include <geometry_msgs/msg/polygon_stamped.hpp>
@@ -102,6 +102,7 @@ private:
   /*! Initialize global variables:
    */
   double update_rate_;
+  bool debug_;
   Filter filter;
   Clusterer clusterer;
   ConeLRFilter cone_filter;
@@ -121,7 +122,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_no_ground;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_clustered;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr
-      pub_clustered_center;
+      pub_lidar_detected;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
 };
 } // namespace lidar_proc

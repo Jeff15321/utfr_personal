@@ -84,7 +84,11 @@ enum dv_can_msg {
   GPS_VEL_XYZ = 32,
   GPS_RTK_STATUS = 33,
 
-  COUNT = 34
+  STR_MOTOR_CMD = 34,
+
+  DV_COMMANDED = 35, 
+  APPS = 36,
+  COUNT = 37
 };
 
 typedef struct CAN_message_t {
@@ -182,7 +186,7 @@ public:
    *
    *  @param[in] to_write CAN Frame to push into CAN Bus
    */
-  void write_can(dv_can_msg msgName, long long signalData);
+  void write_can(dv_can_msg msgName, long long signalData, bool byteWise);
 
   /*! Get CAN signals and messages with little endian.
    *
@@ -207,9 +211,8 @@ public:
    * @param scale amount the data has been scaled by.
    * @param data data (e.g. an angle) that has undergone scaling.
    * @return data received by the DV computer.
-   */
-  void setSignal(canfd_frame *to_send, dv_can_msg msgName, uint8_t startBit,
-                 uint8_t sigLength, float scale, double data);
+  */
+  uint64_t setSignal(uint64_t to_send, uint8_t startBit, uint8_t sigLength, double scale, double data); 
 
   /*! Send CAN messages over the CAN bus.
    *

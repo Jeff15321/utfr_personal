@@ -16,6 +16,7 @@
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<utfr_dv::car_interface::CarInterface>());
+  int result = std::system("pkill -f \"ros\"");
   rclcpp::shutdown();
   return 0;
 }

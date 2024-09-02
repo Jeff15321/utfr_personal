@@ -28,7 +28,7 @@
 #include <vector>
 
 // Message Requirements
-#include "nav_msgs/msg/odometry.hpp"
+#include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
@@ -99,11 +99,11 @@ public:
 
   /*! GPS sensor callback function
    */
-  void gpsCB(const nav_msgs::msg::Odometry msg);
+ // void gpsCB(const nav_msgs::msg::Odometry msg);
 
   /*! IMU sensor callback function
    */
-  void imuCB(const sensor_msgs::msg::Imu msg);
+  //void imuCB(const sensor_msgs::msg::Imu msg);
 
   /*! Implement a kinematic / dynamic vehicle model
    *  Use the throttle, brake, and steering angle to update the vehicle model
@@ -152,7 +152,7 @@ public:
    *  @returns utfr_msgs::msg::EgoState of vehicle's estimated state
    */
 
-  std::vector<double> lla2ecr(std::vector<double> &inputVector);
+  std::vector<double> lla2ecr(const std::vector<double> &inputVector);
   /*  Helper function for lla2enu: converts lla to ecr
    *  @param[in] std::vector<double>& inputVector: vector with 3 elements: Lat,
    * Lon, Alt in RADIANS, RADIANS, meters
@@ -167,7 +167,7 @@ public:
    *  @param[in] double& y ecr y value
    *  @param[in] double& z ecr z value
    */
-  std::vector<double> lla2enu(std::vector<double> &inputVector);
+  std::vector<double> lla2enu(const std::vector<double> &inputVector);
   /* Given an lla input returns enu relative to datum_lla
    * The first call sets datum_lla and returns {0,0,0}
    *  @param[in] std::vector<double>& inputVector: vector with 3 elements: Lat,
@@ -192,9 +192,9 @@ public:
   rclcpp::Subscription<utfr_msgs::msg::SensorCan>::SharedPtr
       sensorcan_subscriber_;
 
-  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gps_subscriber_;
+  //rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gps_subscriber_;
 
-  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscriber_;
+  //rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscriber_;
 
   // Global variables
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle

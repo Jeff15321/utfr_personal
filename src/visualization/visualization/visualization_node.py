@@ -622,9 +622,9 @@ class VisualizationNode(Node):
         self.right_image_text_publisher_.publish(right_image_annotation)
 
     def perceptionConeDetectionsCB(self, msg):
-        '''
+        """
         Publish the cone detections as yellow cube markers
-        '''
+        """
         self.get_logger().warn("Recieved cone detections msg")
         cube_cone_dets = MarkerArray()
         left_cones = msg.left_cones
@@ -637,11 +637,13 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
+            cube_marker.header.frame_id = "ground"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
             cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
@@ -661,11 +663,13 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
+            cube_marker.header.frame_id = "ground"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
             cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
@@ -685,11 +689,13 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
+            cube_marker.header.frame_id = "ground"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
             cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
@@ -709,11 +715,13 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
+            cube_marker.header.frame_id = "ground"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
             cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0
@@ -733,11 +741,13 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
+            cube_marker.header.frame_id = "ground"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
             cube_marker.action = 0  # add
             cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
             cube_marker.pose.orientation.x = 0.0
             cube_marker.pose.orientation.y = 0.0
             cube_marker.pose.orientation.z = 0.0

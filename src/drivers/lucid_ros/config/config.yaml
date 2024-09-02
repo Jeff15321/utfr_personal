@@ -1,0 +1,22 @@
+# Lucid Camera Params
+left_camera_node: # node name
+  ros__parameters:
+    serial: "224500660"
+    #exposure_time: 5000.0
+    # packet_delay: 15000.0
+    # transmission_delay: 0.0
+    trigger_mode: false
+    qos_reliability: "system_default"
+    pixelformat: "rbg8"
+    start_delay: 5000.0
+
+right_camera_node: # node name
+  ros__parameters:
+    serial: "224500661"
+    #exposure_time: 5000.0
+    # packet_delay: 15000.0
+    # transmission_delay: 0.15
+    trigger_mode: false
+    qos_reliability: "system_default"
+    pixelformat: "rbg8"
+    start_delay: 10000.0
