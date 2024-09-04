@@ -678,9 +678,9 @@ class VisualizationNode(Node):
             cube_marker.scale.y = 0.2
             cube_marker.scale.z = 0.2
             cube_marker.color.a = 1.0
-            cube_marker.color.r = 1.0
+            cube_marker.color.r = 0.0
             cube_marker.color.g = 1.0
-            cube_marker.color.b = 0.0
+            cube_marker.color.b = 1.0
 
             cube_cone_dets.markers.append(cube_marker)
             i += 1
@@ -702,10 +702,10 @@ class VisualizationNode(Node):
             cube_marker.pose.orientation.w = 1.0
             cube_marker.scale.x = 0.2
             cube_marker.scale.y = 0.2
-            cube_marker.scale.z = 0.2
+            cube_marker.scale.z = 0.5
             cube_marker.color.a = 1.0
             cube_marker.color.r = 1.0
-            cube_marker.color.g = 1.0
+            cube_marker.color.g = 0.5
             cube_marker.color.b = 0.0
 
             cube_cone_dets.markers.append(cube_marker)
@@ -731,7 +731,7 @@ class VisualizationNode(Node):
             cube_marker.scale.z = 0.2
             cube_marker.color.a = 1.0
             cube_marker.color.r = 1.0
-            cube_marker.color.g = 1.0
+            cube_marker.color.g = 0.5
             cube_marker.color.b = 0.0
 
             cube_cone_dets.markers.append(cube_marker)
@@ -758,7 +758,7 @@ class VisualizationNode(Node):
             cube_marker.color.a = 1.0
             cube_marker.color.r = 1.0
             cube_marker.color.g = 1.0
-            cube_marker.color.b = 0.0
+            cube_marker.color.b = 1.0
 
             cube_cone_dets.markers.append(cube_marker)
             i += 1

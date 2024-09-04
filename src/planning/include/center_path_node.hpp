@@ -213,6 +213,10 @@ private:
    */
   void timerCBAS();
 
+  /*! Home Screen callback, before event is set
+   */
+  void homeScreenCB();
+
   /*! Function for sorting cones
    * @param[in] a utfr_msgs::msg::Cone, cone a
    * @param[in] b utfr_msgs::msg::Cone, cone b
@@ -352,6 +356,7 @@ private:
   bool global_path_;
   double max_velocity_;
 
+  bool event_set_ = false;
   double small_radius_;
   double big_radius_;
   double threshold_radius_;

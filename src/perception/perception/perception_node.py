@@ -773,6 +773,7 @@ class PerceptionNode(Node):
 
                 cone_detections = np.concatenate((positions, colours), axis=1)
                 # print(col_ind)
+                # to combine cam and lidar dets
                 camera_det = np.delete(total_cam_det, col_ind, axis=0)
                 cone_detections = np.concatenate((cone_detections, camera_det), axis=0)
                 # print(cone_detections.shape)

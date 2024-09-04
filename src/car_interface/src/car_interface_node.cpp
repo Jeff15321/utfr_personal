@@ -280,7 +280,7 @@ void CarInterface::DVCompStateMachine() {
       if (system_status_.ami_state ==
               std::clamp(system_status_.ami_state,
                          utfr_msgs::msg::SystemStatus::AMI_STATE_TESTING,
-                         utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION) &&
+                         utfr_msgs::msg::SystemStatus::AMI_STATE_MANUAL) &&
           !launched_) {
         launched_ = launchMission(); // Launch other dv nodes
       } else if (heartbeat_status && str_motor_state_) {
