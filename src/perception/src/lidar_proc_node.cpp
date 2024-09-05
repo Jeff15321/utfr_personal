@@ -67,6 +67,8 @@ void LidarProcNode::initParams() {
                           rclcpp::PARAMETER_DOUBLE);
   this->declare_parameter("cone_filter.lin_threshold",
                           rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("cone_filter.IOUThreshold",
+                          rclcpp::PARAMETER_DOUBLE);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   debug_ = this->get_parameter("debug").as_bool();
@@ -121,8 +123,10 @@ void LidarProcNode::initParams() {
       this->get_parameter("cone_filter.mse_threshold").as_double();
   double lin_threshold =
       this->get_parameter("cone_filter.lin_threshold").as_double();
+  double IOUThreshold =
+      this->get_parameter("cone_filter.IOUThreshold").as_double();
   ConeLRFilterParams cone_filter_params = {cone_height, cone_radius,
-                                           mse_threshold, lin_threshold};
+                                           mse_threshold, lin_threshold, IOUThreshold};
 
   cone_filter = ConeLRFilter(cone_filter_params);
 }

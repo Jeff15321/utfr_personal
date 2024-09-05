@@ -14,6 +14,7 @@ struct ConeLRFilterParams {
   float cone_radius;
   float mse_threshold;
   float lin_threshold;
+  float IOUThreshold;
 };
 
 class ConeLRFilter {
@@ -24,6 +25,7 @@ public:
   float cone_radius;
   float mse_threshold;
   float lin_threshold;
+  float IOUThreshold;
 
   ConeLRFilter(){};
 

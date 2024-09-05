@@ -145,3 +145,4 @@ lidar_proc_node:
       cone_radius: 0.0748
       mse_threshold: 0.00003 #any point as close as threshold is inlier
       lin_threshold: 0.022
+      IOUThreshold: 0.5
