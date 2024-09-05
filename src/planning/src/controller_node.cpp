@@ -94,9 +94,10 @@ void ControllerNode::initSubscribers() {
       topics::kSkidpadCenterPoint, 10,
       std::bind(&ControllerNode::pointCB, this, _1));
 
-  mission_subscriber_ = this->create_subscription<utfr_msgs::msg::SystemStatus>(
-      topics::kSystemStatus, 10,
-      std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
+  // mission_subscriber_ =
+  // this->create_subscription<utfr_msgs::msg::SystemStatus>(
+  //     topics::kSystemStatus, 10,
+  //     std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
 }
 
 void ControllerNode::initPublishers() {
@@ -112,6 +113,16 @@ void ControllerNode::initPublishers() {
 }
 
 void ControllerNode::initTimers() {
+  main_timer_.reset();
+
+  if (!event_set_) {
+    main_timer_ = this->create_wall_timer(
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&ControllerNode::homeScreenCB, this));
+
+    return;
+  }
+
   if (event_ == "accel") {
     last_lap_count_ = 2;
     use_mapping_ = false;
@@ -152,30 +163,43 @@ void ControllerNode::initEvent() { // TODO: TEST
     mission_subscriber_ =
         this->create_subscription<utfr_msgs::msg::SystemStatus>(
             topics::kSystemStatus, 10,
-            std::bind(&ControllerNode::missionCB, this,
-            std::placeholders::_1));
+            std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
   }
 }
 
 void ControllerNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
-  if (msg.ami_state == 1) {
+  switch (msg.ami_state) {
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION: {
     event_ = "accel";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 2) {
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_SKIDPAD: {
     event_ = "skidpad";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 3) {
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_TRACKDRIVE: {
     event_ = "trackdrive";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 4) {
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_EBSTEST: {
     event_ = "EBSTest";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 5) {
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_TESTING:
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION: {
     event_ = "ASTest";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 6) {
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS: {
     event_ = "autocross";
-    mission_subscriber_.reset();
+    event_set_ = true;
+    break;
+  }
   }
 
   if (as_state == 2 && msg.as_state == 3) {
@@ -183,6 +207,9 @@ void ControllerNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
   }
 
   as_state = msg.as_state;
+
+  std::cout << "PLANNING AS STATE: " << as_state << std::endl;
+  // std::cout << "PLANNING AMI: " << msg.ami_state << std::endl;
 }
 
 void ControllerNode::initGGV(std::string filename) {
@@ -320,10 +347,22 @@ void ControllerNode::pointCB(const geometry_msgs::msg::Pose &msg) {
   point_ = std::make_shared<geometry_msgs::msg::Pose>(msg);
 }
 
+void ControllerNode::homeScreenCB() {
+  if (event_set_)
+  {
+    initTimers();
+  }
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
+}
+
 void ControllerNode::timerCBAccel() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (as_state != 3){
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
 
@@ -379,7 +418,8 @@ void ControllerNode::timerCBAccel() {
 void ControllerNode::timerCBSkidpad() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (as_state != 3){
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
 
@@ -445,7 +485,8 @@ void ControllerNode::timerCBSkidpad() {
 void ControllerNode::timerCBAutocross() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (as_state != 3){
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
 
@@ -501,7 +542,8 @@ void ControllerNode::timerCBAutocross() {
 void ControllerNode::timerCBTrackdrive() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (as_state != 3){
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
 
@@ -559,7 +601,8 @@ void ControllerNode::timerCBTrackdrive() {
 void ControllerNode::timerCBEBS() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (as_state != 3){
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
 
@@ -610,6 +653,11 @@ void ControllerNode::timerCBEBS() {
 }
 
 void ControllerNode::timerCBAS() {
+  if (as_state != 3) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"), "here lol");
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
   double curr_time = this->now().seconds();
   double time_diff = curr_time - start_time_.seconds();
 
@@ -626,6 +674,10 @@ void ControllerNode::timerCBAS() {
     target_.speed = 0.0;
     target_.steering_angle = 0.0;
   }
+
+  std::cout << "Speed: " << target_.speed << " STR: " << target_.steering_angle
+            << std::endl;
+
   target_state_publisher_->publish(target_);
 }
 

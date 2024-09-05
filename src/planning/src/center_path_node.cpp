@@ -136,51 +136,71 @@ void CenterPathNode::initEvent() {
 }
 
 void CenterPathNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
-  if (msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION) {
+  switch (msg.ami_state) {
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION: {
     event_ = "accel";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_SKIDPAD) {
-    event_ = "skidpad";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_TRACKDRIVE) {
-    event_ = "trackdrive";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_EBSTEST) {
-    event_ = "EBSTest";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_TESTING 
-        || msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION) {
-    event_ = "ASTest";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS) {
-    event_ = "autocross";
-    mission_subscriber_.reset();
+    event_set_ = true;
+    break;
   }
-
-  if (as_state == 2 && msg.as_state == 3) {
-    last_time = this->get_clock()->now();
-    last_switch_time = this->get_clock()->now();
-    lock_sector_ = true;
-    found_4_large_orange = false;
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_SKIDPAD: {
+    event_ = "skidpad";
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_TRACKDRIVE: {
+    event_ = "trackdrive";
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_EBSTEST: {
+    event_ = "EBSTest";
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_TESTING:
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION: {
+    event_ = "ASTest";
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS: {
+    event_ = "autocross";
+    event_set_ = true;
+    break;
+  }
   }
 
   as_state = msg.as_state;
 }
 
 void CenterPathNode::initTimers() {
+  main_timer_.reset();
+
+  if (!event_set_) {
+    main_timer_ = this->create_wall_timer(
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&CenterPathNode::homeScreenCB, this));
+
+    return;
+  }
+
   if (event_ == "accel") {
+    use_mapping_ = false;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&CenterPathNode::timerCBAccel, this));
   } else if (event_ == "skidpad") {
+    use_mapping_ = false;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&CenterPathNode::timerCBSkidpad, this));
   } else if (event_ == "autocross") {
+    use_mapping_ = true;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&CenterPathNode::timerCBAutocross, this));
   } else if (event_ == "trackdrive") {
+    use_mapping_ = true;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&CenterPathNode::timerCBTrackdrive, this));
@@ -350,6 +370,7 @@ void CenterPathNode::coneMapClosureCB(const std_msgs::msg::Bool &msg) {
 
 void CenterPathNode::timerCBAccel() {
   if (as_state != 3){
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
   try {
@@ -403,6 +424,7 @@ void CenterPathNode::timerCBAccel() {
 
 void CenterPathNode::timerCBSkidpad() {
   if (as_state != 3){
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
   const std::string function_name{"center_path_timerCB:"};
@@ -439,6 +461,7 @@ void CenterPathNode::timerCBSkidpad() {
 
 void CenterPathNode::timerCBAutocross() {
   if (as_state != 3){
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
   const std::string function_name{"center_path_timerCB:"};
@@ -508,6 +531,7 @@ void CenterPathNode::timerCBAutocross() {
 
 void CenterPathNode::timerCBTrackdrive() {
   if (as_state != 3){
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
   const std::string function_name{"center_path_timerCB:"};
@@ -574,8 +598,20 @@ void CenterPathNode::timerCBTrackdrive() {
   }
 }
 
+void CenterPathNode::homeScreenCB() {
+  if (event_set_)
+  {
+    initTimers();
+  }
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
+}
+
 void CenterPathNode::timerCBEBS() {
   if (as_state != 3){
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
   try {
@@ -611,6 +647,7 @@ void CenterPathNode::timerCBEBS() {
 
 void CenterPathNode::timerCBAS() {
   if (as_state != 3){
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
   publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);

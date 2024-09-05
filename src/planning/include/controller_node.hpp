@@ -166,6 +166,10 @@ private:
    */
   void timerCBAS();
 
+  /*! Home Screen callback, before event is set
+   */
+  void homeScreenCB();
+
   /*! Discretize point on a given path
    * @param[in] spline_params utfr_msgs::msg::ParametricSpline spline parameters
    * @param[in] s double current s value
@@ -217,6 +221,7 @@ private:
   /*! Initialize global variables:
    */
   double update_rate_;
+  bool event_set_ = false;
   std::string event_;
   std::string controller_;
   int discretized_points_;
