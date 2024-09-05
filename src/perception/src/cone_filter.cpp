@@ -6,6 +6,8 @@
 ConeLRFilter::ConeLRFilter(ConeLRFilterParams params) {
   this->cone_height = params.cone_height;
   this->cone_radius = params.cone_radius;
+  this->big_cone_height = params.big_cone_height;
+  this->big_cone_radius = params.big_cone_radius;
   this->mse_threshold = params.mse_threshold;
   this->lin_threshold = params.lin_threshold;
   this->IOUThreshold = params.IOUThreshold;
@@ -120,7 +122,9 @@ PointCloud ConeLRFilter::filter_clusters(std::vector<PointCloud> clusters) {
     // {
     //   cone_centers.push_back(center);
     // }
-    if (calculateIOU(base_radius, fitted_height, this->cone_radius, this->cone_height) > this->IOUThreshold) {
+    float IOU = calculateIOU(base_radius, fitted_height, this->cone_radius, this->cone_height);
+    float IOU_big = calculateIOU(base_radius, fitted_height, this->big_cone_radius, this->big_cone_height);
+    if (IOU > this->IOUThreshold || IOU_big > this->IOUThreshold) {
       cone_centers.push_back(center);
     }
   }
