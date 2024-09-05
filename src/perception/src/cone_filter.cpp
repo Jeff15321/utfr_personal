@@ -19,12 +19,9 @@ float calculateIOU(float fitted_r, float fitted_h, float true_r, float true_h){
   float fitted_volume = calculateVolume(fitted_h, fitted_r);
   float true_volume = calculateVolume(true_h, true_r);
 
-  float intersection_volume = 0;
-  if (fitted_r + true_r > (fitted_h - true_h) && fitted_r + true_r < (fitted_h + true_h)){
-    float h = (fitted_r * fitted_r - true_r * true_r + true_h * true_h) / (2 * true_h);
-    float r = std::sqrt(fitted_r * fitted_r - h * h);
-    intersection_volume = calculateVolume(h, r);
-  }
+  float overlap_height = std::min(fitted_h, true_h);
+  float overlap_radius = std::min(fitted_r, true_r);
+  float intersection_volume = calculateVolume(overlap_height, overlap_radius);
 
   return intersection_volume / (fitted_volume + true_volume - intersection_volume);
 }
