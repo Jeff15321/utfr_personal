@@ -17,7 +17,9 @@
 namespace utfr_dv {
 namespace lidar_proc {
 
-LidarProcNode::LidarProcNode() : Node("lidar_proc_node") {
+LidarProcNode::LidarProcNode()
+    : Node("lidar_proc_node"), tf_buffer_(this->get_clock()),
+      tf_listener_(tf_buffer_) {
   this->initParams();
   this->initHeartbeat();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
@@ -63,14 +65,15 @@ void LidarProcNode::initParams() {
                           rclcpp::PARAMETER_DOUBLE);
   this->declare_parameter("cone_filter.cone_radius", rclcpp::PARAMETER_DOUBLE);
   this->declare_parameter("cone_filter.cone_height", rclcpp::PARAMETER_DOUBLE);
-  this->declare_parameter("cone_filter.big_cone_radius", rclcpp::PARAMETER_DOUBLE);
-  this->declare_parameter("cone_filter.big_cone_height", rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("cone_filter.big_cone_radius",
+                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("cone_filter.big_cone_height",
+                          rclcpp::PARAMETER_DOUBLE);
   this->declare_parameter("cone_filter.mse_threshold",
                           rclcpp::PARAMETER_DOUBLE);
   this->declare_parameter("cone_filter.lin_threshold",
                           rclcpp::PARAMETER_DOUBLE);
-  this->declare_parameter("cone_filter.IOUThreshold",
-                          rclcpp::PARAMETER_DOUBLE);
+  this->declare_parameter("cone_filter.IOUThreshold", rclcpp::PARAMETER_DOUBLE);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   debug_ = this->get_parameter("debug").as_bool();
@@ -121,9 +124,9 @@ void LidarProcNode::initParams() {
       this->get_parameter("cone_filter.cone_height").as_double();
   double cone_radius =
       this->get_parameter("cone_filter.cone_radius").as_double();
-  double big_cone_height = 
+  double big_cone_height =
       this->get_parameter("cone_filter.big_cone_height").as_double();
-  double big_cone_radius = 
+  double big_cone_radius =
       this->get_parameter("cone_filter.big_cone_radius").as_double();
   double mse_threshold =
       this->get_parameter("cone_filter.mse_threshold").as_double();
@@ -131,8 +134,9 @@ void LidarProcNode::initParams() {
       this->get_parameter("cone_filter.lin_threshold").as_double();
   double IOUThreshold =
       this->get_parameter("cone_filter.IOUThreshold").as_double();
-  ConeLRFilterParams cone_filter_params = {cone_height, cone_radius, big_cone_height, big_cone_radius,
-                                           mse_threshold, lin_threshold, IOUThreshold};
+  ConeLRFilterParams cone_filter_params = {
+      cone_height,   cone_radius,   big_cone_height, big_cone_radius,
+      mse_threshold, lin_threshold, IOUThreshold};
 
   cone_filter = ConeLRFilter(cone_filter_params);
 }
@@ -185,9 +189,28 @@ void LidarProcNode::pointCloudCallback(
 void LidarProcNode::publishPointCloud(
     const PointCloud &cloud,
     const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub) {
-  sensor_msgs::msg::PointCloud2 output =
+  sensor_msgs::msg::PointCloud2::SharedPtr output =
       convertToPointCloud2(cloud, "os_sensor");
-  pub->publish(output);
+
+  geometry_msgs::msg::TransformStamped transform_stamped;
+  try {
+    // Get the transform from the LiDAR frame to the ground frame
+    transform_stamped = tf_buffer_.lookupTransform(
+        "ground", output->header.frame_id, tf2::TimePointZero);
+    RCLCPP_INFO(this->get_logger(), "Transformed %s to ground frame",
+                output->header.frame_id.c_str());
+  } catch (tf2::TransformException &ex) {
+    RCLCPP_WARN(this->get_logger(),
+                "Could not transform %s to ground frame: %s",
+                output->header.frame_id.c_str(), ex.what());
+    return;
+  }
+
+  // Transform the point cloud to the ground frame
+  sensor_msgs::msg::PointCloud2 output_tfed;
+  tf2::doTransform(*output, output_tfed, transform_stamped);
+
+  pub->publish(output_tfed);
 }
 
 PointCloud LidarProcNode::convertToCustomPointCloud(
@@ -219,6 +242,52 @@ PointCloud LidarProcNode::convertToCustomPointCloud(
   }
 
   return custom_cloud;
+}
+
+sensor_msgs::msg::PointCloud2::SharedPtr LidarProcNode::convertToPointCloud2(
+    const std::vector<std::array<float, 3>> &points,
+    const std::string &frame_id) {
+  sensor_msgs::msg::PointCloud2::SharedPtr cloud =
+      std::make_shared<sensor_msgs::msg::PointCloud2>();
+  cloud->header.frame_id = frame_id;
+  cloud->header.stamp = rclcpp::Clock().now();
+
+  cloud->height = 1; // Unordered point cloud
+  cloud->width = points.size();
+
+  cloud->is_bigendian = false;
+  cloud->is_dense = true;
+
+  cloud->point_step = 12; // x, y, z each take 4 bytes (float)
+  cloud->row_step = cloud->point_step * cloud->width;
+
+  cloud->fields.resize(3);
+  cloud->fields[0].name = "x";
+  cloud->fields[0].offset = 0;
+  cloud->fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud->fields[0].count = 1;
+
+  cloud->fields[1].name = "y";
+  cloud->fields[1].offset = 4;
+  cloud->fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud->fields[1].count = 1;
+
+  cloud->fields[2].name = "z";
+  cloud->fields[2].offset = 8;
+  cloud->fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud->fields[2].count = 1;
+
+  cloud->data.resize(cloud->row_step * cloud->height);
+
+  auto float_ptr = reinterpret_cast<float *>(&cloud->data[0]);
+
+  for (const auto &point : points) {
+    *float_ptr++ = point[0];
+    *float_ptr++ = point[1];
+    *float_ptr++ = point[2];
+  }
+
+  return cloud;
 }
 
 void LidarProcNode::timerCB() {
@@ -278,51 +347,6 @@ void LidarProcNode::timerCB() {
     }
   }
   RCLCPP_INFO(this->get_logger(), "Published Processed Point Clouds");
-}
-
-sensor_msgs::msg::PointCloud2 LidarProcNode::convertToPointCloud2(
-    const std::vector<std::array<float, 3>> &points,
-    const std::string &frame_id) {
-  sensor_msgs::msg::PointCloud2 cloud;
-  cloud.header.frame_id = frame_id;
-  cloud.header.stamp = rclcpp::Clock().now();
-
-  cloud.height = 1; // Unordered point cloud
-  cloud.width = points.size();
-
-  cloud.is_bigendian = false;
-  cloud.is_dense = true;
-
-  cloud.point_step = 12; // x, y, z each take 4 bytes (float)
-  cloud.row_step = cloud.point_step * cloud.width;
-
-  cloud.fields.resize(3);
-  cloud.fields[0].name = "x";
-  cloud.fields[0].offset = 0;
-  cloud.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
-  cloud.fields[0].count = 1;
-
-  cloud.fields[1].name = "y";
-  cloud.fields[1].offset = 4;
-  cloud.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32;
-  cloud.fields[1].count = 1;
-
-  cloud.fields[2].name = "z";
-  cloud.fields[2].offset = 8;
-  cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
-  cloud.fields[2].count = 1;
-
-  cloud.data.resize(cloud.row_step * cloud.height);
-
-  auto float_ptr = reinterpret_cast<float *>(&cloud.data[0]);
-
-  for (const auto &point : points) {
-    *float_ptr++ = point[0];
-    *float_ptr++ = point[1];
-    *float_ptr++ = point[2];
-  }
-
-  return cloud;
 }
 
 } // namespace lidar_proc
