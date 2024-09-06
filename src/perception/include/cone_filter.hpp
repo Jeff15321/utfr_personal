@@ -12,7 +12,7 @@
 struct ConeLRFilterParams {
   float cone_height;
   float cone_radius;
-  flaot big_cone_height;
+  float big_cone_height;
   float big_cone_radius;
   float mse_threshold;
   float lin_threshold;
