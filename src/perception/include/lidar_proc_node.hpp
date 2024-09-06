@@ -111,8 +111,6 @@ private:
   utfr_msgs::msg::TargetState target_;
   utfr_msgs::msg::SystemStatus::SharedPtr status_{nullptr};
   utfr_msgs::msg::Heartbeat heartbeat_;
-  sensor_msgs::msg::PointCloud2::SharedPtr latest_point_cloud;
-
   // Subscribers
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr
       point_cloud_subscriber_;
