@@ -72,7 +72,7 @@ perception_node: # Name of Node
     save_pic: "False"
     confidence: 0.40
     cone_heights: [0.0, 325.0, 325.0, 325.0, 505.0]
-    lidar_only_detection: False
+    lidar_only_detection: True
 
     # shopping cart
     # intrinsics_left:
@@ -139,12 +139,12 @@ lidar_proc_node:
       cluster_tolerance: 0.25
       min_cluster_size: 2 #3
       max_cluster_size: 200
-      reconstruct_radius: 0.25 #0.25
+      reconstruct_radius: 0.25
     cone_filter:
       cone_height: 0.387
-      cone_radius: 0.0225
+      cone_radius: 0.075
       big_cone_height: 0.6216
-      big_cone_radius: 0.0987
+      big_cone_radius: 0.11
       mse_threshold: 0.00003 #any point as close as threshold is inlier
       lin_threshold: 0.022
       IOUThreshold: 0.08
