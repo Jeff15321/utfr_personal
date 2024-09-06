@@ -122,9 +122,9 @@ lidar_proc_node:
     view_filter:
       outer_box: #remove all points outside of outer box
         xmin: 0.0
-        xmax: 40.0
-        ymin: -17.0
-        ymax: 7.0
+        xmax: 50.0
+        ymin: -12.0
+        ymax: 12.0
       inner_box: #remove all points within inner box
         xmin: -1.0
         xmax: 2.5
@@ -136,7 +136,7 @@ lidar_proc_node:
       max_iterations: 300
       distance_threshold: 0.15
     clustering:
-      cluster_tolerance: 0.15
+      cluster_tolerance: 0.25
       min_cluster_size: 2 #3
       max_cluster_size: 200
       reconstruct_radius: 0.25 #0.25
