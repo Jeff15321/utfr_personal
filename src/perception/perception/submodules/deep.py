@@ -78,13 +78,10 @@ def letterbox(
     return im, r, (dw, dh)
 
 
-def deep_process(frame, translation, intrinsics, session, confidence, visualize=False):
+def deep_process(model, frame, confidence, visualize=False):
     """
     Applies object detection on each frame from a camera using a deep learning model.
     """
-
-    # if frame == []:
-    # return [], [], [], []
 
     # Define class names and colors
     names = [
@@ -99,85 +96,68 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
         for i, name in enumerate(names)
     }
 
-    # Apply letterbox
-    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    image = img.copy()
-    image, ratio, dwdh = letterbox(image, auto=False)
-    image = image.transpose((2, 0, 1))
-    image = np.expand_dims(image, 0)
-    image = np.ascontiguousarray(image)
+    # # Apply letterbox
+    # img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # image = img.copy()
+    # image, ratio, dwdh = letterbox(image, auto=False)
+    # image = image.transpose((2, 0, 1))
+    # image = np.expand_dims(image, 0)
+    # image = np.ascontiguousarray(image)
 
-    # Normalize input image
-    im = image.astype(np.float32) / 255.0
+    # # Normalize input image
+    # im = image.astype(np.float32) / 255.0
 
-    # Run inference using onnxruntime
-    outname = [i.name for i in session.get_outputs()]
-    inname = [i.name for i in session.get_inputs()]
-    inp = {inname[0]: im}
-    outputs = session.run(outname, inp)[0]
+    # # Run inference using onnxruntime
+    # outname = [i.name for i in session.get_outputs()]
+    # inname = [i.name for i in session.get_inputs()]
+    # inp = {inname[0]: im}
+    # outputs = session.run(outname, inp)[0]
 
-    # Process outputs
-    im_copy = img.copy()
-    im_copy = cv2.cvtColor(im_copy, cv2.COLOR_BGR2RGB)
-    ori_images = [im_copy]
+    # # Process outputs
+    # im_copy = img.copy()
+    # im_copy = cv2.cvtColor(im_copy, cv2.COLOR_BGR2RGB)
+    # ori_images = [im_copy]
+
+    output = model(frame)[0]
+
     bounding_boxes = []
     classes = []
     scores = []
 
-    # YOLOv7 output format: [batch_id, x0, y0, x1, y1, cls_id, score]
-    # for i, (batch_id, x0, y0, x1, y1, cls_id, score) in enumerate(outputs):
-    #
-    # YOLOv8 output format: [x, y, w, h, conf, class0_conf, class1_conf, ...]
-    for output in outputs:
-        x, y, w, h = output[:4]
-        conf = output[4]
-        class_scores = output[5:]
-        cls_id = np.argmax(class_scores)
-        score = class_scores[cls_id]
-        
-        if score < confidence:
-            cls_id = 0  # unknown random cone
-        
-        x0 = x - w / 2
-        y0 = y - h / 2
-        x1 = x + w / 2
-        y1 = y + h / 2
-        
-        image = ori_images[0]  # Assuming batch size of 1
-        box = np.array([x0, y0, x1, y1])
-        box -= np.array(dwdh * 2)
-        box /= ratio
-        box = box.round().astype(np.int32).tolist()
-        cls_id = int(cls_id)
-        score = round(float(score), 3)
-        name = names[cls_id]
-        
-        if box[0] < 10 or box[1] < 10:
+    for box in output.boxes:
+        # Get box coordinates, class and confidence
+        x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
+        cls_id = int(box.cls)
+        conf = float(box.conf)
+
+        if conf < confidence:
             continue
-        
-        box[2] = abs(box[0] - box[2])
-        box[3] = abs(box[1] - box[3])
-        
-        bounding_boxes.append(box)
+
+        # Convert to [x, y, w, h] format
+        x, y, w, h = int(x1), int(y1), int(x2 - x1), int(y2 - y1)
+
+        name = output.names[cls_id]
+        score = round(conf, 3)
+
+        bounding_boxes.append([x, y, w, h])
         classes.append(name)
         scores.append(score)
-        
+
         if visualize:
-            color = colors[name]
+            color = (0, 255, 0)  # Green color for bounding box
             label = f"{name} {score}"
-            x0, y0, w, h = box
-            cv2.rectangle(image, (x0, y0), (x0 + w, y0 + h), color, 2)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
             cv2.putText(
-                image,
+                frame,
                 label,
-                (x0, y0 - 2),
+                (x, y - 2),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.75,
                 [225, 255, 255],
                 thickness=2,
             )
-    
-    return bounding_boxes, classes, scores, image
+
+    return bounding_boxes, classes, scores
 
 
 def bounding_boxes_to_cone_detections(

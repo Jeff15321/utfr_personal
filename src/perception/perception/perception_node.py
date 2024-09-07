@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plot
 
 # import xgboost
-import onnxruntime as ort
+from ultralytics import YOLO
 import time
 
 from scipy.optimize import linear_sum_assignment
@@ -270,17 +270,8 @@ class PerceptionNode(Node):
             cv2.CV_32FC1,
         )
 
-        # create session for onnxruntime ofr detections
-        cuda = check_for_cuda()
-        print("Check for cuda:", cuda)
-        # providers = ["AzureExecutionProvider"] if cuda else ["CPUExecutionProvider"]
-        providers = ort.get_available_providers()
-        print("Available Providers:", providers)
-
-        # Get the current device for inference
-        device = ort.get_device()
-        print("Current Device for Inference:", device)
-        self.session = ort.InferenceSession("src/perception/perception/yolov8n.onnx")
+        # create ultralytics model for inference
+        self.model = YOLO("src/perception/perception/yolov8n.onnx")
 
         # create transform frame variables
         self.lidar_frame = "lidar"
@@ -523,18 +514,14 @@ class PerceptionNode(Node):
           cone_detections: array of 3d cone detections using stereo ([x, y, z, color])
         """
 
-        left_bounding_boxes, left_classes, left_scores, left_image = deep_process(
+        left_bounding_boxes, left_classes, left_scores = deep_process(
+            self.model,
             left_img_,
-            self.translation,
-            self.intrinsics_left,
-            self.session,
             self.confidence_,
         )
-        right_bounding_boxes, right_classes, right_scores, right_image = deep_process(
+        right_bounding_boxes, right_classes, right_scores = deep_process(
+            self.model,
             right_img_,
-            self.translation,
-            self.intrinsics_left,
-            self.session,
             self.confidence_,
         )
 
@@ -551,7 +538,7 @@ class PerceptionNode(Node):
         )
 
         right_cone_detections = bounding_boxes_to_cone_detections(
-            right_bounding_boxes,
+            left_bounding_boxes,
             right_classes,
             self.intrinsics_right,
             self.cone_heights,
