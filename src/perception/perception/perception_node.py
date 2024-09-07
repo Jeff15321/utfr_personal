@@ -271,7 +271,7 @@ class PerceptionNode(Node):
         )
 
         # create ultralytics model for inference
-        self.model = YOLO("src/perception/perception/yolov8n.onnx")
+        self.model = YOLO("src/perception/perception/yolov8n.onnx", task="detect")
 
         # create transform frame variables
         self.lidar_frame = "lidar"
