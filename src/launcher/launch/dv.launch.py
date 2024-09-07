@@ -10,26 +10,12 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     # Drivers
-    cam_dir = get_package_share_directory("arena_camera_node")
-    cam_launch = IncludeLaunchDescription(
-        launch_description_sources.PythonLaunchDescriptionSource(
-            cam_dir + "/launch/lucid_camera.launch.py"
-        )
-    )
-
-    gps_dir = get_package_share_directory("bluespace_ai_xsens_mit_driver")
-    gps_launch = IncludeLaunchDescription(
-        launch_description_sources.PythonLaunchDescriptionSource(
-            gps_dir + "/launch/xsens_mti_node.launch.py"
-        )
-    )
-
-    lidar_dir = get_package_share_directory("ouster_ros")
-    lidar_launch = IncludeLaunchDescription(
-        launch_description_sources.PythonLaunchDescriptionSource(
-            lidar_dir + "/launch/driver.launch.py"
-        )
-    )
+    # gps_dir = get_package_share_directory("xsens_mti_ros2_driver")
+    # gps_launch = IncludeLaunchDescription(
+    #     launch_description_sources.PythonLaunchDescriptionSource(
+    #         gps_dir + "/launch/xsens_mti_node.launch.py"
+    #     )
+    # )
 
     # DV stack
     perception_dir = get_package_share_directory("perception")
@@ -60,10 +46,7 @@ def generate_launch_description():
         )
     )
 
-    # ld.add_action(cam_launch) done in perception
-    ld.add_action(gps_launch)
-    # ld.add_action(lidar_launch) done in perception
-
+    # ld.add_action(gps_launch)
     ld.add_action(perception_launch)
     ld.add_action(mapping_launch)
     ld.add_action(planning_launch)

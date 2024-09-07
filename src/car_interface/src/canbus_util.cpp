@@ -62,7 +62,11 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::GPS_ALT_ELLIP, 0x072},
     {(uint8_t)dv_can_msg::GPS_VEL_XYZ, 0x076},
     {(uint8_t)dv_can_msg::GPS_ACCELERATION, 0x034},
-    {(uint8_t)dv_can_msg::GPS_RTK_STATUS, 0x009}};
+    {(uint8_t)dv_can_msg::GPS_RTK_STATUS, 0x009}, 
+    {(uint8_t)dv_can_msg::STR_MOTOR_CMD, 0x0000040F}, 
+    {(uint8_t)dv_can_msg::DV_COMMANDED, 0x0D0},
+    {(uint8_t)dv_can_msg::APPS, 0x004}
+    };
 
 bool CanInterface::connect(const char *canline) {
 
@@ -165,18 +169,37 @@ int CanInterface::read_can() {
   return 1;
 }
 
-void CanInterface::write_can(dv_can_msg msgName, long long data) {
+void CanInterface::write_can(dv_can_msg msgName, long long data, bool byteWise) {
   // can_frame to_write;
   struct canfd_frame to_write;
   to_write.can_id = dv_can_msg_map[(int)msgName];
   to_write.len = 8;
   uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  INT64_TO_ARRAY(data, signalArray); // Convert to array of bytes
 
+  // std::cout << "write can" << std::endl;
+
+  if (byteWise) {
+    // Little Endian (initially)
+    INT64_TO_ARRAY_REVERSE(data, signalArray);
+  } else {
+    // Little Endian: reverse data bits.
+    // Since many signals are not in multiple of 8s, cannot simply move everything in bytes.
+    unsigned long long littleEndianData = 0; 
+
+    // Bit Reversal
+    for (int i = 0; i < 64; i++) {
+      littleEndianData = littleEndianData | ((data & 1) << (64 - i - 1)); 
+      data = data >> 1;
+    }
+
+    INT64_TO_ARRAY(littleEndianData, signalArray); // Convert to array of bytes
+  }
+  
   // The steering motor uses EXTENDED CAN, and sends in Little Endian.
   if (msgName == dv_can_msg::SetSTRMotorPos ||
       msgName == dv_can_msg::SetSTRMotorOrigin ||
-      msgName == dv_can_msg::SetSTRMotorPosSpeedAcc) {
+      msgName == dv_can_msg::SetSTRMotorPosSpeedAcc || 
+      msgName == dv_can_msg::STR_MOTOR_CMD) {
     to_write.can_id = dv_can_msg_map[(int)msgName] | (CAN_EFF_FLAG);
     INT64_TO_ARRAY_REVERSE(data, signalArray); // Little Endian (bytes reversed)
   }
@@ -277,6 +300,55 @@ float CanInterface::getSignalBE(dv_can_msg msgName, uint8_t startBit,
   return signalData * scale;
 }
 
+/*
+canfd_frame CanInterface::setSignal(canfd_frame to_send, dv_can_msg msgName,
+                             uint8_t startBit, uint8_t sigLength, float scale,
+                             double data) {
+  to_send.can_id = dv_can_msg_map[(int)msgName];
+  to_send.len = 8;
+  uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+  // Take raw data and scale it if necessary.
+  uint64_t can_data = (uint64_t)(data / scale);
+
+  // Convert to byte format.
+  uint64_t mask = 0xFF; // 8 Bit Mask
+
+  for (int i = startBit / 8 + sigLength / 8 - 1; i >= startBit / 8; i--) {
+    uint8_t byte = can_data & mask;
+    signalArray[i] = byte;
+
+    can_data = can_data >> 8;
+  }
+
+  // Set data within data frame.
+  for (uint8_t i = startBit / 8; i < startBit / 8 + sigLength / 8; i++) {
+    (to_send.data)[i] = signalArray[i];
+  }
+
+  // Works: problem with sendSignal
+  ssize_t bytes = write(sock, to_send, sizeof(can_frame));
+
+  if (bytes < 0) {
+    perror("CANT SET SIGNAL");
+  }
+}
+*/
+
+/*! Send CAN messages over the CAN bus.
+ *
+ *  @brief message is sent over CAN bus in little endian format.
+ */
+void CanInterface::sendSignal(canfd_frame *to_write) {
+  ssize_t bytes = write(sock, to_write, sizeof(can_frame));
+
+  if (bytes < 0)
+    perror("CAN...'T WR ITE SEND SIGNAL (<0)");
+
+  else if ((long unsigned int)bytes < sizeof(can_frame))
+    perror("CAN...'T WRITE SEND SIGNAL (<size)");
+}
+
 /*! Set CAN signals and messages to BUS using little endian.
  *
  * @param canfd_frame address of frame used to set data and CAN ID.
@@ -287,44 +359,14 @@ float CanInterface::getSignalBE(dv_can_msg msgName, uint8_t startBit,
  * @param data data (e.g. an angle) that has undergone scaling.
  * @return data received by the DV computer.
  */
-void CanInterface::setSignal(canfd_frame *to_send, dv_can_msg msgName,
-                             uint8_t startBit, uint8_t sigLength, float scale,
-                             double data) {
-  to_send->can_id = dv_can_msg_map[(int)msgName];
-  to_send->len = 8;
-  uint8_t signalArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+uint64_t CanInterface::setSignal(uint64_t to_send, uint8_t startBit, uint8_t sigLength, double scale, double data) {
+  uint64_t can_data = (uint64_t) (data / scale); 
 
-  // Take raw data and scale it if necessary.
-  uint64_t can_data = (uint64_t)(data / scale);
+  uint64_t mask = pow(2, sigLength) - 1; 
 
-  // Convert to byte format.
-  uint64_t mask = pow(2, 8) - 1; // 8 Bit Mask
+  to_send = to_send | ((can_data & mask) << (64 - startBit - sigLength));
 
-  for (int i = startBit / 8 + sigLength / 8 - 1; i >= startBit / 8; i--) {
-    uint64_t byte = can_data & mask;
-    signalArray[i] = byte;
-
-    can_data = can_data >> 8;
-  }
-
-  // Set data within data frame.
-  for (uint8_t i = startBit / 8; i < startBit / 8 + sigLength / 8; i++) {
-    (to_send->data)[i] = signalArray[i];
-  }
-}
-
-/*! Send CAN messages over the CAN bus.
- *
- *  @brief message is sent over CAN bus in little endian format.
- */
-void CanInterface::sendSignal(canfd_frame *to_write) {
-  ssize_t bytes = write(sock, to_write, sizeof(can_frame));
-
-  if (bytes < 0)
-    perror("CAN...'T WRITE (<0)");
-
-  else if ((long unsigned int)bytes < sizeof(can_frame))
-    perror("CAN...'T WRITE (<size)");
+  return to_send;
 }
 
 } // namespace car_interface

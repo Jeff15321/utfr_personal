@@ -9,8 +9,15 @@ from launch_ros.actions import Node
 def generate_launch_description():
     ld = LaunchDescription()
 
-    # DV stack
+    # Drivers
+    # gps_dir = get_package_share_directory("xsens_mti_ros2_driver")
+    # gps_launch = IncludeLaunchDescription(
+    #     launch_description_sources.PythonLaunchDescriptionSource(
+    #         gps_dir + "/launch/xsens_mti_node.launch.py"
+    #     )
+    # )
 
+    # DV stack
     planning_dir = get_package_share_directory("planning")
     planning_launch = IncludeLaunchDescription(
         launch_description_sources.PythonLaunchDescriptionSource(
@@ -25,6 +32,7 @@ def generate_launch_description():
         )
     )
 
+    # ld.add_action(gps_launch)
     ld.add_action(planning_launch)
     ld.add_action(controls_launch)
 

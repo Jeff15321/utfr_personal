@@ -259,25 +259,16 @@ def transform_det_lidar(detections, transform):
     transformed_points = []
     for point in detections:
         # Create a PointStamped message
-        point_stamped = Point()
-        point_stamped.x = point[0]
-        point_stamped.y = point[1]
-        point_stamped.z = point[2]
+        p = Point()
+        p.x = point[0]
+        p.y = point[1]
+        p.z = point[2]
 
         try:
-            transformed_point_stamped = tf2_geometry_msgs.do_transform_point(
-                PointStamped(point=point_stamped), transform
+            p_tf = tf2_geometry_msgs.do_transform_point(
+                PointStamped(point=p), transform
             ).point
-            transformed_point = [
-                -1.0 * transformed_point_stamped.x,
-                -1.0 * transformed_point_stamped.y,
-                -1.0 * transformed_point_stamped.z,
-                # -1.0 * transformed_point_stamped.z,
-                # -1.0 * transformed_point_stamped.x,
-                # -1.0 * transformed_point_stamped.y,
-                point[3],
-            ]
-            transformed_points.append(transformed_point)
+            transformed_points.append([p_tf.x, p_tf.y, p_tf.z, point[3]])
 
         except TransformException as ex:
             print(ex)

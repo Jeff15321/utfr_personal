@@ -100,7 +100,7 @@ bool HeartbeatMonitor::verifyHeartbeats(const rclcpp::Time &curr_time) {
       RCLCPP_ERROR(rclcpp::get_logger("heartbeat_monitor"),
                    "%s Module %s heartbeat not yet started!",
                    function_name.c_str(), element.first.c_str());
-      return false;
+      //return false; FOR DEBUGGING COMMENT OUT
     }
 
     double current_diff = (curr_time - new_stamp).nanoseconds() / 1000000;

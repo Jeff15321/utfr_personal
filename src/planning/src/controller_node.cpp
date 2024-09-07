@@ -93,6 +93,11 @@ void ControllerNode::initSubscribers() {
   point_subscriber_ = this->create_subscription<geometry_msgs::msg::Pose>(
       topics::kSkidpadCenterPoint, 10,
       std::bind(&ControllerNode::pointCB, this, _1));
+
+  // mission_subscriber_ =
+  // this->create_subscription<utfr_msgs::msg::SystemStatus>(
+  //     topics::kSystemStatus, 10,
+  //     std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
 }
 
 void ControllerNode::initPublishers() {
@@ -108,6 +113,16 @@ void ControllerNode::initPublishers() {
 }
 
 void ControllerNode::initTimers() {
+  main_timer_.reset();
+
+  if (!event_set_) {
+    main_timer_ = this->create_wall_timer(
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&ControllerNode::homeScreenCB, this));
+
+    return;
+  }
+
   if (event_ == "accel") {
     last_lap_count_ = 2;
     use_mapping_ = false;
@@ -143,7 +158,7 @@ void ControllerNode::initTimers() {
   }
 }
 
-void ControllerNode::initEvent() {
+void ControllerNode::initEvent() { // TODO: TEST
   if (event_ == "read") {
     mission_subscriber_ =
         this->create_subscription<utfr_msgs::msg::SystemStatus>(
@@ -153,25 +168,48 @@ void ControllerNode::initEvent() {
 }
 
 void ControllerNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
-  if (msg.ami_state == 1) {
+  switch (msg.ami_state) {
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION: {
     event_ = "accel";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 2) {
-    event_ = "skidpad";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 3) {
-    event_ = "trackdrive";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 4) {
-    event_ = "EBSTest";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 5) {
-    event_ = "ASTest";
-    mission_subscriber_.reset();
-  } else if (msg.ami_state == 6) {
-    event_ = "autocross";
-    mission_subscriber_.reset();
+    event_set_ = true;
+    break;
   }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_SKIDPAD: {
+    event_ = "skidpad";
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_TRACKDRIVE: {
+    event_ = "trackdrive";
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_EBSTEST: {
+    event_ = "EBSTest";
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_TESTING:
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION: {
+    event_ = "ASTest";
+    event_set_ = true;
+    break;
+  }
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS: {
+    event_ = "autocross";
+    event_set_ = true;
+    break;
+  }
+  }
+
+  if (as_state == 2 && msg.as_state == 3) {
+    start_time_ = this->get_clock()->now();
+  }
+
+  as_state = msg.as_state;
+
+  std::cout << "PLANNING AS STATE: " << as_state << std::endl;
+  // std::cout << "PLANNING AMI: " << msg.ami_state << std::endl;
 }
 
 void ControllerNode::initGGV(std::string filename) {
@@ -309,8 +347,24 @@ void ControllerNode::pointCB(const geometry_msgs::msg::Pose &msg) {
   point_ = std::make_shared<geometry_msgs::msg::Pose>(msg);
 }
 
+void ControllerNode::homeScreenCB() {
+  if (event_set_)
+  {
+    initTimers();
+  }
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
+}
+
 void ControllerNode::timerCBAccel() {
   const std::string function_name{"controller_timerCB:"};
+
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
 
   try {
     if (!path_ || !ego_state_) {
@@ -363,6 +417,11 @@ void ControllerNode::timerCBAccel() {
 
 void ControllerNode::timerCBSkidpad() {
   const std::string function_name{"controller_timerCB:"};
+
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
 
   try {
     if (!(path_ || point_) || !ego_state_) {
@@ -426,8 +485,12 @@ void ControllerNode::timerCBSkidpad() {
 void ControllerNode::timerCBAutocross() {
   const std::string function_name{"controller_timerCB:"};
 
-  try {
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
 
+  try {
     if (!path_ || !ego_state_) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
                   "Data not published or initialized yet. Using defaults.");
@@ -478,6 +541,11 @@ void ControllerNode::timerCBAutocross() {
 
 void ControllerNode::timerCBTrackdrive() {
   const std::string function_name{"controller_timerCB:"};
+
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
 
   try {
 
@@ -533,6 +601,11 @@ void ControllerNode::timerCBTrackdrive() {
 void ControllerNode::timerCBEBS() {
   const std::string function_name{"controller_timerCB:"};
 
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
+
   try {
     if (!path_) {
       RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
@@ -580,18 +653,31 @@ void ControllerNode::timerCBEBS() {
 }
 
 void ControllerNode::timerCBAS() {
+  if (as_state != 3) {
+    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"), "here lol");
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
   double curr_time = this->now().seconds();
   double time_diff = curr_time - start_time_.seconds();
 
-  if (time_diff < 30.0) {
-    target_.speed = 5.0;
-    target_.steering_angle = sin(time_diff * 3.1415);
+  if (as_state == 3 && time_diff < 30.0) {
+    target_.speed = 1.0;
+    target_.steering_angle = sin(time_diff * 3.1415 / 3) * max_steering_angle_;
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } else {
+  } else if (as_state == 3) {
     target_.speed = 0.0;
     target_.steering_angle = 0.0;
     publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
+  } else {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
+    target_.speed = 0.0;
+    target_.steering_angle = 0.0;
   }
+
+  std::cout << "Speed: " << target_.speed << " STR: " << target_.steering_angle
+            << std::endl;
+
   target_state_publisher_->publish(target_);
 }
 
@@ -812,7 +898,8 @@ ControllerNode::purePursuitController(double max_steering_angle,
   // Limit steering angle within bounds.
   delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
 
-  double max_steering_rate = static_cast<double>(109 * 100 / 22.0 / 60.0 / update_rate_);
+  double max_steering_rate =
+      static_cast<double>(109 * 100 / 22.0 / 60.0 / update_rate_);
   if (abs(delta - last_steering_angle_) > max_steering_rate) {
     if (delta > last_steering_angle_) {
       delta = last_steering_angle_ + max_steering_rate;

@@ -52,6 +52,8 @@ void CarInterface::initParams() {
       this->get_parameter("heartbeat_modules_inspection").as_string_array();
 
   testing_ = this->get_parameter("testing").as_int();
+
+  start_time = this->now().seconds();
 }
 
 void CarInterface::initSubscribers() {
@@ -147,20 +149,21 @@ void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
   const std::string function_name{"controlCmdCB"};
 
   steering_cmd_ = msg.str_cmd;
-  // Clamp steering angle to +/- MAX_STR
-  std::clamp(steering_cmd_, MAX_STR, -MAX_STR);
+  throttle_cmd_ = msg.thr_cmd;
 
   // Finalize commands
+  // TODO: Re-add one state machine verified
+  // if (cmd_ || testing_) {
+  //   braking_cmd_ = (int16_t)msg.brk_cmd;
+  //   throttle_cmd_ = (int16_t)msg.thr_cmd;
+  // } else {
+  //   braking_cmd_ = 0;
+  //   steering_cmd_ = 0;
+  //   throttle_cmd_ = 0;
+  // }
 
-  if (cmd_ || testing_) {
-    braking_cmd_ = (int16_t)msg.brk_cmd;
-    steering_cmd_ = (((int32_t)(msg.str_cmd * 45454)) & 0xFFFFFFFF);
-    throttle_cmd_ = (int16_t)msg.thr_cmd;
-  } else {
-    braking_cmd_ = 0;
-    steering_cmd_ = 0;
-    throttle_cmd_ = 0;
-  }
+  // throttle_cmd_ = 0;
+  braking_cmd_ = 0;
 
   // TODO: Map brake PWM to pressure?
   system_status_.brake_hydr_target = braking_cmd_; // TODO: Convert to %
@@ -218,7 +221,8 @@ void CarInterface::sendDVLogs() {
     dv_driving_dynamics_1 |= system_status_.motor_moment_actual << (8 * (i++));
     dv_driving_dynamics_1 |= system_status_.motor_moment_target << (8 * (i++));
 
-    can0_->write_can(dv_can_msg::DVDrivingDynamics1, dv_driving_dynamics_1);
+    can0_->write_can(dv_can_msg::DVDrivingDynamics1, dv_driving_dynamics_1,
+                     true);
 
     // Dv driving dynamics 2
     long dv_driving_dynamics_2 = 0;
@@ -230,7 +234,8 @@ void CarInterface::sendDVLogs() {
                              << (16 * (i++));
     dv_driving_dynamics_2 |= system_status_.yaw_rate << (16 * (i++));
 
-    can0_->write_can(dv_can_msg::DVDrivingDynamics2, dv_driving_dynamics_2);
+    can0_->write_can(dv_can_msg::DVDrivingDynamics2, dv_driving_dynamics_2,
+                     true);
 
     // DV system status
     long dv_system_status = 0;
@@ -249,7 +254,7 @@ void CarInterface::sendDVLogs() {
     system_status_.header.stamp = this->get_clock()->now();
     system_status_publisher_->publish(system_status_);
 
-    can0_->write_can(dv_can_msg::DVSystemStatus, dv_system_status);
+    // can0_->write_can(dv_can_msg::DVSystemStatus, dv_system_status);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
@@ -267,16 +272,19 @@ void CarInterface::DVCompStateMachine() {
     RCLCPP_INFO(this->get_logger(), "%s: Current state: %d",
                 function_name.c_str(), system_status_.as_state);
 
+    // DV System Status
+
     switch (system_status_.as_state) {
     case utfr_msgs::msg::SystemStatus::AS_STATE_OFF: {
       // Check if autonomous mission is set
       if (system_status_.ami_state ==
               std::clamp(system_status_.ami_state,
-                         utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION,
-                         utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS) &&
+                         utfr_msgs::msg::SystemStatus::AMI_STATE_TESTING,
+                         utfr_msgs::msg::SystemStatus::AMI_STATE_MANUAL) &&
           !launched_) {
         launched_ = launchMission(); // Launch other dv nodes
-      } else if (heartbeat_status || str_motor_state_ > 0) {
+      } else if (heartbeat_status && str_motor_state_) {
+        // Computer is ready
         dv_pc_state_ = DV_PC_STATE::READY;
         cmd_ = false;
       } else {
@@ -286,18 +294,17 @@ void CarInterface::DVCompStateMachine() {
       break;
     }
     case utfr_msgs::msg::SystemStatus::AS_STATE_READY: {
-      if (heartbeat_status || str_motor_state_ > 0) {
+      if (heartbeat_status && str_motor_state_) {
         dv_pc_state_ = DV_PC_STATE::READY;
         cmd_ = false;
       } else {
-        dv_pc_state_ = DV_PC_STATE::EMERGENCY; // Is this required or can we go
-                                               // back to off?
+        dv_pc_state_ = DV_PC_STATE::OFF;
         cmd_ = false;
       }
       break;
     }
     case utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING: {
-      if (heartbeat_status || str_motor_state_ > 0) {
+      if (heartbeat_status && str_motor_state_) {
         dv_pc_state_ = DV_PC_STATE::DRIVING;
         cmd_ = true;
         if (finished_) {
@@ -309,7 +316,7 @@ void CarInterface::DVCompStateMachine() {
       }
       break;
     }
-    case utfr_msgs::msg::SystemStatus::AS_STATE_EMERGENCY_BRAKE: {
+    case utfr_msgs::msg::SystemStatus::AS_STATE_EMERGENCY: {
       dv_pc_state_ = DV_PC_STATE::EMERGENCY;
       cmd_ = false;
       if (!shutdown_) {
@@ -329,7 +336,7 @@ void CarInterface::DVCompStateMachine() {
       dv_pc_state_ = DV_PC_STATE::OFF;
       cmd_ = false;
       if (!shutdown_) {
-        shutdown_ = shutdownNodes();
+        // shutdown_ = shutdownNodes();
       }
       break;
     }
@@ -347,59 +354,51 @@ void CarInterface::sendStateAndCmd() {
   try {
 
     // DV computer state
-    canfd_frame *dv_comp_state = (canfd_frame *)malloc(sizeof(canfd_frame));
-    can0_->setSignal(dv_comp_state, dv_can_msg::DV_COMP_STATE, 0, 3, 1,
-                     dv_pc_state_);
+    uint64_t dv_comp_state = 0;
+    dv_comp_state = can0_->setSignal(dv_comp_state, 0, 8, 1, dv_pc_state_);
 
-    // Steering motor position
-    // can use different mode to command speed/accel
-    can0_->write_can(dv_can_msg::SetSTRMotorPos, ((long)steering_cmd_) << 32);
-    canfd_frame *steering_canfd = (canfd_frame *)malloc(sizeof(canfd_frame));
-
-    // Motor/inverter command
-    canfd_frame *inverter_canfd = (canfd_frame *)malloc(sizeof(canfd_frame));
-
-    if (braking_cmd_ == 0) {
-      // Zero commanded torque
-      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 0, 16, 1,
-                       0x0000);
-      // Commanded speed
-      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 16, 16, 1,
-                       throttle_cmd_ & 0xFFFF);
-    } else if (braking_cmd_ < 0) {
-      // TODO: review regen
-      // Commanded negative torque
-      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 0, 16, 1,
-                       braking_cmd_ & 0xFFFF);
-      // Zero commanded speed
-      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 16, 16, 1,
-                       0x0000);
+    // Steering motor origin reset
+    if (dv_pc_state_ == DV_PC_STATE::READY) {
+      // TODO: Send reset origin command, else send steering angle
     }
 
-    if (cmd_ || testing_) {
-      // Enable Inverter
-      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 40, 8, 1,
-                       0x01);
-    } else {
-      // Disable Inverter
-      can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 40, 8, 1,
-                       0x00);
-    }
+    // Steering motor command
+    RCLCPP_INFO(this->get_logger(), "%s: steering commanded: %d",
+                function_name.c_str(), steering_cmd_);
 
-    // Forward direction.
-    can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 32, 8, 1,
-                     0x01);
-    // Torque limit.
-    can0_->setSignal(inverter_canfd, dv_can_msg::COMMANDED_TORQUE, 48, 16, 1,
-                     0x0000);
+    uint64_t steering_position = steering_cmd_ * 10000;
+    uint64_t steering_canfd = 0;
+    steering_canfd = can0_->setSignal(steering_canfd, 24, 8, 1,
+                                      0x000000FF & steering_position);
+    steering_canfd = can0_->setSignal(steering_canfd, 16, 8, 1,
+                                      (0x0000FF00 & steering_position) >> 8);
+    steering_canfd = can0_->setSignal(steering_canfd, 8, 8, 1,
+                                      (0x00FF0000 & steering_position) >> 16);
+    steering_canfd = can0_->setSignal(steering_canfd, 0, 8, 1,
+                                      (0xFF000000 & steering_position) >> 24);
+
+    // Inverter command
+    RCLCPP_INFO(this->get_logger(), "%s: throttle commanded: %d",
+                function_name.c_str(), throttle_cmd_);
+    // int torque_commanded = 0;
+    // int speed_commanded = 0;
+    // bool enable_inverter = false;
+    // bool torque_mode = false;
+    // int torque_limit = 20;
+    // bool regen = false; // Need to do regen checks.
+
+    // double curr_time = this->now().seconds();
+    // double time_diff = curr_time - start_time;
+
+    int apps_command = throttle_cmd_ * 10;
+    uint64_t apps_canfd = 0;
+    apps_canfd = can0_->setSignal(apps_canfd, 0, 8, 1, apps_command % 256);
+    apps_canfd = can0_->setSignal(apps_canfd, 8, 8, 1, apps_command / 256);
 
     // Transmit
-    can0_->sendSignal(dv_comp_state);
-    can0_->sendSignal(steering_canfd);
-    can0_->sendSignal(inverter_canfd);
-    free(dv_comp_state);
-    free(steering_canfd);
-    free(inverter_canfd);
+    can0_->write_can(dv_can_msg::STR_MOTOR_CMD, steering_canfd, true);
+    can0_->write_can(dv_can_msg::APPS, apps_canfd, true);
+    can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state, true);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
@@ -409,29 +408,47 @@ void CarInterface::sendStateAndCmd() {
 
 bool CarInterface::launchMission() {
   const std::string function_name{"launchMission"};
-  RCLCPP_INFO(this->get_logger(), "%s: Laucnhing nodes", function_name.c_str());
 
-  std::string launchCmd = "ros2 launch launcher dv.launch.py";
-  std::vector<std::string> modules = heartbeat_modules_;
+  std::string launchCmd = "";
+  std::vector<std::string> modules;
 
   switch (system_status_.ami_state) {
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_TESTING:
+    RCLCPP_INFO(this->get_logger(), "%s: Launching daq mission",
+                function_name.c_str());
+    launchCmd = "ros2 launch launcher sensors.launch.py &";
+    modules = heartbeat_modules_testing_;
+    break;
   case utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION:
-    launchCmd = "ros2 launch launcher dv_inspection.launch.py";
+    RCLCPP_INFO(this->get_logger(), "%s: Launching Inspection mission",
+                function_name.c_str());
+    launchCmd = "ros2 launch launcher dv_inspection.launch.py &";
     modules = heartbeat_modules_inspection_;
     break;
 
-  case utfr_msgs::msg::SystemStatus::AMI_STATE_BRAKETEST:
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_EBSTEST:
   case utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION:
-    launchCmd = "ros2 launch launcher dv_accel.launch.py";
+    RCLCPP_INFO(this->get_logger(), "%s: Launching Accel/EBS test mission",
+                function_name.c_str());
+    launchCmd = "ros2 launch launcher dv_accel.launch.py &";
     modules = heartbeat_modules_accel_;
     break;
-
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_SKIDPAD:
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS:
+  case utfr_msgs::msg::SystemStatus::AMI_STATE_TRACKDRIVE:
+    RCLCPP_INFO(this->get_logger(), "%s: Launching DV mission",
+                function_name.c_str());
+    launchCmd = "ros2 launch launcher dv.launch.py &";
+    modules = heartbeat_modules_;
+    break;
   default:
+    RCLCPP_INFO(this->get_logger(), "%s: Not launching anything. Dying now",
+                function_name.c_str());
+    shutdownNodes();
     break;
   }
   // Execute the launch command
   int result = std::system(launchCmd.c_str());
-
   heartbeat_monitor_->updateModules(modules, this->get_clock()->now());
 
   if (result != 0) {
@@ -448,6 +465,7 @@ bool CarInterface::shutdownNodes() {
   try {
     RCLCPP_INFO(this->get_logger(), "%s: Shutting down car_interface node",
                 function_name.c_str());
+
     rclcpp::shutdown();
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occurred",
@@ -465,7 +483,7 @@ void CarInterface::timerCB() {
     getDVState();         // Read DV state from car from can
     sendDVLogs();         // Publish FSG log format over ros and send over can
     DVCompStateMachine(); // Set DV coputer state
-    sendStateAndCmd();    // Send DV computer state to RC and actuaotor commands
+    sendStateAndCmd();    // Send DV computer state to RC and actuator commands
                           // over can
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",

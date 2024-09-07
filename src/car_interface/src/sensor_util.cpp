@@ -23,15 +23,15 @@ void CarInterface::getSteeringMotorData() { // TODO: Review
   try {
     // servo mode
     str_motor_state_ =
-        (uint8_t)can0_->getSignal(dv_can_msg::StrMotorInfo, 56, 8, false, 1);
+        (uint8_t)can0_->getSignal(dv_can_msg::StrMotorInfo, 48, 8, false, 1);
     // TODO: figure out whether getSignal can be used with high byte / low byte
     // format
     steering_angle = // degrees
         -(uint16_t)can0_->getSignal(dv_can_msg::StrMotorInfo, 0, 16, true, 0.1);
 
-    // RCLCPP_INFO(this->get_logger(), "%s: Steer angle: %d",
-    //             function_name.c_str(), steering_angle);
-    // Check for sensor malfunction
+    RCLCPP_INFO(this->get_logger(), "Steering Motor Angle: %d", steering_angle);
+    RCLCPP_INFO(this->get_logger(), "Steering Motor State: %d",
+                str_motor_state_);
     if ((abs(steering_angle) > 50)) {
       RCLCPP_ERROR(this->get_logger(), "%s: Value error",
                    function_name.c_str());
@@ -166,90 +166,74 @@ void CarInterface::getWheelspeedSensorData() { // Not needed atm
 void CarInterface::getIMUData() { // Not needed atm
   const std::string function_name{"getIMUData"};
 
-  try {
-    // TODO: Check reference frames, double check value format
-    sensor_msgs::msg::Imu imu;
-    imu.linear_acceleration.x =
-        (double)(((long)can0_->get_can(dv_can_msg::ImuX) >> (32)) & 255) / 100;
-    imu.linear_acceleration.y =
-        -(double)(((long)can0_->get_can(dv_can_msg::ImuY) >> (32)) & 255) / 100;
-    imu.linear_acceleration.z =
-        (double)(((long)can0_->get_can(dv_can_msg::ImuZ) >> (32)) & 255) / 100;
-    imu.angular_velocity.x =
-        (double)(can0_->get_can(dv_can_msg::ImuX) & 255) / 10;
-    imu.angular_velocity.y =
-        (double)(can0_->get_can(dv_can_msg::ImuY) & 255) / 10;
+  // try {
+  //   // TODO: Check reference frames, double check value format
+  //   sensor_msgs::msg::Imu imu;
+  //   imu.linear_acceleration.x =
+  //       (double)(((long)can0_->get_can(dv_can_msg::ImuX) >> (32)) & 255) /
+  //       100;
+  //   imu.linear_acceleration.y =
+  //       -(double)(((long)can0_->get_can(dv_can_msg::ImuY) >> (32)) & 255) /
+  //       100;
+  //   imu.linear_acceleration.z =
+  //       (double)(((long)can0_->get_can(dv_can_msg::ImuZ) >> (32)) & 255) /
+  //       100;
+  //   imu.angular_velocity.x =
+  //       (double)(can0_->get_can(dv_can_msg::ImuX) & 255) / 10;
+  //   imu.angular_velocity.y =
+  //       (double)(can0_->get_can(dv_can_msg::ImuY) & 255) / 10;
 
-    sensor_can_.imu_data = imu;
-  } catch (int e) {
-    RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
-                 function_name.c_str(), e);
-  }
+  //   sensor_can_.imu_data = imu;
+  // } catch (int e) {
+  //   RCLCPP_ERROR(this->get_logger(), "%s: Error occured, error #%d",
+  //                function_name.c_str(), e);
+  // }
 }
 
 void CarInterface::getGPSData() {
   const std::string function_name{"getGPSData"};
-
+  // TODO: add missing messages and split into multiple topics
   try {
-    std_msgs::msg::Header gps_header;
-    gps_header.stamp.sec = can0_->getSignalBE(
-        dv_can_msg::GPS_SAMPLE_TIME, 0, 32, false, 1);
+    sensor_can_.position.latitude =
+        can0_->getSignalBE(dv_can_msg::GPS_LAT_LONG, 0, 32, true, pow(2, -24));
+    sensor_can_.position.longitude =
+        can0_->getSignalBE(dv_can_msg::GPS_LAT_LONG, 32, 32, true, pow(2, -23));
+    sensor_can_.position.altitude = can0_->getSignalBE(
+        dv_can_msg::GPS_ALT_ELLIP, 0, 32, false, pow(2, -15));
 
-    std_msgs::msg::Bool gps_error;
-    gps_error.set__data(
-        (bool)can0_->getSignalBE(dv_can_msg::GPS_ERROR_CODE, 0, 8, false, 1));
+    sensor_can_.imu.orientation.x = can0_->getSignalBE(
+        dv_can_msg::GPS_ORIENTATION, 0, 16, true, pow((pow(2, 15) - 1), -1));
+    sensor_can_.imu.orientation.y = can0_->getSignalBE(
+        dv_can_msg::GPS_ORIENTATION, 16, 16, true, pow((pow(2, 15) - 1), -1));
+    sensor_can_.imu.orientation.w = can0_->getSignalBE(
+        dv_can_msg::GPS_ORIENTATION, 32, 16, true, pow((pow(2, 15) - 1), -1));
+    sensor_can_.imu.orientation.z = can0_->getSignalBE(
+        dv_can_msg::GPS_ORIENTATION, 48, 16, true, pow((pow(2, 15) - 1), -1));
 
-    sensor_msgs::msg::NavSatFix latlong;
-    // Latitude, Longitude, Altitude
-    latlong.latitude = can0_->getSignalBE(dv_can_msg::GPS_LAT_LONG, 0,
-                                                   32, true, pow(2, -24));
-    latlong.longitude = can0_->getSignalBE(dv_can_msg::GPS_LAT_LONG,
-                                                    32, 32, true, pow(2, -23));
-    latlong.altitude = can0_->getSignalBE(dv_can_msg::GPS_ALT_ELLIP,
-                                                    0, 32, false, pow(2, -15));
+    sensor_can_.imu.linear_acceleration.x = can0_->getSignalBE(
+        dv_can_msg::GPS_ACCELERATION, 0, 16, true, pow(2, -8));
+    sensor_can_.imu.linear_acceleration.y = can0_->getSignalBE(
+        dv_can_msg::GPS_ACCELERATION, 16, 16, true, pow(2, -8));
+    sensor_can_.imu.linear_acceleration.z = can0_->getSignalBE(
+        dv_can_msg::GPS_ACCELERATION, 32, 16, true, pow(2, -8));
+    // TODO: Where is angular velocity?
 
-    // stamped = time stamped all msgs need time stamp
-    geometry_msgs::msg::Vector3Stamped gps_rpy;
-    gps_rpy.header = gps_header;
-    double gps_rpy_scale = pow(2, -7);
-    gps_rpy.vector.x = can0_->getSignalBE(dv_can_msg::GPS_RPY, 0, 16,
-                                                   true, gps_rpy_scale);
-    gps_rpy.vector.y = can0_->getSignalBE(dv_can_msg::GPS_RPY, 16, 16,
-                                                   true, gps_rpy_scale);
-    gps_rpy.vector.z = can0_->getSignalBE(dv_can_msg::GPS_RPY, 32, 16,
-                                                   true, gps_rpy_scale);
+    sensor_can_.rpy.x =
+        can0_->getSignalBE(dv_can_msg::GPS_RPY, 0, 16, true, pow(2, -7));
+    sensor_can_.rpy.y =
+        can0_->getSignalBE(dv_can_msg::GPS_RPY, 16, 16, true, pow(2, -7));
+    sensor_can_.rpy.z =
+        can0_->getSignalBE(dv_can_msg::GPS_RPY, 32, 16, true, pow(2, -7));
 
-    geometry_msgs::msg::QuaternionStamped gps_orientation;
-    gps_orientation.header = gps_header;
-    double gps_quat_scale = pow((pow(2, 15) - 1), -1);
-    gps_orientation.quaternion.x = can0_->getSignalBE(
-        dv_can_msg::GPS_ORIENTATION, 0, 16, true, gps_quat_scale);
-    gps_orientation.quaternion.y = can0_->getSignalBE(
-        dv_can_msg::GPS_ORIENTATION, 16, 16, true, gps_quat_scale);
-    gps_orientation.quaternion.w = can0_->getSignalBE(
-        dv_can_msg::GPS_ORIENTATION, 32, 16, true, gps_quat_scale);
-    gps_orientation.quaternion.z = can0_->getSignalBE(
-        dv_can_msg::GPS_ORIENTATION, 48, 16, true, gps_quat_scale);
+    sensor_can_.velocity.linear.x =
+        can0_->getSignalBE(dv_can_msg::GPS_VEL_XYZ, 0, 16, true, pow(2, -6));
+    sensor_can_.velocity.linear.y =
+        can0_->getSignalBE(dv_can_msg::GPS_VEL_XYZ, 16, 16, true, pow(2, -6));
+    sensor_can_.velocity.linear.z =
+        can0_->getSignalBE(dv_can_msg::GPS_VEL_XYZ, 32, 16, true, pow(2, -6));
 
-    geometry_msgs::msg::TwistStamped gps_velocity;
-    gps_velocity.header = gps_header;
-    double gps_vel_scale = pow(2, -6);
-    gps_velocity.twist.linear.x = can0_->getSignalBE(
-        dv_can_msg::GPS_VEL_XYZ, 0, 16, true, gps_vel_scale);
-    gps_velocity.twist.linear.y = can0_->getSignalBE(
-        dv_can_msg::GPS_VEL_XYZ, 16, 16, true, gps_vel_scale);
-    gps_velocity.twist.linear.z = can0_->getSignalBE(
-        dv_can_msg::GPS_VEL_XYZ, 32, 16, true, gps_vel_scale);
-
-    geometry_msgs::msg::AccelStamped gps_accel;
-    gps_accel.header = gps_header;
-    double gps_accel_scale = pow(2, -8);
-    gps_accel.accel.linear.x = can0_->getSignalBE(
-        dv_can_msg::GPS_ACCELERATION, 0, 16, true, gps_accel_scale);
-    gps_accel.accel.linear.y = can0_->getSignalBE(
-        dv_can_msg::GPS_ACCELERATION, 16, 16, true, gps_accel_scale);
-    gps_accel.accel.linear.z = can0_->getSignalBE(
-        dv_can_msg::GPS_ACCELERATION, 32, 16, true, gps_accel_scale);
+    // sensor_can_.error = can0_->getSignalBE(dv_can_msg::GPS_ERROR_CODE, 0, 8,
+    // false, 1);
 
   } catch (int e) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occurred, error #%d",
@@ -263,9 +247,9 @@ void CarInterface::getSensorCan() {
   try {
     // Read sensor CAN messages from car
     getSteeringMotorData();
-    getMotorSpeedData();
-    getMotorTorqueData();
-    getServiceBrakeData();
+    // getMotorSpeedData();
+    // getMotorTorqueData();
+    // getServiceBrakeData();
     // getWheelspeedSensorData();
     // getIMUData();
     getGPSData();
@@ -279,18 +263,29 @@ void CarInterface::getSensorCan() {
 }
 
 void CarInterface::getDVState() {
+  const std::string function_name{"getDVState"};
+
   // Get DV state from car
-
   system_status_.as_state =
-      can0_->getSignal(dv_can_msg::FULL_AS_STATE, 0, 3, true, 1);
+      can0_->getSignal(dv_can_msg::FULL_AS_STATE, 0, 3, false, 1);
+  // RCLCPP_INFO(this->get_logger(), "%s: AS STATE: %d", function_name.c_str(),
+  //             system_status_.as_state);
   system_status_.ebs_state =
-      can0_->getSignal(dv_can_msg::FULL_AS_STATE, 3, 2, true, 1);
+      can0_->getSignal(dv_can_msg::FULL_AS_STATE, 3, 2, false, 1);
+  // RCLCPP_INFO(this->get_logger(), "%s: EBS STATE: %d", function_name.c_str(),
+  //             system_status_.ebs_state);
   system_status_.ami_state =
-      can0_->getSignal(dv_can_msg::FULL_AS_STATE, 5, 3, true, 1);
+      can0_->getSignal(dv_can_msg::FULL_AS_STATE, 5, 3, false, 1);
+  // RCLCPP_INFO(this->get_logger(), "%s: AMI STATE: %d", function_name.c_str(),
+  // system_status_.ami_state);
   system_status_.steering_state = (str_motor_state_ == 0) ? 1 : 0;
+  // RCLCPP_INFO(this->get_logger(), "%s: STEERING STATE: %d",
+  //             function_name.c_str(), system_status_.steering_state);
   system_status_.service_brake_state =
-      can0_->getSignal(dv_can_msg::FULL_AS_STATE, 9, 2, true, 1);
+      can0_->getSignal(dv_can_msg::FULL_AS_STATE, 9, 2, false, 1);
+  // RCLCPP_INFO(this->get_logger(), "%s: BRAKE STATE: %d",
+  // function_name.c_str(),
+  //             system_status_.service_brake_state);
 }
-
 } // namespace car_interface
 } // namespace utfr_dv
