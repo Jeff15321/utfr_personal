@@ -127,8 +127,7 @@ PointCloud ConeLRFilter::filter_clusters(std::vector<PointCloud> clusters) {
     float IOU_big = calculateIOU(base_radius, fitted_height,
                                  this->big_cone_radius, this->big_cone_height);
     std::cout << "IOU: " << IOU << ", IOU_big: " << IOU_big << std::endl;
-    if (z < 2.5 && z_apex > -2.5 && fitted_height > 0 && base_radius < 0.8 &&
-        !std::isnan(mse_loss) &&
+    if (z < 5.0 && base_radius < 0.9 && !std::isnan(mse_loss) &&
         (IOU > this->IOUThreshold || IOU_big > this->IOUThreshold)) {
       cone_centers.push_back(center);
     }

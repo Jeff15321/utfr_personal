@@ -83,6 +83,8 @@ public:
    */
   PointCloud remove_ground(PointCloud points, Grid min_points);
 
+  PointCloud remove_ground_himmelsbach(PointCloud points, Grid min_points_grid);
+
   /**
    * @brief Cluster the remaining points
    *
