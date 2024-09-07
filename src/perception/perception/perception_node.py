@@ -538,7 +538,7 @@ class PerceptionNode(Node):
         )
 
         right_cone_detections = bounding_boxes_to_cone_detections(
-            left_bounding_boxes,
+            right_bounding_boxes,
             right_classes,
             self.intrinsics_right,
             self.cone_heights,
