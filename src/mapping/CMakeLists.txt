@@ -22,6 +22,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     utfr_common
     tf2_ros
     sensor_msgs
+    visualization_msgs
 )
 
 ## Find Dependencies

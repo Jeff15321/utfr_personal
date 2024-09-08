@@ -37,7 +37,7 @@ def generate_launch_description():
         parameters=[config_path],
     )
 
-    ld.add_action(compute_graph_node)
-    ld.add_action(build_graph_node)
+    # ld.add_action(compute_graph_node)
+    # ld.add_action(build_graph_node)
     ld.add_action(ekf_node)
     return ld

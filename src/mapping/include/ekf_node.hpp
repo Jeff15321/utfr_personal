@@ -28,14 +28,15 @@
 #include <vector>
 
 // Message Requirements
-#include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "sensor_msgs/msg/imu.hpp"
+#include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/sensor_can.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -99,11 +100,11 @@ public:
 
   /*! GPS sensor callback function
    */
- // void gpsCB(const nav_msgs::msg::Odometry msg);
+  // void gpsCB(const nav_msgs::msg::Odometry msg);
 
   /*! IMU sensor callback function
    */
-  //void imuCB(const sensor_msgs::msg::Imu msg);
+  // void imuCB(const sensor_msgs::msg::Imu msg);
 
   /*! Implement a kinematic / dynamic vehicle model
    *  Use the throttle, brake, and steering angle to update the vehicle model
@@ -186,15 +187,16 @@ public:
   // Publishers
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr ego_state_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr state_publisher;
 
   // Subscribers
   // SensorCAN handles GPS, IMU, and wheel/steering speed data!
   rclcpp::Subscription<utfr_msgs::msg::SensorCan>::SharedPtr
       sensorcan_subscriber_;
 
-  //rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gps_subscriber_;
+  // rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gps_subscriber_;
 
-  //rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscriber_;
+  // rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscriber_;
 
   // Global variables
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
