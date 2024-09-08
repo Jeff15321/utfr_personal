@@ -32,6 +32,7 @@ import rospkg
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+import torch
 
 # Message Requirements
 from sensor_msgs.msg import CompressedImage
@@ -272,7 +273,15 @@ class PerceptionNode(Node):
         )
 
         # create ultralytics model for inference
-        self.model = YOLO("src/perception/perception/yolov8n.onnx", task="detect")
+        self.model = YOLO("src/perception/perception/yolov8n.pt", task="detect")
+
+        if torch.cuda.is_available():
+            print("CUDA is available. Using GPU...")
+            self.model.to('cuda')  # Move the YOLO model to GPU
+        else:
+            print("CUDA is not available. Using CPU...")
+            self.model.to('cpu')  # Use CPU if GPU is not available
+        # self.model.export(format="engine")
 
         # create transform frame variables
         self.lidar_frame = "os_sensor"

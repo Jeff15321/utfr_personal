@@ -117,8 +117,12 @@ def deep_process(model, frame, confidence, visualize=False):
     # im_copy = img.copy()
     # im_copy = cv2.cvtColor(im_copy, cv2.COLOR_BGR2RGB)
     # ori_images = [im_copy]
-
+    start_time = time.time()
     output = model(frame)[0]
+
+    end_time = time.time()
+
+    print("runtime: ", end_time - start_time)
 
     bounding_boxes = []
     classes = []
