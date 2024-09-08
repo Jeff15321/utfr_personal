@@ -626,23 +626,52 @@ class PerceptionNode(Node):
 
             start = time.time()
 
-            undist_left = cv2.remap(
-                self.left_img_,
-                self.mapx_left,
-                self.mapy_left,
-                interpolation=cv2.INTER_NEAREST,
-                borderMode=cv2.BORDER_CONSTANT,
-                borderValue=(0, 0, 0, 0),
+            # undist_left = cv2.remap(
+            #     self.left_img_,
+            #     self.mapx_left,
+            #     self.mapy_left,
+            #     interpolation=cv2.INTER_NEAREST,
+            #     borderMode=cv2.BORDER_CONSTANT,
+            #     borderValue=(0, 0, 0, 0),
+            # )
+
+            # undist_right = cv2.remap(
+            #     self.right_img_,
+            #     self.mapx_right,
+            #     self.mapy_right,
+            #     interpolation=cv2.INTER_NEAREST,
+            #     borderMode=cv2.BORDER_CONSTANT,
+            #     borderValue=(0, 0, 0, 0),
+            # )
+            
+            left_img_gpu = cv2.cuda_GpuMat()
+            left_img_gpu.upload(self.left_img_)
+
+            right_img_gpu = cv2.cuda_GpuMat()
+            right_img_gpu.upload(self.right_img_)
+
+            mapx_left_gpu = cv2.cuda_GpuMat()
+            mapx_left_gpu.upload(self.mapx_left)
+
+            mapy_left_gpu = cv2.cuda_GpuMat()
+            mapy_left_gpu.upload(self.mapy_left)
+
+            mapx_right_gpu = cv2.cuda_GpuMat()
+            mapx_right_gpu.upload(self.mapx_right)
+
+            mapy_right_gpu = cv2.cuda_GpuMat()
+            mapy_right_gpu.upload(self.mapy_right)
+
+            undist_left = cv2.cuda.remap(
+                left_img_gpu, mapx_left_gpu, mapy_left_gpu, interpolation=cv2.INTER_NEAREST
             )
 
-            undist_right = cv2.remap(
-                self.right_img_,
-                self.mapx_right,
-                self.mapy_right,
-                interpolation=cv2.INTER_NEAREST,
-                borderMode=cv2.BORDER_CONSTANT,
-                borderValue=(0, 0, 0, 0),
+            undist_right = cv2.cuda.remap(
+                right_img_gpu, mapx_right_gpu, mapy_right_gpu, interpolation=cv2.INTER_NEAREST
             )
+            
+            undist_left = undist_left.download()
+            undist_right = undist_right.download()
 
             end = time.time()
             print("remap time: ", end - start)

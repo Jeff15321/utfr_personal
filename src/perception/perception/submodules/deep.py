@@ -95,28 +95,14 @@ def deep_process(model, frame, confidence, visualize=False):
         name: [np.random.randint(0, 255) for _ in range(3)]
         for i, name in enumerate(names)
     }
+    
+    if isinstance(frame, cv2.cuda_GpuMat):
+        # Convert from cv2.cuda_GpuMat to NumPy array
+        frame = frame.download()  # This brings it back to NumPy array, but data is still on GPU
+        frame = torch.from_numpy(frame).float().cuda()  # Convert to PyTorch Tensor on GPU
+        frame = frame.permute(2, 0, 1).unsqueeze(0)  # Reshape to match model's expected input shape (B, C, H, W)
 
-    # # Apply letterbox
-    # img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    # image = img.copy()
-    # image, ratio, dwdh = letterbox(image, auto=False)
-    # image = image.transpose((2, 0, 1))
-    # image = np.expand_dims(image, 0)
-    # image = np.ascontiguousarray(image)
 
-    # # Normalize input image
-    # im = image.astype(np.float32) / 255.0
-
-    # # Run inference using onnxruntime
-    # outname = [i.name for i in session.get_outputs()]
-    # inname = [i.name for i in session.get_inputs()]
-    # inp = {inname[0]: im}
-    # outputs = session.run(outname, inp)[0]
-
-    # # Process outputs
-    # im_copy = img.copy()
-    # im_copy = cv2.cvtColor(im_copy, cv2.COLOR_BGR2RGB)
-    # ori_images = [im_copy]
     start_time = time.time()
     output = model(frame)[0]
 
