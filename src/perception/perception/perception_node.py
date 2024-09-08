@@ -539,7 +539,7 @@ class PerceptionNode(Node):
           right_bounding_boxes: array of right camera detections
           cone_detections: array of 3d cone detections using stereo ([x, y, z, color])
         """
-
+        start = time.time()
         left_bounding_boxes, left_classes, left_scores = deep_process(
             self.model,
             left_img_,
@@ -550,6 +550,8 @@ class PerceptionNode(Node):
             right_img_,
             self.confidence_,
         )
+        end = time.time()
+        print("deep process time: ", end - start)
 
         # change bounding_boxes_to_cone_detections to return 3d cone
         # detections using camera intrinsics and simple triangulation depth
@@ -558,7 +560,7 @@ class PerceptionNode(Node):
         # get 3d estimates
         # ALSO: need to split cone_detections into left and right detections and return them
         # dont need to return the bounding boxes
-
+        start = time.time()
         left_cone_detections = bounding_boxes_to_cone_detections(
             left_bounding_boxes, left_classes, self.intrinsics_left, self.cone_heights
         )
@@ -569,6 +571,8 @@ class PerceptionNode(Node):
             self.intrinsics_right,
             self.cone_heights,
         )
+        end = time.time()
+        print("Bounding Box time: ", end - start)
 
         return (
             left_bounding_boxes,
@@ -587,6 +591,8 @@ class PerceptionNode(Node):
         Send Asynchronous Trigger to both cameras at once, and process
         incoming frames.
         """
+
+        timer_start = time.time()
 
         # initialize detection msg
         # TODO - make 1 detections message and combine them at the end
@@ -618,6 +624,8 @@ class PerceptionNode(Node):
 
             # undistort
 
+            start = time.time()
+
             undist_left = cv2.remap(
                 self.left_img_,
                 self.mapx_left,
@@ -635,6 +643,9 @@ class PerceptionNode(Node):
                 borderMode=cv2.BORDER_CONSTANT,
                 borderValue=(0, 0, 0, 0),
             )
+
+            end = time.time()
+            print("remap time: ", end - start)
 
             # code to resize the image (for faster fps)
 
@@ -657,6 +668,8 @@ class PerceptionNode(Node):
 
             frame_left = undist_left
             frame_right = undist_right
+
+            start = time.time()
 
             try:
                 # tf from left_cam to lidar
@@ -681,6 +694,10 @@ class PerceptionNode(Node):
                 return
             # get the detections
 
+            end = time.time()
+            print("lookup transform time: ", end - start)
+
+            start_time = time.time()
             (
                 results_left,
                 classes_left,
@@ -691,6 +708,10 @@ class PerceptionNode(Node):
                 left_cone_detections,
                 right_cone_detections,
             ) = self.process(frame_left, frame_right)
+            end_time = time.time()
+            print("Process time: ", end_time - start_time)
+
+            start = time.time()
 
             # transform camera detections to lidar frame
             left_detections_lidar_frame = transform_det_lidar(
@@ -700,10 +721,17 @@ class PerceptionNode(Node):
                 right_cone_detections, tf_rightcam_lidar
             )
 
+            end = time.time()
+            print("transform_det_lidar time: ", end - start)
+
             # Extract point cloud data
+
+            start = time.time()
             lidar_point_cloud_data = point_cloud2.read_points_numpy(
                 self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
             )
+            end = time.time()
+            print("Read points numpy time: ", end - start)
 
             # print(left_detections_lidar_frame.shape, right_detections_lidar_frame.shape)
             # concatenate into one array
@@ -717,6 +745,8 @@ class PerceptionNode(Node):
                 )
             # total_cam_det = left_detections_lidar_frame
             # total_cam_det = right_detections_lidar_frame
+
+            start = time.time()
 
             # perception detections debug
             self.detections_debug = ConeDetections()
@@ -743,6 +773,11 @@ class PerceptionNode(Node):
                     self.detections_debug.unknown_cones.append(self.cone_template)
 
             self.cone_detections_debug_.publish(self.detections_debug)
+
+            end = time.time()
+            print("Perception debug time: ", end - start)
+
+            start = time.time()
 
             # hungarian matching
             if total_cam_det.shape[0] > 0:
@@ -779,7 +814,10 @@ class PerceptionNode(Node):
             # self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
 
             # perception debug msg
+            end = time.time()
+            print("Hung time: ", end - start)
 
+            start = time.time()
             if len(results_left) == 0:
                 pass
             else:
@@ -820,6 +858,9 @@ class PerceptionNode(Node):
                     self.perception_debug_msg_right
                 )
 
+            end = time.time()
+            print("bounding box debug time: ", end - start)
+
             # imshow for opencv
             """
             cv2.imshow('left_camera', frame_left)
@@ -830,6 +871,8 @@ class PerceptionNode(Node):
             """
 
             # print("cone detections: " + str(cone_detections))
+
+            start = time.time()
 
             if cone_detections.size != 0:
                 # order cones by distance
@@ -863,7 +906,8 @@ class PerceptionNode(Node):
                 self.detections_msg.header.stamp = self.get_clock().now().to_msg()
 
                 self.cone_detections_publisher_.publish(self.detections_msg)
-
+            end = time.time()
+            print("Cone publishing time: ", end - start)
             self.left_img_recieved_ = False
             self.right_img_recieved_ = False
 
@@ -885,6 +929,9 @@ class PerceptionNode(Node):
 
             self.detections_msg.header.stamp = self.get_clock().now().to_msg()
             self.cone_detections_publisher_.publish(self.detections_msg)
+        
+        timer_end = time.time()
+        print('timer time: ', timer_end - timer_start)
 
     # Helper functions:
 

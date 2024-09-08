@@ -128,6 +128,7 @@ def deep_process(model, frame, confidence, visualize=False):
     classes = []
     scores = []
 
+    start = time.time()
     for box in output.boxes:
         # Get box coordinates, class and confidence
         x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
@@ -160,6 +161,9 @@ def deep_process(model, frame, confidence, visualize=False):
                 [225, 255, 255],
                 thickness=2,
             )
+    
+    end = time.time()
+    print("for box deep process: ", end-start)
 
     return bounding_boxes, classes, scores
 

@@ -20,8 +20,7 @@ perception_node: # Name of Node
         0.0,
         1.0,
       ]
-    intrinsics_right:
-      [
+    intrinsics_right: [
         1169.929054195447,
         0.0,
         732.7234047220617,
@@ -110,7 +109,7 @@ perception_node: # Name of Node
 
 lidar_proc_node:
   ros__parameters:
-    update_rate: 33.33 #[ms]
+    update_rate: 100.0 #[ms]
     debug: True
     topics: # TODO: fix
       input: "/ouster/points"
