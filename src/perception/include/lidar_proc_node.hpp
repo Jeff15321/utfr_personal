@@ -33,7 +33,11 @@
 
 // Message Requirements
 #include <geometry_msgs/msg/polygon_stamped.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 #include <utfr_msgs/msg/cone_detections.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/parametric_spline.hpp>
@@ -86,7 +90,7 @@ private:
 
   void pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr input);
 
-  sensor_msgs::msg::PointCloud2
+  sensor_msgs::msg::PointCloud2::SharedPtr
   convertToPointCloud2(const std::vector<std::array<float, 3>> &points,
                        const std::string &frame_id);
 
@@ -111,6 +115,12 @@ private:
   utfr_msgs::msg::TargetState target_;
   utfr_msgs::msg::SystemStatus::SharedPtr status_{nullptr};
   utfr_msgs::msg::Heartbeat heartbeat_;
+  sensor_msgs::msg::PointCloud2::SharedPtr latest_point_cloud;
+
+  // TF2 buffer and listener for transform handling
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
+
   // Subscribers
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr
       point_cloud_subscriber_;
