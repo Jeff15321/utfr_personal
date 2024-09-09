@@ -187,6 +187,8 @@ public:
   // Publishers
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr ego_state_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr
+      navsatfix_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr state_publisher;
 
   // Subscribers

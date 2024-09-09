@@ -75,6 +75,9 @@ void EkfNode::initPublishers() {
 
   state_publisher = this->create_publisher<visualization_msgs::msg::Marker>(
       "IM_GONNA_KMS", 10);
+
+  navsatfix_publisher_ =
+      this->create_publisher<sensor_msgs::msg::NavSatFix>("xsens/gnss", 10);
 }
 
 void EkfNode::initTimers() {
@@ -102,6 +105,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   double gps_x = msg.position.latitude;
   double gps_y = msg.position.longitude;
 
+  navsatfix_publisher_->publish(msg.position);
+
   if (datum_lla.x == 0.0 && datum_lla.y == 0.0 && datum_lla.z == 0.0) {
     datum_lla = geometry_msgs::msg::Vector3();
     datum_lla.x = gps_x;
@@ -122,8 +127,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     lla.y = gps_y;
     lla.z = msg.position.altitude;
 
-    geometry_msgs::msg::Vector3 gps_ned = utfr_dv::util::convertLLAtoNED(
-      lla, datum_lla);
+    geometry_msgs::msg::Vector3 gps_ned =
+        utfr_dv::util::convertLLAtoNED(lla, datum_lla);
 
     gps_x = gps_ned.x;
     gps_y = gps_ned.y;
@@ -160,10 +165,10 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   double dt = (this->now() - prev_time_).seconds();
   prev_time_ = this->now();
   res = extrapolateState(msg.imu, dt);
-  res.pose.pose.orientation = utfr_dv::util::yawToQuaternion(utfr_dv::util::degToRad(msg.rpy.z) - datum_yaw_);
+  res.pose.pose.orientation = utfr_dv::util::yawToQuaternion(
+      utfr_dv::util::degToRad(msg.rpy.z) - datum_yaw_);
   res.header.stamp = this->get_clock()->now();
   current_state_ = res;
-
 
   visualization_msgs::msg::Marker marker;
   marker.header.frame_id = "os_sensor";
@@ -182,7 +187,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   //             res.pose.pose.position.x, res.pose.pose.position.y);
 
   // RCLCPP_WARN(this->get_logger(), "gps: x: %f, y: %f", gps_x, gps_y);
-  // RCLCPP_WARN(this->get_logger(), "ekf: x: %f, y: %f", current_state_.pose.pose.position.x, current_state_.pose.pose.position.y);
+  // RCLCPP_WARN(this->get_logger(), "ekf: x: %f, y: %f",
+  // current_state_.pose.pose.position.x, current_state_.pose.pose.position.y);
 
   if (false) {
     marker.pose.position.y = gps_x;
@@ -499,7 +505,8 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y,
   return state_msg;
 }
 
-utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
+utfr_msgs::msg::EgoState
+EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
 
   Eigen::MatrixXd F; // State transition matrix
   Eigen::MatrixXd G; // Control input matrix
@@ -547,7 +554,7 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
   Q_(2, 2) = 0.05;    // Variance for x velocity, m/s
   Q_(3, 3) = 0.05;    // Variance for y velocity
   Q_(4, 4) = 0.00872; // Variance for yaw in radian
-  Q_(5, 5) = 1;  // Variance for yaw rate, to be tuned
+  Q_(5, 5) = 1;       // Variance for yaw rate, to be tuned
 
   P_ = F * P_ * F.transpose() + Q_;
 
@@ -564,7 +571,6 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
 
   return state_msg;
 }
-
 
 void EkfNode::timerCB() {}
 
