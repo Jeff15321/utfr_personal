@@ -96,19 +96,19 @@ def deep_process(model, frame_left, frame_right, confidence, visualize=False):
         for i, name in enumerate(names)
     }
 
-    left = cv2.cvtColor(frame_left, cv2.COLOR_BGR2RGB)
-    left = left.copy()
-    left, ratio_l, dwdh_l = letterbox(left, auto=False)
-    left = left.transpose((2,0,1))
-    left = np.expand_dims(left, 0)
-    frame_left = np.ascontiguousarray(left)
+    # left = cv2.cvtColor(frame_left, cv2.COLOR_BGR2RGB)
+    # left = left.copy()
+    # left, ratio_l, dwdh_l = letterbox(left, auto=False)
+    # left = left.transpose((2,0,1))
+    # left = np.expand_dims(left, 0)
+    # frame_left = np.ascontiguousarray(left)
 
-    right = cv2.cvtColor(frame_right, cv2.COLOR_BGR2RGB)
-    right = right.copy()
-    right, ratio_l, dwdh_l = letterbox(right, auto=False)
-    right = right.transpose((2,0,1))
-    right = np.expand_dims(right, 0)
-    frame_right = np.ascontiguousarray(right)
+    # right = cv2.cvtColor(frame_right, cv2.COLOR_BGR2RGB)
+    # right = right.copy()
+    # right, ratio_l, dwdh_l = letterbox(right, auto=False)
+    # right = right.transpose((2,0,1))
+    # right = np.expand_dims(right, 0)
+    # frame_right = np.ascontiguousarray(right)
     
     left_float = frame_left.astype(np.float32)/255.0
     right_float = frame_right.astype(np.float32)/255.0
@@ -117,7 +117,7 @@ def deep_process(model, frame_left, frame_right, confidence, visualize=False):
 
     batch = (batch * 255).astype(np.uint8)
 
-    batch = np.squeeze(batch, axis=1)
+    # batch = np.squeeze(batch, axis=1)
 
     print("Batch shape: ", batch.shape)
     
@@ -126,7 +126,7 @@ def deep_process(model, frame_left, frame_right, confidence, visualize=False):
     # frame_right = cv2.convertScaleAbs(frame_right)
 
     start_time = time.time()
-    output = model(batch)[0]
+    output = model(batch)
 
     end_time = time.time()
 

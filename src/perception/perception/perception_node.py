@@ -273,7 +273,9 @@ class PerceptionNode(Node):
         )
 
         # create ultralytics model for inference
-        self.model = YOLO("src/perception/perception/yolov8n.engine", task="detect")
+        file_name = "src/perception/perception/yolov8n.engine"
+        print("Deep filename: ", file_name)
+        self.model = YOLO(file_name, task="detect")
 
         if torch.cuda.is_available():
             print("CUDA is available. Using GPU...")
