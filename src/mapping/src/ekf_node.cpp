@@ -122,11 +122,11 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     lla.y = gps_y;
     lla.z = msg.position.altitude;
 
-    geometry_msgs::msg::Vector3 gps_enu = utfr_dv::util::convertLLAtoNED(
+    geometry_msgs::msg::Vector3 gps_ned = utfr_dv::util::convertLLAtoNED(
       lla, datum_lla);
 
-    gps_x = gps_enu.x;
-    gps_y = gps_enu.y;
+    gps_x = gps_ned.x;
+    gps_y = gps_ned.y;
 
     gps_x = gps_x * cos(datum_yaw_) + gps_y * sin(datum_yaw_);
     gps_y = -gps_x * sin(datum_yaw_) + gps_y * cos(datum_yaw_);
@@ -137,6 +137,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
 
     // Update state with GPS position, IMU yaw, and extracted velocities
     res = updateState(gps_x, gps_y, imu_yaw);
+    // res.pose.pose.position.x = gps_x;
+    // res.pose.pose.position.y = gps_y;
     res.header.stamp = this->get_clock()->now();
 
     // Extract velocity data from SensorCan message
@@ -182,13 +184,13 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   // RCLCPP_WARN(this->get_logger(), "gps: x: %f, y: %f", gps_x, gps_y);
   // RCLCPP_WARN(this->get_logger(), "ekf: x: %f, y: %f", current_state_.pose.pose.position.x, current_state_.pose.pose.position.y);
 
-  if (true) {
+  if (false) {
     marker.pose.position.y = gps_x;
     marker.pose.position.x = gps_y;
     marker.pose.position.z = 0.0;
   } else {
-    marker.pose.position.x = current_state_.pose.pose.position.x;
-    marker.pose.position.y = current_state_.pose.pose.position.y;
+    marker.pose.position.x = current_state_.pose.pose.position.y;
+    marker.pose.position.y = current_state_.pose.pose.position.x;
     marker.pose.position.z = 0.0;
   }
 
