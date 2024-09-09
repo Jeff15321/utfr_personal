@@ -113,20 +113,25 @@ def deep_process(model, frame_left, frame_right, confidence, visualize=False):
     left_float = frame_left.astype(np.float32)/255.0
     right_float = frame_right.astype(np.float32)/255.0
     print("Shape: ", left_float.shape, right_float.shape)
-    batch = np.stack([left_float, right_float], axis=0)
+    # batch = np.stack([left_float, right_float], axis=0)
 
-    batch = (batch * 255).astype(np.uint8)
+    # batch = (batch * 255).astype(np.uint8)
+
+    left_float = (left_float * 255).astype(np.uint8)
+    right_float = (right_float * 255).astype(np.uint8)
+
+    batch = [left_float, right_float]
 
     # batch = np.squeeze(batch, axis=1)
 
-    print("Batch shape: ", batch.shape)
+    # print("Batch shape: ", batch.shape)
     
     # # Convert input to int8
     # frame_left = cv2.convertScaleAbs(frame_left)
     # frame_right = cv2.convertScaleAbs(frame_right)
 
     start_time = time.time()
-    output = model(batch)
+    output = model.predict(batch)
 
     end_time = time.time()
 
