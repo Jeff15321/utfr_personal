@@ -118,26 +118,40 @@ def generate_launch_description():
         executable="static_transform_publisher",
         arguments=[
             "--x",
-            "0.172",
+            "-0.172",
             "--y",
-            "0.014",
+            "-0.014",
             "--z",
-            "-1.092",
+            "1.092",
             "--pitch",
             # "-0.122173",
             # "-0.139626",
-            "-0.15708",
+            "0.15708",
             # "0.174533",
             # "0.191986",
             # "0.20944",
             "--frame-id",
+            "imu_link",
+            "--child-frame-id",
             "os_sensor",
+        ],
+    )
+
+    ground = Node(  # Ground plane
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "--z",
+            "-0.265",
+            "--frame-id",
+            "imu_link",
             "--child-frame-id",
             "ground",
         ],
     )
 
     ld.add_action(lidar)
+    ld.add_action(ground)
     if lidar_only_detection:
         return ld
 
