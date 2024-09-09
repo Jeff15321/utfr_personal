@@ -201,7 +201,9 @@ public:
   // Global variables
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
   Eigen::MatrixXd P_;
-  std::vector<double> datum_lla;
+  geometry_msgs::msg::Vector3 datum_lla;
+  std::vector<double> last_gps_;
+  double datum_yaw_;
 
   VehicleParameters vehicle_params_;
   utfr_msgs::msg::Heartbeat heartbeat_;
