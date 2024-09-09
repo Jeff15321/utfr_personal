@@ -247,8 +247,8 @@ void LidarProcNode::publishPointCloud(
     // Get the transform from the LiDAR frame to the ground frame
     transform_stamped = tf_buffer_.lookupTransform(
         "ground", output->header.frame_id, tf2::TimePointZero);
-    RCLCPP_INFO(this->get_logger(), "Transformed %s to ground frame",
-                output->header.frame_id.c_str());
+    // RCLCPP_INFO(this->get_logger(), "Transformed %s to ground frame",
+    //             output->header.frame_id.c_str());
   } catch (tf2::TransformException &ex) {
     RCLCPP_WARN(this->get_logger(),
                 "Could not transform %s to ground frame: %s",
