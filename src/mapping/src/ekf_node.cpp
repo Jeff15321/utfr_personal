@@ -43,6 +43,8 @@ void EkfNode::initParams() {
   current_state_.pose.pose.position.y = 0.0;
   datum_lla = {std::nan(""), std::nan(""), std::nan("")};
   vehicle_params_ = VehicleParameters();
+
+  tf_br_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
 }
 
 void EkfNode::initSubscribers() {
@@ -92,6 +94,22 @@ void EkfNode::publishHeartbeat(const int status) {
   heartbeat_publisher_->publish(heartbeat_);
 }
 
+geometry_msgs::msg::TransformStamped EkfNode::createTransform(
+  const utfr_msgs::msg::EgoState &state){
+
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.stamp = this->get_clock()->now();
+  transform.header.frame_id = "map";
+  transform.child_frame_id = "imu_link";
+
+  transform.transform.translation.x = state.pose.pose.position.x;
+  transform.transform.translation.y = state.pose.pose.position.y;
+  transform.transform.translation.z = 0.265;
+
+  transform.transform.rotation = state.pose.pose.orientation;
+  return transform;
+}
+
 void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     double gps_x = msg.position.latitude;
     double gps_y = msg.position.longitude;
@@ -122,6 +140,7 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     // Update state with GPS position, IMU yaw, and extracted velocities
     utfr_msgs::msg::EgoState res = updateState(gps_x, gps_y, -imu_yaw);
     res.header.stamp = this->get_clock()->now();
+    res.header.frame_id = "map";
 
     res.vel.twist.linear.x = vel_x;
     res.vel.twist.linear.y = vel_y;
@@ -141,6 +160,7 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
 
     // Publish the updated state
     ego_state_publisher_->publish(res);
+    tf_br_->sendTransform(createTransform(res));
 }
 
 // sensor_msgs/NavSatFix position

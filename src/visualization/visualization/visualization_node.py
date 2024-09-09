@@ -23,8 +23,13 @@ from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import ImageMarker
 from utfr_msgs.msg import PerceptionDebug
 from utfr_msgs.msg import ConeDetections
+from utfr_msgs.msg import ConeMap
+from utfr_msgs.msg import EgoState
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
+from tf2_ros import TransformListener, Buffer
+import tf2_geometry_msgs
+from geometry_msgs.msg import PointStamped
 
 
 class VisualizationNode(Node):
@@ -39,7 +44,8 @@ class VisualizationNode(Node):
         self.initTimers()
 
     def loadParams(self):
-        pass
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
 
     def initVariables(self):
         pass
@@ -64,6 +70,18 @@ class VisualizationNode(Node):
             self.perceptionConeDetectionsCB,
             1,
         )
+        self.cone_map_ = self.create_subscription(
+            ConeMap,
+            "/mapping/cone_map",
+            self.mappingConeMapCB,
+            1
+        )
+        self.ego_state_ = self.create_subscription(
+            EgoState,
+            "/ekf/ego_state",
+            self.ekfEgoStateCB,
+            1
+        )
         print(self.perception_debug_subscriber_left_)
         print(self.perception_debug_subscriber_right_)
 
@@ -86,6 +104,14 @@ class VisualizationNode(Node):
 
         self.cone_markers_publisher_ = self.create_publisher(
             MarkerArray, "/visualization/cone_markers", 1
+        )
+
+        self.cone_map_publisher_ = self.create_publisher(
+            MarkerArray, "/visualization/cone_map", 1
+        )
+
+        self.ego_state_publisher_ = self.create_publisher(
+            Marker, "/visualization/ego_state", 1
         )
 
         print(self.left_image_marker_publisher_)
@@ -626,145 +652,126 @@ class VisualizationNode(Node):
         Publish the cone detections as yellow cube markers
         """
         self.get_logger().warn("Recieved cone detections msg")
-        cube_cone_dets = MarkerArray()
+        cone_markers = MarkerArray()
         left_cones = msg.left_cones
         right_cones = msg.right_cones
         large_orange_cones = msg.large_orange_cones
         small_orange_cones = msg.small_orange_cones
         unknown_cones = msg.unknown_cones
-        i = 0
-        for cone in left_cones:
-            cube_marker = Marker()
-            # populate the marker
-            cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
-            cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = i
-            cube_marker.type = 1  # cube
-            cube_marker.action = 0  # add
-            cube_marker.pose.position = cone.pos
-            cube_marker.pose.position.z = 0.0
-            cube_marker.pose.orientation.x = 0.0
-            cube_marker.pose.orientation.y = 0.0
-            cube_marker.pose.orientation.z = 0.0
-            cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.2
-            cube_marker.scale.y = 0.2
-            cube_marker.scale.z = 0.2
-            cube_marker.color.a = 1.0
-            cube_marker.color.r = 1.0
-            cube_marker.color.g = 1.0
-            cube_marker.color.b = 0.0
 
-            cube_cone_dets.markers.append(cube_marker)
-            i += 1
+        def addCones(cones, r, g, b, scale=0.2):
+            for cone in cones:
+                cone_marker = Marker()
+                cone_marker.header = msg.header
+                cone_marker.header.frame_id = "ground"
+                cone_marker.ns = "utfr_foxglove"
+                cone_marker.id = len(cone_markers.markers)
+                cone_marker.type = 1  # cube
+                cone_marker.action = 0  # add
+                cone_marker.pose.position = cone.pos
+                cone_marker.pose.position.z = 0.0
+                cone_marker.pose.orientation.x = 0.0
+                cone_marker.pose.orientation.y = 0.0
+                cone_marker.pose.orientation.z = 0.0
+                cone_marker.pose.orientation.w = 1.0
+                cone_marker.scale.x = scale
+                cone_marker.scale.y = scale
+                cone_marker.scale.z = scale
+                cone_marker.color.a = 1.0
+                cone_marker.color.r = r
+                cone_marker.color.g = g
+                cone_marker.color.b = b
 
-        for cone in right_cones:
-            cube_marker = Marker()
-            # populate the marker
-            cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
-            cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = i
-            cube_marker.type = 1  # cube
-            cube_marker.action = 0  # add
-            cube_marker.pose.position = cone.pos
-            cube_marker.pose.position.z = 0.0
-            cube_marker.pose.orientation.x = 0.0
-            cube_marker.pose.orientation.y = 0.0
-            cube_marker.pose.orientation.z = 0.0
-            cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.2
-            cube_marker.scale.y = 0.2
-            cube_marker.scale.z = 0.2
-            cube_marker.color.a = 1.0
-            cube_marker.color.r = 0.0
-            cube_marker.color.g = 1.0
-            cube_marker.color.b = 1.0
+                cone_markers.markers.append(cone_marker)
 
-            cube_cone_dets.markers.append(cube_marker)
-            i += 1
+        addCones(left_cones, 0.0, 0.0, 1.0)
+        addCones(right_cones, 0.0, 1.0, 1.0)
+        addCones(small_orange_cones, 1.0, 0.549, 0.0, 0.1)
+        addCones(large_orange_cones, 1.0, 0.549, 0.0, 0.3)
+        addCones(unknown_cones, 1.0, 1.0, 1.0)
 
-        for cone in large_orange_cones:
-            cube_marker = Marker()
-            # populate the marker
-            cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
-            cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = i
-            cube_marker.type = 1  # cube
-            cube_marker.action = 0  # add
-            cube_marker.pose.position = cone.pos
-            cube_marker.pose.position.z = 0.0
-            cube_marker.pose.orientation.x = 0.0
-            cube_marker.pose.orientation.y = 0.0
-            cube_marker.pose.orientation.z = 0.0
-            cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.2
-            cube_marker.scale.y = 0.2
-            cube_marker.scale.z = 0.5
-            cube_marker.color.a = 1.0
-            cube_marker.color.r = 1.0
-            cube_marker.color.g = 0.5
-            cube_marker.color.b = 0.0
+        self.cone_markers_publisher_.publish(cone_markers)
 
-            cube_cone_dets.markers.append(cube_marker)
-            i += 1
+    def mappingConeMapCB(self, msg):
+        """
+        Publish the cone map as cube markers
+        """
+        self.get_logger().warn("Recieved cone maps msg")
+        try:
+            cone_markers = MarkerArray()
+            transform = self.tf_buffer.lookup_transform(msg.header.frame_id, 'ground', rclpy.time.Time())
 
-        for cone in small_orange_cones:
-            cube_marker = Marker()
-            # populate the marker
-            cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
-            cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = i
-            cube_marker.type = 1  # cube
-            cube_marker.action = 0  # add
-            cube_marker.pose.position = cone.pos
-            cube_marker.pose.position.z = 0.0
-            cube_marker.pose.orientation.x = 0.0
-            cube_marker.pose.orientation.y = 0.0
-            cube_marker.pose.orientation.z = 0.0
-            cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.2
-            cube_marker.scale.y = 0.2
-            cube_marker.scale.z = 0.2
-            cube_marker.color.a = 1.0
-            cube_marker.color.r = 1.0
-            cube_marker.color.g = 0.5
-            cube_marker.color.b = 0.0
+            left_cones = msg.left_cones
+            right_cones = msg.right_cones
+            large_orange_cones = msg.large_orange_cones
+            small_orange_cones = msg.small_orange_cones
+            unknown_cones = msg.unknown_cones
+            
+            def addCones(cones, r, g, b, scale=0.2):
+                for cone in cones:
+                    cone_marker = Marker()
+                    cone_marker.header = msg.header
+                    cone_marker.header.frame_id = "ground"
+                    cone_marker.ns = "utfr_foxglove"
+                    cone_marker.id = len(cone_markers.markers)
+                    cone_marker.type = 1  # cube
+                    cone_marker.action = 0  # add
+                    point = PointStamped()
+                    point.header = msg.header
+                    point.point = cone.pos
+                    cone_marker.pose.position = tf2_geometry_msgs.do_transform_point(point, transform).point
+                    cone_marker.pose.position.z = 0.0
+                    cone_marker.pose.orientation.x = 0.0
+                    cone_marker.pose.orientation.y = 0.0
+                    cone_marker.pose.orientation.z = 0.0
+                    cone_marker.pose.orientation.w = 1.0
+                    cone_marker.scale.x = scale
+                    cone_marker.scale.y = scale
+                    cone_marker.scale.z = scale
+                    cone_marker.color.a = 1.0
+                    cone_marker.color.r = r
+                    cone_marker.color.g = g
+                    cone_marker.color.b = b
 
-            cube_cone_dets.markers.append(cube_marker)
-            i += 1
+                    cone_markers.markers.append(cone_marker)
 
-        for cone in unknown_cones:
-            cube_marker = Marker()
-            # populate the marker
-            cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
-            cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = i
-            cube_marker.type = 1  # cube
-            cube_marker.action = 0  # add
-            cube_marker.pose.position = cone.pos
-            cube_marker.pose.position.z = 0.0
-            cube_marker.pose.orientation.x = 0.0
-            cube_marker.pose.orientation.y = 0.0
-            cube_marker.pose.orientation.z = 0.0
-            cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.2
-            cube_marker.scale.y = 0.2
-            cube_marker.scale.z = 0.2
-            cube_marker.color.a = 1.0
-            cube_marker.color.r = 1.0
-            cube_marker.color.g = 1.0
-            cube_marker.color.b = 1.0
+            addCones(left_cones, 0.0, 0.0, 1.0)
+            addCones(right_cones, 0.0, 1.0, 1.0)
+            addCones(small_orange_cones, 1.0, 0.549, 0.0, 0.1)
+            addCones(large_orange_cones, 1.0, 0.549, 0.0, 0.3)
+            addCones(unknown_cones, 1.0, 1.0, 1.0)
 
-            cube_cone_dets.markers.append(cube_marker)
-            i += 1
+            self.cone_map_publisher_.publish(cone_markers)
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
-        self.cone_markers_publisher_.publish(cube_cone_dets)
+    def ekfEgoStateCB(self, msg):
+        """
+        Publish the ego state as a marker
+        """
+        self.get_logger().warn("Recieved ego state msg")
+        
 
+        car_marker = Marker()
+        car_marker.header = msg.header
+        car_marker.header.frame_id = "map"
+        car_marker.ns = "utfr_foxglove"
+        car_marker.id = 0
+        car_marker.type = 1  # cube
+        car_marker.action = 0  # add
+        car_marker.pose.position.x = msg.pose.pose.position.x
+        car_marker.pose.position.y = msg.pose.pose.position.y
+        car_marker.pose.position.z = msg.pose.pose.position.z + 1.175/2.0
+        car_marker.pose.orientation = msg.pose.pose.orientation
+        car_marker.scale.x = 2.862
+        car_marker.scale.y = 1.37
+        car_marker.scale.z = 1.175
+        car_marker.color.a = 1.0
+        car_marker.color.r = 0.0
+        car_marker.color.g = 0.0
+        car_marker.color.b = 1.0
+
+        self.ego_state_publisher_.publish(car_marker)
 
 def main(args=None):
     print("Hi from visualization.")
