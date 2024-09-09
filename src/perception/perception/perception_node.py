@@ -297,6 +297,9 @@ class PerceptionNode(Node):
         self.left_camera_frame = "left_camera"
         self.right_camera_frame = "right_camera"
 
+        self.left_frame_id = 0
+        self.right_frame_id = 0
+
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
@@ -491,12 +494,30 @@ class PerceptionNode(Node):
         try:
             # Convert the CompressedImage message to a CV2 image
             np_arr = np.frombuffer(msg.data, np.uint8)
-            self.left_img_ = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode JPEG image
+            left_img_ = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode JPEG image
+            left_img_gpu = cv2.cuda_GpuMat()
+            left_img_gpu.upload(left_img_)
+
+            mapx_left_gpu = cv2.cuda_GpuMat()
+            mapx_left_gpu.upload(self.mapx_left)
+
+            mapy_left_gpu = cv2.cuda_GpuMat()
+            mapy_left_gpu.upload(self.mapy_left)
+
+            left_img_ = cv2.cuda.remap(
+                left_img_gpu,
+                mapx_left_gpu,
+                mapy_left_gpu,
+                interpolation=cv2.INTER_NEAREST,
+            )
+
+            self.left_img_ = left_img_.download()
 
             # Check if the image is valid
             if self.left_img_ is not None:
                 self.left_img_header = msg.header
                 self.left_img_recieved_ = True
+                self.left_frame_id = msg.header.frame_id
 
                 if not self.first_img_arrived_:
                     self.previous_left_img_ = self.left_img_
@@ -518,14 +539,31 @@ class PerceptionNode(Node):
         try:
             # Convert the CompressedImage message to a CV2 image
             np_arr = np.frombuffer(msg.data, np.uint8)
-            self.right_img_ = cv2.imdecode(
-                np_arr, cv2.IMREAD_COLOR
-            )  # Decode JPEG image
+            right_img_ = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode JPEG image
+            right_img_gpu = cv2.cuda_GpuMat()
+            right_img_gpu.upload(right_img_)
+
+            mapx_right_gpu = cv2.cuda_GpuMat()
+            mapx_right_gpu.upload(self.mapx_right)
+
+            mapy_right_gpu = cv2.cuda_GpuMat()
+            mapy_right_gpu.upload(self.mapy_right)
+
+            right_img_ = cv2.cuda.remap(
+                right_img_gpu,
+                mapx_right_gpu,
+                mapy_right_gpu,
+                interpolation=cv2.INTER_NEAREST,
+            )
+
+            # convert to cpu
+            self.right_img_ = right_img_.download()
 
             # Check if the image is valid
             if self.right_img_ is not None:
                 self.right_img_header = msg.header
                 self.right_img_recieved_ = True
+                self.right_frame_id = msg.header.frame_id
 
                 if not self.first_img_arrived_:
                     self.previous_right_img_ = self.right_img_
@@ -656,6 +694,8 @@ class PerceptionNode(Node):
         # TODO - make 1 detections message and combine them at the end
         self.detections_msg = ConeDetections()
         self.detections_msg.header.frame_id = "ground"
+        left_frame_id = self.left_frame_id
+        right_frame_id = self.right_frame_id
 
         # publish the heartbeat
         # self.publishHeartbeat()
@@ -709,41 +749,8 @@ class PerceptionNode(Node):
             # self.left_img_ = (self.left_img_ / 255.0).astype(np.uint8)
             # self.right_img_ = (self.right_img_.astype(np.uint8)
 
-            left_img_gpu = cv2.cuda_GpuMat()
-            left_img_gpu.upload(self.left_img_)
-
-            right_img_gpu = cv2.cuda_GpuMat()
-            right_img_gpu.upload(self.right_img_)
-
-            mapx_left_gpu = cv2.cuda_GpuMat()
-            mapx_left_gpu.upload(self.mapx_left)
-
-            mapy_left_gpu = cv2.cuda_GpuMat()
-            mapy_left_gpu.upload(self.mapy_left)
-
-            mapx_right_gpu = cv2.cuda_GpuMat()
-            mapx_right_gpu.upload(self.mapx_right)
-
-            mapy_right_gpu = cv2.cuda_GpuMat()
-            mapy_right_gpu.upload(self.mapy_right)
-
-            undist_left_gpu = cv2.cuda.remap(
-                left_img_gpu,
-                mapx_left_gpu,
-                mapy_left_gpu,
-                interpolation=cv2.INTER_NEAREST,
-            )
-
-            undist_right_gpu = cv2.cuda.remap(
-                right_img_gpu,
-                mapx_right_gpu,
-                mapy_right_gpu,
-                interpolation=cv2.INTER_NEAREST,
-            )
-
-            # convert to cpu
-            undist_left = undist_left_gpu.download()
-            undist_right = undist_right_gpu.download()
+            frame_left = self.left_img_
+            frame_right = self.right_img_
 
             # undist_left = undist_left_gpu
             # undist_right = undist_right_gpu
@@ -761,20 +768,17 @@ class PerceptionNode(Node):
             frame_left = frame_left_60
             frame_right = frame_right_70
         
-        if self.save_pic == "True":
-        timestamp = int(self.get_clock().now().seconds_nanoseconds()[0] + self.get_clock().now().seconds_nanoseconds()[1]*1e-9)
-        local_time = time.ctime(timestamp).replace(" ", "_")
-        self.save_image(frame_left, frame_right, local_time)
-        """
+            if self.save_pic == "True":
+            timestamp = int(self.get_clock().now().seconds_nanoseconds()[0] + self.get_clock().now().seconds_nanoseconds()[1]*1e-9)
+            local_time = time.ctime(timestamp).replace(" ", "_")
+            self.save_image(frame_left, frame_right, local_time)
+            """
 
             # equalize histogram
             """
             frame_left = self.equalize_hist(frame_left)
             frame_right = self.equalize_hist(frame_right)
             """
-
-            frame_left = undist_left
-            frame_right = undist_right
 
             start = (
                 self.get_clock().now().seconds_nanoseconds()[0]
