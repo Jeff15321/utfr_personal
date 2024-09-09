@@ -280,7 +280,7 @@ class PerceptionNode(Node):
             # self.model.to('cuda') # if using the .engine, tensorrt has no .to so comment this out
         else:
             print("CUDA is not available. Using CPU...")
-            self.model.to('cpu') 
+            self.model.to("cpu")
         # self.model.export(format="engine")
 
         # create transform frame variables
@@ -540,16 +540,24 @@ class PerceptionNode(Node):
           cone_detections: array of 3d cone detections using stereo ([x, y, z, color])
         """
         start = time.time()
-        left_bounding_boxes, left_classes, left_scores = deep_process(
+        (
+            left_bounding_boxes,
+            left_classes,
+            left_scores,
+            right_bounding_boxes,
+            right_classes,
+            right_scores,
+        ) = deep_process(
             self.model,
             left_img_,
-            self.confidence_,
-        )
-        right_bounding_boxes, right_classes, right_scores = deep_process(
-            self.model,
             right_img_,
             self.confidence_,
         )
+        # right_bounding_boxes, right_classes, right_scores = deep_process(
+        #     self.model,
+        #     right_img_,
+        #     self.confidence_,
+        # )
         end = time.time()
         print("deep process time: ", end - start)
 
@@ -643,7 +651,7 @@ class PerceptionNode(Node):
             #     borderMode=cv2.BORDER_CONSTANT,
             #     borderValue=(0, 0, 0, 0),
             # )
-            
+
             # opencv version of .remap using CUDA and GPU parallelization
             left_img_gpu = cv2.cuda_GpuMat()
             left_img_gpu.upload(self.left_img_)
@@ -664,17 +672,23 @@ class PerceptionNode(Node):
             mapy_right_gpu.upload(self.mapy_right)
 
             undist_left_gpu = cv2.cuda.remap(
-                left_img_gpu, mapx_left_gpu, mapy_left_gpu, interpolation=cv2.INTER_NEAREST
+                left_img_gpu,
+                mapx_left_gpu,
+                mapy_left_gpu,
+                interpolation=cv2.INTER_NEAREST,
             )
 
             undist_right_gpu = cv2.cuda.remap(
-                right_img_gpu, mapx_right_gpu, mapy_right_gpu, interpolation=cv2.INTER_NEAREST
+                right_img_gpu,
+                mapx_right_gpu,
+                mapy_right_gpu,
+                interpolation=cv2.INTER_NEAREST,
             )
 
             # convert to cpu
             undist_left = undist_left_gpu.download()
             undist_right = undist_right_gpu.download()
-            
+
             # undist_left = undist_left_gpu
             # undist_right = undist_right_gpu
 
@@ -963,9 +977,9 @@ class PerceptionNode(Node):
 
             self.detections_msg.header.stamp = self.get_clock().now().to_msg()
             self.cone_detections_publisher_.publish(self.detections_msg)
-        
+
         timer_end = time.time()
-        print('timer time: ', timer_end - timer_start)
+        print("timer time: ", timer_end - timer_start)
 
     # Helper functions:
 

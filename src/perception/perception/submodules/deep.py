@@ -78,7 +78,7 @@ def letterbox(
     return im, r, (dw, dh)
 
 
-def deep_process(model, frame, confidence, visualize=False):
+def deep_process(model, frame_left, frame_right, confidence, visualize=False):
     """
     Applies object detection on each frame from a camera using a deep learning model.
     """
@@ -95,58 +95,99 @@ def deep_process(model, frame, confidence, visualize=False):
         name: [np.random.randint(0, 255) for _ in range(3)]
         for i, name in enumerate(names)
     }
-    # Convert input to int8
-    frame = cv2.convertScaleAbs(frame)
+
+    left = cv2.cvtColor(frame_left, cv2.COLOR_BGR2RGB)
+    left = left.copy()
+    left, ratio_l, dwdh_l = letterbox(left, auto=False)
+    left = left.transpose((2,0,1))
+    left = np.expand_dims(left, 0)
+    frame_left = np.ascontiguousarray(left)
+
+    right = cv2.cvtColor(frame_right, cv2.COLOR_BGR2RGB)
+    right = right.copy()
+    right, ratio_l, dwdh_l = letterbox(right, auto=False)
+    right = right.transpose((2,0,1))
+    right = np.expand_dims(right, 0)
+    frame_right = np.ascontiguousarray(right)
+    
+    left_float = frame_left.astype(np.float32)/255.0
+    right_float = frame_right.astype(np.float32)/255.0
+    print("Shape: ", left_float.shape, right_float.shape)
+    batch = np.stack([left_float, right_float], axis=0)
+
+    batch = (batch * 255).astype(np.uint8)
+
+    batch = np.squeeze(batch, axis=1)
+
+    print("Batch shape: ", batch.shape)
+    
+    # # Convert input to int8
+    # frame_left = cv2.convertScaleAbs(frame_left)
+    # frame_right = cv2.convertScaleAbs(frame_right)
 
     start_time = time.time()
-    output = model(frame)[0]
+    output = model(batch)[0]
 
     end_time = time.time()
 
     print("runtime: ", end_time - start_time)
+
+    left_output, right_output = output[0], output[1]
+
+    outputs = [left_output, right_output]
+    frames = [left_float, right_float]
 
     bounding_boxes = []
     classes = []
     scores = []
 
     start = time.time()
-    for box in output.boxes:
-        # Get box coordinates, class and confidence
-        x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-        cls_id = int(box.cls)
-        conf = float(box.conf)
 
-        if conf < confidence:
-            continue
+    for frame, output in zip(frames, outputs):
+        bounding_boxes_local = []
+        classes_local = []
+        scores_local = []
+        for box in output.boxes:
+            # Get box coordinates, class and confidence
+            x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
+            cls_id = int(box.cls)
+            conf = float(box.conf)
 
-        # Convert to [x, y, w, h] format
-        x, y, w, h = int(x1), int(y1), int(x2 - x1), int(y2 - y1)
+            if conf < confidence:
+                continue
 
-        name = output.names[cls_id]
-        score = round(conf, 3)
+            # Convert to [x, y, w, h] format
+            x, y, w, h = int(x1), int(y1), int(x2 - x1), int(y2 - y1)
 
-        bounding_boxes.append([x, y, w, h])
-        classes.append(name)
-        scores.append(score)
+            name = output.names[cls_id]
+            score = round(conf, 3)
 
-        if visualize:
-            color = (0, 255, 0)  # Green color for bounding box
-            label = f"{name} {score}"
-            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-            cv2.putText(
-                frame,
-                label,
-                (x, y - 2),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.75,
-                [225, 255, 255],
-                thickness=2,
-            )
+            bounding_boxes_local.append([x, y, w, h])
+            classes_local.append(name)
+            scores_local.append(score)
+
+            if visualize:
+                color = (0, 255, 0)  # Green color for bounding box
+                label = f"{name} {score}"
+                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+                cv2.putText(
+                    frame,
+                    label,
+                    (x, y - 2),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.75,
+                    [225, 255, 255],
+                    thickness=2,
+                )
+
+        bounding_boxes.append(bounding_boxes_local)
+        classes.append(classes_local)
+        scores.append(scores_local)
     
     end = time.time()
     print("for box deep process: ", end-start)
 
-    return bounding_boxes, classes, scores
+    return bounding_boxes[0], classes[0], scores[0], bounding_boxes[1], classes[1], scores[1]
 
 
 def bounding_boxes_to_cone_detections(
