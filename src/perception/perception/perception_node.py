@@ -273,14 +273,14 @@ class PerceptionNode(Node):
         )
 
         # create ultralytics model for inference
-        self.model = YOLO("src/perception/perception/yolov8n.pt", task="detect")
+        self.model = YOLO("src/perception/perception/yolov8n.engine", task="detect")
 
         if torch.cuda.is_available():
             print("CUDA is available. Using GPU...")
-            self.model.to('cuda')  # Move the YOLO model to GPU
+            # self.model.to('cuda') # if using the .engine, tensorrt has no .to so comment this out
         else:
             print("CUDA is not available. Using CPU...")
-            self.model.to('cpu')  # Use CPU if GPU is not available
+            self.model.to('cpu') 
         # self.model.export(format="engine")
 
         # create transform frame variables
@@ -644,6 +644,7 @@ class PerceptionNode(Node):
             #     borderValue=(0, 0, 0, 0),
             # )
             
+            # opencv version of .remap using CUDA and GPU parallelization
             left_img_gpu = cv2.cuda_GpuMat()
             left_img_gpu.upload(self.left_img_)
 
@@ -662,16 +663,20 @@ class PerceptionNode(Node):
             mapy_right_gpu = cv2.cuda_GpuMat()
             mapy_right_gpu.upload(self.mapy_right)
 
-            undist_left = cv2.cuda.remap(
+            undist_left_gpu = cv2.cuda.remap(
                 left_img_gpu, mapx_left_gpu, mapy_left_gpu, interpolation=cv2.INTER_NEAREST
             )
 
-            undist_right = cv2.cuda.remap(
+            undist_right_gpu = cv2.cuda.remap(
                 right_img_gpu, mapx_right_gpu, mapy_right_gpu, interpolation=cv2.INTER_NEAREST
             )
+
+            # convert to cpu
+            undist_left = undist_left_gpu.download()
+            undist_right = undist_right_gpu.download()
             
-            undist_left = undist_left.download()
-            undist_right = undist_right.download()
+            # undist_left = undist_left_gpu
+            # undist_right = undist_right_gpu
 
             end = time.time()
             print("remap time: ", end - start)

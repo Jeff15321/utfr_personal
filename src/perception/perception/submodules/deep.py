@@ -95,13 +95,8 @@ def deep_process(model, frame, confidence, visualize=False):
         name: [np.random.randint(0, 255) for _ in range(3)]
         for i, name in enumerate(names)
     }
-    
-    if isinstance(frame, cv2.cuda_GpuMat):
-        # Convert from cv2.cuda_GpuMat to NumPy array
-        frame = frame.download()  # This brings it back to NumPy array, but data is still on GPU
-        frame = torch.from_numpy(frame).float().cuda()  # Convert to PyTorch Tensor on GPU
-        frame = frame.permute(2, 0, 1).unsqueeze(0)  # Reshape to match model's expected input shape (B, C, H, W)
-
+    # Convert input to int8
+    frame = cv2.convertScaleAbs(frame)
 
     start_time = time.time()
     output = model(frame)[0]
