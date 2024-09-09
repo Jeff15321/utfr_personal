@@ -39,6 +39,12 @@ ComputeGraphNode::ComputeGraphNode() : Node("compute_graph_node") {
   this->initPublishers();
   this->initTimers();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+
+  visualization_msgs::msg::MarkerArray marker_array;
+  visualization_msgs::msg::Marker marker;
+  marker.action = visualization_msgs::msg::Marker::DELETEALL;
+  marker_array.markers.push_back(marker);
+  cone_viz_publisher_->publish(marker_array);
 }
 
 using SlamBlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1>>;
@@ -99,7 +105,10 @@ void ComputeGraphNode::initPublishers() {
 
     slam_state_publisher_ = 
       this->create_publisher<utfr_msgs::msg::PoseGraphData>(topics::kSlamPose, 10);
+  
   }
+  cone_viz_publisher_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("ConeViz", 10);
 }
 
 void ComputeGraphNode::initTimers() {
@@ -237,6 +246,9 @@ void ComputeGraphNode::graphSLAM() {
   optimizer_.optimize(1);
   do_graph_slam_ = false;
 
+  visualization_msgs::msg::MarkerArray markerArray;
+
+  int count = 0;
   for (auto v : optimizer_.vertices()) {
     g2o::VertexPointXY *vertexPointXY =
         dynamic_cast<g2o::VertexPointXY *>(v.second);
@@ -278,12 +290,36 @@ void ComputeGraphNode::graphSLAM() {
         cone_map_.large_orange_cones.push_back(cone);
       }
 
+      // Create a marker
+      count += 1;
+      visualization_msgs::msg::Marker marker;
+      marker.header.frame_id = "os_sensor";
+      marker.header.stamp = this->get_clock()->now();
+      marker.type = visualization_msgs::msg::Marker::CUBE;
+      marker.action = visualization_msgs::msg::Marker::ADD;
+      marker.id = count;
+      marker.pose.position.x = x;
+      marker.pose.position.y = y;
+
+      marker.scale.x = 0.5;
+      marker.scale.y = 0.2;
+      marker.scale.z = 0.2;
+
+      marker.color.a = 1.0;
+      marker.color.r = 1.0;
+      marker.color.g = 0.0;
+      marker.color.b = 0.0;
+
+      markerArray.markers.push_back(marker);
+
       // if (fixed_cone_ids_.find(id) == fixed_cone_ids_.end()) {
       //   fixed_cone_map_[id] = new_cone;
       //   fixed_cone_ids_.insert(id);
       // }
     }
   }
+
+  cone_viz_publisher_->publish(markerArray);
 
   // Loop through all the edges and save them
   for (auto e : optimizer_.edges()) {
