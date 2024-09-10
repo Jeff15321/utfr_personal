@@ -30,6 +30,8 @@ from visualization_msgs.msg import MarkerArray
 from tf2_ros import TransformListener, Buffer
 import tf2_geometry_msgs
 from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import TransformStamped
+import tf2_ros
 
 
 class VisualizationNode(Node):
@@ -44,11 +46,14 @@ class VisualizationNode(Node):
         self.initTimers()
 
     def loadParams(self):
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self)
+        pass
 
     def initVariables(self):
-        pass
+        self.delete_all_marker = Marker()
+        self.delete_all_marker.action = 3 # delete all
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.tf_br = tf2_ros.TransformBroadcaster(self)
 
     def initSubscribers(self):
         """
@@ -653,6 +658,9 @@ class VisualizationNode(Node):
         """
         self.get_logger().warn("Recieved cone detections msg")
         cone_markers = MarkerArray()
+        self.delete_all_marker.header = msg.header
+        cone_markers.markers.append(self.delete_all_marker)
+
         left_cones = msg.left_cones
         right_cones = msg.right_cones
         large_orange_cones = msg.large_orange_cones
@@ -685,7 +693,7 @@ class VisualizationNode(Node):
                 cone_markers.markers.append(cone_marker)
 
         addCones(left_cones, 0.0, 0.0, 1.0)
-        addCones(right_cones, 0.0, 1.0, 1.0)
+        addCones(right_cones, 1.0, 1.0, 0.0)
         addCones(small_orange_cones, 1.0, 0.549, 0.0, 0.1)
         addCones(large_orange_cones, 1.0, 0.549, 0.0, 0.3)
         addCones(unknown_cones, 1.0, 1.0, 1.0)
@@ -696,10 +704,11 @@ class VisualizationNode(Node):
         """
         Publish the cone map as cube markers
         """
-        self.get_logger().warn("Recieved cone maps msg")
         try:
+            self.get_logger().warn("Recieved cone maps msg")
             cone_markers = MarkerArray()
-            transform = self.tf_buffer.lookup_transform(msg.header.frame_id, 'ground', rclpy.time.Time())
+            self.delete_all_marker.header = msg.header
+            cone_markers.markers.append(self.delete_all_marker)
 
             left_cones = msg.left_cones
             right_cones = msg.right_cones
@@ -717,10 +726,12 @@ class VisualizationNode(Node):
                     cone_marker.type = 1  # cube
                     cone_marker.action = 0  # add
                     point = PointStamped()
-                    point.header = msg.header
+                    point.header.stamp = self.get_clock().now().to_msg()
+                    point.header.frame_id = "map"
                     point.point = cone.pos
+                    transform = self.tf_buffer.lookup_transform('ground', 'map', rclpy.time.Time())
                     cone_marker.pose.position = tf2_geometry_msgs.do_transform_point(point, transform).point
-                    cone_marker.pose.position.z = 0.0
+                    cone_marker.pose.position.z = scale/2.0
                     cone_marker.pose.orientation.x = 0.0
                     cone_marker.pose.orientation.y = 0.0
                     cone_marker.pose.orientation.z = 0.0
@@ -736,7 +747,7 @@ class VisualizationNode(Node):
                     cone_markers.markers.append(cone_marker)
 
             addCones(left_cones, 0.0, 0.0, 1.0)
-            addCones(right_cones, 0.0, 1.0, 1.0)
+            addCones(right_cones, 1.0, 1.0, 0.0)
             addCones(small_orange_cones, 1.0, 0.549, 0.0, 0.1)
             addCones(large_orange_cones, 1.0, 0.549, 0.0, 0.3)
             addCones(unknown_cones, 1.0, 1.0, 1.0)
@@ -751,18 +762,78 @@ class VisualizationNode(Node):
         """
         self.get_logger().warn("Recieved ego state msg")
         
+        # Transform begin
+        transform = TransformStamped()
+
+        transform.header.stamp = self.get_clock().now().to_msg()
+        transform.header.frame_id = 'map'
+        transform.child_frame_id = 'imu_link'
+
+        transform.transform.translation.x = msg.pose.pose.position.x
+        transform.transform.translation.y = msg.pose.pose.position.y
+        transform.transform.translation.z = 0.265
+
+        transform.transform.rotation = msg.pose.pose.orientation
+
+        self.tf_br.sendTransform(transform)
+        # Transform end
+
+        # car_marker = Marker()
+        # car_marker.header = msg.header
+        # car_marker.header.frame_id = "map"
+        # car_marker.ns = "utfr_foxglove"
+        # car_marker.id = 0
+        # car_marker.type = 1  # cube
+        # car_marker.action = 0  # add
+        # car_marker.pose.position = msg.pose.pose.position
+        # car_marker.pose.orientation = msg.pose.pose.orientation
+        # car_marker.scale.x = 2.862
+        # car_marker.scale.y = 1.37
+        # car_marker.scale.z = 1.175
+        # car_marker.color.a = 1.0
+        # car_marker.color.r = 0.0
+        # car_marker.color.g = 0.0
+        # car_marker.color.b = 1.0
+
+        # try:
+        #     point = PointStamped()
+        #     point.header = msg.header
+        #     point.header.frame_id = "ground"
+        #     point.point.x = 0.26885
+        #     point.point.y = 0.0
+        #     point.point.z = 1.175/2.0
+        #     transform = self.tf_buffer.lookup_transform('map', 'ground', rclpy.time.Time())
+        #     point2 = tf2_geometry_msgs.do_transform_point(point, transform).point
+        #     point1 = msg.pose.pose.position
+        #     self.get_logger().fatal("({},{},{}) vs ({},{},{})".format(point1.x, point1.y, point1.z, point2.x, point2.y, point2.z))
+        # except Exception as e:
+        #     print(f"An error occurred: {e}")
+
+        # try:
+        #     point = PointStamped()
+        #     point.header = msg.header
+        #     point.header.frame_id = "map"
+        #     point.point = msg.pose.pose.position
+        #     transform = self.tf_buffer.lookup_transform('ground', 'map', rclpy.time.Time())
+        #     point = tf2_geometry_msgs.do_transform_point(point, transform).point
+        #     self.get_logger().fatal("({},{},{})".format(point.x, point.y, point.z))
+        # except Exception as e:
+        #     print(f"An error occurred: {e}")
 
         car_marker = Marker()
         car_marker.header = msg.header
-        car_marker.header.frame_id = "map"
+        car_marker.header.frame_id = "imu_link"
         car_marker.ns = "utfr_foxglove"
         car_marker.id = 0
         car_marker.type = 1  # cube
         car_marker.action = 0  # add
-        car_marker.pose.position.x = msg.pose.pose.position.x
-        car_marker.pose.position.y = msg.pose.pose.position.y
-        car_marker.pose.position.z = msg.pose.pose.position.z + 1.175/2.0
-        car_marker.pose.orientation = msg.pose.pose.orientation
+        car_marker.pose.position.x = 0.26885
+        car_marker.pose.position.y = 0.0
+        car_marker.pose.position.z = 1.175/2.0 - 0.265
+        car_marker.pose.orientation.x = 0.0
+        car_marker.pose.orientation.y = 0.0
+        car_marker.pose.orientation.z = 0.0
+        car_marker.pose.orientation.w = 1.0
         car_marker.scale.x = 2.862
         car_marker.scale.y = 1.37
         car_marker.scale.z = 1.175

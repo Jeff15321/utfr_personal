@@ -76,7 +76,7 @@ void BuildGraphNode::initParams() {
   transformStamped.transform.rotation.x = 0;
   transformStamped.transform.rotation.y = 0;
   transformStamped.transform.rotation.z = 0;
-  transformStamped.transform.rotation.w = 0;
+  transformStamped.transform.rotation.w = 1.0;
 
   // Broadcast the transform
   broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
