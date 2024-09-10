@@ -27,8 +27,8 @@ float calculateIOU(float fitted_r, float fitted_h, float true_r, float true_h) {
          (fitted_volume + true_volume - intersection_volume);
 }
 
-std::tuple<Point, float, float, float, float> fit_cone(PointCloud points,
-                                                       float h, float r) {
+std::tuple<Point, float, float, float, float, float>
+fit_cone(PointCloud points, float h, float r) {
   float a = r / h;
 
   int n_points = points.size();
@@ -101,14 +101,16 @@ std::tuple<Point, float, float, float, float> fit_cone(PointCloud points,
 
   float height = z_apex - z_min;
 
-  return std::tuple<Point, float, float, float, float>(
-      center, mse_loss, lin_loss, height, base_radius);
+  // center[2] = z_apex;
+
+  return std::tuple<Point, float, float, float, float, float>(
+      center, mse_loss, lin_loss, height, base_radius, z_apex);
 }
 
 PointCloud ConeLRFilter::filter_clusters(std::vector<PointCloud> clusters) {
   PointCloud cone_centers;
   for (const auto &cluster : clusters) {
-    std::tuple<Point, float, float, float, float> result =
+    std::tuple<Point, float, float, float, float, float> result =
         fit_cone(cluster, this->cone_height, this->cone_radius);
     Point center = std::get<0>(result);
     float mse_loss = std::get<1>(result);
@@ -116,6 +118,8 @@ PointCloud ConeLRFilter::filter_clusters(std::vector<PointCloud> clusters) {
     float fitted_height = std::get<3>(result);
     float base_radius = std::get<4>(result);
     float n_points = (float)cluster.size();
+    float z = center[3];
+    float z_apex = std::get<5>(result);
     std::cout << "fitted_height: " << fitted_height
               << ", base_radius: " << base_radius << std::endl;
     float IOU = calculateIOU(base_radius, fitted_height, this->cone_radius,
@@ -123,7 +127,7 @@ PointCloud ConeLRFilter::filter_clusters(std::vector<PointCloud> clusters) {
     float IOU_big = calculateIOU(base_radius, fitted_height,
                                  this->big_cone_radius, this->big_cone_height);
     std::cout << "IOU: " << IOU << ", IOU_big: " << IOU_big << std::endl;
-    if (fitted_height > 0 && base_radius < 5.0 && !std::isnan(mse_loss) &&
+    if (z < 5.0 && base_radius < 0.9 && !std::isnan(mse_loss) &&
         (IOU > this->IOUThreshold || IOU_big > this->IOUThreshold)) {
       cone_centers.push_back(center);
     }

@@ -1,0 +1,265 @@
+{
+  "configById": {
+    "RawMessages!1jktfsr": {
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "topicPath": "/perception/cone_detections"
+    },
+    "3D!2v7455n": {
+      "cameraState": {
+        "perspective": true,
+        "distance": 10.807201753171396,
+        "phi": 53.17789722671828,
+        "thetaOffset": 81.39984763044387,
+        "targetOffset": [
+          2.802590110467535,
+          -0.10897363307388,
+          3.8050764604804784e-16
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {},
+      "transforms": {
+        "frame:os_imu": {
+          "visible": false
+        },
+        "frame:os_lidar": {
+          "visible": false
+        }
+      },
+      "topics": {
+        "/ouster/points": {
+          "visible": true,
+          "colorField": "_auto_distance",
+          "colorMode": "colormap",
+          "colorMap": "turbo",
+          "pointSize": 2
+        },
+        "/right_camera_node/images/compressed": {
+          "visible": false
+        },
+        "/right_camera_node/images": {
+          "visible": false
+        },
+        "/visualization/cone_markers": {
+          "visible": true
+        },
+        "/lidar_pipeline/detected": {
+          "visible": false,
+          "colorField": "_auto_distance",
+          "colorMode": "flat",
+          "colorMap": "turbo",
+          "flatColor": "#ff0000ff",
+          "pointSize": 5
+        },
+        "/lidar_pipeline/no_ground": {
+          "visible": false,
+          "colorField": "z",
+          "colorMode": "flat",
+          "colorMap": "turbo"
+        },
+        "/move_base_simple/goal": {
+          "visible": false
+        },
+        "/lidar_pipeline/filtered": {
+          "visible": false,
+          "colorField": "z",
+          "colorMode": "flat",
+          "colorMap": "turbo"
+        },
+        "/lidar_pipeline/clustered": {
+          "visible": false,
+          "colorField": "_auto_distance",
+          "colorMode": "flat",
+          "colorMap": "turbo",
+          "pointSize": 4
+        }
+      },
+      "layers": {
+        "c6597971-dd7e-43f6-8ff7-1b81d13ccef3": {
+          "visible": true,
+          "frameLocked": true,
+          "label": "Grid",
+          "instanceId": "c6597971-dd7e-43f6-8ff7-1b81d13ccef3",
+          "layerId": "foxglove.Grid",
+          "size": 100,
+          "divisions": 100,
+          "lineWidth": 1,
+          "color": "#248eff",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "order": 1,
+          "frameId": "ground"
+        }
+      },
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "imageMode": {},
+      "followTf": "ground"
+    },
+    "Image!oji3an": {
+      "cameraState": {
+        "distance": 20,
+        "perspective": true,
+        "phi": 60,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOffset": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "thetaOffset": 45,
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {},
+      "transforms": {},
+      "topics": {},
+      "layers": {},
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "imageMode": {
+        "imageTopic": "/left_camera_node/images/compressed",
+        "annotations": {
+          "/visualization/left_image_text": {
+            "visible": true
+          },
+          "/visualization/left_image_markers": {
+            "visible": true
+          }
+        }
+      }
+    },
+    "Image!21shj1x": {
+      "cameraState": {
+        "distance": 20,
+        "perspective": true,
+        "phi": 60,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOffset": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "thetaOffset": 45,
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {},
+      "transforms": {},
+      "topics": {
+        "/lidar_pipeline/detected": {
+          "visible": false
+        }
+      },
+      "layers": {},
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "imageMode": {
+        "imageTopic": "/right_camera_node/images/compressed",
+        "annotations": {
+          "/visualization/right_image_text": {
+            "visible": true
+          },
+          "/visualization/right_image_markers": {
+            "visible": true
+          }
+        }
+      }
+    },
+    "SourceInfo!1q4yd7h": {}
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "playbackConfig": {
+    "speed": 1
+  },
+  "layout": {
+    "direction": "row",
+    "first": {
+      "first": "SourceInfo!1q4yd7h",
+      "second": "RawMessages!1jktfsr",
+      "direction": "column"
+    },
+    "second": {
+      "first": "3D!2v7455n",
+      "second": {
+        "first": "Image!oji3an",
+        "second": "Image!21shj1x",
+        "direction": "row"
+      },
+      "direction": "column",
+      "splitPercentage": 58.09217577706324
+    },
+    "splitPercentage": 53.47675563722753
+  }
+}
