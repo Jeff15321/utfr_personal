@@ -204,6 +204,23 @@ def bounding_boxes_to_cone_detections(
         return coneDetections[:-skip_counter]
 
 
+def point_3d_to_image(points, camera_matrix):
+    converted = []
+    for point in points:
+        # Transform to normalized camera coordinates
+        point = np.array([point[0], point[1], 1])
+        normalized_coords = np.dot(camera_matrix, point)
+
+        # 2D image point with homogeneous coordinate
+        image_point_homogeneous = normalized_coords / normalized_coords[2]
+
+        converted.append(image_point_homogeneous[:2])
+
+        # TO DO: remove points not in the image
+
+    return np.array(converted)
+
+
 def image_to_3d_point(image_point, camera_matrix, depth):
     # Add a homogeneous coordinate to the 2D image point
     image_point_homogeneous = np.array([image_point[0], image_point[1], 1])
@@ -262,22 +279,23 @@ def labelColor(class_string):
         return 0
 
 
-def transform_det_lidar(detections, transform):
+def transform_det_lidar(lidar_points, transform):
+    """transforms from lidar detections to camera frames"""
     transformed_points = []
-    for point in detections:
-        # Create a PointStamped message
+    for point in lidar_points:
         p = Point()
-        p.x = point[0]
-        p.y = point[1]
-        p.z = point[2]
+        p.x = float(point[0])
+        p.y = float(point[1])
+        p.z = float(point[2])
 
         try:
             p_tf = tf2_geometry_msgs.do_transform_point(
                 PointStamped(point=p), transform
             ).point
-            transformed_points.append([p_tf.x, p_tf.y, p_tf.z, point[3]])
+            transformed_points.append([p_tf.x, p_tf.y, p_tf.z])
 
         except TransformException as ex:
             print(ex)
             return
+
     return np.array(transformed_points)

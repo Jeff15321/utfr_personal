@@ -53,6 +53,8 @@ from perception.submodules.deep import bounding_boxes_to_cone_detections
 from perception.submodules.deep import check_for_cuda
 from perception.submodules.deep import labelColor
 from perception.submodules.deep import transform_det_lidar
+from perception.submodules.deep import point_3d_to_image
+from perception.submodules.deep import image_to_3d_point
 
 
 class PerceptionNode(Node):
@@ -666,19 +668,22 @@ class PerceptionNode(Node):
             frame_right = undist_right
 
             try:
-                # tf from left_cam to lidar
-
-                tf_leftcam_lidar = self.tf_buffer.lookup_transform(
-                    self.lidar_frame,
+                # tf from lidar to left_cam
+                tf_lidar_to_leftcam = self.tf_buffer.lookup_transform(
                     self.left_camera_frame,
+                    # self.lidar_frame,
+                    "ground",
+                    # "os_sensor",
                     time=rclpy.time.Time(seconds=0),
                     timeout=rclpy.time.Duration(seconds=0.1),
                 )
 
-                # tf from right_cam to lidar
-                tf_rightcam_lidar = self.tf_buffer.lookup_transform(
-                    self.lidar_frame,
+                # tf from lidar to right cam
+                tf_lidar_to_rightcam = self.tf_buffer.lookup_transform(
                     self.right_camera_frame,
+                    # self.lidar_frame,
+                    "ground",
+                    # "os_sensor",
                     rclpy.time.Time(),
                     timeout=rclpy.duration.Duration(seconds=0.1),
                 )
@@ -699,177 +704,218 @@ class PerceptionNode(Node):
                 right_cone_detections,
             ) = self.process(frame_left, frame_right)
 
-            # transform camera detections to lidar frame
-            left_detections_lidar_frame = transform_det_lidar(
-                left_cone_detections, tf_leftcam_lidar
-            )
-            right_detections_lidar_frame = transform_det_lidar(
-                right_cone_detections, tf_rightcam_lidar
-            )
-
             # Extract point cloud data
             lidar_point_cloud_data = point_cloud2.read_points_numpy(
                 self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
             )
 
-            # print(left_detections_lidar_frame.shape, right_detections_lidar_frame.shape)
-            # concatenate into one array
-            if left_detections_lidar_frame.shape[0] == 0:
-                total_cam_det = right_detections_lidar_frame
-            elif right_detections_lidar_frame.shape[0] == 0:
-                total_cam_det = left_detections_lidar_frame
-            else:
-                total_cam_det = np.concatenate(
-                    (left_detections_lidar_frame, right_detections_lidar_frame), axis=0
-                )
-            # total_cam_det = left_detections_lidar_frame
-            # total_cam_det = right_detections_lidar_frame
+            # transform lidar detections to left cam frame
+            lidar_det_leftcam_frame = transform_det_lidar(
+                lidar_point_cloud_data, tf_lidar_to_leftcam
+            )
+
+            # tf lidar to right cam frame
+            lidar_det_rightcam_frame = transform_det_lidar(
+                lidar_point_cloud_data, tf_lidar_to_rightcam
+            )
 
             # perception detections debug
             self.detections_debug = ConeDetections()
-            self.detections_debug.header.frame_id = "ground"
+            self.detections_debug.header.frame_id = "left_cam"
 
             self.detections_debug.header.stamp = self.get_clock().now().to_msg()
 
-            for i in range(len(total_cam_det)):
-                self.cone_template = Cone()
-                self.cone_template.pos.x = float(total_cam_det[i][0])  # left
-                self.cone_template.pos.y = float(total_cam_det[i][1])  # up
-                self.cone_template.pos.z = float(total_cam_det[i][2])  # front
-                self.cone_template.type = int(total_cam_det[i][3])
+            # debug left cam transform --> works
+            # for lidar_point in lidar_det_leftcam_frame:
+            #     self.cone_template = Cone()
+            #     self.cone_template.pos.x = float(lidar_point[0])  # left
+            #     self.cone_template.pos.y = float(lidar_point[1])  # up
+            #     self.cone_template.pos.z = float(lidar_point[2])  # front
+            #     self.cone_template.type = 1
 
-                if self.cone_template.type == 1:  # blue
-                    self.detections_debug.left_cones.append(self.cone_template)
-                elif self.cone_template.type == 2:  # yellow
-                    self.detections_debug.right_cones.append(self.cone_template)
-                elif self.cone_template.type == 3:
-                    self.detections_debug.small_orange_cones.append(self.cone_template)
-                elif self.cone_template.type == 4:
-                    self.detections_debug.large_orange_cones.append(self.cone_template)
-                else:  # unknown cones cone template type == 0
-                    self.detections_debug.unknown_cones.append(self.cone_template)
+            #     if self.cone_template.type == 1:  # blue
+            #         self.detections_debug.left_cones.append(self.cone_template)
+            #     elif self.cone_template.type == 2:  # yellow
+            #         self.detections_debug.right_cones.append(self.cone_template)
+            #     elif self.cone_template.type == 3:
+            #         self.detections_debug.small_orange_cones.append(self.cone_template)
+            #     elif self.cone_template.type == 4:
+            #         self.detections_debug.large_orange_cones.append(self.cone_template)
+            #     else:  # unknown cones cone template type == 0
+            #         self.detections_debug.unknown_cones.append(self.cone_template)
+
+            # self.cone_detections_debug_.publish(self.detections_debug)
+
+            # print("image: x = 720, y = 540")  # middle of the frame
+            # temp = image_to_3d_point(
+            #     [717.3175336097887, 555.1127066183973], self.intrinsics_right, 2
+            # )  #
+
+            # print all the 3d x, y, z of lidar detections in cam frame,
+            # then print one of them, and manually calculate it to confirm it's right
+            # then display it on the image
+
+            print("3d point: (x, y, z): 0, 1, 2")
+
+            # x, y, z
+
+            # x in the left cam frame = z in the transformation frame
+            # swap x and z in lidar_det_leftcam_frame
+            # lidar_det_leftcam_frame = [(1, 0, 0.2)]
+            # I think it's in the os_lidar frame, not os_sensor, so we negate x as well
+            # print("raw cam frame points: (x, y, z) " + str(lidar_det_leftcam_frame))
+            # lidar_det_leftcam_frame = np.array(
+            #     [
+            #         # (4.3722494, -0.20710491, -0.30764774),
+            #         # (4.3722494, -0.20710491, 1),
+            #         (7.78107211, -4.12345955, 0.44342053),
+            #     ]
+            # )
+
+            # lidar_det_leftcam_frame = np.array(
+            #     [
+            #         [4.25503705, -1.03640499, -0.30780435],
+            #         [6.85329292, -5.52242982, 0.44382226],
+            #         [11.16204508, -5.17149543, 1.06212634],
+            #         [11.75005565, -10.2429946, 1.69005531],
+            #         [2.85439109, -3.40545105, -0.30754888],
+            #     ]
+            # )
+
+            # [perception_node.py-1]
+            # [perception_node.py-1]
+            # [perception_node.py-1]  [ 15.66344591  -9.81338193   2.18790835]
+            # [perception_node.py-1]  [ 13.7752171   -7.94294557   1.68217081]
+            # [perception_node.py-1]  [  9.59632423  -7.89087548   1.20412212]
+            # [perception_node.py-1]  [ 12.14973596  -3.84846055   1.05038208]]
+
+            for point in lidar_det_leftcam_frame:
+                self.cone_template = Cone()
+                self.cone_template.pos.x = float(point[0])  # left
+                self.cone_template.pos.y = float(point[1])  # up
+                self.cone_template.pos.z = float(point[2])  # front
+                self.detections_debug.left_cones.append(self.cone_template)
 
             self.cone_detections_debug_.publish(self.detections_debug)
 
-            # hungarian matching
-            if total_cam_det.shape[0] > 0:
+            print(lidar_det_leftcam_frame)
+            lidar_det_leftcam_frame = [
+                [-point[1], -point[2], point[0]] for point in lidar_det_leftcam_frame
+            ]
+            total_pixel_coord = point_3d_to_image(
+                lidar_det_leftcam_frame, self.intrinsics_left
+            )  # list of x, y
 
-                diffs = lidar_point_cloud_data[:, :3].reshape(-1, 1, 3) - total_cam_det[
-                    :, :3
-                ].reshape(1, -1, 3)
+            lidar_det_rightcam_frame = np.array(
+                [
+                    [2.80043235, 3.45727413, -0.30780435],
+                    [4.23461209, 1.10837721, -0.30754888],
+                ]
+            )
 
-                cost_matrix = np.linalg.norm(diffs, axis=2)
+            print(lidar_det_rightcam_frame)
+            lidar_det_rightcam_frame = [
+                [-point[1], -point[2], point[0]] for point in lidar_det_rightcam_frame
+            ]
+            total_pixel_coord_right = point_3d_to_image(
+                lidar_det_rightcam_frame, self.intrinsics_right
+            )  # list of x, y
 
-                row_ind, col_ind = linear_sum_assignment(cost_matrix)
+            # left_proj = point_3d_to_image(
+            #     [(0, 0.3, 2)], self.intrinsics_left
+            # )  # x, y, z
+            # print("image: ")
+            # print(left_proj)
 
-                positions = lidar_point_cloud_data[row_ind][:, :3]
-                colours = total_cam_det[col_ind][:, 3:]
+            self.perception_debug_msg_left = PerceptionDebug()
+            self.perception_debug_msg_left.header.stamp = self.left_img_header.stamp
 
-                # TODO - cost matrix where indices have cost above certain threshold, make the type unknown
-                costs = cost_matrix[row_ind, col_ind]
-                above_threshold = np.where(costs > 4.0)[0]
-                for ind in above_threshold:
-                    colours[ind] = 0
+            # to test if bounding boxes are working
+            bounding_box_left = BoundingBox()
+            bounding_box_left.x = int(720)
+            bounding_box_left.y = int(540)
+            bounding_box_left.width = 10
+            bounding_box_left.height = 10
+            bounding_box_left.type = 1
+            bounding_box_left.score = 1.0
+            self.perception_debug_msg_left.left.append(bounding_box_left)
 
-                cone_detections = np.concatenate((positions, colours), axis=1)
-                # print(col_ind)
-                # to combine cam and lidar dets
-                camera_det = np.delete(total_cam_det, col_ind, axis=0)
-                cone_detections = np.concatenate((cone_detections, camera_det), axis=0)
-                # print(cone_detections.shape)
-            else:
+            for point in total_pixel_coord:
+                print("x: ", point[0], " y: ", point[1])
+                bounding_box_left = BoundingBox()
+                bounding_box_left.x = int(point[0])
+                bounding_box_left.y = int(point[1])
+                bounding_box_left.width = 10
+                bounding_box_left.height = 10
+                bounding_box_left.type = 1
+                bounding_box_left.score = 1.0
+                self.perception_debug_msg_left.left.append(bounding_box_left)
 
-                positions = lidar_point_cloud_data[:, :3]
-                colours = np.zeros((positions.shape[0], 1))
-                cone_detections = np.concatenate((positions, colours), axis=1)
+            self.perception_debug_publisher_left_.publish(
+                self.perception_debug_msg_left
+            )
 
-            # self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
+            self.perception_debug_msg_right = PerceptionDebug()
+            self.perception_debug_msg_right.header.stamp = self.right_img_header.stamp
 
-            # perception debug msg
+            for point in total_pixel_coord_right:
+                print("x: ", point[0], " y: ", point[1])
+                bounding_box_right = BoundingBox()
+                bounding_box_right.x = int(point[0])
+                bounding_box_right.y = int(point[1])
+                bounding_box_right.width = 10
+                bounding_box_right.height = 10
+                bounding_box_right.type = 1
+                bounding_box_right.score = 1.0
+                self.perception_debug_msg_right.right.append(bounding_box_right)
 
-            if len(results_left) == 0:
-                pass
-            else:
-                self.perception_debug_msg_left = PerceptionDebug()
-                self.perception_debug_msg_left.header.stamp = self.left_img_header.stamp
-                for i in range(len(results_left)):
-                    bounding_box_left = BoundingBox()
-                    bounding_box_left.x = int(results_left[i][0])
-                    bounding_box_left.y = int(results_left[i][1])
-                    bounding_box_left.width = int(results_left[i][2])
-                    bounding_box_left.height = int(results_left[i][3])
-                    bounding_box_left.type = labelColor(classes_left[i])
-                    bounding_box_left.score = scores_left[i]
-                    self.perception_debug_msg_left.left.append(bounding_box_left)
+            self.perception_debug_publisher_right_.publish(
+                self.perception_debug_msg_right
+            )
 
-                self.perception_debug_publisher_left_.publish(
-                    self.perception_debug_msg_left
-                )
+            # # imshow for opencv
+            # """
+            # cv2.imshow('left_camera', frame_left)
+            # k = cv2.waitKey(1)
 
-            if len(results_right) == 0:
-                pass
-            else:
-                self.perception_debug_msg_right = PerceptionDebug()
-                self.perception_debug_msg_right.header.stamp = (
-                    self.right_img_header.stamp
-                )
-                for i in range(len(results_right)):
-                    bounding_box_right = BoundingBox()
-                    bounding_box_right.x = int(results_right[i][0])
-                    bounding_box_right.y = int(results_right[i][1])
-                    bounding_box_right.width = int(results_right[i][2])
-                    bounding_box_right.height = int(results_right[i][3])
-                    bounding_box_right.type = labelColor(classes_right[i])
-                    bounding_box_right.score = scores_right[i]
-                    self.perception_debug_msg_right.right.append(bounding_box_right)
+            # cv2.imshow('right_camera', frame_right)
+            # cv2.waitKey(1)
+            # """
 
-                self.perception_debug_publisher_right_.publish(
-                    self.perception_debug_msg_right
-                )
+            # # print("cone detections: " + str(cone_detections))
 
-            # imshow for opencv
-            """
-            cv2.imshow('left_camera', frame_left)
-            k = cv2.waitKey(1)
+            # if cone_detections.size != 0:
+            #     # order cones by distance
+            #     # cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
 
-            cv2.imshow('right_camera', frame_right)
-            cv2.waitKey(1)
-            """
+            #     # publish cone detections
+            #     self.detections_msg.header.stamp = self.get_clock().now().to_msg()
 
-            # print("cone detections: " + str(cone_detections))
+            #     for i in range(len(cone_detections)):
+            #         self.cone_template = Cone()
+            #         self.cone_template.pos.x = float(cone_detections[i][0])  # left
+            #         self.cone_template.pos.y = float(cone_detections[i][1])  # up
+            #         self.cone_template.pos.z = float(cone_detections[i][2])  # front
+            #         self.cone_template.type = int(cone_detections[i][3])
 
-            if cone_detections.size != 0:
-                # order cones by distance
-                # cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
+            #         if self.cone_template.type == 1:  # blue
+            #             self.detections_msg.left_cones.append(self.cone_template)
+            #         elif self.cone_template.type == 2:  # yellow
+            #             self.detections_msg.right_cones.append(self.cone_template)
+            #         elif self.cone_template.type == 3:
+            #             self.detections_msg.small_orange_cones.append(
+            #                 self.cone_template
+            #             )
+            #         elif self.cone_template.type == 4:
+            #             self.detections_msg.large_orange_cones.append(
+            #                 self.cone_template
+            #             )
+            #         else:  # unknown cones cone template type == 0
+            #             self.detections_msg.unknown_cones.append(self.cone_template)
 
-                # publish cone detections
-                self.detections_msg.header.stamp = self.get_clock().now().to_msg()
+            #     self.detections_msg.header.stamp = self.get_clock().now().to_msg()
 
-                for i in range(len(cone_detections)):
-                    self.cone_template = Cone()
-                    self.cone_template.pos.x = float(cone_detections[i][0])  # left
-                    self.cone_template.pos.y = float(cone_detections[i][1])  # up
-                    self.cone_template.pos.z = float(cone_detections[i][2])  # front
-                    self.cone_template.type = int(cone_detections[i][3])
-
-                    if self.cone_template.type == 1:  # blue
-                        self.detections_msg.left_cones.append(self.cone_template)
-                    elif self.cone_template.type == 2:  # yellow
-                        self.detections_msg.right_cones.append(self.cone_template)
-                    elif self.cone_template.type == 3:
-                        self.detections_msg.small_orange_cones.append(
-                            self.cone_template
-                        )
-                    elif self.cone_template.type == 4:
-                        self.detections_msg.large_orange_cones.append(
-                            self.cone_template
-                        )
-                    else:  # unknown cones cone template type == 0
-                        self.detections_msg.unknown_cones.append(self.cone_template)
-
-                self.detections_msg.header.stamp = self.get_clock().now().to_msg()
-
-                self.cone_detections_publisher_.publish(self.detections_msg)
+            #     self.cone_detections_publisher_.publish(self.detections_msg)
 
             self.left_img_recieved_ = False
             self.right_img_recieved_ = False

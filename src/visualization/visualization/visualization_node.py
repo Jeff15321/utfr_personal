@@ -64,6 +64,14 @@ class VisualizationNode(Node):
             self.perceptionConeDetectionsCB,
             1,
         )
+
+        self.cone_detections_ = self.create_subscription(
+            ConeDetections,
+            "/perception/detections_debug",
+            self.perceptionDebugConeDetectionsCB,
+            1,
+        )
+
         print(self.perception_debug_subscriber_left_)
         print(self.perception_debug_subscriber_right_)
 
@@ -86,6 +94,10 @@ class VisualizationNode(Node):
 
         self.cone_markers_publisher_ = self.create_publisher(
             MarkerArray, "/visualization/cone_markers", 1
+        )
+
+        self.cone_debug_markers_publisher = self.create_publisher(
+            MarkerArray, "/visualization/cone_debug_markers", 1
         )
 
         print(self.left_image_marker_publisher_)
@@ -621,11 +633,8 @@ class VisualizationNode(Node):
 
         self.right_image_text_publisher_.publish(right_image_annotation)
 
-    def perceptionConeDetectionsCB(self, msg):
-        """
-        Publish the cone detections as yellow cube markers
-        """
-        self.get_logger().warn("Recieved cone detections msg")
+    def perceptionDebugConeDetectionsCB(self, msg):
+        self.get_logger().warn("Recieved DEBUG cone detections msg")
         cube_cone_dets = MarkerArray()
         left_cones = msg.left_cones
         right_cones = msg.right_cones
@@ -637,7 +646,8 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
+            cube_marker.header.frame_id = "left_camera"
+            # should this be ground or os_sensor?
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
@@ -663,7 +673,7 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
+            cube_marker.header.frame_id = "left_camera"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
@@ -689,7 +699,7 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
+            cube_marker.header.frame_id = "left_camera"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
@@ -715,7 +725,7 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
+            cube_marker.header.frame_id = "left_camera"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
@@ -741,7 +751,7 @@ class VisualizationNode(Node):
             cube_marker = Marker()
             # populate the marker
             cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
+            cube_marker.header.frame_id = "left_camera"
             cube_marker.ns = "utfr_foxglove"
             cube_marker.id = i
             cube_marker.type = 1  # cube
@@ -762,7 +772,152 @@ class VisualizationNode(Node):
 
             cube_cone_dets.markers.append(cube_marker)
             i += 1
+        print(cube_cone_dets.markers.__len__())
+        self.cone_debug_markers_publisher.publish(cube_cone_dets)
 
+    def perceptionConeDetectionsCB(self, msg):
+        """
+        Publish the cone detections as yellow cube markers
+        """
+        self.get_logger().warn("Recieved cone detections msg")
+        cube_cone_dets = MarkerArray()
+        left_cones = msg.left_cones
+        right_cones = msg.right_cones
+        large_orange_cones = msg.large_orange_cones
+        small_orange_cones = msg.small_orange_cones
+        unknown_cones = msg.unknown_cones
+        i = 0
+        for cone in left_cones:
+            cube_marker = Marker()
+            # populate the marker
+            cube_marker.header = msg.header
+            cube_marker.header.frame_id = "os_sensor"
+            # should this be ground or os_sensor?
+            cube_marker.ns = "utfr_foxglove"
+            cube_marker.id = i
+            cube_marker.type = 1  # cube
+            cube_marker.action = 0  # add
+            cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
+            cube_marker.pose.orientation.x = 0.0
+            cube_marker.pose.orientation.y = 0.0
+            cube_marker.pose.orientation.z = 0.0
+            cube_marker.pose.orientation.w = 1.0
+            cube_marker.scale.x = 0.2
+            cube_marker.scale.y = 0.2
+            cube_marker.scale.z = 0.2
+            cube_marker.color.a = 1.0
+            cube_marker.color.r = 1.0
+            cube_marker.color.g = 1.0
+            cube_marker.color.b = 0.0
+
+            cube_cone_dets.markers.append(cube_marker)
+            i += 1
+
+        for cone in right_cones:
+            cube_marker = Marker()
+            # populate the marker
+            cube_marker.header = msg.header
+            cube_marker.header.frame_id = "os_sensor"
+            cube_marker.ns = "utfr_foxglove"
+            cube_marker.id = i
+            cube_marker.type = 1  # cube
+            cube_marker.action = 0  # add
+            cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
+            cube_marker.pose.orientation.x = 0.0
+            cube_marker.pose.orientation.y = 0.0
+            cube_marker.pose.orientation.z = 0.0
+            cube_marker.pose.orientation.w = 1.0
+            cube_marker.scale.x = 0.2
+            cube_marker.scale.y = 0.2
+            cube_marker.scale.z = 0.2
+            cube_marker.color.a = 1.0
+            cube_marker.color.r = 0.0
+            cube_marker.color.g = 1.0
+            cube_marker.color.b = 1.0
+
+            cube_cone_dets.markers.append(cube_marker)
+            i += 1
+
+        for cone in large_orange_cones:
+            cube_marker = Marker()
+            # populate the marker
+            cube_marker.header = msg.header
+            cube_marker.header.frame_id = "os_sensor"
+            cube_marker.ns = "utfr_foxglove"
+            cube_marker.id = i
+            cube_marker.type = 1  # cube
+            cube_marker.action = 0  # add
+            cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
+            cube_marker.pose.orientation.x = 0.0
+            cube_marker.pose.orientation.y = 0.0
+            cube_marker.pose.orientation.z = 0.0
+            cube_marker.pose.orientation.w = 1.0
+            cube_marker.scale.x = 0.2
+            cube_marker.scale.y = 0.2
+            cube_marker.scale.z = 0.5
+            cube_marker.color.a = 1.0
+            cube_marker.color.r = 1.0
+            cube_marker.color.g = 0.5
+            cube_marker.color.b = 0.0
+
+            cube_cone_dets.markers.append(cube_marker)
+            i += 1
+
+        for cone in small_orange_cones:
+            cube_marker = Marker()
+            # populate the marker
+            cube_marker.header = msg.header
+            cube_marker.header.frame_id = "os_sensor"
+            cube_marker.ns = "utfr_foxglove"
+            cube_marker.id = i
+            cube_marker.type = 1  # cube
+            cube_marker.action = 0  # add
+            cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
+            cube_marker.pose.orientation.x = 0.0
+            cube_marker.pose.orientation.y = 0.0
+            cube_marker.pose.orientation.z = 0.0
+            cube_marker.pose.orientation.w = 1.0
+            cube_marker.scale.x = 0.2
+            cube_marker.scale.y = 0.2
+            cube_marker.scale.z = 0.2
+            cube_marker.color.a = 1.0
+            cube_marker.color.r = 1.0
+            cube_marker.color.g = 0.5
+            cube_marker.color.b = 0.0
+
+            cube_cone_dets.markers.append(cube_marker)
+            i += 1
+
+        for cone in unknown_cones:
+            cube_marker = Marker()
+            # populate the marker
+            cube_marker.header = msg.header
+            cube_marker.header.frame_id = "os_sensor"
+            cube_marker.ns = "utfr_foxglove"
+            cube_marker.id = i
+            cube_marker.type = 1  # cube
+            cube_marker.action = 0  # add
+            cube_marker.pose.position = cone.pos
+            cube_marker.pose.position.z = 0.0
+            cube_marker.pose.orientation.x = 0.0
+            cube_marker.pose.orientation.y = 0.0
+            cube_marker.pose.orientation.z = 0.0
+            cube_marker.pose.orientation.w = 1.0
+            cube_marker.scale.x = 0.2
+            cube_marker.scale.y = 0.2
+            cube_marker.scale.z = 0.2
+            cube_marker.color.a = 1.0
+            cube_marker.color.r = 1.0
+            cube_marker.color.g = 1.0
+            cube_marker.color.b = 1.0
+
+            cube_cone_dets.markers.append(cube_marker)
+            i += 1
+        print(cube_cone_dets.markers.__len__())
         self.cone_markers_publisher_.publish(cube_cone_dets)
 
 
