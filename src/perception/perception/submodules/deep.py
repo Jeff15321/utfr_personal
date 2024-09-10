@@ -208,7 +208,7 @@ def point_3d_to_image(points, camera_matrix):
     converted = []
     for point in points:
         # Transform to normalized camera coordinates
-        point = np.array([point[0], point[1], 1])
+        point = np.array([point[0], point[1], point[2]])
         normalized_coords = np.dot(camera_matrix, point)
 
         # 2D image point with homogeneous coordinate

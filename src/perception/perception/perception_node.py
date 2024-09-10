@@ -55,7 +55,6 @@ from perception.submodules.deep import check_for_cuda
 from perception.submodules.deep import labelColor
 from perception.submodules.deep import transform_det_lidar
 from perception.submodules.deep import point_3d_to_image
-from perception.submodules.deep import image_to_3d_point
 
 
 class PerceptionNode(Node):
@@ -132,6 +131,7 @@ class PerceptionNode(Node):
         self.declare_parameter("heartbeat_topic", "/perception/heartbeat")
         self.declare_parameter("processed_lidar_topic", "/lidar_pipeline/clustered")
         self.declare_parameter("update_rate", 33.33)
+        self.declare_parameter("debug", False)
         self.declare_parameter("distortion_left", [0.0])
         self.declare_parameter("distortion_right", [0.0])
         self.declare_parameter("intrinsics_left", [0.0])
@@ -171,6 +171,7 @@ class PerceptionNode(Node):
         self.update_rate_ = (
             self.get_parameter("update_rate").get_parameter_value().double_value
         )
+        self.debug_ = self.get_parameter("debug").get_parameter_value().bool_value
         self.distortion_left = (
             self.get_parameter("distortion_left")
             .get_parameter_value()
@@ -259,16 +260,17 @@ class PerceptionNode(Node):
         self.mapx_right, self.mapy_right = cv2.initUndistortRectifyMap(
             self.intrinsics_right,
             self.distortion_right,
-            self.rectify_right,
+            None,
             self.intrinsics_right,
             (1440, 1080),
             cv2.CV_32FC1,
         )
 
+        print("intrinsics_right", self.intrinsics_right)
         self.mapx_left, self.mapy_left = cv2.initUndistortRectifyMap(
             self.intrinsics_left,
             self.distortion_left,
-            self.rectify_left,
+            None,
             self.intrinsics_left,
             (1440, 1080),
             cv2.CV_32FC1,
@@ -365,29 +367,30 @@ class PerceptionNode(Node):
             ConeDetections, self.cone_detections_topic_, 1
         )
 
-        self.cone_detections_debug_ = self.create_publisher(
-            ConeDetections, "/perception/detections_debug", 1
-        )
-
         self.heartbeat_publisher_ = self.create_publisher(
             Heartbeat, self.heartbeat_topic_, 1
         )
 
-        self.undistorted_publisher_left_ = self.create_publisher(
-            Image, "/perception/debug_undistorted_left", 1
-        )
+        if self.debug_:
+            self.cone_detections_debug_ = self.create_publisher(
+                ConeDetections, "/perception/detections_debug", 1
+            )
 
-        self.undistorted_publisher_right_ = self.create_publisher(
-            Image, "/perception/debug_undistorted_right", 1
-        )
+            self.undistorted_publisher_left_ = self.create_publisher(
+                Image, "/perception/debug_undistorted_left", 1
+            )
 
-        self.perception_debug_publisher_left_ = self.create_publisher(
-            PerceptionDebug, self.perception_debug_topic_ + "_left", 1
-        )
+            self.undistorted_publisher_right_ = self.create_publisher(
+                Image, "/perception/debug_undistorted_right", 1
+            )
 
-        self.perception_debug_publisher_right_ = self.create_publisher(
-            PerceptionDebug, self.perception_debug_topic_ + "_right", 1
-        )
+            self.perception_debug_publisher_left_ = self.create_publisher(
+                PerceptionDebug, self.perception_debug_topic_ + "_left", 1
+            )
+
+            self.perception_debug_publisher_right_ = self.create_publisher(
+                PerceptionDebug, self.perception_debug_topic_ + "_right", 1
+            )
 
     def initServices(self):
         """
@@ -655,46 +658,14 @@ class PerceptionNode(Node):
                 borderValue=(0, 0, 0, 0),
             )
 
-            # publish the undistorted images and display over that rather than the raw compressed imgs
-
-            # code to resize the image (for faster fps)
-
-            """
-            frame_left_60, frame_right_60 = self.resize_img(undist_left, undist_right, 60)
-            frame_left = frame_left_60
-            frame_right = frame_right_70
-        
-        if self.save_pic == "True":
-        timestamp = int(time.time())
-        local_time = time.ctime(timestamp).replace(" ", "_")
-        self.save_image(frame_left, frame_right, local_time)
-        """
-
-            # equalize histogram
-            """
-            frame_left = self.equalize_hist(frame_left)
-            frame_right = self.equalize_hist(frame_right)
-            """
-
             frame_left = undist_left
             frame_right = undist_right
-
-            self.undistorted_publisher_left_.publish(
-                self.bridge.cv2_to_imgmsg(frame_left)
-            )
-            self.undistorted_publisher_right_.publish(
-                self.bridge.cv2_to_imgmsg(frame_right)
-            )
-
-            # TODO: publish frame_left and frame_right, then use these for boundary boxes
 
             try:
                 # tf from lidar to left_cam
                 tf_lidar_to_leftcam = self.tf_buffer.lookup_transform(
                     self.left_camera_frame,
-                    # self.lidar_frame,
                     "ground",
-                    # "os_sensor",
                     time=rclpy.time.Time(seconds=0),
                     timeout=rclpy.time.Duration(seconds=0.1),
                 )
@@ -702,9 +673,7 @@ class PerceptionNode(Node):
                 # tf from lidar to right cam
                 tf_lidar_to_rightcam = self.tf_buffer.lookup_transform(
                     self.right_camera_frame,
-                    # self.lidar_frame,
                     "ground",
-                    # "os_sensor",
                     rclpy.time.Time(),
                     timeout=rclpy.duration.Duration(seconds=0.1),
                 )
@@ -740,6 +709,7 @@ class PerceptionNode(Node):
                 lidar_point_cloud_data, tf_lidar_to_rightcam
             )
 
+            ############# START DEBUG MSGS ################
             # perception detections debug
             self.detections_debug = ConeDetections()
             self.detections_debug.header.frame_id = "left_cam"
@@ -819,22 +789,27 @@ class PerceptionNode(Node):
 
             self.cone_detections_debug_.publish(self.detections_debug)
 
-            print(lidar_det_leftcam_frame)
+            ############# END DEBUG MSGS ################
+
+            # print(lidar_det_leftcam_frame)
+            # Transform 3D camera frame to 3D camera optical frame (axis swap)
             lidar_det_leftcam_frame = [
                 [-point[1], -point[2], point[0]] for point in lidar_det_leftcam_frame
             ]
+
+            # 3D optical frame to 2D pixel coordinates projection
             total_pixel_coord = point_3d_to_image(
                 lidar_det_leftcam_frame, self.intrinsics_left
             )  # list of x, y
 
-            lidar_det_rightcam_frame = np.array(
-                [
-                    [2.80043235, 3.45727413, -0.30780435],
-                    [4.23461209, 1.10837721, -0.30754888],
-                ]
-            )
+            # lidar_det_rightcam_frame = np.array(
+            #     [
+            #         [2.80043235, 3.45727413, -0.30780435],
+            #         [4.23461209, 1.10837721, -0.30754888],
+            #     ]
+            # )
 
-            print(lidar_det_rightcam_frame)
+            # print(lidar_det_rightcam_frame)
             lidar_det_rightcam_frame = [
                 [-point[1], -point[2], point[0]] for point in lidar_det_rightcam_frame
             ]
@@ -847,6 +822,8 @@ class PerceptionNode(Node):
             # )  # x, y, z
             # print("image: ")
             # print(left_proj)
+
+            # Bounding box showing lidar point in camera frame
 
             self.perception_debug_msg_left = PerceptionDebug()
             self.perception_debug_msg_left.header.stamp = self.left_img_header.stamp
@@ -894,45 +871,47 @@ class PerceptionNode(Node):
                 self.perception_debug_msg_right
             )
 
-            if len(results_left) == 0:
-                pass
-            else:
-                self.perception_debug_msg_left = PerceptionDebug()
-                self.perception_debug_msg_left.header.stamp = self.left_img_header.stamp
-                for i in range(len(results_left)):
-                    bounding_box_left = BoundingBox()
-                    bounding_box_left.x = int(results_left[i][0])
-                    bounding_box_left.y = int(results_left[i][1])
-                    bounding_box_left.width = int(results_left[i][2])
-                    bounding_box_left.height = int(results_left[i][3])
-                    bounding_box_left.type = labelColor(classes_left[i])
-                    bounding_box_left.score = scores_left[i]
-                    self.perception_debug_msg_left.left.append(bounding_box_left)
+            # Bounding boxes from deep learning model
 
-                self.perception_debug_publisher_left_.publish(
-                    self.perception_debug_msg_left
-                )
+            # if len(results_left) == 0:
+            #     pass
+            # else:
+            #     self.perception_debug_msg_left = PerceptionDebug()
+            #     self.perception_debug_msg_left.header.stamp = self.left_img_header.stamp
+            #     for i in range(len(results_left)):
+            #         bounding_box_left = BoundingBox()
+            #         bounding_box_left.x = int(results_left[i][0])
+            #         bounding_box_left.y = int(results_left[i][1])
+            #         bounding_box_left.width = int(results_left[i][2])
+            #         bounding_box_left.height = int(results_left[i][3])
+            #         bounding_box_left.type = labelColor(classes_left[i])
+            #         bounding_box_left.score = scores_left[i]
+            #         self.perception_debug_msg_left.left.append(bounding_box_left)
 
-            if len(results_right) == 0:
-                pass
-            else:
-                self.perception_debug_msg_right = PerceptionDebug()
-                self.perception_debug_msg_right.header.stamp = (
-                    self.right_img_header.stamp
-                )
-                for i in range(len(results_right)):
-                    bounding_box_right = BoundingBox()
-                    bounding_box_right.x = int(results_right[i][0])
-                    bounding_box_right.y = int(results_right[i][1])
-                    bounding_box_right.width = int(results_right[i][2])
-                    bounding_box_right.height = int(results_right[i][3])
-                    bounding_box_right.type = labelColor(classes_right[i])
-                    bounding_box_right.score = scores_right[i]
-                    self.perception_debug_msg_right.right.append(bounding_box_right)
+            #     self.perception_debug_publisher_left_.publish(
+            #         self.perception_debug_msg_left
+            #     )
 
-                self.perception_debug_publisher_right_.publish(
-                    self.perception_debug_msg_right
-                )
+            # if len(results_right) == 0:
+            #     pass
+            # else:
+            #     self.perception_debug_msg_right = PerceptionDebug()
+            #     self.perception_debug_msg_right.header.stamp = (
+            #         self.right_img_header.stamp
+            #     )
+            #     for i in range(len(results_right)):
+            #         bounding_box_right = BoundingBox()
+            #         bounding_box_right.x = int(results_right[i][0])
+            #         bounding_box_right.y = int(results_right[i][1])
+            #         bounding_box_right.width = int(results_right[i][2])
+            #         bounding_box_right.height = int(results_right[i][3])
+            #         bounding_box_right.type = labelColor(classes_right[i])
+            #         bounding_box_right.score = scores_right[i]
+            #         self.perception_debug_msg_right.right.append(bounding_box_right)
+
+            #     self.perception_debug_publisher_right_.publish(
+            #         self.perception_debug_msg_right
+            #     )
 
             # # imshow for opencv
             # """
@@ -981,6 +960,9 @@ class PerceptionNode(Node):
             self.left_img_recieved_ = False
             self.right_img_recieved_ = False
 
+            if self.debug_:
+                self.debug(frame_left, frame_right, lidar_det_leftcam_frame)
+
         else:
             print("LIDAR_ONLY")
             # Extract point cloud data
@@ -1001,6 +983,16 @@ class PerceptionNode(Node):
             self.cone_detections_publisher_.publish(self.detections_msg)
 
     # Helper functions:
+
+    def debug(self, frame_left, frame_right, lidar_det_leftcam_frame):
+        """
+        Print debug messages
+        """
+
+        self.undistorted_publisher_left_.publish(self.bridge.cv2_to_imgmsg(frame_left))
+        self.undistorted_publisher_right_.publish(
+            self.bridge.cv2_to_imgmsg(frame_right)
+        )
 
     def save_image(self, left_img_, right_img_, rosbag_name):
         left_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"
