@@ -10,12 +10,12 @@ perception_node: # Name of Node
     distortion_right: [-0.269633921151086, 0.12944192627838266, 0.0, 0.0, 0.0]
     intrinsics_left:
       [
-        300.0,
+        1080.918,
         0.0,
-        717.3175336097887,
+        723.1557,
         0.0,
-        300.0,
-        555.1127066183973,
+        1120.90,
+        519.173,
         0.0,
         0.0,
         1.0,
@@ -84,7 +84,7 @@ perception_node: # Name of Node
     save_pic: "False"
     confidence: 0.40
     cone_heights: [0.0, 325.0, 325.0, 325.0, 505.0]
-    lidar_only_detection: True
+    lidar_only_detection: False
 
     # shopping cart
     # intrinsics_left:

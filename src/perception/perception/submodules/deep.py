@@ -287,12 +287,24 @@ def transform_det_lidar(lidar_points, transform):
         p.x = float(point[0])
         p.y = float(point[1])
         p.z = float(point[2])
+        # p.x = 1.0
+        # p.y = 1.0
+        # p.z = 1.092
 
+        # print(
+        #     "transforming the point " + str(p.x),
+        #     str(p.y),
+        #     str(p.z) + " from ground to camera: ",
+        #     end="",
+        # )
+        # # transform random point like 1, 1, 0 and make sure the z is not 0 after transform
+        # print(transform)
         try:
             p_tf = tf2_geometry_msgs.do_transform_point(
                 PointStamped(point=p), transform
             ).point
             transformed_points.append([p_tf.x, p_tf.y, p_tf.z])
+            # print(str(p_tf.x) + " " + str(p_tf.y) + " " + str(p_tf.z))
 
         except TransformException as ex:
             print(ex)

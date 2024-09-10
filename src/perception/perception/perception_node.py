@@ -35,6 +35,7 @@ from tf2_ros.transform_listener import TransformListener
 
 # Message Requirements
 from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2
 from std_msgs.msg import Bool
@@ -372,6 +373,14 @@ class PerceptionNode(Node):
             Heartbeat, self.heartbeat_topic_, 1
         )
 
+        self.undistorted_publisher_left_ = self.create_publisher(
+            Image, "/perception/debug_undistorted_left", 1
+        )
+
+        self.undistorted_publisher_right_ = self.create_publisher(
+            Image, "/perception/debug_undistorted_right", 1
+        )
+
         self.perception_debug_publisher_left_ = self.create_publisher(
             PerceptionDebug, self.perception_debug_topic_ + "_left", 1
         )
@@ -609,6 +618,7 @@ class PerceptionNode(Node):
             return
 
         if self.lidar_only_detection == False:
+
             # check if ready
             # if not self.left_ready_ or not self.right_ready_:
             #     return
@@ -645,6 +655,8 @@ class PerceptionNode(Node):
                 borderValue=(0, 0, 0, 0),
             )
 
+            # publish the undistorted images and display over that rather than the raw compressed imgs
+
             # code to resize the image (for faster fps)
 
             """
@@ -666,6 +678,15 @@ class PerceptionNode(Node):
 
             frame_left = undist_left
             frame_right = undist_right
+
+            self.undistorted_publisher_left_.publish(
+                self.bridge.cv2_to_imgmsg(frame_left)
+            )
+            self.undistorted_publisher_right_.publish(
+                self.bridge.cv2_to_imgmsg(frame_right)
+            )
+
+            # TODO: publish frame_left and frame_right, then use these for boundary boxes
 
             try:
                 # tf from lidar to left_cam
@@ -872,6 +893,46 @@ class PerceptionNode(Node):
             self.perception_debug_publisher_right_.publish(
                 self.perception_debug_msg_right
             )
+
+            if len(results_left) == 0:
+                pass
+            else:
+                self.perception_debug_msg_left = PerceptionDebug()
+                self.perception_debug_msg_left.header.stamp = self.left_img_header.stamp
+                for i in range(len(results_left)):
+                    bounding_box_left = BoundingBox()
+                    bounding_box_left.x = int(results_left[i][0])
+                    bounding_box_left.y = int(results_left[i][1])
+                    bounding_box_left.width = int(results_left[i][2])
+                    bounding_box_left.height = int(results_left[i][3])
+                    bounding_box_left.type = labelColor(classes_left[i])
+                    bounding_box_left.score = scores_left[i]
+                    self.perception_debug_msg_left.left.append(bounding_box_left)
+
+                self.perception_debug_publisher_left_.publish(
+                    self.perception_debug_msg_left
+                )
+
+            if len(results_right) == 0:
+                pass
+            else:
+                self.perception_debug_msg_right = PerceptionDebug()
+                self.perception_debug_msg_right.header.stamp = (
+                    self.right_img_header.stamp
+                )
+                for i in range(len(results_right)):
+                    bounding_box_right = BoundingBox()
+                    bounding_box_right.x = int(results_right[i][0])
+                    bounding_box_right.y = int(results_right[i][1])
+                    bounding_box_right.width = int(results_right[i][2])
+                    bounding_box_right.height = int(results_right[i][3])
+                    bounding_box_right.type = labelColor(classes_right[i])
+                    bounding_box_right.score = scores_right[i]
+                    self.perception_debug_msg_right.right.append(bounding_box_right)
+
+                self.perception_debug_publisher_right_.publish(
+                    self.perception_debug_msg_right
+                )
 
             # # imshow for opencv
             # """
