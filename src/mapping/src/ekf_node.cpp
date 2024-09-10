@@ -46,6 +46,8 @@ void EkfNode::initParams() {
 
   last_gps_ = {0.0, 0.0};
   datum_yaw_ = NULL;
+  
+  tf_br_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
 }
 
 void EkfNode::initSubscribers() {
@@ -101,6 +103,22 @@ void EkfNode::publishHeartbeat(const int status) {
   heartbeat_publisher_->publish(heartbeat_);
 }
 
+geometry_msgs::msg::TransformStamped EkfNode::createTransform(
+  const utfr_msgs::msg::EgoState &state){
+
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.stamp = this->get_clock()->now();
+  transform.header.frame_id = "map";
+  transform.child_frame_id = "imu_link";
+
+  transform.transform.translation.x = state.pose.pose.position.x;
+  transform.transform.translation.y = state.pose.pose.position.y;
+  transform.transform.translation.z = 0.265;
+
+  transform.transform.rotation = state.pose.pose.orientation;
+  return transform;
+}
+
 void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   double gps_x = msg.position.latitude;
   double gps_y = msg.position.longitude;
@@ -145,6 +163,7 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     // res.pose.pose.position.x = gps_x;
     // res.pose.pose.position.y = gps_y;
     res.header.stamp = this->get_clock()->now();
+    res.header.frame_id = "map";
 
     // Extract velocity data from SensorCan message
     double vel_x = msg.velocity.linear.x;
@@ -215,6 +234,7 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
 
   // Publish the updated state
   ego_state_publisher_->publish(res);
+  tf_br_->sendTransform(createTransform(res));
 }
 
 // sensor_msgs/NavSatFix position

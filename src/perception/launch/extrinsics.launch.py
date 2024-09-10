@@ -29,18 +29,18 @@ def generate_launch_description():
     # left_camera: static transform from left_camera relative to os_sensor
     # right_camera: static transform from right_camera relative to os_sensor
 
-    # ground = Node(  # Ground plane
-    #     package="tf2_ros",
-    #     executable="static_transform_publisher",
-    #     arguments=[
-    #         "--z",
-    #         "0.265",
-    #         "--frame-id",
-    #         "ground",
-    #         "--child-frame-id",
-    #         "imu_link",
-    #     ],
-    # )
+    ground = Node(  # Ground plane
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "--z",
+            "-0.265",
+            "--frame-id",
+            "imu_link",
+            "--child-frame-id",
+            "ground",
+        ],
+    )
 
     # lidar = Node(
     #     package="tf2_ros",
@@ -134,19 +134,6 @@ def generate_launch_description():
             "imu_link",
             "--child-frame-id",
             "os_sensor",
-        ],
-    )
-
-    ground = Node(  # Ground plane
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        arguments=[
-            "--z",
-            "-0.265",
-            "--frame-id",
-            "imu_link",
-            "--child-frame-id",
-            "ground",
         ],
     )
 
