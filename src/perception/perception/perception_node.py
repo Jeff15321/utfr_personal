@@ -258,7 +258,7 @@ class PerceptionNode(Node):
             self.distortion_right,
             None,
             self.intrinsics_right,
-            (1440, 1080),
+            self.img_size,
             cv2.CV_32FC1,
         )
         self.mapx_left, self.mapy_left = cv2.initUndistortRectifyMap(
@@ -266,7 +266,7 @@ class PerceptionNode(Node):
             self.distortion_left,
             None,
             self.intrinsics_left,
-            (1440, 1080),
+            self.img_size,
             cv2.CV_32FC1,
         )
 
@@ -711,15 +711,26 @@ class PerceptionNode(Node):
             left_projected_pts = self.point_3d_to_image(
                 lidar_det_leftcam_frame, self.intrinsics_left
             )  # list of u, v, depth
+            left_projected_pts[:, :2] = np.round(left_projected_pts[:, :2])
 
             right_projected_pts = self.point_3d_to_image(
                 lidar_det_rightcam_frame, self.intrinsics_right
             )  # list of u, v, depth
+            right_projected_pts[:, :2] = np.round(right_projected_pts[:, :2])
+
+            valid_idx_left = self.filter_points_in_fov(
+                left_projected_pts, self.img_size
+            )
+            valid_idx_right = self.filter_points_in_fov(
+                right_projected_pts, self.img_size
+            )
+            filtered_left_projected_pts = left_projected_pts[valid_idx_left]
+            filtered_right_projected_pts = right_projected_pts[valid_idx_right]
 
             # Hungarian algorithm for matching
             matched_cone_dets = self.h_matching(
-                left_projected_pts,
-                right_projected_pts,
+                filtered_left_projected_pts,
+                filtered_right_projected_pts,
                 results_left,
                 results_right,
                 duplicate_threshold=0.1,
@@ -730,9 +741,9 @@ class PerceptionNode(Node):
 
             if self.debug_:
                 self.publish_2d_projected_det(
-                    left_projected_pts=left_projected_pts,
+                    left_projected_pts=filtered_left_projected_pts,
                     left_stamp=self.left_img_header.stamp,
-                    right_projected_pts=right_projected_pts,
+                    right_projected_pts=filtered_right_projected_pts,
                     right_stamp=self.right_img_header.stamp,
                 )
                 # TODO: Temp for debugging, need to view as cone det properly in 3D
@@ -1007,6 +1018,8 @@ class PerceptionNode(Node):
         right_cam_dets,
         duplicate_threshold=0.1,
     ):
+        """Performs Hungarian matching for lidar points and bounding boxes."""
+
         # Perform matching for left camera (with bounding boxes)
         cost_matrix_left = self.cost_mtx_from_bbox(
             left_projected_lidar_pts, left_cam_dets, depth_weight=0.1
@@ -1048,14 +1061,22 @@ class PerceptionNode(Node):
         # 'all_matches' now contains lidar points with resolved duplicates, matched to bounding boxes
         return all_matches
 
-    # TODO: Call this function
-    def filter_points_in_fov(self, projected_points, image_width, image_height):
+    def filter_points_in_fov(self, projected_points, image_size):
         """Filters out points that are outside the image boundaries."""
-        valid_points = []
-        for u, v in projected_points:
-            if 0 <= u < image_width and 0 <= v < image_height:
-                valid_points.append((u, v))  # Keep points inside FOV
-        return valid_points
+
+        image_width, image_height = image_size
+        # Create a boolean mask for points inside the image boundaries
+        valid_mask = (
+            (projected_points[:, 0] >= 0)
+            & (projected_points[:, 0] < image_width)
+            & (projected_points[:, 1] >= 0)
+            & (projected_points[:, 1] < image_height)
+        )
+
+        # Return the indices of the valid points
+        valid_indices = np.where(valid_mask)[0]
+
+        return valid_indices
 
     # def save_image(self, left_img_, right_img_, rosbag_name):
     #     left_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"
