@@ -37,6 +37,7 @@ class VisualizationNode(Node):
         self.initPublishers()
         self.initServices()
         self.initTimers()
+        self.get_logger().info("Starting visualization node")
 
     def loadParams(self):
         pass
@@ -134,7 +135,7 @@ class VisualizationNode(Node):
             MarkerArray, "/visualization/cone_debug_markers", 1
         )
 
-        print(self.left_image_marker_publisher_)
+        # print(self.left_image_marker_publisher_)
 
     def initServices(self):
         pass
@@ -218,7 +219,7 @@ class VisualizationNode(Node):
         ]
 
     def lidarProjectionLeftCB(self, msg):
-        self.get_logger().warn("Received lidar projection left msg")
+        # self.get_logger().warn("Received lidar projection left msg")
         markers = ImageMarkerArray()
         left_projections = msg.left
         if msg.header.frame_id == "matched":
@@ -243,7 +244,7 @@ class VisualizationNode(Node):
         self.lidar_projection_publisher_left_.publish(markers)
 
     def lidarProjectionRightCB(self, msg):
-        self.get_logger().warn("Received lidar projection right msg")
+        # self.get_logger().warn("Received lidar projection right msg")
         markers = ImageMarkerArray()
         right_projections = msg.right
         if msg.header.frame_id == "matched":
@@ -267,7 +268,7 @@ class VisualizationNode(Node):
         self.lidar_projection_publisher_right_.publish(markers)
 
     def lidarProjectionMatchedLeftCB(self, msg):
-        self.get_logger().warn("Received lidar projection left msg")
+        # self.get_logger().warn("Received lidar projection left msg")
         markers = ImageMarkerArray()
         left_projections = msg.left
         if msg.header.frame_id == "matched":
@@ -292,7 +293,7 @@ class VisualizationNode(Node):
         self.lidar_projection_publisher_matched_left_.publish(markers)
 
     def lidarProjectionMatchedRightCB(self, msg):
-        self.get_logger().warn("Received lidar projection right msg")
+        # self.get_logger().warn("Received lidar projection right msg")
         markers = ImageMarkerArray()
         right_projections = msg.right
         if msg.header.frame_id == "matched":
@@ -316,10 +317,10 @@ class VisualizationNode(Node):
         self.lidar_projection_publisher_matched_right_.publish(markers)
 
     def perceptionDebugLeftCB(self, msg):
-        self.get_logger().warn("Recieved left perception debug msg")
+        # self.get_logger().warn("Recieved left perception debug msg")
         left_markers = ImageMarkerArray()
         left_image_annotation = ImageAnnotations()
-        print(msg.header.stamp)
+        # print(msg.header.stamp)
 
         left_detections = msg.left
         for left_bounding_box in left_detections:
@@ -361,7 +362,7 @@ class VisualizationNode(Node):
         self.left_image_text_publisher_.publish(left_image_annotation)
 
     def perceptionDebugRightCB(self, msg):
-        self.get_logger().warn("Recieved right perception debug msg")
+        # self.get_logger().warn("Recieved right perception debug msg")
         right_markers = ImageMarkerArray()
         right_image_annotation = ImageAnnotations()
         right_detections = msg.right
@@ -445,7 +446,7 @@ class VisualizationNode(Node):
         """
         Publish the cone detections as yellow cube markers
         """
-        self.get_logger().warn("Recieved cone detections msg")
+        # self.get_logger().warn("Recieved cone detections msg")
         cube_cone_dets = MarkerArray()
         left_cones = msg.left_cones
         right_cones = msg.right_cones
@@ -490,7 +491,6 @@ class VisualizationNode(Node):
 
 
 def main(args=None):
-    print("Hi from visualization.")
     rclpy.init(args=args)
     node = VisualizationNode()
     rclpy.spin(node)

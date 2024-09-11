@@ -233,7 +233,7 @@ void LidarProcNode::pointCloudCallback(
     publishPointCloud(cluster_centers, pub_lidar_detected);
   }
 
-  RCLCPP_INFO(this->get_logger(), "Published Processed Point Clouds");
+  // RCLCPP_INFO(this->get_logger(), "Published Processed Point Clouds");
 }
 
 void LidarProcNode::publishPointCloud(

@@ -1024,6 +1024,8 @@ class PerceptionNode(Node):
         cost_matrix_left = self.cost_mtx_from_bbox(
             left_projected_lidar_pts, left_cam_dets, depth_weight=0.1
         )
+        print("cost matrix left: ", cost_matrix_left)
+        exit()
         row_ind_left, col_ind_left = linear_sum_assignment(cost_matrix_left)
 
         # Perform matching for right camera (with bounding boxes)
