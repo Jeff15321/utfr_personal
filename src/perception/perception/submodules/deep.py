@@ -12,19 +12,9 @@
 """
 
 import cv2
-import time
 import numpy as np
 import onnxruntime as ort
 import os
-import rclpy
-import tf2_ros
-from geometry_msgs.msg import PointStamped, TransformStamped, Point
-from tf2_geometry_msgs import PointStamped as TFPointStamped
-import tf2_geometry_msgs
-import numpy as np
-from tf2_ros import TransformException
-
-# cuda = False
 
 
 def check_for_cuda():
@@ -167,102 +157,6 @@ def deep_process(frame, translation, intrinsics, session, confidence, visualize=
     return bounding_boxes, classes, scores, image
 
 
-def bounding_boxes_to_cone_detections(
-    bounding_boxes,
-    classes,
-    intrinsics,
-    cone_heights,
-):
-    coneDetections = np.zeros((np.shape(bounding_boxes)[0], 4))
-    f = intrinsics[0][0]  # focal length in pixels from camera matrix
-    i = 0
-    skip_counter = 0
-    for x, y, w, h in bounding_boxes:
-        if y >= 930 and w <= 7 or h <= 7:
-            skip_counter += 1
-            continue
-        color = labelColor(classes[i])  # int for color
-
-        # 3.73mm height of sensor, 1080 px height of image
-        depth_mm = find_depth_mono_tri(3.73, h, f, cone_heights[color], 1080)
-        depth = depth_mm / 1000  # convert mm to metres
-
-        # 3d coordinate mapping
-
-        (
-            coneDetections[i][0],
-            coneDetections[i][1],
-            coneDetections[i][2],
-        ) = image_to_3d_point([(x + int(w / 2)), y + int(h / 2)], intrinsics, depth)
-
-        coneDetections[i][3] = color
-
-        i += 1
-    if skip_counter == 0:
-        return coneDetections
-    else:
-        return coneDetections[:-skip_counter]
-
-
-def point_3d_to_image(points, camera_matrix):
-    converted = []
-    for point in points:
-        # Transform to normalized camera coordinates
-        point = np.array([point[0], point[1], point[2]])
-        normalized_coords = np.dot(camera_matrix, point)
-
-        # 2D image point with homogeneous coordinate
-        image_point_homogeneous = normalized_coords / normalized_coords[2]
-
-        converted.append(image_point_homogeneous[:2])
-
-        # TO DO: remove points not in the image
-
-    return np.array(converted)
-
-
-def image_to_3d_point(image_point, camera_matrix, depth):
-    # Add a homogeneous coordinate to the 2D image point
-    image_point_homogeneous = np.array([image_point[0], image_point[1], 1])
-
-    # Invert the camera matrix
-    inv_camera_matrix = np.linalg.inv(camera_matrix)
-
-    # Transform to normalized camera coordinates
-    normalized_coords = np.dot(inv_camera_matrix, image_point_homogeneous)
-
-    # 3D point with unit depth
-    point_3d = normalized_coords / normalized_coords[2]
-
-    # 3D point multiplied by monocular depth
-    point_3d *= depth
-    point_3d /= 250
-
-    return point_3d
-
-
-def find_depth_mono_tri(
-    vertical_mm, height_bound_box, focal_length, height_cone, image_height_px
-):
-    """
-    function to find the monocular depth using similar triangles
-    focal_length / height_box_mm = depth / height_cone
-    get height_cone from fsg rules
-    """
-    # find the height of the bounding box first using ratio of height
-    # of bounding box in px and total image height in px multiplied by
-    # the total vertical height of the sensor in mm
-    height_box_mm = (height_bound_box / image_height_px) * vertical_mm
-    # calculate depth in mm using similar triangles
-    depth = height_cone * (focal_length / height_box_mm)
-    return depth
-
-
-def crop_image(fX, fY, fW, fH, image_in):
-    image_out = image_in[fY : fY + fH, fX : fX + fW]
-    return image_out
-
-
 def labelColor(class_string):
     # names = ['blue_cone', 'large_orange_cone', 'orange_cone', 'unknown_cone', 'yellow_cone']
     if class_string == "unknown_cone":
@@ -277,37 +171,3 @@ def labelColor(class_string):
         return 4
     else:
         return 0
-
-
-def transform_det_lidar(lidar_points, transform):
-    """transforms from lidar detections to camera frames"""
-    transformed_points = []
-    for point in lidar_points:
-        p = Point()
-        p.x = float(point[0])
-        p.y = float(point[1])
-        p.z = float(point[2])
-        # p.x = 1.0
-        # p.y = 1.0
-        # p.z = 1.092
-
-        # print(
-        #     "transforming the point " + str(p.x),
-        #     str(p.y),
-        #     str(p.z) + " from ground to camera: ",
-        #     end="",
-        # )
-        # # transform random point like 1, 1, 0 and make sure the z is not 0 after transform
-        # print(transform)
-        try:
-            p_tf = tf2_geometry_msgs.do_transform_point(
-                PointStamped(point=p), transform
-            ).point
-            transformed_points.append([p_tf.x, p_tf.y, p_tf.z])
-            # print(str(p_tf.x) + " " + str(p_tf.y) + " " + str(p_tf.z))
-
-        except TransformException as ex:
-            print(ex)
-            return
-
-    return np.array(transformed_points)

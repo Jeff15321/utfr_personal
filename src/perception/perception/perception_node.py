@@ -14,24 +14,21 @@
 # System Requirements
 import cv2
 import numpy as np
-import matplotlib.pyplot as plot
+from scipy.optimize import linear_sum_assignment
 
 # import xgboost
 import onnxruntime as ort
 import time
-
-from scipy.optimize import linear_sum_assignment
-
 
 # ROS2 Requirements
 import rclpy
 from rclpy.node import Node
 from cv_bridge import CvBridge, CvBridgeError
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy
-import rospkg
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+import tf2_geometry_msgs
 
 # Message Requirements
 from sensor_msgs.msg import CompressedImage
@@ -44,17 +41,16 @@ from utfr_msgs.msg import Heartbeat
 from utfr_msgs.msg import Cone
 from utfr_msgs.msg import BoundingBox
 from utfr_msgs.msg import PerceptionDebug
+from geometry_msgs.msg import PointStamped, Point
+
 
 # Service Requirements
 from std_srvs.srv import Trigger
 
-# Import deep and classical process functions
+# Import deep process functions
 from perception.submodules.deep import deep_process
-from perception.submodules.deep import bounding_boxes_to_cone_detections
 from perception.submodules.deep import check_for_cuda
 from perception.submodules.deep import labelColor
-from perception.submodules.deep import transform_det_lidar
-from perception.submodules.deep import point_3d_to_image
 
 
 class PerceptionNode(Node):
@@ -574,25 +570,6 @@ class PerceptionNode(Node):
             self.confidence_,
         )
 
-        # change bounding_boxes_to_cone_detections to return 3d cone
-        # detections using camera intrinsics and simple triangulation depth
-        # need to refactor this: make cone detections separately
-        # use the left_bounding_boxes, right_bounding_boxes to get depth measurements
-        # get 3d estimates
-        # ALSO: need to split cone_detections into left and right detections and return them
-        # dont need to return the bounding boxes
-
-        left_cone_detections = bounding_boxes_to_cone_detections(
-            left_bounding_boxes, left_classes, self.intrinsics_left, self.cone_heights
-        )
-
-        right_cone_detections = bounding_boxes_to_cone_detections(
-            right_bounding_boxes,
-            right_classes,
-            self.intrinsics_right,
-            self.cone_heights,
-        )
-
         return (
             left_bounding_boxes,
             left_classes,
@@ -600,8 +577,6 @@ class PerceptionNode(Node):
             right_bounding_boxes,
             right_classes,
             right_scores,
-            left_cone_detections,
-            right_cone_detections,
         )
 
     def timerCB(self):
@@ -692,8 +667,6 @@ class PerceptionNode(Node):
                 results_right,
                 classes_right,
                 scores_right,
-                left_cone_detections,
-                right_cone_detections,
             ) = self.process(frame_left, frame_right)
 
             if self.debug_:
@@ -712,33 +685,28 @@ class PerceptionNode(Node):
             )
 
             # transform lidar detections to left cam frame
-            lidar_det_leftcam_frame = transform_det_lidar(
+            lidar_det_leftcam_frame = self.transform_det_lidar(
                 lidar_point_cloud_data, tf_lidar_to_leftcam
             )
 
             # tf lidar to right cam frame
-            lidar_det_rightcam_frame = transform_det_lidar(
+            lidar_det_rightcam_frame = self.transform_det_lidar(
                 lidar_point_cloud_data, tf_lidar_to_rightcam
             )
 
             # Transform 3D camera frame to 3D camera optical frame (axis swap)
             # x in the left cam frame = z in the transformation frame
-            # different coordinates
-            lidar_det_leftcam_frame = [
-                [-point[1], -point[2], point[0]] for point in lidar_det_leftcam_frame
-            ]
-            lidar_det_rightcam_frame = [
-                [-point[1], -point[2], point[0]] for point in lidar_det_rightcam_frame
-            ]
+            lidar_det_leftcam_frame = self.tf_cam_axis_swap(lidar_det_leftcam_frame)
+            lidar_det_rightcam_frame = self.tf_cam_axis_swap(lidar_det_rightcam_frame)
 
-            # 3D optical frame to 2D pixel coordinates projection
-            left_projected_pts = point_3d_to_image(
+            # 3D optical frame to 2D pixel coordinates projection with depth
+            left_projected_pts = self.point_3d_to_image(
                 lidar_det_leftcam_frame, self.intrinsics_left
-            )  # list of x, y
+            )  # list of u, v, depth
 
-            right_projected_pts = point_3d_to_image(
+            right_projected_pts = self.point_3d_to_image(
                 lidar_det_rightcam_frame, self.intrinsics_right
-            )  # list of x, y
+            )  # list of u, v, depth
 
             # Bounding box showing lidar point in camera frame
 
@@ -779,6 +747,7 @@ class PerceptionNode(Node):
             self.detections_msg.header.stamp = self.get_clock().now().to_msg()
             self.cone_detections_publisher_.publish(self.detections_msg)
 
+    # Helper functions
     def publish_cone_detections(self, cone_detections):
         print("cone detections: " + str(cone_detections))
 
@@ -811,7 +780,6 @@ class PerceptionNode(Node):
 
             self.cone_detections_publisher_.publish(self.detections_msg)
 
-    # Helper functions:
     def publish_2d_projected_det(
         self, left_projected_pts, left_stamp, right_projected_pts, right_stamp
     ):
@@ -892,98 +860,173 @@ class PerceptionNode(Node):
                 self.perception_debug_msg_right
             )
 
-    def save_image(self, left_img_, right_img_, rosbag_name):
-        left_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"
-        cv2.imwrite(
-            "/home/utfrdv/utfr_dv_ros2/src/perception/images_to_mp4_left/"
-            + left_img_name,
-            left_img_,
+    def tf_cam_axis_swap(self, points):
+        return np.column_stack(
+            [-points[:, 1], -points[:, 2], points[:, 0]]  # -y  # -z  # x
         )
 
-        right_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"
-        cv2.imwrite(
-            "/home/utfrdv/utfr_dv_ros2/src/perception/images_to_mp4_right/"
-            + right_img_name,
-            right_img_,
-        )
+    def point_3d_to_image(self, points, camera_matrix):
+        """Projects 3D points to 2D image coordinates using a camera matrix."""
+        # Ensure the camera matrix is a NumPy array
+        camera_matrix = np.array(camera_matrix).reshape(3, 3)
 
-        self.saved_count += 1
+        # Transform points to normalized camera coordinates
+        # No need for adding homogeneous coordinates; just use points directly
+        normalized_coords = np.dot(points, camera_matrix.T)
 
-    def resize_img(self, left_img_, right_img_, scale_percent):
-        # Downsize image resolution/size
+        # Convert to 2D image coordinates
+        u = normalized_coords[:, 0] / normalized_coords[:, 2]
+        v = normalized_coords[:, 1] / normalized_coords[:, 2]
+        depth = normalized_coords[:, 2]
 
-        right_width = int(right_img_.shape[1] * scale_percent / 100)
-        right_height = int(right_img_.shape[0] * scale_percent / 100)
-        right_dim = (right_width, right_height)
+        # Combine u, v, and depth into a single array
+        result = np.stack((u, v, depth), axis=-1)
+        print(result.shape)
 
-        # resize image
-        frame_right = cv2.resize(right_img_, right_dim, interpolation=cv2.INTER_AREA)
+        return result
 
-        left_width = int(left_img_.shape[1] * scale_percent / 100)
-        left_height = int(left_img_.shape[0] * scale_percent / 100)
-        left_dim = (left_width, left_height)
+    def transform_det_lidar(self, lidar_points, transform):
+        """Transforms from lidar detections to camera frames using NumPy for efficiency."""
+        try:
+            # Create a list to store transformed points
+            transformed_points = []
 
-        # resize image
-        frame_left = cv2.resize(left_img_, left_dim, interpolation=cv2.INTER_AREA)
+            # Iterate over each point and transform
+            for point in lidar_points:
+                # Create a PointStamped object
+                p = PointStamped()
+                p.point = Point(x=float(point[0]), y=float(point[1]), z=float(point[2]))
 
-        return frame_left, frame_right
+                p_tf = tf2_geometry_msgs.do_transform_point(p, transform).point
+                transformed_points.append([p_tf.x, p_tf.y, p_tf.z])
 
-    def visualize_detections(
-        self, frame_left, frame_right, results_left, results_right, cone_detections
+            return np.array(transformed_points)
+
+        except TransformException as ex:
+            print(ex)
+            return np.array([])  # Return an empty array in case of an exception
+
+    def cost_mtx_from_bbox(
+        self, projected_lidar_detections, camera_detections, depth_weight
     ):
-        i = 0
-        # visualizing detections loop
-        for x, y, w, h in results_left:
-            if y <= 470:
-                continue
-            cv2.rectangle(frame_left, (x, y), (x + w, y + h), (255, 0, 0), 2)
-            x_3d, y_3d, z_3d, color = cone_detections[i]
-            cv2.putText(
-                frame_left,
-                text="("
-                + str(round(x_3d, 2))
-                + ", "
-                + str(round(y_3d, 2))
-                + ", "
-                + str(round(z_3d, 2))
-                + ")",
-                org=(int(x), int(y - 10)),
-                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                fontScale=0.5,
-                color=(0, 0, 255),
-                thickness=1,
-                lineType=cv2.LINE_AA,
-            )
-            i += 1
+        cost_matrix = np.zeros(
+            (len(projected_lidar_detections), len(camera_detections))
+        )
+        for i, (lidar_x, lidar_y, lidar_depth) in enumerate(projected_lidar_detections):
+            for j, (cam_x, cam_y, cam_w, cam_h) in enumerate(camera_detections):
+                # Check if lidar point is inside the bounding box
+                if (
+                    cam_x <= lidar_x <= cam_x + cam_w
+                    and cam_y <= lidar_y <= cam_y + cam_h
+                ):
+                    # Lidar point is inside the bounding box (minimal cost)
+                    euclidean_distance = 0
+                else:
+                    # If outside, calculate the distance to the nearest edge of the bounding box
+                    nearest_x = max(cam_x, min(lidar_x, cam_x + cam_w))
+                    nearest_y = max(cam_y, min(lidar_y, cam_y + cam_h))
+                    euclidean_distance = np.linalg.norm(
+                        [lidar_x - nearest_x, lidar_y - nearest_y]
+                    )
 
-        # visualizing cone detections in right camera
-        for x, y, w, h in results_right:
-            # if y <= 470:
-            # continue
-            cv2.rectangle(frame_right, (x, y), (x + w, y + h), (255, 0, 0), 2)
+                # Add depth-based weighting to the cost
+                cost_matrix[i, j] = euclidean_distance * (
+                    1 + depth_weight * (1.0 / lidar_depth)
+                )
 
-    def equalize_hist(self, image):
-        # convert from RGB color-space to YCrCb
-        ycrcb_img = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+        return cost_matrix
 
-        # equalize the histogram of the Y channel
-        ycrcb_img[:, :, 0] = cv2.equalizeHist(ycrcb_img[:, :, 0])
+    def h_matching(
+        self,
+        left_projected_lidar_pts,
+        right_projected_lidar_pts,
+        left_cam_dets,
+        right_cam_dets,
+        duplicate_threshold,
+    ):
+        # Perform matching for left camera (with bounding boxes)
+        cost_matrix_left = self.cost_mtx_from_bbox(
+            left_projected_lidar_pts, left_cam_dets, depth_weight=0.1
+        )
+        row_ind_left, col_ind_left = linear_sum_assignment(cost_matrix_left)
 
-        # convert back to RGB color-space from YCrCb
-        equalized_img = cv2.cvtColor(ycrcb_img, cv2.COLOR_YCrCb2BGR)
+        # Perform matching for right camera (with bounding boxes)
+        cost_matrix_right = self.cost_mtx_from_bbox(
+            right_projected_lidar_pts, right_cam_dets, depth_weight=0.1
+        )
+        row_ind_right, col_ind_right = linear_sum_assignment(cost_matrix_right)
 
-        return equalized_img
+        # Resolve duplicates by comparing matched lidar points
+        matched_lidar_left = [left_projected_lidar_pts[i] for i in row_ind_left]
+        matched_lidar_right = [right_projected_lidar_pts[i] for i in row_ind_right]
 
-    def hasVisualArtifacts(self, frame):
-        """
-        Returns true if the frame has visual artifacts, defined
-        as contours found after blurring and thresholding the image.
-        """
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, (5, 5), 0)
-        thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-        contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        return len(contours) > 0
+        # Combine matches and check for duplicates
+        all_matches = []
+        for i, lidar_point_left in enumerate(matched_lidar_left):
+            for j, lidar_point_right in enumerate(matched_lidar_right):
+                # If lidar points from both cameras are close, it's likely a duplicate
+                if (
+                    np.linalg.norm(
+                        np.array(lidar_point_left[:2]) - np.array(lidar_point_right[:2])
+                    )
+                    < duplicate_threshold
+                ):
+                    # Compare costs and choose the better match
+                    cost_left = cost_matrix_left[i, col_ind_left[i]]
+                    cost_right = cost_matrix_right[j, col_ind_right[j]]
+                    if cost_left < cost_right:
+                        all_matches.append((lidar_point_left, "left"))
+                    else:
+                        all_matches.append((lidar_point_right, "right"))
+                else:
+                    all_matches.append((lidar_point_left, "left"))
+                    all_matches.append((lidar_point_right, "right"))
+
+        # 'all_matches' now contains lidar points with resolved duplicates, matched to bounding boxes
+
+    def filter_points_in_fov(self, projected_points, image_width, image_height):
+        """Filters out points that are outside the image boundaries."""
+        valid_points = []
+        for u, v in projected_points:
+            if 0 <= u < image_width and 0 <= v < image_height:
+                valid_points.append((u, v))  # Keep points inside FOV
+        return valid_points
+
+    # def save_image(self, left_img_, right_img_, rosbag_name):
+    #     left_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"
+    #     cv2.imwrite(
+    #         "/home/utfrdv/utfr_dv_ros2/src/perception/images_to_mp4_left/"
+    #         + left_img_name,
+    #         left_img_,
+    #     )
+
+    #     right_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"
+    #     cv2.imwrite(
+    #         "/home/utfrdv/utfr_dv_ros2/src/perception/images_to_mp4_right/"
+    #         + right_img_name,
+    #         right_img_,
+    #     )
+
+    #     self.saved_count += 1
+
+    # def resize_img(self, left_img_, right_img_, scale_percent):
+    #     # Downsize image resolution/size
+
+    #     right_width = int(right_img_.shape[1] * scale_percent / 100)
+    #     right_height = int(right_img_.shape[0] * scale_percent / 100)
+    #     right_dim = (right_width, right_height)
+
+    #     # resize image
+    #     frame_right = cv2.resize(right_img_, right_dim, interpolation=cv2.INTER_AREA)
+
+    #     left_width = int(left_img_.shape[1] * scale_percent / 100)
+    #     left_height = int(left_img_.shape[0] * scale_percent / 100)
+    #     left_dim = (left_width, left_height)
+
+    #     # resize image
+    #     frame_left = cv2.resize(left_img_, left_dim, interpolation=cv2.INTER_AREA)
+
+    #     return frame_left, frame_right
 
     def frameChanged(self, frame, prev_frame):
         """
@@ -996,6 +1039,17 @@ class PerceptionNode(Node):
         _, thresh = cv2.threshold(blur, 20, 255, cv2.THRESH_BINARY)
         dilated = cv2.dilate(thresh, None, iterations=3)
         contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        return len(contours) > 0
+
+    def hasVisualArtifacts(self, frame):
+        """
+        Returns true if the frame has visual artifacts, defined
+        as contours found after blurring and thresholding the image.
+        """
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (5, 5), 0)
+        thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+        contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         return len(contours) > 0
 
     def cameraStatus(self):
@@ -1047,13 +1101,6 @@ class PerceptionNode(Node):
         else:
             return 1  # ACTIVE
         return 1
-
-    def monitorCamera(self):
-        """
-        Monitor camera status and publish heartbeat message.
-        Function or line below to be called in the main loop.
-        """
-        self.publishHeartbeat()
 
 
 def main(args=None):
