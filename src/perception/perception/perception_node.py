@@ -822,6 +822,8 @@ class PerceptionNode(Node):
             bounding_box_left = BoundingBox()
             bounding_box_left.x = int(point[0])
             bounding_box_left.y = int(point[1])
+            bounding_box_left.width = 20
+            bounding_box_left.height = 20
             self.perception_debug_msg_left.left.append(bounding_box_left)
 
         self.lidar_projection_publisher_left_.publish(self.perception_debug_msg_left)
@@ -833,6 +835,8 @@ class PerceptionNode(Node):
             bounding_box_right = BoundingBox()
             bounding_box_right.x = int(point[0])
             bounding_box_right.y = int(point[1])
+            bounding_box_right.width = 20
+            bounding_box_right.height = 20
             self.perception_debug_msg_right.right.append(bounding_box_right)
 
         self.lidar_projection_publisher_right_.publish(self.perception_debug_msg_right)

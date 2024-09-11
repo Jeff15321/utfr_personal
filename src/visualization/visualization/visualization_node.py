@@ -171,8 +171,34 @@ class VisualizationNode(Node):
             ),
         ]
 
+    def lidarProjectionBoundaryBoxPoints(self, bounding_box):
+        """Returns verticies of bounding boxes of lidar projections as points, given a bounding_box object
+        different from the other one because we want the center of the box to be the point"""
+        return [
+            Point(
+                x=float(bounding_box.x - bounding_box.width / 2.0),
+                y=float(bounding_box.y - bounding_box.height / 2.0),
+                z=0.0,
+            ),
+            Point(
+                x=float(bounding_box.x + bounding_box.width / 2.0),
+                y=float(bounding_box.y - bounding_box.height / 2.0),
+                z=0.0,
+            ),
+            Point(
+                x=float(bounding_box.x + bounding_box.width / 2.0),
+                y=float(bounding_box.y + bounding_box.height / 2.0),
+                z=0.0,
+            ),
+            Point(
+                x=float(bounding_box.x - bounding_box.width / 2.0),
+                y=float(bounding_box.y + bounding_box.height / 2.0),
+                z=0.0,
+            ),
+        ]
+
     def lidarProjectionLeftCB(self, msg):
-        self.get_logger().warn("Recieved lidar projection left msg")
+        self.get_logger().warn("Received lidar projection left msg")
         markers = ImageMarkerArray()
         left_projections = msg.left
 
@@ -182,8 +208,10 @@ class VisualizationNode(Node):
                     header=msg.header,
                     scale=2.5,
                     type=ImageMarker.POLYGON,
-                    outline_color=ColorRGBA(r=1.0, g=1.0, b=0.0),
-                    points=[Point(x=float(point.x), y=float(point.y), z=0.0)],
+                    filled=True,
+                    fill_color=ColorRGBA(r=0.0, g=0.0, b=0.0, a=0.5),
+                    outline_color=ColorRGBA(r=0.0, g=0.0, b=0.0, a=1.0),
+                    points=self.lidarProjectionBoundaryBoxPoints(point),
                 )
             )
 
@@ -191,7 +219,7 @@ class VisualizationNode(Node):
         self.lidar_projection_publisher_left_.publish(markers)
 
     def lidarProjectionRightCB(self, msg):
-        self.get_logger().warn("Recieved lidar projection right msg")
+        self.get_logger().warn("Received lidar projection right msg")
         markers = ImageMarkerArray()
         right_projections = msg.right
 
@@ -201,8 +229,10 @@ class VisualizationNode(Node):
                     header=msg.header,
                     scale=2.5,
                     type=ImageMarker.POLYGON,
-                    outline_color=ColorRGBA(r=1.0, g=1.0, b=0.0),
-                    points=[Point(x=float(point.x), y=float(point.y), z=0.0)],
+                    filled=True,
+                    fill_color=ColorRGBA(r=0.0, g=0.0, b=0.0, a=0.5),
+                    outline_color=ColorRGBA(r=0.0, g=0.0, b=0.0, a=1.0),
+                    points=self.lidarProjectionBoundaryBoxPoints(point),
                 )
             )
 
