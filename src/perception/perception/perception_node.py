@@ -594,14 +594,6 @@ class PerceptionNode(Node):
         incoming frames.
         """
 
-        # initialize detection msg
-        # TODO - make 1 detections message and combine them at the end
-        self.detections_msg = ConeDetections()
-        self.detections_msg.header.frame_id = "ground"
-
-        # publish the heartbeat
-        self.publishHeartbeat()
-
         if not self.lidar_msg:
             return
 
@@ -677,16 +669,6 @@ class PerceptionNode(Node):
                 scores_right,
             ) = self.process(frame_left, frame_right)
 
-            if self.debug_:
-                self.displayBoundingBox(
-                    results_left,
-                    classes_left,
-                    scores_left,
-                    results_right,
-                    classes_right,
-                    scores_right,
-                )
-
             # Extract point cloud data
             lidar_point_cloud_data = point_cloud2.read_points_numpy(
                 self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
@@ -736,7 +718,6 @@ class PerceptionNode(Node):
                 duplicate_threshold=0.1,
                 cost_threshold=300.0,
             )
-            # print("matched cone dets: ", matched_cone_dets)
 
             # Bounding box showing lidar point in camera frame
 
@@ -754,10 +735,16 @@ class PerceptionNode(Node):
                     right_projected_pts=matched_cone_dets,
                     right_stamp=self.right_img_header.stamp,
                 )
+                self.displayBoundingBox(
+                    results_left,
+                    classes_left,
+                    scores_left,
+                    results_right,
+                    classes_right,
+                    scores_right,
+                )
 
-            # self.publish_cone_detection(
-            #     cone_detections
-            # )
+            # self.publish_cone_detection(cone_detections)
 
             self.left_img_recieved_ = False
             self.right_img_recieved_ = False
@@ -766,28 +753,35 @@ class PerceptionNode(Node):
                 self.publish_undistorted(frame_left, frame_right)
 
         else:
-            print("LIDAR_ONLY")
-            # Extract point cloud data
-            lidar_point_cloud_data = point_cloud2.read_points_numpy(
-                self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
-            )
+            self.publish_cone_dets_lidar()
 
-            for i in range(len(lidar_point_cloud_data)):
-                self.cone_template = Cone()
-                self.cone_template.pos.x = float(lidar_point_cloud_data[i][0])  # left
-                self.cone_template.pos.y = float(lidar_point_cloud_data[i][1])  # up
-                self.cone_template.pos.z = float(lidar_point_cloud_data[i][2])  # front
-                self.cone_template.type = 1
-
-                self.detections_msg.left_cones.append(self.cone_template)
-
-            self.detections_msg.header.stamp = self.get_clock().now().to_msg()
-            self.cone_detections_publisher_.publish(self.detections_msg)
-
+        # publish the heartbeat
+        self.publishHeartbeat()
         self.lidar_msg = None
 
     # Helper functions
-    def publish_cone_detections(self, cone_detections):
+    def publish_cone_dets_lidar(self):
+        print("LIDAR_ONLY")
+        # Extract point cloud data
+        lidar_point_cloud_data = point_cloud2.read_points_numpy(
+            self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
+        )
+        detections_msg = ConeDetections()
+        detections_msg.header.frame_id = "ground"
+
+        for i in range(len(lidar_point_cloud_data)):
+            cone_template = Cone()
+            cone_template.pos.x = float(lidar_point_cloud_data[i][0])  # left
+            cone_template.pos.y = float(lidar_point_cloud_data[i][1])  # up
+            cone_template.pos.z = float(lidar_point_cloud_data[i][2])  # front
+            cone_template.type = 1
+
+            detections_msg.unknown_cones.append(cone_template)
+
+        detections_msg.header.stamp = self.get_clock().now().to_msg()
+        self.cone_detections_publisher_.publish(detections_msg)
+
+    def publish_cone_dets(self, cone_detections):
         print("cone detections: " + str(cone_detections))
 
         if cone_detections.size != 0:
@@ -795,29 +789,29 @@ class PerceptionNode(Node):
             # cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
 
             # publish cone detections
-            self.detections_msg.header.stamp = self.get_clock().now().to_msg()
+            detections_msg = ConeDetections()
+            detections_msg.header.frame_id = "ground"
 
             for i in range(len(cone_detections)):
-                self.cone_template = Cone()
-                self.cone_template.pos.x = float(cone_detections[i][0])  # left
-                self.cone_template.pos.y = float(cone_detections[i][1])  # up
-                self.cone_template.pos.z = float(cone_detections[i][2])  # front
-                self.cone_template.type = int(cone_detections[i][3])
+                cone_template = Cone()
+                cone_template.pos.x = float(cone_detections[i][0])  # left
+                cone_template.pos.y = float(cone_detections[i][1])  # up
+                cone_template.pos.z = float(cone_detections[i][2])  # front
+                cone_template.type = int(cone_detections[i][3])
 
-                if self.cone_template.type == 1:  # blue
-                    self.detections_msg.left_cones.append(self.cone_template)
-                elif self.cone_template.type == 2:  # yellow
-                    self.detections_msg.right_cones.append(self.cone_template)
-                elif self.cone_template.type == 3:
-                    self.detections_msg.small_orange_cones.append(self.cone_template)
-                elif self.cone_template.type == 4:
-                    self.detections_msg.large_orange_cones.append(self.cone_template)
+                if cone_template.type == 1:  # blue
+                    detections_msg.left_cones.append(cone_template)
+                elif cone_template.type == 2:  # yellow
+                    detections_msg.right_cones.append(cone_template)
+                elif cone_template.type == 3:
+                    detections_msg.small_orange_cones.append(cone_template)
+                elif cone_template.type == 4:
+                    detections_msg.large_orange_cones.append(cone_template)
                 else:  # unknown cones cone template type == 0
-                    self.detections_msg.unknown_cones.append(self.cone_template)
+                    detections_msg.unknown_cones.append(cone_template)
 
-            self.detections_msg.header.stamp = self.get_clock().now().to_msg()
-
-            self.cone_detections_publisher_.publish(self.detections_msg)
+            detections_msg.header.stamp = self.get_clock().now().to_msg()
+            self.cone_detections_publisher_.publish(detections_msg)
 
     def publish_2d_projected_det(
         self, left_projected_pts, left_stamp, right_projected_pts, right_stamp
@@ -1026,15 +1020,13 @@ class PerceptionNode(Node):
 
         # Perform matching for left camera (with bounding boxes)
         cost_matrix_left = self.cost_mtx_from_bbox(
-            left_projected_lidar_pts, left_cam_dets, depth_weight=0.1
+            left_projected_lidar_pts, left_cam_dets, depth_weight=0.05
         )
         row_ind_left, col_ind_left = linear_sum_assignment(cost_matrix_left)
-        # print("cost_matrix_left: ", cost_matrix_left)
-        # exit()
 
         # Perform matching for right camera (with bounding boxes)
         cost_matrix_right = self.cost_mtx_from_bbox(
-            right_projected_lidar_pts, right_cam_dets, depth_weight=0.1
+            right_projected_lidar_pts, right_cam_dets, depth_weight=0.05
         )
         row_ind_right, col_ind_right = linear_sum_assignment(cost_matrix_right)
 
