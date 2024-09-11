@@ -60,15 +60,29 @@ class VisualizationNode(Node):
 
         self.lidar_projection_subscriber_left_ = self.create_subscription(
             PerceptionDebug,
-            "/perception/lidar_projection_publisher_left_",
+            "/perception/lidar_projection_left",
             self.lidarProjectionLeftCB,
             1,
         )
 
         self.lidar_projection_subscriber_left_ = self.create_subscription(
             PerceptionDebug,
-            "/perception/lidar_projection_publisher_right_",
+            "/perception/lidar_projection_right",
             self.lidarProjectionRightCB,
+            1,
+        )
+
+        self.lidar_projection_subscriber_left_ = self.create_subscription(
+            PerceptionDebug,
+            "/perception/lidar_projection_matched_left",
+            self.lidarProjectionMatchedLeftCB,
+            1,
+        )
+
+        self.lidar_projection_subscriber_left_ = self.create_subscription(
+            PerceptionDebug,
+            "/perception/lidar_projection_matched_right",
+            self.lidarProjectionMatchedRightCB,
             1,
         )
 
@@ -78,9 +92,6 @@ class VisualizationNode(Node):
             self.perceptionConeDetectionsCB,
             1,
         )
-
-        print(self.perception_debug_subscriber_left_)
-        print(self.perception_debug_subscriber_right_)
 
     def initPublishers(self):
         self.left_image_marker_publisher_ = self.create_publisher(
@@ -105,6 +116,14 @@ class VisualizationNode(Node):
 
         self.lidar_projection_publisher_right_ = self.create_publisher(
             ImageMarkerArray, "/visualization/lidar_projection_right", 1
+        )
+
+        self.lidar_projection_publisher_matched_left_ = self.create_publisher(
+            ImageMarkerArray, "/visualization/lidar_projection_matched_left", 1
+        )
+
+        self.lidar_projection_publisher_matched_right_ = self.create_publisher(
+            ImageMarkerArray, "/visualization/lidar_projection_matched_right", 1
         )
 
         self.cone_markers_publisher_ = self.create_publisher(
@@ -173,7 +192,8 @@ class VisualizationNode(Node):
 
     def lidarProjectionBoundaryBoxPoints(self, bounding_box):
         """Returns verticies of bounding boxes of lidar projections as points, given a bounding_box object
-        different from the other one because we want the center of the box to be the point"""
+        different from the other one because we want the center of the box to be the point
+        """
         return [
             Point(
                 x=float(bounding_box.x - bounding_box.width / 2.0),
@@ -201,6 +221,10 @@ class VisualizationNode(Node):
         self.get_logger().warn("Received lidar projection left msg")
         markers = ImageMarkerArray()
         left_projections = msg.left
+        if msg.header.frame_id == "matched":
+            color = ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0)
+        else:
+            color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
 
         for point in left_projections:
             markers.markers.append(
@@ -209,8 +233,8 @@ class VisualizationNode(Node):
                     scale=2.5,
                     type=ImageMarker.POLYGON,
                     filled=True,
-                    fill_color=ColorRGBA(r=0.0, g=0.0, b=0.0, a=0.5),
-                    outline_color=ColorRGBA(r=0.0, g=0.0, b=0.0, a=1.0),
+                    fill_color=color,
+                    outline_color=color,
                     points=self.lidarProjectionBoundaryBoxPoints(point),
                 )
             )
@@ -222,6 +246,10 @@ class VisualizationNode(Node):
         self.get_logger().warn("Received lidar projection right msg")
         markers = ImageMarkerArray()
         right_projections = msg.right
+        if msg.header.frame_id == "matched":
+            color = ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0)
+        else:
+            color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
 
         for point in right_projections:
             markers.markers.append(
@@ -230,13 +258,62 @@ class VisualizationNode(Node):
                     scale=2.5,
                     type=ImageMarker.POLYGON,
                     filled=True,
-                    fill_color=ColorRGBA(r=0.0, g=0.0, b=0.0, a=0.5),
-                    outline_color=ColorRGBA(r=0.0, g=0.0, b=0.0, a=1.0),
+                    fill_color=color,
+                    outline_color=color,
                     points=self.lidarProjectionBoundaryBoxPoints(point),
                 )
             )
 
         self.lidar_projection_publisher_right_.publish(markers)
+
+    def lidarProjectionMatchedLeftCB(self, msg):
+        self.get_logger().warn("Received lidar projection left msg")
+        markers = ImageMarkerArray()
+        left_projections = msg.left
+        if msg.header.frame_id == "matched":
+            color = ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0)
+        else:
+            color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
+
+        for point in left_projections:
+            markers.markers.append(
+                ImageMarker(
+                    header=msg.header,
+                    scale=2.5,
+                    type=ImageMarker.POLYGON,
+                    filled=True,
+                    fill_color=color,
+                    outline_color=color,
+                    points=self.lidarProjectionBoundaryBoxPoints(point),
+                )
+            )
+
+        # publish image marker array
+        self.lidar_projection_publisher_matched_left_.publish(markers)
+
+    def lidarProjectionMatchedRightCB(self, msg):
+        self.get_logger().warn("Received lidar projection right msg")
+        markers = ImageMarkerArray()
+        right_projections = msg.right
+        if msg.header.frame_id == "matched":
+            color = ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0)
+        else:
+            color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
+
+        for point in right_projections:
+            markers.markers.append(
+                ImageMarker(
+                    header=msg.header,
+                    scale=2.5,
+                    type=ImageMarker.POLYGON,
+                    filled=True,
+                    fill_color=color,
+                    outline_color=color,
+                    points=self.lidarProjectionBoundaryBoxPoints(point),
+                )
+            )
+
+        self.lidar_projection_publisher_matched_right_.publish(markers)
 
     def perceptionDebugLeftCB(self, msg):
         self.get_logger().warn("Recieved left perception debug msg")

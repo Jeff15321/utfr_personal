@@ -383,11 +383,19 @@ class PerceptionNode(Node):
             )
 
             self.lidar_projection_publisher_left_ = self.create_publisher(
-                PerceptionDebug, "/perception/lidar_projection_publisher_left_", 1
+                PerceptionDebug, "/perception/lidar_projection_left", 1
             )
 
             self.lidar_projection_publisher_right_ = self.create_publisher(
-                PerceptionDebug, "/perception/lidar_projection_publisher_right_", 1
+                PerceptionDebug, "/perception/lidar_projection_right", 1
+            )
+
+            self.lidar_projection_publisher_matched_left_ = self.create_publisher(
+                PerceptionDebug, "/perception/lidar_projection_matched_left", 1
+            )
+
+            self.lidar_projection_publisher_matched_right_ = self.create_publisher(
+                PerceptionDebug, "/perception/lidar_projection_matched_right", 1
             )
 
     def initServices(self):
@@ -708,6 +716,16 @@ class PerceptionNode(Node):
                 lidar_det_rightcam_frame, self.intrinsics_right
             )  # list of u, v, depth
 
+            # Hungarian algorithm for matching
+            matched_cone_dets = self.h_matching(
+                left_projected_pts,
+                right_projected_pts,
+                results_left,
+                results_right,
+                duplicate_threshold=0.1,
+            )
+            # print("matched cone dets: ", matched_cone_dets)
+
             # Bounding box showing lidar point in camera frame
 
             if self.debug_:
@@ -715,6 +733,13 @@ class PerceptionNode(Node):
                     left_projected_pts=left_projected_pts,
                     left_stamp=self.left_img_header.stamp,
                     right_projected_pts=right_projected_pts,
+                    right_stamp=self.right_img_header.stamp,
+                )
+                # TODO: Temp for debugging, need to view as cone det properly in 3D
+                self.publish_2d_projected_det_matched(
+                    left_projected_pts=matched_cone_dets,
+                    left_stamp=self.left_img_header.stamp,
+                    right_projected_pts=matched_cone_dets,
                     right_stamp=self.right_img_header.stamp,
                 )
 
@@ -785,6 +810,7 @@ class PerceptionNode(Node):
     ):
         self.perception_debug_msg_left = PerceptionDebug()
         self.perception_debug_msg_left.header.stamp = left_stamp
+        self.perception_debug_msg_left.header.frame_id = "raw"
 
         for point in left_projected_pts:
             bounding_box_left = BoundingBox()
@@ -798,6 +824,7 @@ class PerceptionNode(Node):
 
         self.perception_debug_msg_right = PerceptionDebug()
         self.perception_debug_msg_right.header.stamp = self.right_img_header.stamp
+        self.perception_debug_msg_right.header.frame_id = "raw"
 
         for point in right_projected_pts:
             bounding_box_right = BoundingBox()
@@ -808,6 +835,43 @@ class PerceptionNode(Node):
             self.perception_debug_msg_right.right.append(bounding_box_right)
 
         self.lidar_projection_publisher_right_.publish(self.perception_debug_msg_right)
+
+    def publish_2d_projected_det_matched(
+        self, left_projected_pts, left_stamp, right_projected_pts, right_stamp
+    ):
+        self.perception_debug_msg_left = PerceptionDebug()
+        self.perception_debug_msg_left.header.stamp = left_stamp
+        self.perception_debug_msg_left.header.frame_id = "matched"
+
+        for point in left_projected_pts:
+            if point[1] == "left":
+                bounding_box_left = BoundingBox()
+                bounding_box_left.x = int(point[0][0])
+                bounding_box_left.y = int(point[0][1])
+                bounding_box_left.width = 20
+                bounding_box_left.height = 20
+                self.perception_debug_msg_left.left.append(bounding_box_left)
+
+        self.lidar_projection_publisher_matched_left_.publish(
+            self.perception_debug_msg_left
+        )
+
+        self.perception_debug_msg_right = PerceptionDebug()
+        self.perception_debug_msg_right.header.stamp = self.right_img_header.stamp
+        self.perception_debug_msg_right.header.frame_id = "matched"
+
+        for point in right_projected_pts:
+            if point[1] == "right":
+                bounding_box_right = BoundingBox()
+                bounding_box_right.x = int(point[0][0])
+                bounding_box_right.y = int(point[0][1])
+                bounding_box_right.width = 20
+                bounding_box_right.height = 20
+                self.perception_debug_msg_right.right.append(bounding_box_right)
+
+        self.lidar_projection_publisher_matched_right_.publish(
+            self.perception_debug_msg_right
+        )
 
     def publish_undistorted(self, frame_left, frame_right):
         """Print undistorted left and right images"""
@@ -881,7 +945,6 @@ class PerceptionNode(Node):
 
         # Combine u, v, and depth into a single array
         result = np.stack((u, v, depth), axis=-1)
-        print(result.shape)
 
         return result
 
@@ -942,7 +1005,7 @@ class PerceptionNode(Node):
         right_projected_lidar_pts,
         left_cam_dets,
         right_cam_dets,
-        duplicate_threshold,
+        duplicate_threshold=0.1,
     ):
         # Perform matching for left camera (with bounding boxes)
         cost_matrix_left = self.cost_mtx_from_bbox(
@@ -983,7 +1046,9 @@ class PerceptionNode(Node):
                     all_matches.append((lidar_point_right, "right"))
 
         # 'all_matches' now contains lidar points with resolved duplicates, matched to bounding boxes
+        return all_matches
 
+    # TODO: Call this function
     def filter_points_in_fov(self, projected_points, image_width, image_height):
         """Filters out points that are outside the image boundaries."""
         valid_points = []
