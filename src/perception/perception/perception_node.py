@@ -734,6 +734,7 @@ class PerceptionNode(Node):
                 results_left,
                 results_right,
                 duplicate_threshold=0.1,
+                cost_threshold=300.0,
             )
             # print("matched cone dets: ", matched_cone_dets)
 
@@ -782,6 +783,8 @@ class PerceptionNode(Node):
 
             self.detections_msg.header.stamp = self.get_clock().now().to_msg()
             self.cone_detections_publisher_.publish(self.detections_msg)
+
+        self.lidar_msg = None
 
     # Helper functions
     def publish_cone_detections(self, cone_detections):
@@ -1005,7 +1008,7 @@ class PerceptionNode(Node):
 
                 # Add depth-based weighting to the cost
                 cost_matrix[i, j] = euclidean_distance * (
-                    1 + depth_weight * (1.0 / lidar_depth)
+                    1 + depth_weight * (lidar_depth)
                 )
 
         return cost_matrix
@@ -1017,6 +1020,7 @@ class PerceptionNode(Node):
         left_cam_dets,
         right_cam_dets,
         duplicate_threshold=0.1,
+        cost_threshold=300.0,
     ):
         """Performs Hungarian matching for lidar points and bounding boxes."""
 
@@ -1024,9 +1028,9 @@ class PerceptionNode(Node):
         cost_matrix_left = self.cost_mtx_from_bbox(
             left_projected_lidar_pts, left_cam_dets, depth_weight=0.1
         )
-        print("cost matrix left: ", cost_matrix_left)
-        exit()
         row_ind_left, col_ind_left = linear_sum_assignment(cost_matrix_left)
+        # print("cost_matrix_left: ", cost_matrix_left)
+        # exit()
 
         # Perform matching for right camera (with bounding boxes)
         cost_matrix_right = self.cost_mtx_from_bbox(
@@ -1041,7 +1045,13 @@ class PerceptionNode(Node):
         # Combine matches and check for duplicates
         all_matches = []
         for i, lidar_point_left in enumerate(matched_lidar_left):
+            cost_left = cost_matrix_left[i, col_ind_left[i]]
+            if cost_left > cost_threshold:
+                continue
             for j, lidar_point_right in enumerate(matched_lidar_right):
+                cost_right = cost_matrix_right[j, col_ind_right[j]]
+                if cost_right > cost_threshold:
+                    continue
                 # If lidar points from both cameras are close, it's likely a duplicate
                 if (
                     np.linalg.norm(
@@ -1050,8 +1060,7 @@ class PerceptionNode(Node):
                     < duplicate_threshold
                 ):
                     # Compare costs and choose the better match
-                    cost_left = cost_matrix_left[i, col_ind_left[i]]
-                    cost_right = cost_matrix_right[j, col_ind_right[j]]
+
                     if cost_left < cost_right:
                         all_matches.append((lidar_point_left, "left"))
                     else:
