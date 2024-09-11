@@ -58,17 +58,24 @@ class VisualizationNode(Node):
             PerceptionDebug, "/perception/debug_right", self.perceptionDebugRightCB, 1
         )
 
-        self.cone_detections_ = self.create_subscription(
-            ConeDetections,
-            "/perception/cone_detections",
-            self.perceptionConeDetectionsCB,
+        self.lidar_projection_subscriber_left_ = self.create_subscription(
+            PerceptionDebug,
+            "/perception/lidar_projection_publisher_left_",
+            self.lidarProjectionLeftCB,
+            1,
+        )
+
+        self.lidar_projection_subscriber_left_ = self.create_subscription(
+            PerceptionDebug,
+            "/perception/lidar_projection_publisher_right_",
+            self.lidarProjectionRightCB,
             1,
         )
 
         self.cone_detections_ = self.create_subscription(
             ConeDetections,
-            "/perception/detections_debug",
-            self.perceptionDebugConeDetectionsCB,
+            "/perception/cone_detections",
+            self.perceptionConeDetectionsCB,
             1,
         )
 
@@ -90,6 +97,14 @@ class VisualizationNode(Node):
 
         self.right_image_text_publisher_ = self.create_publisher(
             ImageAnnotations, "/visualization/right_image_text", 1
+        )
+
+        self.lidar_projection_publisher_left_ = self.create_publisher(
+            ImageMarkerArray, "/visualization/lidar_projection_left", 1
+        )
+
+        self.lidar_projection_publisher_right_ = self.create_publisher(
+            ImageMarkerArray, "/visualization/lidar_projection_right", 1
         )
 
         self.cone_markers_publisher_ = self.create_publisher(
@@ -156,6 +171,43 @@ class VisualizationNode(Node):
             ),
         ]
 
+    def lidarProjectionLeftCB(self, msg):
+        self.get_logger().warn("Recieved lidar projection left msg")
+        markers = ImageMarkerArray()
+        left_projections = msg.left
+
+        for point in left_projections:
+            markers.markers.append(
+                ImageMarker(
+                    header=msg.header,
+                    scale=2.5,
+                    type=ImageMarker.POLYGON,
+                    outline_color=ColorRGBA(r=1.0, g=1.0, b=0.0),
+                    points=[Point(x=float(point.x), y=float(point.y), z=0.0)],
+                )
+            )
+
+        # publish image marker array
+        self.lidar_projection_publisher_left_.publish(markers)
+
+    def lidarProjectionRightCB(self, msg):
+        self.get_logger().warn("Recieved lidar projection right msg")
+        markers = ImageMarkerArray()
+        right_projections = msg.right
+
+        for point in right_projections:
+            markers.markers.append(
+                ImageMarker(
+                    header=msg.header,
+                    scale=2.5,
+                    type=ImageMarker.POLYGON,
+                    outline_color=ColorRGBA(r=1.0, g=1.0, b=0.0),
+                    points=[Point(x=float(point.x), y=float(point.y), z=0.0)],
+                )
+            )
+
+        self.lidar_projection_publisher_right_.publish(markers)
+
     def perceptionDebugLeftCB(self, msg):
         self.get_logger().warn("Recieved left perception debug msg")
         left_markers = ImageMarkerArray()
@@ -186,7 +238,7 @@ class VisualizationNode(Node):
                             x=float(left_bounding_box.x),
                             y=float(left_bounding_box.y - 10),
                         ),
-                        text="hi"  # self.textLUT[left_bounding_box.type]
+                        text=self.textLUT[left_bounding_box.type]
                         + " "
                         + str(left_bounding_box.score),
                         font_size=20.0,
@@ -202,7 +254,6 @@ class VisualizationNode(Node):
         self.left_image_text_publisher_.publish(left_image_annotation)
 
     def perceptionDebugRightCB(self, msg):
-
         self.get_logger().warn("Recieved right perception debug msg")
         right_markers = ImageMarkerArray()
         right_image_annotation = ImageAnnotations()
@@ -231,7 +282,7 @@ class VisualizationNode(Node):
                             x=float(right_bounding_box.x),
                             y=float(right_bounding_box.y - 10),
                         ),
-                        text="hi"  # self.textLUT[right_bounding_box.type]
+                        text=self.textLUT[right_bounding_box.type]
                         + " "
                         + str(right_bounding_box.score),
                         font_size=20.0,
@@ -282,56 +333,6 @@ class VisualizationNode(Node):
         cube_marker.color.a = color[3]
 
         return cube_marker
-
-    def perceptionDebugConeDetectionsCB(self, msg):
-        self.get_logger().warn("Recieved DEBUG cone detections msg")
-        cube_cone_dets = MarkerArray()
-        left_cones = msg.left_cones
-        right_cones = msg.right_cones
-        large_orange_cones = msg.large_orange_cones
-        small_orange_cones = msg.small_orange_cones
-        unknown_cones = msg.unknown_cones
-        i = 0
-        for cone in left_cones:
-            cube_cone_dets.markers.append(
-                self.cubeMarkerFromCone(cone, "left_cone", msg.header, "left_camera", i)
-            )
-            i += 1
-
-        for cone in right_cones:
-            cube_cone_dets.markers.append(
-                self.cubeMarkerFromCone(
-                    cone, "right_cone", msg.header, "left_camera", i
-                )
-            )
-            i += 1
-
-        for cone in large_orange_cones:
-            cube_cone_dets.markers.append(
-                self.cubeMarkerFromCone(
-                    cone, "large_orange_cone", msg.header, "left_camera", i
-                )
-            )
-            i += 1
-
-        for cone in small_orange_cones:
-            cube_cone_dets.markers.append(
-                self.cubeMarkerFromCone(
-                    cone, "small_orange_cone", msg.header, "left_camera", i
-                )
-            )
-            i += 1
-
-        for cone in unknown_cones:
-            cube_cone_dets.markers.append(
-                self.cubeMarkerFromCone(
-                    cone, "unknown_cone", msg.header, "left_camera", i
-                )
-            )
-            i += 1
-
-        print(cube_cone_dets.markers.__len__())
-        self.cone_debug_markers_publisher.publish(cube_cone_dets)
 
     def perceptionConeDetectionsCB(self, msg):
         """
