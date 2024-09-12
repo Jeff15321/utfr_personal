@@ -15,6 +15,7 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 import os
+import time
 
 
 def check_for_cuda():
@@ -68,93 +69,85 @@ def letterbox(
     return im, r, (dw, dh)
 
 
-def deep_process(frame, translation, intrinsics, session, confidence, visualize=False):
+def deep_process(model, frame_left, frame_right, confidence, visualize=False):
     """
     Applies object detection on each frame from a camera using a deep learning model.
     """
+    left_float = frame_left
+    right_float = frame_right
 
-    # if frame == []:
-    # return [], [], [], []
+    batch = [left_float, right_float]
 
-    # Define class names and colors
-    names = [
-        "blue_cone",
-        "large_orange_cone",
-        "orange_cone",
-        "yellow_cone",
-        "unknown_cone",
-    ]
-    colors = {
-        name: [np.random.randint(0, 255) for _ in range(3)]
-        for i, name in enumerate(names)
-    }
+    start_time = time.time()
+    output = model.predict(batch)
 
-    # Apply letterbox
-    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    image = img.copy()
-    image, ratio, dwdh = letterbox(image, auto=False)
-    image = image.transpose((2, 0, 1))
-    image = np.expand_dims(image, 0)
-    image = np.ascontiguousarray(image)
+    end_time = time.time()
 
-    # Normalize input image
-    im = image.astype(np.float32) / 255.0
+    print("runtime: ", end_time - start_time)
 
-    # Run inference using onnxruntime
-    outname = [i.name for i in session.get_outputs()]
-    inname = [i.name for i in session.get_inputs()]
-    inp = {inname[0]: im}
-    outputs = session.run(outname, inp)[0]
+    left_output, right_output = output[0], output[1]
 
-    # Process outputs
-    im_copy = img.copy()
-    im_copy = cv2.cvtColor(im_copy, cv2.COLOR_BGR2RGB)
-    ori_images = [im_copy]
+    outputs = [left_output, right_output]
+    frames = [left_float, right_float]
+
     bounding_boxes = []
     classes = []
     scores = []
 
-    for output in outputs:
-        x0, y0, x1, y1, cls_id, score = output[1:7]
+    start = time.time()
 
-        if score < confidence:
-            cls_id = 0  # unknown random cone
+    for frame, output in zip(frames, outputs):
+        bounding_boxes_local = []
+        classes_local = []
+        scores_local = []
+        for box in output.boxes:
+            # Get box coordinates, class and confidence
+            x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
+            cls_id = int(box.cls)
+            conf = float(box.conf)
 
-        image = ori_images[0]  # Assuming batch size of 1
-        box = np.array([x0, y0, x1, y1])
-        box -= np.array(dwdh * 2)
-        box /= ratio
-        box = box.round().astype(np.int32).tolist()
-        cls_id = int(cls_id)
-        score = round(float(score), 3)
-        name = names[cls_id]
+            if conf < confidence:
+                continue
 
-        if box[0] < 10 or box[1] < 10:
-            continue
+            # Convert to [x, y, w, h] format
+            x, y, w, h = int(x1), int(y1), int(x2 - x1), int(y2 - y1)
 
-        box[2] = abs(box[0] - box[2])
-        box[3] = abs(box[1] - box[3])
+            name = output.names[cls_id]
+            score = round(conf, 3)
 
-        bounding_boxes.append(box)
-        classes.append(name)
-        scores.append(score)
+            bounding_boxes_local.append([x, y, w, h])
+            classes_local.append(name)
+            scores_local.append(score)
 
-        if visualize:
-            color = colors[name]
-            label = f"{name} {score}"
-            x0, y0, w, h = box
-            cv2.rectangle(image, (x0, y0), (x0 + w, y0 + h), color, 2)
-            cv2.putText(
-                image,
-                label,
-                (x0, y0 - 2),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.75,
-                [225, 255, 255],
-                thickness=2,
-            )
+            if visualize:
+                color = (0, 255, 0)  # Green color for bounding box
+                label = f"{name} {score}"
+                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+                cv2.putText(
+                    frame,
+                    label,
+                    (x, y - 2),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.75,
+                    [225, 255, 255],
+                    thickness=2,
+                )
 
-    return bounding_boxes, classes, scores, image
+        bounding_boxes.append(bounding_boxes_local)
+        classes.append(classes_local)
+        scores.append(scores_local)
+
+    end = time.time()
+    print("for box deep process: ", end - start)
+
+    return (
+        bounding_boxes[0],
+        classes[0],
+        scores[0],
+        bounding_boxes[1],
+        classes[1],
+        scores[1],
+    )
 
 
 def labelColor(class_string):
