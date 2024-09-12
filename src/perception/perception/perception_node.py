@@ -75,7 +75,6 @@ class PerceptionNode(Node):
         self.initServices()
         self.initConeTemplate()
         self.initTimers()
-        # self.initClassical()
 
     def loadParams(self):
         """
@@ -137,7 +136,7 @@ class PerceptionNode(Node):
         self.declare_parameter("heartbeat_topic", "/perception/heartbeat")
         self.declare_parameter("processed_lidar_topic", "/lidar_pipeline/clustered")
         self.declare_parameter("update_rate", 33.33)
-        self.declare_parameter("debug", False)
+        self.declare_parameter("debug", True)
         self.declare_parameter("distortion_left", [0.0])
         self.declare_parameter("distortion_right", [0.0])
         self.declare_parameter("intrinsics_left", [0.0])
@@ -284,15 +283,30 @@ class PerceptionNode(Node):
 
         # create ultralytics model for inference
         file_name = "src/perception/perception/yolov8n_batched.engine"
+        # file_name = "src/perception/perception/yolov8n.pt"
+        # file_name = "src/perception/perception/yolov8n.onnx"
         print("Deep filename: ", file_name)
-        self.model = YOLO(file_name, task="detect")
 
-        if torch.cuda.is_available():
-            print("CUDA is available. Using GPU...")
-            # self.model.to('cuda') # if using the .engine, tensorrt has no .to so comment this out
+        if file_name.endswith(".engine"):
+            # TensorRT model cannot run on CPU, so only run on GPU
+            if torch.cuda.is_available():
+                print("CUDA is available. Using GPU with TensorRT model...")
+                self.model = YOLO(file_name, task="detect")  # TensorRT model
+                # TensorRT models do not need to be transferred with .to("cuda")
+            else:
+                raise RuntimeError(
+                    "TensorRT model requires CUDA, but CUDA is not available. Cannot run on CPU."
+                )
         else:
-            print("CUDA is not available. Using CPU...")
-            self.model.to("cpu")
+            # Assuming a PyTorch model (.pt), it can be loaded and used on CPU or GPU
+            self.model = YOLO(file_name, task="detect")
+
+            if torch.cuda.is_available():
+                print("CUDA is available. Using GPU for PyTorch model...")
+                self.model.to("cuda")
+            else:
+                print("CUDA is not available. Using CPU for PyTorch model...")
+                self.model.to("cpu")
         # self.model.export(format="engine")
 
         # create transform frame variables
