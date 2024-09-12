@@ -499,10 +499,10 @@ void CenterPathNode::timerCBSkidpad() {
 }
 
 void CenterPathNode::timerCBAutocross() {
-  if (as_state != 3){
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
-    return;
-  }
+  // if (as_state != 3){
+  //   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+  //   return;
+  // }
   const std::string function_name{"center_path_timerCB:"};
 
   try {
@@ -569,10 +569,10 @@ void CenterPathNode::timerCBAutocross() {
 }
 
 void CenterPathNode::timerCBTrackdrive() {
-  if (as_state != 3){
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
-    return;
-  }
+  // if (as_state != 3){
+  //   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+  //   return;
+  // }
   const std::string function_name{"center_path_timerCB:"};
 
   try {

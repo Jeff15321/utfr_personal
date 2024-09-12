@@ -485,10 +485,10 @@ void ControllerNode::timerCBSkidpad() {
 void ControllerNode::timerCBAutocross() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (as_state != 3) {
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
-    return;
-  }
+  // if (as_state != 3) {
+  //   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+  //   return;
+  // }
 
   try {
     if (!path_ || !ego_state_) {
@@ -542,10 +542,10 @@ void ControllerNode::timerCBAutocross() {
 void ControllerNode::timerCBTrackdrive() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (as_state != 3) {
-    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
-    return;
-  }
+  // if (as_state != 3) {
+  //   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+  //   return;
+  // }
 
   try {
 

@@ -38,6 +38,7 @@
 #include <utfr_msgs/msg/sensor_can.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
 #include <visualization_msgs/msg/marker.hpp>
+#include <tf2/utils.h>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -187,7 +188,10 @@ public:
 
   /*! Create transform from ego state
   */ 
-  geometry_msgs::msg::TransformStamped createTransform(
+  geometry_msgs::msg::TransformStamped map_to_imu_link(
+    const utfr_msgs::msg::EgoState &state);
+
+  geometry_msgs::msg::TransformStamped map_to_base_footprint(
     const utfr_msgs::msg::EgoState &state);
 
   // Publishers

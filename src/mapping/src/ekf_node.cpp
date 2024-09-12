@@ -103,7 +103,7 @@ void EkfNode::publishHeartbeat(const int status) {
   heartbeat_publisher_->publish(heartbeat_);
 }
 
-geometry_msgs::msg::TransformStamped EkfNode::createTransform(
+geometry_msgs::msg::TransformStamped EkfNode::map_to_imu_link(
   const utfr_msgs::msg::EgoState &state){
 
   geometry_msgs::msg::TransformStamped transform;
@@ -116,6 +116,28 @@ geometry_msgs::msg::TransformStamped EkfNode::createTransform(
   transform.transform.translation.z = 0.265;
 
   transform.transform.rotation = state.pose.pose.orientation;
+  return transform;
+}
+
+geometry_msgs::msg::TransformStamped EkfNode::map_to_base_footprint(
+  const utfr_msgs::msg::EgoState &state){
+
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.stamp = this->get_clock()->now();
+  transform.header.frame_id = "map";
+  transform.child_frame_id = "base_footprint";
+
+  transform.transform.translation.x = state.pose.pose.position.x;
+  transform.transform.translation.y = state.pose.pose.position.y;
+  transform.transform.translation.z = 0.0;
+  tf2::Quaternion q;
+  q.setRPY(M_PI, 0, util::quaternionToYaw(state.pose.pose.orientation));
+
+  transform.transform.rotation.x = q.x();
+  transform.transform.rotation.y = q.y();
+  transform.transform.rotation.z = q.z();
+  transform.transform.rotation.w = q.w();
+
   return transform;
 }
 
@@ -234,7 +256,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
 
   // Publish the updated state
   ego_state_publisher_->publish(res);
-  tf_br_->sendTransform(createTransform(res));
+  tf_br_->sendTransform(map_to_imu_link(res));
+  tf_br_->sendTransform(map_to_base_footprint(res));
 }
 
 // sensor_msgs/NavSatFix position
