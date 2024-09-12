@@ -111,7 +111,7 @@ perception_node: # Name of Node
 
 lidar_proc_node:
   ros__parameters:
-    update_rate: 100.0 #[ms]
+    # update_rate: 100.0 #[ms]
     debug: True
     topics: # TODO: fix
       input: "/ouster/points"

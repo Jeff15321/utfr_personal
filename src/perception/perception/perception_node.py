@@ -282,7 +282,7 @@ class PerceptionNode(Node):
         )
 
         # create ultralytics model for inference
-        file_name = "src/perception/perception/yolov8n_batched.engine"
+        file_name = "src/perception/perception/models/yolov8n_batched.engine"
         # file_name = "src/perception/perception/yolov8n.pt"
         # file_name = "src/perception/perception/yolov8n.onnx"
         print("Deep filename: ", file_name)
@@ -708,7 +708,7 @@ class PerceptionNode(Node):
         """
 
         # Wait for new lidar msg
-        if not self.new_lidar_msg_received_:
+        if not self.lidar_msg:
             return
 
         if self.lidar_only_detection == False:
@@ -846,7 +846,6 @@ class PerceptionNode(Node):
 
         # publish the heartbeat
         self.publishHeartbeat()
-        self.lidar_msg = None
 
     # Helper functions
     def publish_cone_dets_lidar(self):
