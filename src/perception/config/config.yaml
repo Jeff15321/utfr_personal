@@ -5,7 +5,7 @@ perception_node: # Name of Node
     cone_detections_topic: "perception/cone_detections"
     processed_lidar_topic: "/lidar_pipeline/detected"
     baseline: 10.0
-    update_rate: 50.0 #[ms]
+    update_rate: 100.0 #[ms]
     distortion_left: [-0.2632632062603271, 0.12474952835752845, 0.0, 0.0, 0.0]
     distortion_right: [-0.269633921151086, 0.12944192627838266, 0.0, 0.0, 0.0]
     intrinsics_left:

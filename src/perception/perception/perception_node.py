@@ -18,7 +18,6 @@ import matplotlib.pyplot as plot
 
 # import xgboost
 from ultralytics import YOLO
-import time
 
 from scipy.optimize import linear_sum_assignment
 
@@ -28,6 +27,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.callback_groups import ReentrantCallbackGroup
 from cv_bridge import CvBridge, CvBridgeError
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy
 import rospkg
@@ -57,6 +57,8 @@ from perception.submodules.deep import check_for_cuda
 from perception.submodules.deep import labelColor
 from perception.submodules.deep import transform_det_lidar
 
+from concurrent.futures import ThreadPoolExecutor
+
 
 class PerceptionNode(Node):
     def __init__(self):
@@ -65,7 +67,7 @@ class PerceptionNode(Node):
         self.left_image_group = MutuallyExclusiveCallbackGroup()
         self.right_image_group = MutuallyExclusiveCallbackGroup()
         self.lidar_group = MutuallyExclusiveCallbackGroup()
-        self.timer_group = MutuallyExclusiveCallbackGroup()
+        self.timer_group = ReentrantCallbackGroup()
 
         self.loadParams()
         self.initVariables()
@@ -242,8 +244,10 @@ class PerceptionNode(Node):
 
     def initVariables(self):
         # Initialize callback variables:
-        self.left_img_recieved_ = False
-        self.right_img_recieved_ = False
+        self.new_left_img_recieved_ = False
+        self.new_right_img_recieved_ = False
+        self.new_lidar_msg_received_ = False
+
         self.first_img_arrived_ = False
         self.left_ready_ = False
         self.right_ready_ = False
@@ -387,16 +391,20 @@ class PerceptionNode(Node):
             ConeDetections, "/perception/detections_debug", 1
         )
 
-        self.heartbeat_publisher_ = self.create_publisher(
-            Heartbeat, self.heartbeat_topic_, 1
-        )
-
         self.perception_debug_publisher_left_ = self.create_publisher(
             PerceptionDebug, self.perception_debug_topic_ + "_left", 1
         )
 
         self.perception_debug_publisher_right_ = self.create_publisher(
             PerceptionDebug, self.perception_debug_topic_ + "_right", 1
+        )
+
+        self.left_cam_processed_publisher_ = self.create_publisher(
+            Heartbeat, "/perception/left_processed", 1
+        )
+
+        self.right_cam_processed_publisher_ = self.create_publisher(
+            Heartbeat, "/perception/right_processed", 1
         )
 
     def initServices(self):
@@ -516,8 +524,8 @@ class PerceptionNode(Node):
             # Check if the image is valid
             if self.left_img_ is not None:
                 self.left_img_header = msg.header
-                self.left_img_recieved_ = True
                 self.left_frame_id = msg.header.frame_id
+                self.new_left_img_recieved_ = True
 
                 if not self.first_img_arrived_:
                     self.previous_left_img_ = self.left_img_
@@ -531,6 +539,10 @@ class PerceptionNode(Node):
         except Exception as e:
             exception = "Perception::leftCameraCB: " + str(e)
             self.get_logger().error(exception)
+
+        left_process = Heartbeat()
+        left_process.header.stamp = self.get_clock().now().to_msg()
+        self.left_cam_processed_publisher_.publish(left_process)
 
     def rightCameraCB(self, msg):
         """
@@ -562,8 +574,8 @@ class PerceptionNode(Node):
             # Check if the image is valid
             if self.right_img_ is not None:
                 self.right_img_header = msg.header
-                self.right_img_recieved_ = True
                 self.right_frame_id = msg.header.frame_id
+                self.new_right_img_recieved_ = True
 
                 if not self.first_img_arrived_:
                     self.previous_right_img_ = self.right_img_
@@ -577,6 +589,10 @@ class PerceptionNode(Node):
         except Exception as e:
             exception = "Perception::rightCameraCB: " + str(e)
             self.get_logger().error(exception)
+
+        right_process = Heartbeat()
+        right_process.header.stamp = self.get_clock().now().to_msg()
+        self.right_cam_processed_publisher_.publish(right_process)
 
     def leftCameraReadyCB(self, msg):
         """
@@ -598,6 +614,8 @@ class PerceptionNode(Node):
         # processed lidar point cloud whenever lidarCB is called
         # self.get_logger().warn("Received latest lidar message")
         self.lidar_msg = msg  # Store the incoming lidar data
+        if self.lidar_msg:
+            self.new_lidar_msg_received_ = True
 
     def process(self, left_img_, right_img_):
         """
@@ -700,8 +718,11 @@ class PerceptionNode(Node):
         # publish the heartbeat
         # self.publishHeartbeat()
 
-        if not self.lidar_msg:
+        # Wait for new lidar date
+        if not self.new_lidar_msg_received_:
             return
+        lidar_msg = self.lidar_msg
+        # self.new_lidar_msg_received_ = False
 
         if self.lidar_only_detection == False:
             # check if ready
@@ -713,19 +734,6 @@ class PerceptionNode(Node):
             # # send asynchronous trigger
             # self.future = self.left_camera_client_.call_async(trigger)
             # self.future = self.right_camera_client_.call_async(trigger)
-
-            if not self.left_img_recieved_:
-                return
-
-            if not self.right_img_recieved_:
-                return
-
-            # undistort
-
-            start = (
-                self.get_clock().now().seconds_nanoseconds()[0]
-                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
-            )
 
             # undist_left = cv2.remap(
             #     self.left_img_,
@@ -744,6 +752,20 @@ class PerceptionNode(Node):
             #     borderMode=cv2.BORDER_CONSTANT,
             #     borderValue=(0, 0, 0, 0),
             # )
+
+            if not self.new_left_img_recieved_ or not self.new_right_img_recieved_:
+                return
+
+            # self.new_left_img_recieved_ = False
+            # self.new_right_img_recieved_ = False
+            # print("Not new")
+            # print(f"Done CHecking {self.get_clock().now().seconds_nanoseconds()[1]}")
+
+            # undistort
+            start = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+            )
 
             # opencv version of .remap using CUDA and GPU parallelization
             # self.left_img_ = (self.left_img_ / 255.0).astype(np.uint8)
@@ -860,7 +882,7 @@ class PerceptionNode(Node):
                 + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
             )
             lidar_point_cloud_data = point_cloud2.read_points_numpy(
-                self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
+                lidar_msg, field_names=["x", "y", "z"], skip_nans=True
             )
             end = (
                 self.get_clock().now().seconds_nanoseconds()[0]
@@ -1067,14 +1089,12 @@ class PerceptionNode(Node):
                 + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
             )
             print("Cone publishing time: ", end - start)
-            self.left_img_recieved_ = False
-            self.right_img_recieved_ = False
 
         else:
             print("LIDAR_ONLY")
             # Extract point cloud data
             lidar_point_cloud_data = point_cloud2.read_points_numpy(
-                self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
+                lidar_msg, field_names=["x", "y", "z"], skip_nans=True
             )
 
             for i in range(len(lidar_point_cloud_data)):
@@ -1265,7 +1285,7 @@ def main(args=None):
     rclpy.init(args=args)
     node = PerceptionNode()
     executor = MultiThreadedExecutor(
-        num_threads=1
+        num_threads=6
     )  # Adjust the number of threads as needed
     executor.add_node(node)
     try:
