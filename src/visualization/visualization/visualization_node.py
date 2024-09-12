@@ -691,14 +691,6 @@ class VisualizationNode(Node):
                     cone_marker.id = len(cone_markers.markers)
                     cone_marker.type = 1  # cube
                     cone_marker.action = 0  # add
-                    # pose = Pose()
-                    # pose.position = cone.pos
-                    # pose.orientation.x = 0.0
-                    # pose.orientation.y = 0.0
-                    # pose.orientation.z = 0.0
-                    # pose.orientation.w = 1.0
-                    # transform = self.tf_buffer.lookup_transform('ground', msg.header.frame_id, rclpy.time.Time())
-                    # cone_marker.pose = tf2_geometry_msgs.do_transform_pose(pose, transform)
                     cone_marker.pose.position = cone.pos
                     cone_marker.pose.position.z = scale/2.0
                     cone_marker.pose.orientation.x = 0.0
@@ -751,17 +743,12 @@ class VisualizationNode(Node):
                     cone_marker.id = len(cone_markers.markers)
                     cone_marker.type = 1  # cube
                     cone_marker.action = 0  # add
-                    pose = Pose()
-                    pose.position = cone.pos
-                    pose.orientation.x = 0.0
-                    pose.orientation.y = 0.0
-                    pose.orientation.z = 0.0
-                    pose.orientation.w = 1.0
-                    # transform = self.tf_buffer.lookup_transform('ground', msg.header.frame_id, rclpy.time.Time())
-                    # cone_marker.pose = tf2_geometry_msgs.do_transform_pose(pose, transform)
-                    # cone_marker.pose.position.z = scale/2.0
-                    cone_marker.pose = pose
+                    cone_marker.pose.position = cone.pos    
                     cone_marker.pose.position.z = scale/2.0
+                    cone_marker.pose.orientation.x = 0.0
+                    cone_marker.pose.orientation.y = 0.0
+                    cone_marker.pose.orientation.z = 0.0
+                    cone_marker.pose.orientation.w = 1.0
                     cone_marker.scale.x = scale
                     cone_marker.scale.y = scale
                     cone_marker.scale.z = scale
@@ -787,8 +774,6 @@ class VisualizationNode(Node):
         Publish the ego state as a marker
         """
         self.get_logger().warn("Recieved ego state msg")
-        if msg.header.frame_id == '':
-            msg.header.frame_id = 'map'
         print(msg.header.frame_id)
         
         # Transform begin
@@ -814,13 +799,6 @@ class VisualizationNode(Node):
         car_marker.id = 0
         car_marker.type = 1  # cube
         car_marker.action = 0  # add
-        # pose = Pose()
-        # pose.position = msg.pose.pose.position
-        # pose.orientation = msg.pose.pose.orientation
-        # transform = self.tf_buffer.lookup_transform('ground', msg.header.frame_id, rclpy.time.Time())
-        # car_marker.pose = tf2_geometry_msgs.do_transform_pose(pose, transform)
-        # car_marker.pose.position.x += 0.26885
-        # car_marker.pose.position.z += 1.175/2.0
         car_marker.pose.position.x = 0.26885
         car_marker.pose.position.y = 0.0
         car_marker.pose.position.z = 1.175/2.0
@@ -841,17 +819,12 @@ class VisualizationNode(Node):
     def planningControllerPathCB(self, msg):
         try:
             self.get_logger().warn("Recieved controller path msg")
-            if msg.header.frame_id == '':
-               msg.header.frame_id = 'base_footprint'
             print(msg.header.frame_id)
             path_msg = Path()
 
             path_msg.header.stamp = self.get_clock().now().to_msg()
             path_msg.header.frame_id = "ground"
 
-            # print("({},{})".format(self.ego.pose.pose.position.x, self.ego.pose.pose.position.y))
-            print(*msg.x_params, sep=',')
-            print(*msg.y_params, sep=',')
             n = 150
             s = 0.0
             ds = 0.025
@@ -876,7 +849,6 @@ class VisualizationNode(Node):
                 
                 transform = self.tf_buffer.lookup_transform('ground', msg.header.frame_id, rclpy.time.Time())
                 pose_stamped.pose = tf2_geometry_msgs.do_transform_pose(pose_stamped.pose, transform)
-                # print("({},{})".format(pose_stamped.pose.position.x, pose_stamped.pose.position.y))
                 path_msg.poses.append(pose_stamped)
 
             self.controller_path_publisher_.publish(path_msg)

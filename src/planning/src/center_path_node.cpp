@@ -431,6 +431,8 @@ void CenterPathNode::timerCBAccel() {
     std::vector<double> x = {0, 0, 0, 0, 1, 0};
     std::vector<double> y = {0, 0, 0, 0, m, c};
 
+    center_path_msg.header.stamp = this->get_clock()->now();
+    center_path_msg.header.frame_id = "base_footprint";
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
     center_path_msg.lap_count = curr_sector_;
@@ -554,6 +556,7 @@ void CenterPathNode::timerCBAutocross() {
 
     utfr_msgs::msg::ParametricSpline center_path;
     center_path.header.stamp = this->get_clock()->now();
+    center_path.header.frame_id = "base_footprint";
     center_path.x_params = xoft;
     center_path.y_params = yoft;
     center_path.lap_count = curr_sector_;
@@ -623,6 +626,7 @@ void CenterPathNode::timerCBTrackdrive() {
 
     utfr_msgs::msg::ParametricSpline center_path;
     center_path.header.stamp = this->get_clock()->now();
+    center_path.header.frame_id = "base_footprint";
     center_path.x_params = xoft;
     center_path.y_params = yoft;
     center_path.lap_count = curr_sector_;
@@ -672,6 +676,8 @@ void CenterPathNode::timerCBEBS() {
     std::vector<double> x = {0, 0, 0, 0, 1, 0};
     std::vector<double> y = {0, 0, 0, 0, m, c};
 
+    center_path_msg.header.stamp = this->get_clock()->now();
+    center_path_msg.header.frame_id = "base_footprint";
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
     center_path_msg.lap_count = curr_sector_;
@@ -1694,6 +1700,8 @@ void CenterPathNode::skidPadFit() {
     std::vector<double> x = {0, 0, 0, 0, 1, 0};
     std::vector<double> y = {0, 0, 0, 0, m, c};
 
+    center_path_msg.header.stamp = this->get_clock()->now();
+    center_path_msg.header.frame_id = "base_footprint";
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
     center_path_msg.lap_count = curr_sector_;
