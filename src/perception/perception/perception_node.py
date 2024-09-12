@@ -281,6 +281,18 @@ class PerceptionNode(Node):
             cv2.CV_32FC1,
         )
 
+        self.mapx_left_gpu = cv2.cuda_GpuMat()
+        self.mapx_left_gpu.upload(self.mapx_left)
+
+        self.mapy_left_gpu = cv2.cuda_GpuMat()
+        self.mapy_left_gpu.upload(self.mapy_left)
+        
+        self.mapx_right_gpu = cv2.cuda_GpuMat()
+        self.mapx_right_gpu.upload(self.mapx_right)
+
+        self.mapy_right_gpu = cv2.cuda_GpuMat()
+        self.mapy_right_gpu.upload(self.mapy_right)
+
         # create ultralytics model for inference
         file_name = "src/perception/perception/models/yolov10n.engine"
         # file_name = "src/perception/perception/yolov8n.pt"
@@ -323,6 +335,9 @@ class PerceptionNode(Node):
         print(self.tf_listener)
 
         # TODO - add last tf for lidar to whatever the base frame is
+
+        self.left_img_gpu = cv2.cuda_GpuMat()
+        self.right_img_gpu = cv2.cuda_GpuMat()
 
     def initSubscribers(self):
         """
@@ -534,31 +549,52 @@ class PerceptionNode(Node):
             self.get_clock().now().seconds_nanoseconds()[0]
             + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
         )
-        print("Cam CB: ", now - self.caml)
+        # print("Cam CB: ", now - self.caml)
         print("-----------")
         self.caml = now
         try:
+            startTime = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+            )
             # Convert the CompressedImage message to a CV2 image
             np_arr = np.frombuffer(msg.data, np.uint8)
             left_img_ = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode JPEG image
-            left_img_gpu = cv2.cuda_GpuMat()
-            left_img_gpu.upload(left_img_)
-
-            mapx_left_gpu = cv2.cuda_GpuMat()
-            mapx_left_gpu.upload(self.mapx_left)
-
-            mapy_left_gpu = cv2.cuda_GpuMat()
-            mapy_left_gpu.upload(self.mapy_left)
-
-            left_img_ = cv2.cuda.remap(
-                left_img_gpu,
-                mapx_left_gpu,
-                mapy_left_gpu,
-                interpolation=cv2.INTER_NEAREST,
+            self.left_img_gpu.upload(left_img_)
+            now1 = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
             )
 
-            self.left_img_ = left_img_.download()
+            print("upload time: " + str(now1 - startTime))
 
+            startTime = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+            )
+            left_img_ = cv2.cuda.remap(
+                self.left_img_gpu,
+                self.mapx_left_gpu,
+                self.mapy_left_gpu,
+                interpolation=cv2.INTER_NEAREST,
+            )
+            now2 = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+            )
+            print("remap time: " + str(now2 - startTime))
+
+            startTime = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+            )
+            self.left_img_ = left_img_.download()
+            now69 = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+            )
+            print("download time: " + str(now69 - startTime))
+            # self.left_img_ = left_img_
             # Check if the image is valid
             if self.left_img_ is not None:
                 self.left_img_header = msg.header
@@ -578,6 +614,13 @@ class PerceptionNode(Node):
             exception = "Perception::leftCameraCB: " + str(e)
             self.get_logger().error(exception)
 
+        now = (
+            self.get_clock().now().seconds_nanoseconds()[0]
+            + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+        )
+        print("Cam CB total: ", now - self.caml)
+        print("-----------")
+
         left_process = Heartbeat()
         left_process.header.stamp = self.get_clock().now().to_msg()
         self.left_cam_processed_publisher_.publish(left_process)
@@ -590,19 +633,12 @@ class PerceptionNode(Node):
             # Convert the CompressedImage message to a CV2 image
             np_arr = np.frombuffer(msg.data, np.uint8)
             right_img_ = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode JPEG image
-            right_img_gpu = cv2.cuda_GpuMat()
-            right_img_gpu.upload(right_img_)
-
-            mapx_right_gpu = cv2.cuda_GpuMat()
-            mapx_right_gpu.upload(self.mapx_right)
-
-            mapy_right_gpu = cv2.cuda_GpuMat()
-            mapy_right_gpu.upload(self.mapy_right)
+            self.right_img_gpu.upload(right_img_)
 
             right_img_ = cv2.cuda.remap(
-                right_img_gpu,
-                mapx_right_gpu,
-                mapy_right_gpu,
+                self.right_img_gpu,
+                self.mapx_right_gpu,
+                self.mapy_right_gpu,
                 interpolation=cv2.INTER_NEAREST,
             )
 
@@ -805,7 +841,7 @@ class PerceptionNode(Node):
                 results_left,
                 results_right,
                 duplicate_threshold=0.1,
-                cost_threshold=300.0,
+                cost_threshold=80.0,
             )
 
             # Bounding box showing lidar point in camera frame
@@ -1069,8 +1105,8 @@ class PerceptionNode(Node):
             for j, (cam_x, cam_y, cam_w, cam_h) in enumerate(camera_detections):
                 # Check if lidar point is inside the bounding box
                 if (
-                    cam_x <= lidar_x <= cam_x + cam_w
-                    and cam_y <= lidar_y <= cam_y + cam_h
+                    cam_x - 10 <= lidar_x <= cam_x + cam_w + 10
+                    and cam_y - 10 <= lidar_y <= cam_y + cam_h + 10
                 ):
                     # Lidar point is inside the bounding box (minimal cost)
                     euclidean_distance = 0
@@ -1102,13 +1138,13 @@ class PerceptionNode(Node):
 
         # Perform matching for left camera (with bounding boxes)
         cost_matrix_left = self.cost_mtx_from_bbox(
-            left_projected_lidar_pts, left_cam_dets, depth_weight=0.05
+            left_projected_lidar_pts, left_cam_dets, depth_weight=2.00
         )
         row_ind_left, col_ind_left = linear_sum_assignment(cost_matrix_left)
 
         # Perform matching for right camera (with bounding boxes)
         cost_matrix_right = self.cost_mtx_from_bbox(
-            right_projected_lidar_pts, right_cam_dets, depth_weight=0.05
+            right_projected_lidar_pts, right_cam_dets, depth_weight=2.00
         )
         row_ind_right, col_ind_right = linear_sum_assignment(cost_matrix_right)
 
