@@ -872,8 +872,12 @@ class PerceptionNode(Node):
                     self.image_to_3d_point(matched, self.intrinsics_right)
                 )
 
-            matched_cam_frame_left = self.tf_cam_axis_swap_inv(matched_cam_frame_left)
-            matched_cam_frame_right = self.tf_cam_axis_swap_inv(matched_cam_frame_right)
+            matched_cam_frame_left = self.tf_cam_axis_swap_inv(
+                np.array(matched_cam_frame_left)
+            )
+            matched_cam_frame_right = self.tf_cam_axis_swap_inv(
+                np.array(matched_cam_frame_right)
+            )
 
             matched_lidar_frame_left = self.transform_det_lidar(
                 matched_cam_frame_left, tf_leftcam_to_lidar
@@ -883,14 +887,63 @@ class PerceptionNode(Node):
                 matched_cam_frame_right, tf_rightcam_to_lidar
             )
 
-            cone_detections = np.array(
-                matched_lidar_frame_left + matched_lidar_frame_right
-            )
-            cone_detections = np.append(
-                cone_detections, np.array(left_class + right_class), axis=1
-            )
+            cone_detections = ConeDetections()
+            # print("------START---------")
 
-            self.publish_cone_detections(cone_detections)
+            print(len(matched_lidar_frame_left), len(matched_lidar_frame_right), len(left_class), len(right_class))
+
+            for i, point in enumerate(matched_lidar_frame_left):
+                cone = Cone()
+                cone.pos.x = float(point[0])
+                cone.pos.y = float(point[1])
+                cone.pos.z = float(point[2])
+
+                # print(point.pt[0], point.pt[1], point.pt[2])
+
+                if left_class[i] == 1:  # blue
+                    cone.type = 1
+                    cone_detections.left_cones.append(cone)
+                elif left_class[i] == 2:  # yellow
+                    cone.type = 2
+                    cone_detections.right_cones.append(cone)
+                elif left_class[i] == 3:
+                    cone.type = 3
+                    cone_detections.small_orange_cones.append(cone)
+                elif left_class[i] == 4:
+                    cone.type = 4
+                    cone_detections.large_orange_cones.append(cone)
+                else:  # unknown cones cone template type == 0\
+                    cone.type = 0
+                    cone_detections.unknown_cones.append(cone)
+
+            for i, point in enumerate(matched_lidar_frame_right):
+                cone = Cone()
+                cone.pos.x = float(point[0])
+                cone.pos.y = float(point[1])
+                cone.pos.z = float(point[2])
+
+                # print(point.pt[0], point.pt[1], point.pt[2])
+
+                if right_class[i] == 1:  # blue
+                    cone.type = 1
+                    cone_detections.left_cones.append(cone)
+                elif right_class[i] == 2:  # yellow
+                    cone.type = 2
+                    cone_detections.right_cones.append(cone)
+                elif right_class[i] == 3:
+                    cone.type = 3
+                    cone_detections.small_orange_cones.append(cone)
+                elif right_class[i] == 4:
+                    cone.type = 4
+                    cone_detections.large_orange_cones.append(cone)
+                else:  # unknown cones cone template type == 0\
+                    cone.type = 0
+                    cone_detections.unknown_cones.append(cone)
+
+            cone_detections.header.stamp = self.get_clock().now().to_msg()
+            cone_detections.header.frame_id = "ground"
+            self.cone_detections_publisher_.publish(cone_detections)
+            # print("------END---------")
 
             # Bounding box showing lidar point in camera frame
 
@@ -1023,8 +1076,8 @@ class PerceptionNode(Node):
 
         for point in left_projected_pts:
             bounding_box_left = BoundingBox()
-            bounding_box_left.x = int(point[0][0])
-            bounding_box_left.y = int(point[0][1])
+            bounding_box_left.x = int(point[0])
+            bounding_box_left.y = int(point[1])
             bounding_box_left.width = 20
             bounding_box_left.height = 20
             perception_debug_msg_left.left.append(bounding_box_left)
@@ -1037,8 +1090,8 @@ class PerceptionNode(Node):
 
         for point in right_projected_pts:
             bounding_box_right = BoundingBox()
-            bounding_box_right.x = int(point[0][0])
-            bounding_box_right.y = int(point[0][1])
+            bounding_box_right.x = int(point[0])
+            bounding_box_right.y = int(point[1])
             bounding_box_right.width = 20
             bounding_box_right.height = 20
             perception_debug_msg_right.right.append(bounding_box_right)
@@ -1100,9 +1153,12 @@ class PerceptionNode(Node):
         )
 
     def tf_cam_axis_swap_inv(self, points):
+        if len(points) == 0:
+            return np.array([])
         return np.column_stack(
             [points[:, 2], -points[:, 0], -points[:, 1]]  # x  # -z  # -y
         )
+
 
     def point_3d_to_image(self, points, camera_matrix):
         """Projects 3D points to 2D image coordinates using a camera matrix."""
@@ -1123,7 +1179,7 @@ class PerceptionNode(Node):
 
         return result
 
-    def image_to_3d_point(image_point, camera_matrix, depth):
+    def image_to_3d_point(self, image_point, camera_matrix):
         # Add a homogeneous coordinate to the 2D image point
         # TODO: put Z instead of 1??
         image_point_homogeneous = np.array([image_point[0], image_point[1], 1])
@@ -1138,7 +1194,7 @@ class PerceptionNode(Node):
         point_3d = normalized_coords / normalized_coords[2]
 
         # 3D point multiplied by monocular depth
-        point_3d *= depth
+        point_3d *= image_point[2]
 
         return point_3d
 
