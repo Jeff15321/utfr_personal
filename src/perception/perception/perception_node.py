@@ -1119,11 +1119,11 @@ class PerceptionNode(Node):
         # Combine matches and check for duplicates
         all_matches = []
         for i, lidar_point_left in enumerate(matched_lidar_left):
-            cost_left = cost_matrix_left[i, col_ind_left[i]]
+            cost_left = cost_matrix_left[row_ind_left[i], col_ind_left[i]]
             if cost_left > cost_threshold:
                 continue
             for j, lidar_point_right in enumerate(matched_lidar_right):
-                cost_right = cost_matrix_right[j, col_ind_right[j]]
+                cost_right = cost_matrix_right[row_ind_right[j], col_ind_right[j]]
                 if cost_right > cost_threshold:
                     continue
                 # If lidar points from both cameras are close, it's likely a duplicate
