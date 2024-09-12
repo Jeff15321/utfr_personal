@@ -282,7 +282,7 @@ class PerceptionNode(Node):
         )
 
         # create ultralytics model for inference
-        file_name = "src/perception/perception/models/yolov8n_batched.engine"
+        file_name = "src/perception/perception/models/yolov10n.engine"
         # file_name = "src/perception/perception/yolov8n.pt"
         # file_name = "src/perception/perception/yolov8n.onnx"
         print("Deep filename: ", file_name)

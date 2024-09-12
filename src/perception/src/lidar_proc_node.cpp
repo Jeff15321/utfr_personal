@@ -147,6 +147,14 @@ void LidarProcNode::initSubscribers() {
           "/ouster/points",
           rclcpp::QoS(10).reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT),
           std::bind(&LidarProcNode::pointCloudCallback, this, _1));
+
+  left_image_subscriber = 
+      this->create_subscription<sensor_msgs::msg::CompressedImage>(
+          "/left_camera_node/images/compressed", 10, std::bind(&LidarProcNode::leftImageCB, this, _1));
+  right_image_subscriber = 
+      this->create_subscription<sensor_msgs::msg::CompressedImage>(
+          "/right_camera_node/images/compressed", 10, std::bind(&LidarProcNode::rightImageCB, this, _1));
+  
 }
 
 void LidarProcNode::initPublishers() {
@@ -158,6 +166,10 @@ void LidarProcNode::initPublishers() {
       topics::kClustered, 10);
   pub_lidar_detected = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       topics::kDetected, 10);
+  left_image_publisher = this->create_publisher<sensor_msgs::msg::CompressedImage>(
+      "synced_left_image", 10);
+  right_image_publisher = this->create_publisher<sensor_msgs::msg::CompressedImage>(
+      "synced_right_image", 10);
 }
 
 void LidarProcNode::initTimers() {
@@ -183,6 +195,8 @@ void LidarProcNode::publishHeartbeat(const int status) {
 
 void LidarProcNode::pointCloudCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr point_cloud) {
+  hold_image = true;
+  
   PointCloud custom_cloud = convertToCustomPointCloud(point_cloud);
 
   // Filtering
@@ -193,15 +207,6 @@ void LidarProcNode::pointCloudCallback(
   if (debug_) {
     publishPointCloud(filtered_cloud, pub_filtered);
   }
-
-  // Debug grid of minimum z points
-  //  PointCloud grid_points;
-  //  for(std::vector<Point> row : min_points_grid){
-  //    for(Point point : row){
-  //      grid_points.push_back(point);
-  //    }
-  //  }
-  //  publishPointCloud(grid_points, pub_filtered);
 
   // Clustering and reconstruction
   std::tuple<PointCloud, std::vector<PointCloud>> cluster_results =
@@ -233,7 +238,32 @@ void LidarProcNode::pointCloudCallback(
     publishPointCloud(cluster_centers, pub_lidar_detected);
   }
 
+  left_image_publisher->publish(left_img);
+  right_image_publisher->publish(right_img);
+
+  hold_image = false;
+
   // RCLCPP_INFO(this->get_logger(), "Published Processed Point Clouds");
+}
+
+void LidarProcNode::leftImageCB(const sensor_msgs::msg::CompressedImage::SharedPtr msg){
+  if (!hold_image){
+    left_img.header = msg->header;
+
+    left_img.format = msg->format;
+
+    left_img.data = msg->data;
+  }
+}
+
+void LidarProcNode::rightImageCB(const sensor_msgs::msg::CompressedImage::SharedPtr msg){
+  if (!hold_image){
+    right_img.header = msg->header;
+
+    right_img.format = msg->format;
+
+    right_img.data = msg->data;
+  }
 }
 
 void LidarProcNode::publishPointCloud(

@@ -43,6 +43,7 @@
 #include <utfr_msgs/msg/parametric_spline.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
+#include <sensor_msgs/msg/compressed_image.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -90,6 +91,10 @@ private:
 
   void pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr input);
 
+  void leftImageCB(const sensor_msgs::msg::CompressedImage::SharedPtr msg);
+
+  void rightImageCB(const sensor_msgs::msg::CompressedImage::SharedPtr msg);
+
   sensor_msgs::msg::PointCloud2::SharedPtr
   convertToPointCloud2(const std::vector<std::array<float, 3>> &points,
                        const std::string &frame_id);
@@ -132,6 +137,15 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr
       pub_lidar_detected;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+
+  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr left_image_publisher;
+  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr right_image_publisher;
+  rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr left_image_subscriber;
+  rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr right_image_subscriber;
+
+  bool hold_image = true;
+  sensor_msgs::msg::CompressedImage left_img;
+  sensor_msgs::msg::CompressedImage right_img;
 };
 } // namespace lidar_proc
 } // namespace utfr_dv

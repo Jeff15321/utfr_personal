@@ -52,7 +52,7 @@ def generate_launch_description():
             "ros2",
             "bag",
             "play",
-            os.path.expanduser("~/Documents/aug22_autoX_sensors_static.mcap"),
+            os.path.expanduser("~/Documents/aug22_autoX_sensors_cw.mcap"),
             "-l",
         ],
         output="screen",

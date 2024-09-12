@@ -1,7 +1,9 @@
 perception_node: # Name of Node
   ros__parameters:
-    left_camera_topic: "/left_camera_node/images/compressed"
-    right_camera_topic: "/right_camera_node/images/compressed"
+    # left_camera_topic: "/left_camera_node/images/compressed"
+    # right_camera_topic: "/right_camera_node/images/compressed"
+    left_camera_topic: "synced_left_image"
+    right_camera_topic: "synced_right_image"
     cone_detections_topic: "perception/cone_detections"
     processed_lidar_topic: "/lidar_pipeline/detected"
     baseline: 10.0
