@@ -63,6 +63,6 @@ def generate_launch_description():
     ld.add_action(extrinsics_launch)
     ld.add_action(lidar_proc_launch)
     ld.add_action(foxglove_bridge_node)
-    ld.add_action(bag_play)
+    # ld.add_action(bag_play)
 
     return ld

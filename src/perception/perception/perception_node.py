@@ -816,9 +816,9 @@ class PerceptionNode(Node):
     def publish_2d_projected_det(
         self, left_projected_pts, left_stamp, right_projected_pts, right_stamp
     ):
-        self.perception_debug_msg_left = PerceptionDebug()
-        self.perception_debug_msg_left.header.stamp = left_stamp
-        self.perception_debug_msg_left.header.frame_id = "raw"
+        perception_debug_msg_left = PerceptionDebug()
+        perception_debug_msg_left.header.stamp = left_stamp
+        perception_debug_msg_left.header.frame_id = "raw"
 
         for point in left_projected_pts:
             bounding_box_left = BoundingBox()
@@ -826,13 +826,13 @@ class PerceptionNode(Node):
             bounding_box_left.y = int(point[1])
             bounding_box_left.width = 20
             bounding_box_left.height = 20
-            self.perception_debug_msg_left.left.append(bounding_box_left)
+            perception_debug_msg_left.left.append(bounding_box_left)
 
-        self.lidar_projection_publisher_left_.publish(self.perception_debug_msg_left)
+        self.lidar_projection_publisher_left_.publish(perception_debug_msg_left)
 
-        self.perception_debug_msg_right = PerceptionDebug()
-        self.perception_debug_msg_right.header.stamp = self.right_img_header.stamp
-        self.perception_debug_msg_right.header.frame_id = "raw"
+        perception_debug_msg_right = PerceptionDebug()
+        perception_debug_msg_right.header.stamp = self.right_img_header.stamp
+        perception_debug_msg_right.header.frame_id = "raw"
 
         for point in right_projected_pts:
             bounding_box_right = BoundingBox()
@@ -840,16 +840,16 @@ class PerceptionNode(Node):
             bounding_box_right.y = int(point[1])
             bounding_box_right.width = 20
             bounding_box_right.height = 20
-            self.perception_debug_msg_right.right.append(bounding_box_right)
+            perception_debug_msg_right.right.append(bounding_box_right)
 
-        self.lidar_projection_publisher_right_.publish(self.perception_debug_msg_right)
+        self.lidar_projection_publisher_right_.publish(perception_debug_msg_right)
 
     def publish_2d_projected_det_matched(
         self, left_projected_pts, left_stamp, right_projected_pts, right_stamp
     ):
-        self.perception_debug_msg_left = PerceptionDebug()
-        self.perception_debug_msg_left.header.stamp = left_stamp
-        self.perception_debug_msg_left.header.frame_id = "matched"
+        perception_debug_msg_left = PerceptionDebug()
+        perception_debug_msg_left.header.stamp = left_stamp
+        perception_debug_msg_left.header.frame_id = "matched"
 
         for point in left_projected_pts:
             if point[1] == "left":
@@ -858,15 +858,13 @@ class PerceptionNode(Node):
                 bounding_box_left.y = int(point[0][1])
                 bounding_box_left.width = 20
                 bounding_box_left.height = 20
-                self.perception_debug_msg_left.left.append(bounding_box_left)
+                perception_debug_msg_left.left.append(bounding_box_left)
 
-        self.lidar_projection_publisher_matched_left_.publish(
-            self.perception_debug_msg_left
-        )
+        self.lidar_projection_publisher_matched_left_.publish(perception_debug_msg_left)
 
-        self.perception_debug_msg_right = PerceptionDebug()
-        self.perception_debug_msg_right.header.stamp = self.right_img_header.stamp
-        self.perception_debug_msg_right.header.frame_id = "matched"
+        perception_debug_msg_right = PerceptionDebug()
+        perception_debug_msg_right.header.stamp = self.right_img_header.stamp
+        perception_debug_msg_right.header.frame_id = "matched"
 
         for point in right_projected_pts:
             if point[1] == "right":
@@ -875,10 +873,10 @@ class PerceptionNode(Node):
                 bounding_box_right.y = int(point[0][1])
                 bounding_box_right.width = 20
                 bounding_box_right.height = 20
-                self.perception_debug_msg_right.right.append(bounding_box_right)
+                perception_debug_msg_right.right.append(bounding_box_right)
 
         self.lidar_projection_publisher_matched_right_.publish(
-            self.perception_debug_msg_right
+            perception_debug_msg_right
         )
 
     def publish_undistorted(self, frame_left, frame_right):
@@ -899,8 +897,8 @@ class PerceptionNode(Node):
     ):
         # Bounding boxes from deep learning model
         if len(results_left) != 0:
-            self.perception_debug_msg_left = PerceptionDebug()
-            self.perception_debug_msg_left.header.stamp = self.left_img_header.stamp
+            perception_debug_msg_left = PerceptionDebug()
+            perception_debug_msg_left.header.stamp = self.left_img_header.stamp
             for i in range(len(results_left)):
                 bounding_box_left = BoundingBox()
                 bounding_box_left.x = int(results_left[i][0])
@@ -909,15 +907,13 @@ class PerceptionNode(Node):
                 bounding_box_left.height = int(results_left[i][3])
                 bounding_box_left.type = labelColor(classes_left[i])
                 bounding_box_left.score = scores_left[i]
-                self.perception_debug_msg_left.left.append(bounding_box_left)
+                perception_debug_msg_left.left.append(bounding_box_left)
 
-            self.perception_debug_publisher_left_.publish(
-                self.perception_debug_msg_left
-            )
+            self.perception_debug_publisher_left_.publish(perception_debug_msg_left)
 
         if len(results_right) != 0:
-            self.perception_debug_msg_right = PerceptionDebug()
-            self.perception_debug_msg_right.header.stamp = self.right_img_header.stamp
+            perception_debug_msg_right = PerceptionDebug()
+            perception_debug_msg_right.header.stamp = self.right_img_header.stamp
             for i in range(len(results_right)):
                 bounding_box_right = BoundingBox()
                 bounding_box_right.x = int(results_right[i][0])
@@ -926,11 +922,9 @@ class PerceptionNode(Node):
                 bounding_box_right.height = int(results_right[i][3])
                 bounding_box_right.type = labelColor(classes_right[i])
                 bounding_box_right.score = scores_right[i]
-                self.perception_debug_msg_right.right.append(bounding_box_right)
+                perception_debug_msg_right.right.append(bounding_box_right)
 
-            self.perception_debug_publisher_right_.publish(
-                self.perception_debug_msg_right
-            )
+            self.perception_debug_publisher_right_.publish(perception_debug_msg_right)
 
     def tf_cam_axis_swap(self, points):
         return np.column_stack(
