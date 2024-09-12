@@ -182,15 +182,15 @@ void CenterPathNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
 }
 
 void CenterPathNode::initTimers() {
-  // main_timer_.reset();
+  main_timer_.reset();
 
-  // if (!event_set_) {
-  //   main_timer_ = this->create_wall_timer(
-  //       std::chrono::duration<double, std::milli>(update_rate_),
-  //       std::bind(&CenterPathNode::homeScreenCB, this));
+  if (!event_set_) {
+    main_timer_ = this->create_wall_timer(
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&CenterPathNode::homeScreenCB, this));
 
-  //   return;
-  // }
+    return;
+  }
 
   if (event_ == "accel") {
     use_mapping_ = false;
@@ -338,37 +338,6 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
       // view
     }
   }
-  // try{
-  //   std::ofstream out("Cones.txt");
-  //   geometry_msgs::msg::Point conePos;
-  //   std::string toFrame = "imu_link";
-  //   int size = cone_map_raw_->left_cones.size() + cone_map_raw_->right_cones.size();
-  //   RCLCPP_WARN(this->get_logger(), "%s, %d", cone_map_raw_->header.frame_id.c_str(), size);
-  //   geometry_msgs::msg::TransformStamped transform = 
-  //     tf_buffer_->lookupTransform(toFrame, cone_map_raw_->header.frame_id, tf2::TimePointZero);
-
-  //   for(utfr_msgs::msg::Cone &c : cone_map_raw_->left_cones){
-  //     tf2::doTransform(c.pos, conePos, transform);
-  //     out << "(" << conePos.x << "," << conePos.y << "," << conePos.z << ")" << std::endl;
-  //   }
-  //   for(auto &c : cone_map_raw_->right_cones){
-  //     tf2::doTransform(c.pos, conePos, transform);
-  //     out << "(" << conePos.x << "," << conePos.y << "," << conePos.z << ")" << std::endl;
-  //   }
-
-  //   std::ofstream out2("Cones2.txt");
-  //   for(utfr_msgs::msg::Cone &c : cone_map_raw_->left_cones){
-  //     auto v = globalToLocal(c.pos.x, c.pos.y);
-  //     out2 << "(" << v[0] << "," << v[1] << ")" << std::endl;
-  //   }
-  //   for(auto &c : cone_map_raw_->right_cones){
-  //     auto v = globalToLocal(c.pos.x, c.pos.y);
-  //     out2 << "(" << v[0] << "," << v[1] << ")" << std::endl;
-  //   }
-  // }
-  // catch(std::exception &e){
-  //   RCLCPP_FATAL(this->get_logger(), e.what());
-  // }
 }
 
 void CenterPathNode::coneDetectionsCB(
@@ -464,10 +433,10 @@ void CenterPathNode::timerCBAccel() {
 }
 
 void CenterPathNode::timerCBSkidpad() {
-  // if (as_state != 3){
-  //   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
-  //   return;
-  // }
+  if (as_state != 3){
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
   const std::string function_name{"center_path_timerCB:"};
   try {
     if (cone_detections_ == nullptr || ego_state_ == nullptr) {
@@ -501,10 +470,10 @@ void CenterPathNode::timerCBSkidpad() {
 }
 
 void CenterPathNode::timerCBAutocross() {
-  // if (as_state != 3){
-  //   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
-  //   return;
-  // }
+  if (as_state != 3){
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
   const std::string function_name{"center_path_timerCB:"};
 
   try {
@@ -572,10 +541,10 @@ void CenterPathNode::timerCBAutocross() {
 }
 
 void CenterPathNode::timerCBTrackdrive() {
-  // if (as_state != 3){
-  //   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
-  //   return;
-  // }
+  if (as_state != 3){
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
   const std::string function_name{"center_path_timerCB:"};
 
   try {

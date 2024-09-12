@@ -113,15 +113,15 @@ void ControllerNode::initPublishers() {
 }
 
 void ControllerNode::initTimers() {
-  // main_timer_.reset();
+  main_timer_.reset();
 
-  // if (!event_set_) {
-  //   main_timer_ = this->create_wall_timer(
-  //       std::chrono::duration<double, std::milli>(update_rate_),
-  //       std::bind(&ControllerNode::homeScreenCB, this));
+  if (!event_set_) {
+    main_timer_ = this->create_wall_timer(
+        std::chrono::duration<double, std::milli>(update_rate_),
+        std::bind(&ControllerNode::homeScreenCB, this));
 
-  //   return;
-  // }
+    return;
+  }
 
   if (event_ == "accel") {
     last_lap_count_ = 2;
@@ -418,10 +418,10 @@ void ControllerNode::timerCBAccel() {
 void ControllerNode::timerCBSkidpad() {
   const std::string function_name{"controller_timerCB:"};
 
-  // if (as_state != 3) {
-  //   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
-  //   return;
-  // }
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
 
   try {
     if (!(path_ || point_) || !ego_state_) {
@@ -485,10 +485,10 @@ void ControllerNode::timerCBSkidpad() {
 void ControllerNode::timerCBAutocross() {
   const std::string function_name{"controller_timerCB:"};
 
-  // if (as_state != 3) {
-  //   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
-  //   return;
-  // }
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
 
   try {
     if (!path_ || !ego_state_) {
@@ -542,10 +542,10 @@ void ControllerNode::timerCBAutocross() {
 void ControllerNode::timerCBTrackdrive() {
   const std::string function_name{"controller_timerCB:"};
 
-  // if (as_state != 3) {
-  //   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
-  //   return;
-  // }
+  if (as_state != 3) {
+    publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+    return;
+  }
 
   try {
 
