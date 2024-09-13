@@ -148,13 +148,14 @@ void LidarProcNode::initSubscribers() {
           rclcpp::QoS(10).reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT),
           std::bind(&LidarProcNode::pointCloudCallback, this, _1));
 
-  left_image_subscriber = 
+  left_image_subscriber =
       this->create_subscription<sensor_msgs::msg::CompressedImage>(
-          "/left_camera_node/images/compressed", 10, std::bind(&LidarProcNode::leftImageCB, this, _1));
-  right_image_subscriber = 
+          "/left_camera_node/images/compressed", 10,
+          std::bind(&LidarProcNode::leftImageCB, this, _1));
+  right_image_subscriber =
       this->create_subscription<sensor_msgs::msg::CompressedImage>(
-          "/right_camera_node/images/compressed", 10, std::bind(&LidarProcNode::rightImageCB, this, _1));
-  
+          "/right_camera_node/images/compressed", 10,
+          std::bind(&LidarProcNode::rightImageCB, this, _1));
 }
 
 void LidarProcNode::initPublishers() {
@@ -166,10 +167,12 @@ void LidarProcNode::initPublishers() {
       topics::kClustered, 10);
   pub_lidar_detected = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       topics::kDetected, 10);
-  left_image_publisher = this->create_publisher<sensor_msgs::msg::CompressedImage>(
-      "synced_left_image", 10);
-  right_image_publisher = this->create_publisher<sensor_msgs::msg::CompressedImage>(
-      "synced_right_image", 10);
+  left_image_publisher =
+      this->create_publisher<sensor_msgs::msg::CompressedImage>(
+          "synced_left_image", 10);
+  right_image_publisher =
+      this->create_publisher<sensor_msgs::msg::CompressedImage>(
+          "synced_right_image", 10);
 }
 
 void LidarProcNode::initTimers() {
@@ -196,14 +199,39 @@ void LidarProcNode::publishHeartbeat(const int status) {
 void LidarProcNode::pointCloudCallback(
     const sensor_msgs::msg::PointCloud2::SharedPtr point_cloud) {
   hold_image = true;
-  
+
+  std::cout << "\nBegin point cloud processing" << std::endl;
+  int initialStartTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
   PointCloud custom_cloud = convertToCustomPointCloud(point_cloud);
 
+  std::cout << "conversion to custom point cloud: ms"
+            << int(this->get_clock()->now().nanoseconds() / 1000000 -
+                   initialStartTime)
+            << std::endl;
+
+  int startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
   // Filtering
   std::tuple<PointCloud, Grid> filtered_cloud_and_grid =
       filter.view_filter(custom_cloud);
+
+  std::cout << "view filter: ms"
+            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
+            << std::endl;
+  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+
   PointCloud filtered_cloud = std::get<0>(filtered_cloud_and_grid);
+
+  std::cout << "filtered cloud: ms"
+            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
+            << std::endl;
+  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+
   Grid min_points_grid = std::get<1>(filtered_cloud_and_grid);
+  std::cout << "min points grid: ms"
+            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
+            << std::endl;
+  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+
   if (debug_) {
     publishPointCloud(filtered_cloud, pub_filtered);
   }
@@ -211,8 +239,24 @@ void LidarProcNode::pointCloudCallback(
   // Clustering and reconstruction
   std::tuple<PointCloud, std::vector<PointCloud>> cluster_results =
       clusterer.clean_and_cluster(filtered_cloud, min_points_grid);
+
+  std::cout << "clean and cluster: ms"
+            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
+            << std::endl;
+  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+
   PointCloud no_ground_cloud = std::get<0>(cluster_results);
+
+  std::cout << "no ground cloud: ms"
+            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
+            << std::endl;
+  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+
   std::vector<PointCloud> reconstructed_clusters = std::get<1>(cluster_results);
+  std::cout << "reconstructed clusters: ms"
+            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
+            << std::endl;
+  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
 
   if (debug_) {
     publishPointCloud(no_ground_cloud, pub_no_ground);
@@ -226,6 +270,10 @@ void LidarProcNode::pointCloudCallback(
       combined_clusters.push_back(reconstructed_clusters[i][j]);
     }
   }
+  std::cout << "combined_clusters clusters: ms"
+            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
+            << std::endl;
+  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
 
   if (debug_) {
     publishPointCloud(combined_clusters, pub_clustered);
@@ -234,9 +282,24 @@ void LidarProcNode::pointCloudCallback(
   // Gather the cluster centers into a single point cloud
   PointCloud cluster_centers =
       cone_filter.filter_clusters(reconstructed_clusters);
+
+  std::cout << "combined_clusters clusters: ms"
+            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
+            << std::endl;
+  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+
   if (cluster_centers.size() > 0) {
     publishPointCloud(cluster_centers, pub_lidar_detected);
   }
+
+  std::cout << "cluster centers: ms"
+            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
+            << std::endl;
+
+  std::cout << "final time: ms"
+            << int(this->get_clock()->now().nanoseconds() / 1000000 -
+                   initialStartTime)
+            << std::endl;
 
   left_image_publisher->publish(left_img);
   right_image_publisher->publish(right_img);
@@ -246,8 +309,9 @@ void LidarProcNode::pointCloudCallback(
   // RCLCPP_INFO(this->get_logger(), "Published Processed Point Clouds");
 }
 
-void LidarProcNode::leftImageCB(const sensor_msgs::msg::CompressedImage::SharedPtr msg){
-  if (!hold_image){
+void LidarProcNode::leftImageCB(
+    const sensor_msgs::msg::CompressedImage::SharedPtr msg) {
+  if (!hold_image) {
     left_img.header = msg->header;
 
     left_img.format = msg->format;
@@ -256,8 +320,9 @@ void LidarProcNode::leftImageCB(const sensor_msgs::msg::CompressedImage::SharedP
   }
 }
 
-void LidarProcNode::rightImageCB(const sensor_msgs::msg::CompressedImage::SharedPtr msg){
-  if (!hold_image){
+void LidarProcNode::rightImageCB(
+    const sensor_msgs::msg::CompressedImage::SharedPtr msg) {
+  if (!hold_image) {
     right_img.header = msg->header;
 
     right_img.format = msg->format;
