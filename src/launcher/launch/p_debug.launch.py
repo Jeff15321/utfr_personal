@@ -13,7 +13,26 @@ from launch_ros.actions import Node
 def generate_launch_description():
     ld = LaunchDescription()
 
-    # run nodes exepct for perception_node for debugging
+    # Declare launch arguments for Foxglove Bridge parameters
+    ld.add_action(
+        DeclareLaunchArgument(
+            "num_threads",
+            default_value="4",
+            description="Number of threads for ROS node executor",
+        )
+    )
+    ld.add_action(
+        DeclareLaunchArgument(
+            "min_qos_depth", default_value="1", description="Minimum QoS depth"
+        )
+    )
+    ld.add_action(
+        DeclareLaunchArgument(
+            "max_qos_depth", default_value="25", description="Maximum QoS depth"
+        )
+    )
+
+    # run nodes except for perception_node for debugging
 
     # Launch the visualization system
     visualization_dir = get_package_share_directory("visualization")
@@ -44,6 +63,11 @@ def generate_launch_description():
         executable="foxglove_bridge",
         name="foxglove_bridge",
         output="screen",
+        parameters=[
+            {"num_threads": LaunchConfiguration("num_threads")},
+            {"min_qos_depth": LaunchConfiguration("min_qos_depth")},
+            {"max_qos_depth": LaunchConfiguration("max_qos_depth")},
+        ],
     )
 
     # Play the rosbag file (mcap) located in ssd
@@ -53,7 +77,7 @@ def generate_launch_description():
             "bag",
             "play",
             os.path.expanduser(
-                "/media/utfr-dv/1tb ssd/rosbags/aug22_autoX_sensors_ccw/aug22_autoX_sensors_ccw.mcap"
+                "/media/utfr-dv/1tb ssd/rosbags/aug22_autoX_sensors_cw/aug22_autoX_sensors_cw.mcap"
             ),
             "-l",
         ],
