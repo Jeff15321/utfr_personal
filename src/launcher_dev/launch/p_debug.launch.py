@@ -52,7 +52,7 @@ def generate_launch_description():
             "ros2",
             "bag",
             "play",
-            os.path.expanduser("~/Documents/aug22_autoX_sensors_cw.mcap"),
+            os.path.expanduser("~/Documents/aug22_autoX_sensors_static.mcap"),
             "-l",
         ],
         output="screen",
@@ -63,6 +63,6 @@ def generate_launch_description():
     ld.add_action(extrinsics_launch)
     ld.add_action(lidar_proc_launch)
     ld.add_action(foxglove_bridge_node)
-    # ld.add_action(bag_play)
+    ld.add_action(bag_play)
 
     return ld

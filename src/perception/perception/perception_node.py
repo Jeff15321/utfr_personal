@@ -334,10 +334,10 @@ class PerceptionNode(Node):
 
         print(self.tf_listener)
 
-        # TODO - add last tf for lidar to whatever the base frame is
-
         self.left_img_gpu = cv2.cuda_GpuMat()
         self.right_img_gpu = cv2.cuda_GpuMat()
+
+        self.previous_detections = {}
 
     def initSubscribers(self):
         """
@@ -859,6 +859,7 @@ class PerceptionNode(Node):
                 duplicate_threshold=0.1,
                 cost_threshold=1000.0,
                 depth_weight=0.5,
+                alpha=0.5,
             )
 
             matched_cam_frame_left = []
@@ -891,14 +892,7 @@ class PerceptionNode(Node):
             cone_detections = ConeDetections()
             # print("------START---------")
 
-            print(
-                len(matched_lidar_frame_left),
-                len(matched_lidar_frame_right),
-                len(left_class),
-                len(right_class),
-            )
-            print(left_class)
-            print(right_class)
+            # TODO: clean this up and just use the same enum format as in the cone msg template
             for i, point in enumerate(matched_lidar_frame_left):
                 cone = Cone()
                 cone.pos.x = float(point[0])
@@ -919,10 +913,11 @@ class PerceptionNode(Node):
                 elif left_class[i] == "large_orange_cone":
                     cone.type = 4
                     cone_detections.large_orange_cones.append(cone)
-                else:  # unknown cones cone template type == 0\
+                else:  # unknown cones cone template type == 0
                     cone.type = 0
                     cone_detections.unknown_cones.append(cone)
 
+            # TODO: clean this up and just use the same enum format as in the cone msg template
             for i, point in enumerate(matched_lidar_frame_right):
                 cone = Cone()
                 cone.pos.x = float(point[0])
@@ -952,8 +947,7 @@ class PerceptionNode(Node):
             self.cone_detections_publisher_.publish(cone_detections)
             # print("------END---------")
 
-            # Bounding box showing lidar point in camera frame
-
+            # Cam det bounding boxes and lidar det points on image
             if self.debug_:
                 self.publish_2d_projected_det(
                     left_projected_pts=filtered_left_projected_pts,
@@ -961,7 +955,6 @@ class PerceptionNode(Node):
                     right_projected_pts=filtered_right_projected_pts,
                     right_stamp=self.right_img_header.stamp,
                 )
-                # TODO: Temp for debugging, need to view as cone det properly in 3D
                 self.publish_2d_projected_det_matched(
                     left_projected_pts=left_matched,
                     left_stamp=self.left_img_header.stamp,
@@ -1225,6 +1218,20 @@ class PerceptionNode(Node):
             print(ex)
             return np.array([])  # Return an empty array in case of an exception
 
+    def update_smoothed_positions(self, cone_id, new_position, alpha):
+        if cone_id in self.previous_detections:
+            # Apply EMA: position(t) = alpha * position(t-1) + (1 - alpha) * position_current
+            prev_pos = self.previous_detections[cone_id]["position"]
+            smoothed_position = alpha * np.array(prev_pos) + (1 - alpha) * np.array(
+                new_position
+            )
+            self.previous_detections[cone_id]["position"] = smoothed_position
+        else:
+            # Initialize detection
+            self.previous_detections[cone_id] = {"position": new_position}
+
+        return self.previous_detections[cone_id]["position"]
+
     def cost_mtx_from_bbox(
         self, projected_lidar_detections, camera_detections, depth_factor
     ):
@@ -1266,74 +1273,45 @@ class PerceptionNode(Node):
         duplicate_threshold,
         cost_threshold,
         depth_weight,
+        alpha,
     ):
         """Performs Hungarian matching for lidar points and bounding boxes."""
 
-        # Perform matching for left camera (with bounding boxes)
+        # Perform matching for left camera
         cost_matrix_left = self.cost_mtx_from_bbox(
             left_projected_lidar_pts, left_cam_dets, depth_factor=depth_weight
         )
         row_ind_left, col_ind_left = linear_sum_assignment(cost_matrix_left)
-        print("COST LEFT", cost_matrix_left)
-        # Perform matching for right camera (with bounding boxes)
+
+        # Perform matching for right camera
         cost_matrix_right = self.cost_mtx_from_bbox(
             right_projected_lidar_pts, right_cam_dets, depth_factor=depth_weight
         )
         row_ind_right, col_ind_right = linear_sum_assignment(cost_matrix_right)
-        print("COST RIGHT", cost_matrix_right)
 
-        # Resolve duplicates by comparing matched lidar points
-        matched_lidar_left = [left_projected_lidar_pts[i] for i in row_ind_left]
-        matched_lidar_right = [right_projected_lidar_pts[i] for i in row_ind_right]
+        # Store results after Hungarian matching
+        left_matches, right_matches, left_classes, right_classes = [], [], [], []
 
-        # Combine matches and check for duplicatesdepth_weight=0.5
-        left_matches = []
-        right_matches = []
-        left_classes = []
-        right_classes = []
-        # for i, lidar_point_left in enumerate(matched_lidar_left):
-        #     cost_left = cost_matrix_left[row_ind_left[i], col_ind_left[i]]
-        #     if cost_left > cost_threshold:
-        #         continue
-        #     for j, lidar_point_right in enumerate(matched_lidar_right):
-        #         cost_right = cost_matrix_right[row_ind_right[j], col_ind_right[j]]
-        #         if cost_right > cost_threshold:
-        #             continue
-        #         # If lidar points from both cameras are close, it's likely a duplicate
-        #         if (
-        #             np.linalg.norm(
-        #                 np.array(lidar_point_left[:2]) - np.array(lidar_point_right[:2])
-        #             )
-        #             < duplicate_threshold
-        #         ):
-        #             # Compare costs and choose the better match
+        # Apply EMA smoothing to left camera matches
+        for i, lidar_point_left in enumerate(left_projected_lidar_pts):
+            if cost_matrix_left[row_ind_left[i], col_ind_left[i]] <= cost_threshold:
+                cone_id = row_ind_left[i]  # Unique ID based on match
+                smoothed_position = self.update_smoothed_positions(
+                    cone_id, lidar_point_left, alpha
+                )
+                left_matches.append(smoothed_position)
+                left_classes.append(classes_left[col_ind_left[i]])
 
-        #             if cost_left < cost_right:
-        #                 left_matches.append(lidar_point_left)
-        #                 left_classes.append(classes_left[col_ind_left[i]])
-        #             else:
-        #                 right_matches.append(lidar_point_right)
-        #                 right_classes.append(classes_right[col_ind_right[j]])
-        #         else:
-        #             left_matches.append(lidar_point_left)
-        #             right_matches.append(lidar_point_right)
-        #             left_classes.append(classes_left[col_ind_left[i]])
-        #             right_classes.append(classes_right[col_ind_right[j]])
+        # Apply EMA smoothing to right camera matches
+        for i, lidar_point_right in enumerate(right_projected_lidar_pts):
+            if cost_matrix_right[row_ind_right[i], col_ind_right[i]] <= cost_threshold:
+                cone_id = row_ind_right[i]  # Unique ID based on match
+                smoothed_position = self.update_smoothed_positions(
+                    cone_id, lidar_point_right, alpha
+                )
+                right_matches.append(smoothed_position)
+                right_classes.append(classes_right[col_ind_right[i]])
 
-        for i, lidar_point_left in enumerate(matched_lidar_left):
-            cost_left = cost_matrix_left[row_ind_left[i], col_ind_left[i]]
-            if cost_left > cost_threshold:
-                continue
-            left_matches.append(lidar_point_left)
-            left_classes.append(classes_left[col_ind_left[i]])
-        for j, lidar_point_right in enumerate(matched_lidar_right):
-            cost_right = cost_matrix_right[row_ind_right[j], col_ind_right[j]]
-            if cost_right > cost_threshold:
-                continue
-            right_matches.append(lidar_point_right)
-            right_classes.append(classes_right[col_ind_right[j]])
-
-        # 'all_matches' now contains lidar points with resolved duplicates, matched to bounding boxes
         return left_matches, right_matches, left_classes, right_classes
 
     def filter_points_in_fov(self, projected_points, image_size):
