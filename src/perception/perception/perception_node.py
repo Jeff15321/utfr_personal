@@ -1289,28 +1289,44 @@ class PerceptionNode(Node):
         )
         row_ind_right, col_ind_right = linear_sum_assignment(cost_matrix_right)
 
+        matched_lidar_left = [left_projected_lidar_pts[i] for i in row_ind_left]
+        matched_lidar_right = [right_projected_lidar_pts[i] for i in row_ind_right]
+
         # Store results after Hungarian matching
         left_matches, right_matches, left_classes, right_classes = [], [], [], []
 
+        for i, lidar_point_left in enumerate(matched_lidar_left):
+            cost_left = cost_matrix_left[row_ind_left[i], col_ind_left[i]]
+            if cost_left > cost_threshold:
+                continue
+            left_matches.append(lidar_point_left)
+            left_classes.append(classes_left[col_ind_left[i]])
+        for j, lidar_point_right in enumerate(matched_lidar_right):
+            cost_right = cost_matrix_right[row_ind_right[j], col_ind_right[j]]
+            if cost_right > cost_threshold:
+                continue
+            right_matches.append(lidar_point_right)
+            right_classes.append(classes_right[col_ind_right[j]])
+
         # Apply EMA smoothing to left camera matches
-        for i, lidar_point_left in enumerate(left_projected_lidar_pts):
-            if cost_matrix_left[row_ind_left[i], col_ind_left[i]] <= cost_threshold:
-                cone_id = row_ind_left[i]  # Unique ID based on match
-                smoothed_position = self.update_smoothed_positions(
-                    cone_id, lidar_point_left, alpha
-                )
-                left_matches.append(smoothed_position)
-                left_classes.append(classes_left[col_ind_left[i]])
+        # for i, lidar_point_left in enumerate(left_projected_lidar_pts):
+        #     if cost_matrix_left[row_ind_left[i], col_ind_left[i]] <= cost_threshold:
+        #         cone_id = row_ind_left[i]  # Unique ID based on match
+        #         smoothed_position = self.update_smoothed_positions(
+        #             cone_id, lidar_point_left, alpha
+        #         )
+        #         left_matches.append(smoothed_position)
+        #         left_classes.append(classes_left[col_ind_left[i]])
 
         # Apply EMA smoothing to right camera matches
-        for i, lidar_point_right in enumerate(right_projected_lidar_pts):
-            if cost_matrix_right[row_ind_right[i], col_ind_right[i]] <= cost_threshold:
-                cone_id = row_ind_right[i]  # Unique ID based on match
-                smoothed_position = self.update_smoothed_positions(
-                    cone_id, lidar_point_right, alpha
-                )
-                right_matches.append(smoothed_position)
-                right_classes.append(classes_right[col_ind_right[i]])
+        # for i, lidar_point_right in enumerate(right_projected_lidar_pts):
+        #     if cost_matrix_right[row_ind_right[i], col_ind_right[i]] <= cost_threshold:
+        #         cone_id = row_ind_right[i]  # Unique ID based on match
+        #         smoothed_position = self.update_smoothed_positions(
+        #             cone_id, lidar_point_right, alpha
+        #         )
+        #         right_matches.append(smoothed_position)
+        #         right_classes.append(classes_right[col_ind_right[i]])
 
         return left_matches, right_matches, left_classes, right_classes
 
