@@ -62,8 +62,8 @@ void ComputeGraphNode::initParams() {
   Eigen::DiagonalMatrix<double, 3> P2P;
   Eigen::DiagonalMatrix<double, 2> P2C;
   Eigen::DiagonalMatrix<double, 3> LoopClosure;
-  P2P.diagonal() << 300, 300, 3000;
-  P2C.diagonal() << 100, 1000;
+  P2P.diagonal() << 1200, 1200, 6000;
+  P2C.diagonal() << 60, 600;
   LoopClosure.diagonal() << 500, 500, 5000;
 
   P2PInformationMatrix_ = P2P;
