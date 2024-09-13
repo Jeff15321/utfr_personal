@@ -170,8 +170,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     geometry_msgs::msg::Vector3 gps_ned =
         utfr_dv::util::convertLLAtoNED(lla, datum_lla);
 
-    gps_x = gps_ned.x * cos(datum_yaw_) + gps_ned.y * sin(datum_yaw_);
-    gps_y = -gps_ned.x * sin(datum_yaw_) + gps_ned.y * cos(datum_yaw_);
+    gps_y = gps_ned.x * cos(datum_yaw_) + gps_ned.y * sin(datum_yaw_);
+    gps_x = -gps_ned.x * sin(datum_yaw_) + gps_ned.y * cos(datum_yaw_);
 
     // Get yaw directly from IMU
     double imu_yaw = utfr_dv::util::degToRad(msg.rpy.z);
