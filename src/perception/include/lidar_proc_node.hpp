@@ -34,6 +34,7 @@
 // Message Requirements
 #include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <sensor_msgs/msg/compressed_image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -43,7 +44,6 @@
 #include <utfr_msgs/msg/parametric_spline.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
 #include <utfr_msgs/msg/target_state.hpp>
-#include <sensor_msgs/msg/compressed_image.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -103,7 +103,7 @@ private:
       const PointCloud &cloud,
       const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
 
-  PointCloud convertToCustomPointCloud(
+  PointCloud filterAndConvertToCustomPointCloud(
       const sensor_msgs::msg::PointCloud2::SharedPtr &input);
 
   void timerCB();
@@ -138,10 +138,14 @@ private:
       pub_lidar_detected;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
 
-  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr left_image_publisher;
-  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr right_image_publisher;
-  rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr left_image_subscriber;
-  rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr right_image_subscriber;
+  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr
+      left_image_publisher;
+  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr
+      right_image_publisher;
+  rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr
+      left_image_subscriber;
+  rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr
+      right_image_subscriber;
 
   bool hold_image = true;
   sensor_msgs::msg::CompressedImage left_img;

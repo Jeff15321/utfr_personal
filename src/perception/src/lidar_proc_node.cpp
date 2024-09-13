@@ -12,6 +12,7 @@
 * desc: lidar processing node class
 */
 
+#include <filter.hpp>
 #include <lidar_proc_node.hpp>
 
 namespace utfr_dv {
@@ -202,32 +203,24 @@ void LidarProcNode::pointCloudCallback(
 
   std::cout << "\nBegin point cloud processing" << std::endl;
   int initialStartTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
-  PointCloud custom_cloud = convertToCustomPointCloud(point_cloud);
+  PointCloud filtered_cloud = filterAndConvertToCustomPointCloud(point_cloud);
 
-  std::cout << "conversion to custom point cloud: ms"
+  int size = 0;
+  // for (Point point : filtered_cloud) {
+  //   size++;
+  // }
+
+  std::cout << size << std::endl;
+  std::cout << "filter and conversion to custom point cloud: ms"
             << int(this->get_clock()->now().nanoseconds() / 1000000 -
                    initialStartTime)
             << std::endl;
 
   int startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
   // Filtering
-  std::tuple<PointCloud, Grid> filtered_cloud_and_grid =
-      filter.view_filter(custom_cloud);
+  Grid min_points_grid = filter.ground_grid(filtered_cloud);
 
-  std::cout << "view filter: ms"
-            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
-            << std::endl;
-  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
-
-  PointCloud filtered_cloud = std::get<0>(filtered_cloud_and_grid);
-
-  std::cout << "filtered cloud: ms"
-            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
-            << std::endl;
-  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
-
-  Grid min_points_grid = std::get<1>(filtered_cloud_and_grid);
-  std::cout << "min points grid: ms"
+  std::cout << "make ground grid: ms"
             << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
             << std::endl;
   startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
@@ -358,32 +351,41 @@ void LidarProcNode::publishPointCloud(
   pub->publish(output_tfed);
 }
 
-PointCloud LidarProcNode::convertToCustomPointCloud(
+PointCloud LidarProcNode::filterAndConvertToCustomPointCloud(
     const sensor_msgs::msg::PointCloud2::SharedPtr &input) {
+  /* Filter the point cloud to only include points within the specified
+  view bounds and convert to custom PointCloud type, which is a vector of (x, y,
+  z) coordinates*/
+
   PointCloud custom_cloud;
-  // change according to pitch
-  //   float c = 1.0; // cos(8/180.0*3.14);
-  //   float s = 0.0; // sin(8/180.0*3.14);
+
+  // Offsets for x, y, z fields in PointCloud2 data
+  int x_offset = input->fields[0].offset;
+  int y_offset = input->fields[1].offset;
+  int z_offset = input->fields[2].offset;
+  ViewBounds bound = filter.getBounds();
+  Point pt;
   for (uint32_t i = 0; i < input->height * input->width; ++i) {
-    Point pt;
 
-    // Offsets for x, y, z fields in PointCloud2 data
-    int x_offset = input->fields[0].offset;
-    int y_offset = input->fields[1].offset;
-    int z_offset = input->fields[2].offset;
-
-    // Extract x, y, z from the data
     pt[0] = *reinterpret_cast<const float *>(
         &input->data[i * input->point_step + x_offset]);
     pt[1] = *reinterpret_cast<const float *>(
         &input->data[i * input->point_step + y_offset]);
     pt[2] = *reinterpret_cast<const float *>(
         &input->data[i * input->point_step + z_offset]);
-    // float xn = c * pt[0] - s * pt[2];
-    // pt[2] = s * pt[0] + c * pt[2] + 1.05;
-    // pt[0] = xn;
 
-    custom_cloud.push_back(pt);
+    // Check if point is within outer box
+    if (pt[0] >= bound.outer_box.x_min && pt[0] <= bound.outer_box.x_max &&
+        pt[1] >= bound.outer_box.y_min && pt[1] <= bound.outer_box.y_max) {
+      // Check if point is outside inner box
+      if (!(pt[0] >= bound.inner_box.x_min && pt[0] <= bound.inner_box.x_max &&
+            pt[1] >= bound.inner_box.y_min && pt[1] <= bound.inner_box.y_max)) {
+        // Points are in the specified view
+
+        // add to cloud if it's within the view
+        custom_cloud.push_back(pt);
+      }
+    }
   }
 
   return custom_cloud;
