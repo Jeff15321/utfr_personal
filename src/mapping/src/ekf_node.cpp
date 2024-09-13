@@ -189,8 +189,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     double vel_y = msg.velocity.linear.y;
     double vel_yaw = 0;
 
-    res.vel.twist.linear.x = vel_x;
-    res.vel.twist.linear.y = vel_y;
+    res.vel.twist.linear.x = vel_x * cos(datum_yaw_) + vel_y * sin(datum_yaw_);
+    res.vel.twist.linear.y = -vel_x * sin(datum_yaw_) + vel_y * cos(datum_yaw_);
     res.vel.twist.angular.z = vel_yaw;
 
     current_state_ = res;
@@ -218,8 +218,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     marker.pose.position.x = 0.0;
     marker.pose.position.z = 0.0;
   } else {
-    marker.pose.position.x = current_state_.pose.pose.position.y;
-    marker.pose.position.y = current_state_.pose.pose.position.x;
+    marker.pose.position.x = current_state_.pose.pose.position.x;
+    marker.pose.position.y = current_state_.pose.pose.position.y;
     marker.pose.position.z = 0.0;
   }
 
