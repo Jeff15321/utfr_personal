@@ -405,20 +405,20 @@ class VisualizationNode(Node):
         self.right_image_marker_publisher_.publish(right_markers)
         self.right_image_text_publisher_.publish(right_image_annotation)
 
-    # (r,g,b,a)
-    cubeColorLUT = {
-        "left_cone": (1.0, 1.0, 0.0, 1.0),
-        "right_cone": (0.0, 1.0, 1.0, 1.0),
-        "large_orange_cone": (1.0, 0.5, 0.0, 1.0),
-        "small_orange_cone": (1.0, 0.5, 0.0, 1.0),
-        "unknown_cone": (1.0, 1.0, 1.0, 1.0),
-    }
+    # (r,g,b,a), follow eunm order in cone msg
+    cubeColorLUT = [
+        (1.0, 1.0, 1.0, 1.0),
+        (0.0, 0.0, 1.0, 1.0),
+        (1.0, 1.0, 0.0, 1.0),
+        (1.0, 0.647, 0.0, 1.0),
+        (1.0, 0.647, 0.0, 1.0),
+    ]
 
-    def cubeMarkerFromCone(self, cone, type_cone, header, frame, id):
+    def cubeMarkerFromCone(self, cone, header, id):
         cube_marker = Marker()
         # populate the marker
         cube_marker.header = header
-        cube_marker.header.frame_id = frame
+        cube_marker.header.frame_id = header.frame_id
         cube_marker.ns = "utfr_foxglove"
         cube_marker.id = id
         cube_marker.type = 1  # cube
@@ -434,7 +434,7 @@ class VisualizationNode(Node):
         cube_marker.scale.y = 0.2
         cube_marker.scale.z = 0.2
 
-        color = self.cubeColorLUT[type_cone]
+        color = self.cubeColorLUT[cone.type]
         cube_marker.color.r = color[0]
         cube_marker.color.g = color[1]
         cube_marker.color.b = color[2]
@@ -455,37 +455,23 @@ class VisualizationNode(Node):
         unknown_cones = msg.unknown_cones
         i = 0
         for cone in left_cones:
-            cube_cone_dets.markers.append(
-                self.cubeMarkerFromCone(cone, "left_cone", msg.header, "ground", i)
-            )
+            cube_cone_dets.markers.append(self.cubeMarkerFromCone(cone, msg.header, i))
             i += 1
 
         for cone in right_cones:
-            cube_cone_dets.markers.append(
-                self.cubeMarkerFromCone(cone, "right_cone", msg.header, "ground", i)
-            )
+            cube_cone_dets.markers.append(self.cubeMarkerFromCone(cone, msg.header, i))
             i += 1
 
         for cone in large_orange_cones:
-            cube_cone_dets.markers.append(
-                self.cubeMarkerFromCone(
-                    cone, "large_orange_cone", msg.header, "ground", i
-                )
-            )
+            cube_cone_dets.markers.append(self.cubeMarkerFromCone(cone, msg.header, i))
             i += 1
 
         for cone in small_orange_cones:
-            cube_cone_dets.markers.append(
-                self.cubeMarkerFromCone(
-                    cone, "small_orange_cone", msg.header, "ground", i
-                )
-            )
+            cube_cone_dets.markers.append(self.cubeMarkerFromCone(cone, msg.header, i))
             i += 1
 
         for cone in unknown_cones:
-            cube_cone_dets.markers.append(
-                self.cubeMarkerFromCone(cone, "unknown_cone", msg.header, "ground", i)
-            )
+            cube_cone_dets.markers.append(self.cubeMarkerFromCone(cone, msg.header, i))
             i += 1
         self.cone_markers_publisher_.publish(cube_cone_dets)
 

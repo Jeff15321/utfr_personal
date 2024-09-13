@@ -53,7 +53,7 @@ def generate_launch_description():
             "bag",
             "play",
             os.path.expanduser(
-                "/media/utfr-dv/1tb ssd/rosbags/aug22_autoX_sensors_static/aug22_autoX_sensors_static.mcap"
+                "/media/utfr-dv/1tb ssd/rosbags/aug22_autoX_sensors_ccw/aug22_autoX_sensors_ccw.mcap"
             ),
             "-l",
         ],

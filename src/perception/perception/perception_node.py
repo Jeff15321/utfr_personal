@@ -858,6 +858,7 @@ class PerceptionNode(Node):
                 classes_right,
                 duplicate_threshold=0.1,
                 cost_threshold=1000.0,
+                depth_weight=0.5,
             )
 
             matched_cam_frame_left = []
@@ -942,7 +943,7 @@ class PerceptionNode(Node):
                 elif right_class[i] == "large_orange_cone":
                     cone.type = 4
                     cone_detections.large_orange_cones.append(cone)
-                else:  # unknown cones cone template type == 0\
+                else:  # unknown cones cone template type == 0
                     cone.type = 0
                     cone_detections.unknown_cones.append(cone)
 
@@ -1225,7 +1226,7 @@ class PerceptionNode(Node):
             return np.array([])  # Return an empty array in case of an exception
 
     def cost_mtx_from_bbox(
-        self, projected_lidar_detections, camera_detections, depth_weight
+        self, projected_lidar_detections, camera_detections, depth_factor
     ):
         cost_matrix = np.zeros(
             (len(projected_lidar_detections), len(camera_detections))
@@ -1249,7 +1250,7 @@ class PerceptionNode(Node):
 
                 # Add depth-based weighting to the cost
                 cost_matrix[i, j] = euclidean_distance * (
-                    1 + depth_weight * (lidar_depth)
+                    1 + depth_factor * (lidar_depth)
                 )
 
         return cost_matrix
@@ -1262,20 +1263,21 @@ class PerceptionNode(Node):
         classes_left,
         right_cam_dets,
         classes_right,
-        duplicate_threshold=0.1,
-        cost_threshold=1000.0,
+        duplicate_threshold,
+        cost_threshold,
+        depth_weight,
     ):
         """Performs Hungarian matching for lidar points and bounding boxes."""
 
         # Perform matching for left camera (with bounding boxes)
         cost_matrix_left = self.cost_mtx_from_bbox(
-            left_projected_lidar_pts, left_cam_dets, depth_weight=0.5
+            left_projected_lidar_pts, left_cam_dets, depth_factor=depth_weight
         )
         row_ind_left, col_ind_left = linear_sum_assignment(cost_matrix_left)
         print("COST LEFT", cost_matrix_left)
         # Perform matching for right camera (with bounding boxes)
         cost_matrix_right = self.cost_mtx_from_bbox(
-            right_projected_lidar_pts, right_cam_dets, depth_weight=0.5
+            right_projected_lidar_pts, right_cam_dets, depth_factor=depth_weight
         )
         row_ind_right, col_ind_right = linear_sum_assignment(cost_matrix_right)
         print("COST RIGHT", cost_matrix_right)
@@ -1284,7 +1286,7 @@ class PerceptionNode(Node):
         matched_lidar_left = [left_projected_lidar_pts[i] for i in row_ind_left]
         matched_lidar_right = [right_projected_lidar_pts[i] for i in row_ind_right]
 
-        # Combine matches and check for duplicates
+        # Combine matches and check for duplicatesdepth_weight=0.5
         left_matches = []
         right_matches = []
         left_classes = []
