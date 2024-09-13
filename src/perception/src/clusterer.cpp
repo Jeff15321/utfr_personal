@@ -71,6 +71,44 @@ PointCloud Clusterer::remove_ground(PointCloud points, Grid min_points_grid) {
   return filtered_points;
 }
 
+PointCloud Clusterer::remove_ground_himmelsbach(PointCloud points,
+                                                Grid min_points_grid) {
+  PointCloud min_points;
+  for (int i = 0; i < min_points_grid.size(); i++) {
+    for (int j = 0; j < min_points_grid[i].size(); j++) {
+      if (min_points_grid[i][j][2] < 99) {
+        min_points.push_back(min_points_grid[i][j]);
+      }
+    }
+  }
+
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+  cloud->width = min_points.size();
+  cloud->height = 1;
+  cloud->points.resize(cloud->width * cloud->height);
+  for (size_t i = 0; i < min_points.size(); ++i) {
+    cloud->points[i].x = min_points[i][0];
+    cloud->points[i].y = min_points[i][1];
+    cloud->points[i].z = min_points[i][2];
+  }
+
+  PointCloud filtered_points;
+  for (size_t i = 0; i < cloud->points.size(); ++i) {
+    float x = cloud->points[i].x;
+    float y = cloud->points[i].y;
+    float z = cloud->points[i].z;
+
+    float expected_ground_z = 0.0000001 * sqrt(x * x + y * y) - 100;
+
+    if (z > expected_ground_z + 0.00) {
+      filtered_points.push_back({x, y, z});
+    }
+  }
+
+  return filtered_points;
+}
+
 std::vector<Point> Clusterer::cluster(PointCloud points) {
   // Convert std::vector<Point> to pcl::PointCloud
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);

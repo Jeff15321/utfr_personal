@@ -46,6 +46,8 @@ void EkfNode::initParams() {
 
   last_gps_ = {0.0, 0.0};
   datum_yaw_ = NULL;
+  
+  tf_br_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
 }
 
 void EkfNode::initSubscribers() {
@@ -75,6 +77,9 @@ void EkfNode::initPublishers() {
 
   state_publisher = this->create_publisher<visualization_msgs::msg::Marker>(
       "IM_GONNA_KMS", 10);
+
+  navsatfix_publisher_ =
+      this->create_publisher<sensor_msgs::msg::NavSatFix>("xsens/gnss", 10);
 }
 
 void EkfNode::initTimers() {
@@ -98,9 +103,49 @@ void EkfNode::publishHeartbeat(const int status) {
   heartbeat_publisher_->publish(heartbeat_);
 }
 
+geometry_msgs::msg::TransformStamped EkfNode::map_to_imu_link(
+  const utfr_msgs::msg::EgoState &state){
+
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.stamp = this->get_clock()->now();
+  transform.header.frame_id = "map";
+  transform.child_frame_id = "imu_link";
+
+  transform.transform.translation.x = state.pose.pose.position.x;
+  transform.transform.translation.y = state.pose.pose.position.y;
+  transform.transform.translation.z = 0.265;
+
+  transform.transform.rotation = state.pose.pose.orientation;
+  return transform;
+}
+
+geometry_msgs::msg::TransformStamped EkfNode::map_to_base_footprint(
+  const utfr_msgs::msg::EgoState &state){
+
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.stamp = this->get_clock()->now();
+  transform.header.frame_id = "map";
+  transform.child_frame_id = "base_footprint";
+
+  transform.transform.translation.x = state.pose.pose.position.x;
+  transform.transform.translation.y = state.pose.pose.position.y;
+  transform.transform.translation.z = 0.0;
+  tf2::Quaternion q;
+  q.setRPY(M_PI, 0, util::quaternionToYaw(state.pose.pose.orientation));
+
+  transform.transform.rotation.x = q.x();
+  transform.transform.rotation.y = q.y();
+  transform.transform.rotation.z = q.z();
+  transform.transform.rotation.w = q.w();
+
+  return transform;
+}
+
 void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   double gps_x = msg.position.latitude;
   double gps_y = msg.position.longitude;
+
+  navsatfix_publisher_->publish(msg.position);
 
   if (datum_lla.x == 0.0 && datum_lla.y == 0.0 && datum_lla.z == 0.0) {
     datum_lla = geometry_msgs::msg::Vector3();
@@ -122,8 +167,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     lla.y = gps_y;
     lla.z = msg.position.altitude;
 
-    geometry_msgs::msg::Vector3 gps_ned = utfr_dv::util::convertLLAtoNED(
-      lla, datum_lla);
+    geometry_msgs::msg::Vector3 gps_ned =
+        utfr_dv::util::convertLLAtoNED(lla, datum_lla);
 
     gps_x = gps_ned.x;
     gps_y = gps_ned.y;
@@ -140,6 +185,7 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     // res.pose.pose.position.x = gps_x;
     // res.pose.pose.position.y = gps_y;
     res.header.stamp = this->get_clock()->now();
+    res.header.frame_id = "map";
 
     // Extract velocity data from SensorCan message
     double vel_x = msg.velocity.linear.x;
@@ -160,10 +206,10 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   double dt = (this->now() - prev_time_).seconds();
   prev_time_ = this->now();
   res = extrapolateState(msg.imu, dt);
-  res.pose.pose.orientation = utfr_dv::util::yawToQuaternion(utfr_dv::util::degToRad(msg.rpy.z) - datum_yaw_);
+  res.pose.pose.orientation = utfr_dv::util::yawToQuaternion(
+      utfr_dv::util::degToRad(msg.rpy.z) - datum_yaw_);
   res.header.stamp = this->get_clock()->now();
   current_state_ = res;
-
 
   visualization_msgs::msg::Marker marker;
   marker.header.frame_id = "os_sensor";
@@ -182,7 +228,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   //             res.pose.pose.position.x, res.pose.pose.position.y);
 
   // RCLCPP_WARN(this->get_logger(), "gps: x: %f, y: %f", gps_x, gps_y);
-  // RCLCPP_WARN(this->get_logger(), "ekf: x: %f, y: %f", current_state_.pose.pose.position.x, current_state_.pose.pose.position.y);
+  // RCLCPP_WARN(this->get_logger(), "ekf: x: %f, y: %f",
+  // current_state_.pose.pose.position.x, current_state_.pose.pose.position.y);
 
   if (false) {
     marker.pose.position.y = gps_x;
@@ -209,6 +256,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
 
   // Publish the updated state
   ego_state_publisher_->publish(res);
+  tf_br_->sendTransform(map_to_imu_link(res));
+  tf_br_->sendTransform(map_to_base_footprint(res));
 }
 
 // sensor_msgs/NavSatFix position
@@ -499,7 +548,8 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y,
   return state_msg;
 }
 
-utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
+utfr_msgs::msg::EgoState
+EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
 
   Eigen::MatrixXd F; // State transition matrix
   Eigen::MatrixXd G; // Control input matrix
@@ -547,7 +597,7 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
   Q_(2, 2) = 0.05;    // Variance for x velocity, m/s
   Q_(3, 3) = 0.05;    // Variance for y velocity
   Q_(4, 4) = 0.00872; // Variance for yaw in radian
-  Q_(5, 5) = 1;  // Variance for yaw rate, to be tuned
+  Q_(5, 5) = 1;       // Variance for yaw rate, to be tuned
 
   P_ = F * P_ * F.transpose() + Q_;
 
@@ -564,7 +614,6 @@ utfr_msgs::msg::EgoState EkfNode::extrapolateState(const sensor_msgs::msg::Imu i
 
   return state_msg;
 }
-
 
 void EkfNode::timerCB() {}
 

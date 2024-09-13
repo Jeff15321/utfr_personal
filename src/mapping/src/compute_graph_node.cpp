@@ -273,6 +273,7 @@ void ComputeGraphNode::graphSLAM() {
 
       // Create a cone object then add it to the cone map
       utfr_msgs::msg::Cone cone;
+      cone.header.frame_id = "map";
       cone.pos.x = x;
       cone.pos.y = y;
 

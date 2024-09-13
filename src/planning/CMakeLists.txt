@@ -29,6 +29,9 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     Boost
     eufs_msgs
     visualization_msgs
+    tf2
+    tf2_ros
+    tf2_geometry_msgs
 )
 
 ## Find Dependencies

@@ -23,6 +23,9 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     utfr_common
     PCL
     Eigen3
+    tf2
+    tf2_ros
+    tf2_sensor_msgs
 )
 
 ## Find Dependencies
