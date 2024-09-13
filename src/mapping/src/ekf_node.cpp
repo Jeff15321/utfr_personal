@@ -46,7 +46,7 @@ void EkfNode::initParams() {
 
   last_gps_ = {0.0, 0.0};
   datum_yaw_ = NULL;
-  
+
   tf_br_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
 }
 
@@ -103,8 +103,8 @@ void EkfNode::publishHeartbeat(const int status) {
   heartbeat_publisher_->publish(heartbeat_);
 }
 
-geometry_msgs::msg::TransformStamped EkfNode::map_to_imu_link(
-  const utfr_msgs::msg::EgoState &state){
+geometry_msgs::msg::TransformStamped
+EkfNode::map_to_imu_link(const utfr_msgs::msg::EgoState &state) {
 
   geometry_msgs::msg::TransformStamped transform;
   transform.header.stamp = this->get_clock()->now();
@@ -119,8 +119,8 @@ geometry_msgs::msg::TransformStamped EkfNode::map_to_imu_link(
   return transform;
 }
 
-geometry_msgs::msg::TransformStamped EkfNode::map_to_base_footprint(
-  const utfr_msgs::msg::EgoState &state){
+geometry_msgs::msg::TransformStamped
+EkfNode::map_to_base_footprint(const utfr_msgs::msg::EgoState &state) {
 
   geometry_msgs::msg::TransformStamped transform;
   transform.header.stamp = this->get_clock()->now();
@@ -170,11 +170,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     geometry_msgs::msg::Vector3 gps_ned =
         utfr_dv::util::convertLLAtoNED(lla, datum_lla);
 
-    gps_x = gps_ned.x;
-    gps_y = gps_ned.y;
-
-    gps_x = gps_x * cos(datum_yaw_) + gps_y * sin(datum_yaw_);
-    gps_y = -gps_x * sin(datum_yaw_) + gps_y * cos(datum_yaw_);
+    gps_x = gps_ned.x * cos(datum_yaw_) + gps_ned.y * sin(datum_yaw_);
+    gps_y = -gps_ned.x * sin(datum_yaw_) + gps_ned.y * cos(datum_yaw_);
 
     // Get yaw directly from IMU
     double imu_yaw = utfr_dv::util::degToRad(msg.rpy.z);
@@ -212,28 +209,13 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   current_state_ = res;
 
   visualization_msgs::msg::Marker marker;
-  marker.header.frame_id = "os_sensor";
+  marker.header.frame_id = "map";
   marker.header.stamp = this->get_clock()->now();
-  marker.type = visualization_msgs::msg::Marker::ARROW;
-
-  // marker.pose.position.x = res.pose.pose.position.x;
-  // marker.pose.position.y = res.pose.pose.position.y;
-  // marker.pose.position.z = 0.0;
-
-  // marker.pose.position.x = 0.0;
-  // marker.pose.position.y = 0.0;
-  // marker.pose.position.z = 0.0;
-
-  // RCLCPP_WARN(this->get_logger(), "estimated: x: %f, y: %f",
-  //             res.pose.pose.position.x, res.pose.pose.position.y);
-
-  // RCLCPP_WARN(this->get_logger(), "gps: x: %f, y: %f", gps_x, gps_y);
-  // RCLCPP_WARN(this->get_logger(), "ekf: x: %f, y: %f",
-  // current_state_.pose.pose.position.x, current_state_.pose.pose.position.y);
+  marker.type = visualization_msgs::msg::Marker::CUBE;
 
   if (false) {
-    marker.pose.position.y = gps_x;
-    marker.pose.position.x = gps_y;
+    marker.pose.position.y = 0.0;
+    marker.pose.position.x = 0.0;
     marker.pose.position.z = 0.0;
   } else {
     marker.pose.position.x = current_state_.pose.pose.position.y;
@@ -243,9 +225,9 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
 
   marker.pose.orientation = res.pose.pose.orientation;
 
-  marker.scale.x = 0.5;
-  marker.scale.y = 0.2;
-  marker.scale.z = 0.2;
+  marker.scale.x = 1.8;
+  marker.scale.y = 0.8;
+  marker.scale.z = 0.5;
 
   marker.color.a = 1.0;
   marker.color.r = 0.0;
@@ -259,64 +241,6 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   tf_br_->sendTransform(map_to_imu_link(res));
   tf_br_->sendTransform(map_to_base_footprint(res));
 }
-
-// sensor_msgs/NavSatFix position
-// sensor_msgs/Imu imu
-/*
-void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
-  double x = msg.pose.pose.position.x;
-  double y = msg.pose.pose.position.y;
-  double yaw = utfr_dv::util::quaternionToYaw(msg.pose.pose.orientation);
-  // Add random noise to the measurement with a covarience of 0.001
-  double standardDeviation = std::sqrt(0.001);
-
-  // Initialize a random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::normal_distribution<double> distribution(0.0, standardDeviation);
-
-  std::default_random_engine generator;
-  // Create a uniform distribution for angle between 0 and 2*PI
-  std::uniform_real_distribution<double> angle_distribution(0.0, 2 * M_PI);
-
-  // Generate a random angle
-  double angle = angle_distribution(generator);
-  // Add noise to the ground truth value
-  x += distribution(gen) * cos(angle);
-  y += distribution(gen) * sin(angle);
-
-  // get the velocity from the GPS
-  double vel_x = msg.twist.twist.linear.x;
-  double vel_y = msg.twist.twist.linear.y;
-  double vel_yaw = msg.twist.twist.angular.z;
-
-  utfr_msgs::msg::EgoState res = updateState(x, y, -yaw);
-  // std::cout << "x: " << res.pose.pose.position.x << " y: " <<
-  // res.pose.pose.position.y << std::endl;
-  res.header.stamp = this->get_clock()->now();
-  res.vel.twist.linear.x = vel_x;
-  res.vel.twist.linear.y = vel_y;
-  res.vel.twist.angular.z = vel_yaw;
-  current_state_ = res;
-
-  res.pose.pose.position.y = -res.pose.pose.position.y;
-  ego_state_publisher_->publish(res);
-}
-
-void EkfNode::imuCB(const sensor_msgs::msg::Imu msg) {
-  double dt = (this->now() - prev_time_).seconds();
-  prev_time_ = this->now();
-
-  utfr_msgs::msg::EgoState res = extrapolateState(msg, dt);
-  res.header.stamp = this->get_clock()->now();
-  current_state_ = res;
-
-  res.pose.pose.position.y = -res.pose.pose.position.y;
-  ego_state_publisher_->publish(res);
-  // std::cout << "x: " << res.pose.pose.position.x << " y: " <<
-  // res.pose.pose.position.y << std::endl;
-}
-*/
 
 void EkfNode::kinematicBicycleModel(const float &throttle, const float &brake,
                                     const float &steering_angle,
