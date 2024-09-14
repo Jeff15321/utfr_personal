@@ -157,6 +157,10 @@ void LidarProcNode::initSubscribers() {
       this->create_subscription<sensor_msgs::msg::CompressedImage>(
           "/right_camera_node/images/compressed", 10,
           std::bind(&LidarProcNode::rightImageCB, this, _1));
+  ego_state_subscriber = 
+      this->create_subscription<utfr_msgs::msg::EgoState>(
+          topics::kEgoState, 10,
+          std::bind(&LidarProcNode::egoStateCB, this, _1));
 }
 
 void LidarProcNode::initPublishers() {
@@ -174,6 +178,8 @@ void LidarProcNode::initPublishers() {
   right_image_publisher =
       this->create_publisher<sensor_msgs::msg::CompressedImage>(
           "synced_right_image", 10);
+  ego_state_publisher =
+      this->create_publisher<utfr_msgs::msg::EgoState>("synced_ego_state", 10);
 }
 
 void LidarProcNode::initTimers() {
@@ -296,6 +302,7 @@ void LidarProcNode::pointCloudCallback(
 
   left_image_publisher->publish(left_img);
   right_image_publisher->publish(right_img);
+  ego_state_publisher->publish(ego_state);
 
   hold_image = false;
 
@@ -321,6 +328,17 @@ void LidarProcNode::rightImageCB(
     right_img.format = msg->format;
 
     right_img.data = msg->data;
+  }
+}
+
+void LidarProcNode::egoStateCB(const utfr_msgs::msg::EgoState::SharedPtr msg) {
+  if (!hold_image){
+    ego_state.header = msg->header;
+
+    ego_state.pose = msg->pose;
+    ego_state.accel = msg->accel;
+    ego_state.vel = msg->vel;
+    ego_state.steering_angle = msg->steering_angle;
   }
 }
 

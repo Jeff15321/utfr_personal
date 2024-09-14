@@ -44,6 +44,7 @@ from utfr_msgs.msg import Heartbeat
 from utfr_msgs.msg import Cone
 from utfr_msgs.msg import BoundingBox
 from utfr_msgs.msg import PerceptionDebug
+from utfr_msgs.msg import EgoState
 from geometry_msgs.msg import PointStamped, Point
 
 
@@ -376,6 +377,10 @@ class PerceptionNode(Node):
             callback_group=self.lidar_group,
         )
 
+        self.ego_state_subscriber_ = self.create_subscription(
+            EgoState, "synced_ego_state", self.egoStateCB, 1
+        )
+
         # Latching Subscribers:
         qos_latching = QoSProfile(
             depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL
@@ -417,6 +422,10 @@ class PerceptionNode(Node):
 
         self.heartbeat_publisher_ = self.create_publisher(
             Heartbeat, self.heartbeat_topic_, 1
+        )
+
+        self.ego_state_publisher = self.create_publisher(
+            EgoState, "perception_ego_state", 1
         )
 
         if self.debug_:
@@ -690,6 +699,12 @@ class PerceptionNode(Node):
         self.lidar_msg = msg  # Store the incoming lidar data
         if self.lidar_msg:
             self.new_lidar_msg_received_ = True
+
+    def egoStateCB(self, msg):
+        """
+        Callback function for ego state subscriber
+        """
+        self.ego_state = msg
 
     def process(self, left_img_, right_img_):
         """
@@ -978,6 +993,8 @@ class PerceptionNode(Node):
 
         else:
             self.publish_cone_dets_lidar()
+
+        self.ego_state_publisher.publish(self.ego_state)
 
         # publish the heartbeat
         self.publishHeartbeat()
