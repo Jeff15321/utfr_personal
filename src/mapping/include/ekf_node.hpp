@@ -200,6 +200,7 @@ public:
   rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr
       navsatfix_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr state_publisher;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr gps_state_publisher;
 
   // Subscribers
   // SensorCAN handles GPS, IMU, and wheel/steering speed data!

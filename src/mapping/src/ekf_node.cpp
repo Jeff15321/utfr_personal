@@ -78,6 +78,9 @@ void EkfNode::initPublishers() {
   state_publisher = this->create_publisher<visualization_msgs::msg::Marker>(
       "IM_GONNA_KMS", 10);
 
+  gps_state_publisher = this->create_publisher<visualization_msgs::msg::Marker>(
+      "GPS_STATE", 10);
+
   navsatfix_publisher_ =
       this->create_publisher<sensor_msgs::msg::NavSatFix>("xsens/gnss", 10);
 }
@@ -160,6 +163,10 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
 
   utfr_msgs::msg::EgoState res;
 
+  // Get yaw directly from IMU
+  double imu_yaw = utfr_dv::util::degToRad(msg.rpy.z);
+  imu_yaw -= datum_yaw_;
+
   // Check if the current gps position is the same as the last gps position
   if (last_gps_[0] != gps_x && last_gps_[1] != gps_y) {
     geometry_msgs::msg::Vector3 lla;
@@ -173,10 +180,6 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     gps_y = gps_ned.x * cos(datum_yaw_) + gps_ned.y * sin(datum_yaw_);
     gps_x = -gps_ned.x * sin(datum_yaw_) + gps_ned.y * cos(datum_yaw_);
 
-    // Get yaw directly from IMU
-    double imu_yaw = utfr_dv::util::degToRad(msg.rpy.z);
-    imu_yaw -= datum_yaw_;
-
     // Update state with GPS position, IMU yaw, and extracted velocities
     res = updateState(gps_x, gps_y, imu_yaw);
     // res.pose.pose.position.x = gps_x;
@@ -184,20 +187,45 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     res.header.stamp = this->get_clock()->now();
     res.header.frame_id = "map";
 
-    // Extract velocity data from SensorCan message
-    double vel_x = msg.velocity.linear.x;
-    double vel_y = msg.velocity.linear.y;
-    double vel_yaw = 0;
-
-    res.vel.twist.linear.x = vel_x * cos(datum_yaw_) + vel_y * sin(datum_yaw_);
-    res.vel.twist.linear.y = -vel_x * sin(datum_yaw_) + vel_y * cos(datum_yaw_);
-    res.vel.twist.angular.z = vel_yaw;
-
     current_state_ = res;
 
     last_gps_[0] = gps_x;
     last_gps_[1] = gps_y;
+
+    visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = "os_sensor";
+    marker.header.stamp = this->get_clock()->now();
+    marker.type = visualization_msgs::msg::Marker::CUBE;
+
+    marker.pose.position.y = current_state_.pose.pose.position.y;
+    marker.pose.position.x = current_state_.pose.pose.position.x;
+    marker.pose.position.z = 0.0;
+
+    marker.pose.orientation = res.pose.pose.orientation;
+
+    marker.scale.x = 1.8;
+    marker.scale.y = 0.8;
+    marker.scale.z = 0.5;
+
+    marker.color.a = 1.0;
+    marker.color.r = 0.0;
+    marker.color.g = 0.0;
+    marker.color.b = 1.0;
+
+    gps_state_publisher->publish(marker);
+
+  } else {
+    current_state_.pose.pose.orientation = utfr_dv::util::yawToQuaternion(imu_yaw);
   }
+
+  // Extract velocity data from SensorCan message
+  double vel_x = msg.velocity.linear.x;
+  double vel_y = msg.velocity.linear.y;
+  double vel_yaw = msg.velocity.angular.z;
+
+  current_state_.vel.twist.linear.x = vel_y * cos(datum_yaw_) + vel_x * sin(datum_yaw_);
+  current_state_.vel.twist.linear.y = -vel_y * sin(datum_yaw_) + vel_x * cos(datum_yaw_);
+  current_state_.vel.twist.angular.z = vel_yaw;
 
   // Extrapolate state using IMU data
   double dt = (this->now() - prev_time_).seconds();
@@ -205,11 +233,14 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   res = extrapolateState(msg.imu, dt);
   res.pose.pose.orientation = utfr_dv::util::yawToQuaternion(
       utfr_dv::util::degToRad(msg.rpy.z) - datum_yaw_);
-  res.header.stamp = this->get_clock()->now();
-  current_state_ = res;
 
+  res.vel.twist.linear.x = sqrt(pow(msg.velocity.linear.x, 2) + pow(msg.velocity.linear.y, 2));
+  res.vel.twist.linear.y = 0;
+  res.header.stamp = this->get_clock()->now();
+  
+  current_state_ = res;
   visualization_msgs::msg::Marker marker;
-  marker.header.frame_id = "map";
+  marker.header.frame_id = "os_sensor";
   marker.header.stamp = this->get_clock()->now();
   marker.type = visualization_msgs::msg::Marker::CUBE;
 
@@ -240,182 +271,6 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   ego_state_publisher_->publish(res);
   tf_br_->sendTransform(map_to_imu_link(res));
   tf_br_->sendTransform(map_to_base_footprint(res));
-}
-
-void EkfNode::kinematicBicycleModel(const float &throttle, const float &brake,
-                                    const float &steering_angle,
-                                    const double dt) {
-  // Get the parameters of the vehicle
-  double mass = vehicle_params_.inertia.mass;
-  double l_f = vehicle_params_.kinematics.l_f;
-  double l_r = vehicle_params_.kinematics.l_r;
-  double drag_coefficient = vehicle_params_.kinematics.drag_coefficient;
-  double rolling_resistance_coefficient =
-      vehicle_params_.kinematics.rolling_resistance_coefficient;
-
-  // Get the current angle
-  double yaw =
-      utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation);
-
-  // Get the convertsion matrix
-  Eigen::MatrixXd R_2D = Eigen::MatrixXd::Zero(2, 2);
-  R_2D(0, 0) = cos(yaw);
-  R_2D(0, 1) = -sin(yaw);
-  R_2D(1, 0) = sin(yaw);
-  R_2D(1, 1) = cos(yaw);
-
-  // Convert the global velocity to the local frame
-  Eigen::Vector2d global_velocity = Eigen::Vector2d(
-      current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y);
-  Eigen::Vector2d local_velocity = R_2D * global_velocity;
-
-  // Get the local velocity components
-  double local_velocity_x = local_velocity(0);
-  double local_velocity_y = local_velocity(1);
-  double local_velocity_magnitude =
-      std::sqrt(local_velocity_x * local_velocity_x +
-                local_velocity_y * local_velocity_y);
-
-  // Get the local position
-  Eigen::Vector2d global_position = Eigen::Vector2d(
-      current_state_.pose.pose.position.x, current_state_.pose.pose.position.y);
-  Eigen::Vector2d local_position = R_2D.transpose() * global_position;
-  double local_x = local_position(0);
-  double local_y = local_position(1);
-
-  // Get the mnet force in the x direction
-  double throttle_force = throttle * mass;
-  double brake_force = (brake)*mass;
-  double drag_force = drag_coefficient * local_velocity_x * local_velocity_x;
-  double rolling_resistance_force =
-      (local_velocity_magnitude > 0)
-          ? rolling_resistance_coefficient * mass * 9.81
-          : 0.0;
-  double net_force_x =
-      throttle_force - brake_force - drag_force - rolling_resistance_force;
-
-  // Calculate the lateral force
-  double lateral_force =
-      (mass * local_velocity_x * local_velocity_x / (l_f + l_r)) *
-      tan(steering_angle);
-
-  // Calculate acceleration
-  double acceleration_x = net_force_x / mass;
-  double acceleration_y = lateral_force / mass;
-
-  // Update velocity
-  double updated_local_velocity_x = local_velocity_x + acceleration_x * dt;
-  double updated_local_velocity_y = local_velocity_y + acceleration_y * dt;
-
-  // Position update
-  double updated_local_x =
-      local_x + local_velocity_x * dt + 0.5 * acceleration_x * dt * dt;
-  double updated_local_y =
-      local_y + local_velocity_y * dt + 0.5 * acceleration_y * dt * dt;
-
-  // Yaw update
-  double yaw_rate =
-      local_velocity_magnitude * tan(steering_angle) / (l_f + l_r);
-  double updated_yaw = yaw + yaw_rate * dt;
-
-  // Convert the local frame back to global frame
-  Eigen::Vector2d updated_global_velocity =
-      R_2D.transpose() *
-      Eigen::Vector2d(updated_local_velocity_x, updated_local_velocity_y);
-  Eigen::Vector2d updated_global_position =
-      R_2D * Eigen::Vector2d(updated_local_x, updated_local_y);
-
-  // Update the current state
-  current_state_.pose.pose.position.x = updated_global_position(0);
-  current_state_.pose.pose.position.y = updated_global_position(1);
-  current_state_.vel.twist.linear.x = updated_global_velocity(0);
-  current_state_.vel.twist.linear.y = updated_global_velocity(1);
-  current_state_.pose.pose.orientation =
-      utfr_dv::util::yawToQuaternion(updated_yaw);
-  current_state_.vel.twist.angular.z = yaw_rate;
-}
-
-void EkfNode::dynamicBicycleModel(const float &throttle, const float &brake,
-                                  const float &steering_angle,
-                                  const double dt) {
-  // Get the parameters of the vehicle
-  double mass = vehicle_params_.inertia.mass;
-  double c_r = vehicle_params_.tire.c_r;
-  double c_f = vehicle_params_.tire.c_f;
-  double l_f = vehicle_params_.kinematics.l_f;
-  double l_r = vehicle_params_.kinematics.l_r;
-  double Izz = vehicle_params_.inertia.Izz;
-  double drag_coefficient = vehicle_params_.kinematics.drag_coefficient;
-  double rolling_resistance_coefficient =
-      vehicle_params_.kinematics.rolling_resistance_coefficient;
-
-  // Get the current state of the vehicle
-  double global_x = current_state_.pose.pose.position.x;
-  double global_y = current_state_.pose.pose.position.y;
-  double angular_velocity = -1 * current_state_.vel.twist.angular.z;
-  double yaw =
-      utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation);
-
-  // Form a matrix to convert the global velocity to the local frame
-  Eigen::MatrixXd R_2D = Eigen::MatrixXd::Zero(2, 2);
-  R_2D(0, 0) = cos(yaw);
-  R_2D(0, 1) = -sin(yaw);
-  R_2D(1, 0) = sin(yaw);
-  R_2D(1, 1) = cos(yaw);
-
-  // Convert the global velocity to the local frame
-  Eigen::Vector2d global_velocity = Eigen::Vector2d(
-      current_state_.vel.twist.linear.x, current_state_.vel.twist.linear.y);
-  Eigen::Vector2d local_velocity = R_2D * global_velocity;
-  double local_velocity_x = local_velocity(0);
-  double local_velocity_y = local_velocity(1);
-
-  // Find the slip angles for the front and rear tires and the lateral forces
-  double slip_angle_front =
-      atan((local_velocity_y + l_r * angular_velocity) / local_velocity_x);
-  double Fy_f = c_r * slip_angle_front;
-  double slip_angle_rear =
-      atan((local_velocity_y - l_f * angular_velocity) / local_velocity_x) -
-      steering_angle;
-  double Fy_r = c_f * slip_angle_rear;
-
-  // Calculate the net longitudinal force
-  double Fx = throttle * mass - brake * mass -
-              drag_coefficient * local_velocity_x -
-              rolling_resistance_coefficient * mass * 9.81;
-
-  // Calculate the accerlation in the x_direction
-  double a_x = Fx / mass;
-
-  // Find the state updates
-  double delta_vx = angular_velocity * local_velocity_y + a_x -
-                    (drag_coefficient * local_velocity_x * local_velocity_x +
-                     2 * Fy_f * sin(steering_angle)) /
-                        mass;
-  double delta_vy = 2 * (Fy_f * cos(steering_angle) + Fy_r) / mass -
-                    angular_velocity * local_velocity_x;
-  double delta_vphi = 2 * (Fy_f * l_f * cos(steering_angle) - Fy_r * l_r) / Izz;
-
-  // Update the local velocity
-  local_velocity_x += delta_vx * dt;
-  local_velocity_y += delta_vy * dt;
-
-  // Converit it back to the global frame
-  Eigen::Vector2d updated_global_velocity =
-      R_2D.transpose() * Eigen::Vector2d(local_velocity_x, local_velocity_y);
-
-  // Update the global position
-  global_x += updated_global_velocity(0) * dt;
-  global_y += updated_global_velocity(1) * dt;
-
-  // Update the current state
-  current_state_.pose.pose.position.x = global_x;
-  current_state_.pose.pose.position.y = global_y;
-  current_state_.vel.twist.linear.x = updated_global_velocity(0);
-  current_state_.vel.twist.linear.y = updated_global_velocity(1);
-  yaw += angular_velocity * dt;
-  current_state_.pose.pose.orientation = utfr_dv::util::yawToQuaternion(yaw);
-  current_state_.vel.twist.angular.z += delta_vphi * dt;
 }
 
 utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y,
@@ -481,18 +336,18 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
   double yaw =
       utfr_dv::util::quaternionToYaw(current_state_.pose.pose.orientation);
   F = Eigen::MatrixXd::Identity(6, 6);
-  F(0, 2) = cos(yaw) * dt;
-  F(0, 3) = sin(yaw) * dt;
-  F(1, 2) = -sin(yaw) * dt;
-  F(1, 3) = cos(yaw) * dt;
+  F(0, 2) = dt;
+  F(0, 3) = dt;
+  F(1, 2) = dt;
+  F(1, 3) = dt;
   F(4, 5) = dt;
   F(5, 5) = 0;
 
   G = Eigen::MatrixXd::Zero(6, 3);
-  G(0, 0) = 0.5 * dt * dt * cos(yaw);
-  G(1, 0) = -0.5 * dt * dt * sin(yaw);
-  G(0, 1) = 0.5 * dt * dt * sin(yaw);
-  G(1, 1) = 0.5 * dt * dt * cos(yaw);
+  G(0, 0) = 0.5 * dt * dt;
+  G(1, 0) = -0.5 * dt * dt;
+  G(0, 1) = 0.5 * dt * dt;
+  G(1, 1) = 0.5 * dt * dt;
   G(2, 0) = dt;
   G(3, 0) = dt;
   G(4, 2) = dt;
@@ -507,9 +362,18 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
       current_state_.vel.twist.linear.y, yaw,
       current_state_.vel.twist.angular.z;
 
+  // Transform the acceleration data from the IMU to the map frame
+  double accel_x = imu.linear_acceleration.x;
+  double accel_y = imu.linear_acceleration.y;
+
+  sensor_msgs::msg::Imu imu_msg = imu;
+
+  imu_msg.linear_acceleration.y = accel_x * cos(datum_yaw_) + accel_y * sin(datum_yaw_);
+  imu_msg.linear_acceleration.x = -accel_x * sin(datum_yaw_) + accel_y * cos(datum_yaw_);
+
   Eigen::VectorXd input = Eigen::VectorXd(3);
-  input << imu.linear_acceleration.x, imu.linear_acceleration.y,
-      -imu.angular_velocity.z;
+  input << imu_msg.linear_acceleration.x, imu_msg.linear_acceleration.y,
+      -imu_msg.angular_velocity.z;
   state = F * state + G * input;
 
   // Extrapolate uncertainty

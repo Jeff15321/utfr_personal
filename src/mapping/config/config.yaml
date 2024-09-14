@@ -11,7 +11,7 @@ ekf_node: # Name of Module
 
 build_graph_node: # Name of Module
   ros__parameters:
-    update_rate: 33.33 #[ms]
+    update_rate: 100.00 #[ms]
     slam_rate: 33.33 #[ms]
     # MAPPING MODE
     # 0: Full SLAM
@@ -23,8 +23,8 @@ build_graph_node: # Name of Module
 
 compute_graph_node: # Name of Module
   ros__parameters:
-    update_rate: 33.33 #[ms]
-    slam_rate: 33.33 #[ms]
+    update_rate: 100.00 #[ms]
+    slam_rate: 100.00 #[ms]
     # MAPPING MODE
     # 0: Full SLAM
     # 1: Only Localize

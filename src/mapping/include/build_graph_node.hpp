@@ -38,6 +38,8 @@
 #include <utfr_msgs/msg/pose_graph.hpp>
 #include <utfr_msgs/msg/pose_graph_data.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 // Import G2O 2D Slam types
 #include <g2o/types/slam2d/types_slam2d.h>
@@ -135,6 +137,7 @@ public:
   rclcpp::Publisher<utfr_msgs::msg::PoseGraph>::SharedPtr pose_graph_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::ConeMap>::SharedPtr cone_map_publisher_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr loop_closure_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr cone_viz_publisher_;
 
   // Subscribers
   rclcpp::Subscription<utfr_msgs::msg::ConeDetections>::SharedPtr

@@ -39,6 +39,11 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
   this->initTimers();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
 
+  visualization_msgs::msg::MarkerArray marker_array;
+  visualization_msgs::msg::Marker marker;
+  marker.action = visualization_msgs::msg::Marker::DELETEALL;
+  marker_array.markers.push_back(marker);
+  cone_viz_publisher_->publish(marker_array);
 }
 
 using SlamBlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1>>;
@@ -46,7 +51,7 @@ using SlamLinearSolver =
     g2o::LinearSolverEigen<SlamBlockSolver::PoseMatrixType>;
 
 void BuildGraphNode::initParams() {
-  this->declare_parameter("update_rate", 33.33);
+  this->declare_parameter("update_rate", 100.00);
   update_rate_ = this->get_parameter("update_rate").as_double();
   this->declare_parameter("mapping_mode", 0);
   mapping_mode_ = this->get_parameter("mapping_mode").as_int();
@@ -112,6 +117,14 @@ void BuildGraphNode::initPublishers() {
         this->create_publisher<std_msgs::msg::Bool>(topics::kLoopClosed, 10);
   }
 
+  cone_viz_publisher_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("ConeViz", 10);
+
+  visualization_msgs::msg::MarkerArray marker_array;
+  visualization_msgs::msg::Marker marker;
+  marker.action = visualization_msgs::msg::Marker::DELETEALL;
+  marker_array.markers.push_back(marker);
+  cone_viz_publisher_->publish(marker_array);
 }
 
 void BuildGraphNode::initTimers() {
@@ -263,7 +276,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           position_x_, nearestCone.x, position_y_, nearestCone.y);
 
       // Do not add if its within 1 of an already seen cone
-      if (displacement <= 1 && colour == cone_id_to_color_map_[nearestCone.id]) {
+      if (displacement <= 2) {
         // Add the ID to the list
         cones_id_list_.push_back(nearestCone.id);
         average_position_[nearestCone.id][0] += position_x_;
@@ -326,13 +339,13 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           std::get<1>(potentialPoint));
 
       // Check if cone within 1 of any other new detected cone
-      if (temp_displacement_ <= 0.1 && colour == std::get<2>(potentialPoint)) {
+      if (temp_displacement_ <= 2 && colour == std::get<2>(potentialPoint)) {
         count_ += 1;
         keys.push_back(key_);
         // Check if 30 of same detected
         true_coordinate_x += std::get<0>(potentialPoint);
         true_coordinate_y += std::get<1>(potentialPoint);
-        int count_threshold = 100;
+        int count_threshold = 5;
         if (count_ == count_threshold) {
 
           double average_x = position_x_;
@@ -343,7 +356,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
             double temp_displacement_ = utfr_dv::util::euclidianDistance2D(
                 average_x / number_of_points, std::get<0>(it->second),
                 average_y / number_of_points, std::get<1>(it->second));
-            if (temp_displacement_ <= 0.1) {
+            if (temp_displacement_ <= 2) {
               average_x += std::get<0>(it->second);
               average_y += std::get<1>(it->second);
               number_of_points += 1;
@@ -467,6 +480,72 @@ void BuildGraphNode::timerCB() {
   // Print the x and y position of the car
   current_state_ = current_ego_state_;
 
+  visualization_msgs::msg::MarkerArray markerArray;
+
+  int count = 0;
+
+  for (utfr_msgs::msg::Cone cone : current_cone_detections_.left_cones) {
+    count += 1;
+    visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = "os_sensor";
+    marker.header.stamp = this->get_clock()->now();
+    marker.id = count;
+    marker.type = visualization_msgs::msg::Marker::SPHERE;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.pose.position.x = cone.pos.x;
+    marker.pose.position.y = cone.pos.y;
+    marker.pose.position.z = 0;
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0.5;
+    marker.color.a = 1.0; // Don't forget to set the alpha!
+    marker.color.r = 0.0;
+    marker.color.g = 0.0;
+    marker.color.b = 1.0;
+    markerArray.markers.push_back(marker);
+  }
+
+  for (utfr_msgs::msg::Cone cone : current_cone_detections_.right_cones) {
+    count += 1;
+    visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = "os_sensor";
+    marker.header.stamp = this->get_clock()->now();
+    marker.id = count;
+    marker.type = visualization_msgs::msg::Marker::SPHERE;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.pose.position.x = cone.pos.x;
+    marker.pose.position.y = cone.pos.y;
+    marker.pose.position.z = 0;
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0.5;
+    marker.color.a = 1.0; // Don't forget to set the alpha!
+    marker.color.r = 0.0;
+    marker.color.g = 0.5;
+    marker.color.b = 0.5;
+    markerArray.markers.push_back(marker);
+  }
+
+  for (int i = count+1; i < 15; i++) {
+    // Delete the marker if it's not being used
+    visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = "os_sensor";
+    marker.header.stamp = this->get_clock()->now();
+    marker.id = i;
+    marker.type = visualization_msgs::msg::Marker::SPHERE;
+    marker.action = visualization_msgs::msg::Marker::DELETE;
+    markerArray.markers.push_back(marker);
+  }
+
+  // cone_viz_publisher_->publish(markerArray);
 
   if (current_pose_id_ == 1000) {
     current_state_.pose.pose.position.x = 0;
