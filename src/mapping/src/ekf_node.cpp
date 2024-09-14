@@ -430,9 +430,9 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y,
   H(2, 4) = 1; // Map yaw
 
   R = Eigen::MatrixXd::Identity(3, 3);
-  R(0, 0) = 0.05; // Variance for x measurement
-  R(1, 1) = 0.05; // Variance for y measurement
-  R(2, 2) = 0.05; // Variance for yaw measurement
+  R(0, 0) = 0.06; // Variance for x measurement
+  R(1, 1) = 0.06; // Variance for y measurement
+  R(2, 2) = 0.06; // Variance for yaw measurement
 
   // Compute the Kalman gain
   // K = P * H^T * (H * P * H^T + R)^-1
@@ -518,10 +518,10 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
   Q_ = Eigen::MatrixXd::Identity(6, 6);
   Q_(0, 0) = 0.001;    // Variance for x position, in m
   Q_(1, 1) = 0.001;    // Variance for y position
-  Q_(2, 2) = 0.02;    // Variance for x velocity, m/s
-  Q_(3, 3) = 0.02;    // Variance for y velocity
+  Q_(2, 2) = 0.01;    // Variance for x velocity, m/s
+  Q_(3, 3) = 0.01;    // Variance for y velocity
   Q_(4, 4) = 0.00872; // Variance for yaw in radian
-  Q_(5, 5) = 0.02;       // Variance for yaw rate, to be tuned
+  Q_(5, 5) = 0.08;       // Variance for yaw rate, to be tuned
 
 
   P_ = F * P_ * F.transpose() + Q_;
