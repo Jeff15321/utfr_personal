@@ -195,8 +195,30 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
 
     current_state_ = res;
 
-    last_gps_[0] = gps_x;
-    last_gps_[1] = gps_y;
+    last_gps_[0] = msg.position.latitude;
+    last_gps_[1] = msg.position.longitude;
+
+    visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = "map";
+    marker.header.stamp = this->get_clock()->now();
+    marker.type = visualization_msgs::msg::Marker::CUBE;
+
+    marker.pose.position.x = gps_x;
+    marker.pose.position.y = gps_y;
+    marker.pose.position.z = 0.0;
+
+    marker.pose.orientation = res.pose.pose.orientation;
+
+    marker.scale.x = 1.8;
+    marker.scale.y = 0.8;
+    marker.scale.z = 0.5;
+
+    marker.color.a = 1.0;
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker.color.b = 0.0;
+
+    state_publisher->publish(marker);
   }
 
   // Extrapolate state using IMU data
@@ -208,33 +230,33 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   res.header.stamp = this->get_clock()->now();
   current_state_ = res;
 
-  visualization_msgs::msg::Marker marker;
-  marker.header.frame_id = "map";
-  marker.header.stamp = this->get_clock()->now();
-  marker.type = visualization_msgs::msg::Marker::CUBE;
+  // visualization_msgs::msg::Marker marker;
+  // marker.header.frame_id = "map";
+  // marker.header.stamp = this->get_clock()->now();
+  // marker.type = visualization_msgs::msg::Marker::CUBE;
 
-  if (false) {
-    marker.pose.position.y = 0.0;
-    marker.pose.position.x = 0.0;
-    marker.pose.position.z = 0.0;
-  } else {
-    marker.pose.position.x = current_state_.pose.pose.position.x;
-    marker.pose.position.y = current_state_.pose.pose.position.y;
-    marker.pose.position.z = 0.0;
-  }
+  // if (false) {
+  //   marker.pose.position.y = 0.0;
+  //   marker.pose.position.x = 0.0;
+  //   marker.pose.position.z = 0.0;
+  // } else {
+  //   marker.pose.position.x = current_state_.pose.pose.position.x;
+  //   marker.pose.position.y = current_state_.pose.pose.position.y;
+  //   marker.pose.position.z = 0.0;
+  // }
 
-  marker.pose.orientation = res.pose.pose.orientation;
+  // marker.pose.orientation = res.pose.pose.orientation;
 
-  marker.scale.x = 1.8;
-  marker.scale.y = 0.8;
-  marker.scale.z = 0.5;
+  // marker.scale.x = 1.8;
+  // marker.scale.y = 0.8;
+  // marker.scale.z = 0.5;
 
-  marker.color.a = 1.0;
-  marker.color.r = 0.0;
-  marker.color.g = 1.0;
-  marker.color.b = 0.0;
+  // marker.color.a = 1.0;
+  // marker.color.r = 0.0;
+  // marker.color.g = 1.0;
+  // marker.color.b = 0.0;
 
-  state_publisher->publish(marker);
+  // state_publisher->publish(marker);
 
   // Publish the updated state
   ego_state_publisher_->publish(res);
@@ -430,9 +452,9 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y,
   H(2, 4) = 1; // Map yaw
 
   R = Eigen::MatrixXd::Identity(3, 3);
-  R(0, 0) = 0.005; // Variance for x measurement
-  R(1, 1) = 0.005; // Variance for y measurement
-  R(2, 2) = 0.005; // Variance for yaw measurement
+  R(0, 0) = 0.06; // Variance for x measurement
+  R(1, 1) = 0.06; // Variance for y measurement
+  R(2, 2) = 0.06; // Variance for yaw measurement
 
   // Compute the Kalman gain
   // K = P * H^T * (H * P * H^T + R)^-1
@@ -516,12 +538,12 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
   // P = FPF^T + Q
   Eigen::MatrixXd Q_; // Process noise covariance matrix
   Q_ = Eigen::MatrixXd::Identity(6, 6);
-  Q_(0, 0) = 0.01;    // Variance for x position, in m
-  Q_(1, 1) = 0.01;    // Variance for y position
-  Q_(2, 2) = 0.05;    // Variance for x velocity, m/s
-  Q_(3, 3) = 0.05;    // Variance for y velocity
+  Q_(0, 0) = 0.001;    // Variance for x position, in m
+  Q_(1, 1) = 0.001;    // Variance for y position
+  Q_(2, 2) = 0.01;    // Variance for x velocity, m/s
+  Q_(3, 3) = 0.01;    // Variance for y velocity
   Q_(4, 4) = 0.00872; // Variance for yaw in radian
-  Q_(5, 5) = 1;       // Variance for yaw rate, to be tuned
+  Q_(5, 5) = .08;       // Variance for yaw rate, to be tuned
 
   P_ = F * P_ * F.transpose() + Q_;
 
