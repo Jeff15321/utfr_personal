@@ -371,8 +371,8 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           cone_id_to_color_map_[cones_found_] = newCone.type;
           utfr_msgs::msg::PoseGraphData cone_data;
           cone_data.id = cones_found_;
-          cone_data.x = true_coordinate_x / number_of_points;
-          cone_data.y = true_coordinate_y / number_of_points;
+          cone_data.x = average_x / number_of_points;
+          cone_data.y = average_y / number_of_points;
           cone_nodes_[cones_found_] = (cone_data);
           average_position_[cones_found_] = {position_x_, position_y_, 1};
           cone_id_to_vertex_map_[cones_found_] = cone_data;
@@ -383,8 +383,8 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           edge_data.dx = newCone.pos.x;
           edge_data.dy = newCone.pos.y;
           pose_to_cone_edges_.push_back(edge_data);
-          kd_tree_knn::Point newPoint(true_coordinate_x / count_threshold,
-                                      true_coordinate_y / count_threshold, cones_found_);
+          kd_tree_knn::Point newPoint(average_x / number_of_points,
+                                      average_y / number_of_points, cones_found_);
           detection_counts[cones_found_] = 3;
           // std::cout << "Cone x: " << position_x_ << " Cone y: " <<
           // position_y_ << " Cone id: " << cones_found_ << std::endl;

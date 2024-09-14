@@ -204,7 +204,7 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     marker.pose.orientation = res.pose.pose.orientation;
 
     marker.scale.x = 1.8;
-    marker.scale.y = 0.8;
+    marker.scale.y = 1.5;
     marker.scale.z = 0.5;
 
     marker.color.a = 1.0;

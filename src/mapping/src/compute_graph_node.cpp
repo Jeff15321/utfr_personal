@@ -277,20 +277,6 @@ void ComputeGraphNode::graphSLAM() {
       cone.pos.x = x;
       cone.pos.y = y;
 
-      if (color == 1) {
-        cone.type = utfr_msgs::msg::Cone::BLUE;
-        cone_map_.left_cones.push_back(cone);
-      } else if (color == 2) {
-        cone.type = utfr_msgs::msg::Cone::YELLOW;
-        cone_map_.right_cones.push_back(cone);
-      } else if (color == 3) {
-        cone.type = utfr_msgs::msg::Cone::SMALL_ORANGE;
-        cone_map_.small_orange_cones.push_back(cone);
-      } else if (color == 4) {
-        cone.type = utfr_msgs::msg::Cone::LARGE_ORANGE;
-        cone_map_.large_orange_cones.push_back(cone);
-      }
-
       // Create a marker
       count += 1;
       visualization_msgs::msg::Marker marker;
@@ -307,9 +293,32 @@ void ComputeGraphNode::graphSLAM() {
       marker.scale.z = 0.2;
 
       marker.color.a = 1.0;
-      marker.color.r = 1.0;
-      marker.color.g = 0.0;
-      marker.color.b = 0.0;
+
+      if (color == 1) {
+        cone.type = utfr_msgs::msg::Cone::BLUE;
+        cone_map_.left_cones.push_back(cone);
+        marker.color.r = 0.0;
+        marker.color.g = 0.0;
+        marker.color.b = 1.0;
+      } else if (color == 2) {
+        cone.type = utfr_msgs::msg::Cone::YELLOW;
+        cone_map_.right_cones.push_back(cone);
+        marker.color.r = 1.0;
+        marker.color.g = 1.0;
+        marker.color.b = 0.0;
+      } else if (color == 3) {
+        cone.type = utfr_msgs::msg::Cone::SMALL_ORANGE;
+        cone_map_.small_orange_cones.push_back(cone);
+        marker.color.r = 1.0;
+        marker.color.g = 0.0;
+        marker.color.b = 0.0;
+      } else if (color == 4) {
+        cone.type = utfr_msgs::msg::Cone::LARGE_ORANGE;
+        cone_map_.large_orange_cones.push_back(cone);
+        marker.color.r = 1.0;
+        marker.color.g = 0.0;
+        marker.color.b = 0.0;
+      }
 
       markerArray.markers.push_back(marker);
 
