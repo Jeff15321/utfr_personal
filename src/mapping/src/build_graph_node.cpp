@@ -263,7 +263,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           position_x_, nearestCone.x, position_y_, nearestCone.y);
 
       // Do not add if its within 1 of an already seen cone
-      if (displacement <= 2 && colour == cone_id_to_color_map_[nearestCone.id]) {
+      if (displacement <= 1 && colour == cone_id_to_color_map_[nearestCone.id]) {
         // Add the ID to the list
         cones_id_list_.push_back(nearestCone.id);
         average_position_[nearestCone.id][0] += position_x_;
@@ -326,13 +326,13 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           std::get<1>(potentialPoint));
 
       // Check if cone within 1 of any other new detected cone
-      if (temp_displacement_ <= 0.8 && colour == std::get<2>(potentialPoint)) {
+      if (temp_displacement_ <= 1.8 && colour == std::get<2>(potentialPoint)) {
         count_ += 1;
         keys.push_back(key_);
         // Check if 30 of same detected
         true_coordinate_x += std::get<0>(potentialPoint);
         true_coordinate_y += std::get<1>(potentialPoint);
-        int count_threshold = 33;
+        int count_threshold = 6;
         if (count_ == count_threshold) {
 
           double average_x = position_x_;
