@@ -14,27 +14,28 @@
 # System Requirements
 import cv2
 import numpy as np
-import matplotlib.pyplot as plot
-
-# import xgboost
-import onnxruntime as ort
-import time
-
 from scipy.optimize import linear_sum_assignment
 
+# import xgboost
+from ultralytics import YOLO
 
 # ROS2 Requirements
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import MultiThreadedExecutor
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.callback_groups import ReentrantCallbackGroup
 from cv_bridge import CvBridge, CvBridgeError
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy
-import rospkg
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+import tf2_geometry_msgs
+import torch
 
 # Message Requirements
 from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2
 from std_msgs.msg import Bool
@@ -43,21 +44,28 @@ from utfr_msgs.msg import Heartbeat
 from utfr_msgs.msg import Cone
 from utfr_msgs.msg import BoundingBox
 from utfr_msgs.msg import PerceptionDebug
+from geometry_msgs.msg import PointStamped, Point
+
 
 # Service Requirements
 from std_srvs.srv import Trigger
 
-# Import deep and classical process functions
+# Import deep process functions
 from perception.submodules.deep import deep_process
-from perception.submodules.deep import bounding_boxes_to_cone_detections
 from perception.submodules.deep import check_for_cuda
 from perception.submodules.deep import labelColor
-from perception.submodules.deep import transform_det_lidar
+
+from concurrent.futures import ThreadPoolExecutor
 
 
 class PerceptionNode(Node):
     def __init__(self):
         super().__init__("perception_node")
+
+        self.left_image_group = MutuallyExclusiveCallbackGroup()
+        self.right_image_group = MutuallyExclusiveCallbackGroup()
+        self.lidar_group = MutuallyExclusiveCallbackGroup()
+        self.timer_group = ReentrantCallbackGroup()
 
         self.loadParams()
         self.initVariables()
@@ -67,7 +75,6 @@ class PerceptionNode(Node):
         self.initServices()
         self.initConeTemplate()
         self.initTimers()
-        # self.initClassical()
 
     def loadParams(self):
         """
@@ -129,6 +136,7 @@ class PerceptionNode(Node):
         self.declare_parameter("heartbeat_topic", "/perception/heartbeat")
         self.declare_parameter("processed_lidar_topic", "/lidar_pipeline/clustered")
         self.declare_parameter("update_rate", 33.33)
+        self.declare_parameter("debug", True)
         self.declare_parameter("distortion_left", [0.0])
         self.declare_parameter("distortion_right", [0.0])
         self.declare_parameter("intrinsics_left", [0.0])
@@ -168,6 +176,7 @@ class PerceptionNode(Node):
         self.update_rate_ = (
             self.get_parameter("update_rate").get_parameter_value().double_value
         )
+        self.debug_ = self.get_parameter("debug").get_parameter_value().bool_value
         self.distortion_left = (
             self.get_parameter("distortion_left")
             .get_parameter_value()
@@ -234,8 +243,10 @@ class PerceptionNode(Node):
 
     def initVariables(self):
         # Initialize callback variables:
-        self.left_img_recieved_ = False
-        self.right_img_recieved_ = False
+        self.new_left_img_recieved_ = False
+        self.new_right_img_recieved_ = False
+        self.new_lidar_msg_received_ = False
+
         self.first_img_arrived_ = False
         self.left_ready_ = False
         self.right_ready_ = False
@@ -256,47 +267,77 @@ class PerceptionNode(Node):
         self.mapx_right, self.mapy_right = cv2.initUndistortRectifyMap(
             self.intrinsics_right,
             self.distortion_right,
-            self.rectify_right,
+            None,
             self.intrinsics_right,
-            (1440, 1080),
+            self.img_size,
             cv2.CV_32FC1,
         )
-
         self.mapx_left, self.mapy_left = cv2.initUndistortRectifyMap(
             self.intrinsics_left,
             self.distortion_left,
-            self.rectify_left,
+            None,
             self.intrinsics_left,
-            (1440, 1080),
+            self.img_size,
             cv2.CV_32FC1,
         )
 
-        # create session for onnxruntime ofr detections
-        cuda = check_for_cuda()
-        print("Check for cuda:", cuda)
-        # providers = ["AzureExecutionProvider"] if cuda else ["CPUExecutionProvider"]
-        providers = ort.get_available_providers()
-        print("Available Providers:", providers)
+        self.mapx_left_gpu = cv2.cuda_GpuMat()
+        self.mapx_left_gpu.upload(self.mapx_left)
 
-        # Get the current device for inference
-        device = ort.get_device()
-        print("Current Device for Inference:", device)
-        self.session = ort.InferenceSession(
-            "src/perception/perception/best.onnx",
-            providers=["CUDAExecutionProvider"],
-        )
+        self.mapy_left_gpu = cv2.cuda_GpuMat()
+        self.mapy_left_gpu.upload(self.mapy_left)
+
+        self.mapx_right_gpu = cv2.cuda_GpuMat()
+        self.mapx_right_gpu.upload(self.mapx_right)
+
+        self.mapy_right_gpu = cv2.cuda_GpuMat()
+        self.mapy_right_gpu.upload(self.mapy_right)
+
+        # create ultralytics model for inference
+        file_name = "src/perception/perception/models/yolov8n_batched.engine"
+        # file_name = "src/perception/perception/yolov8n.pt"
+        # file_name = "src/perception/perception/yolov8n.onnx"
+        print("Deep filename: ", file_name)
+
+        if file_name.endswith(".engine"):
+            # TensorRT model cannot run on CPU, so only run on GPU
+            if torch.cuda.is_available():
+                print("CUDA is available. Using GPU with TensorRT model...")
+                self.model = YOLO(file_name, task="detect")  # TensorRT model
+                # TensorRT models do not need to be transferred with .to("cuda")
+            else:
+                raise RuntimeError(
+                    "TensorRT model requires CUDA, but CUDA is not available. Cannot run on CPU."
+                )
+        else:
+            # Assuming a PyTorch model (.pt), it can be loaded and used on CPU or GPU
+            self.model = YOLO(file_name, task="detect")
+
+            if torch.cuda.is_available():
+                print("CUDA is available. Using GPU for PyTorch model...")
+                self.model.to("cuda")
+            else:
+                print("CUDA is not available. Using CPU for PyTorch model...")
+                self.model.to("cpu")
+        # self.model.export(format="engine")
 
         # create transform frame variables
         self.lidar_frame = "os_sensor"
         self.left_camera_frame = "left_camera"
         self.right_camera_frame = "right_camera"
 
+        self.left_frame_id = 0
+        self.right_frame_id = 0
+
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
         print(self.tf_listener)
 
-        # TODO - add last tf for lidar to whatever the base frame is
+        self.left_img_gpu = cv2.cuda_GpuMat()
+        self.right_img_gpu = cv2.cuda_GpuMat()
+
+        self.previous_detections = {}
 
     def initSubscribers(self):
         """
@@ -312,15 +353,27 @@ class PerceptionNode(Node):
           msg: sensor_msgs::PointCloud2, topic:
         """
         self.left_cam_subscriber_ = self.create_subscription(
-            CompressedImage, self.left_camera_topic, self.leftCameraCB, 1
+            CompressedImage,
+            self.left_camera_topic,
+            self.leftCameraCB,
+            1,
+            callback_group=self.left_image_group,
         )
 
         self.right_cam_subscriber_ = self.create_subscription(
-            CompressedImage, self.right_camera_topic, self.rightCameraCB, 1
+            CompressedImage,
+            self.right_camera_topic,
+            self.rightCameraCB,
+            1,
+            callback_group=self.right_image_group,
         )
 
         self.processed_lidar_subscriber_ = self.create_subscription(
-            PointCloud2, self.processed_lidar_topic, self.lidarCB, 1
+            PointCloud2,
+            self.processed_lidar_topic,
+            self.lidarCB,
+            1,
+            callback_group=self.lidar_group,
         )
 
         # Latching Subscribers:
@@ -362,20 +415,49 @@ class PerceptionNode(Node):
             ConeDetections, self.cone_detections_topic_, 1
         )
 
-        self.cone_detections_debug_ = self.create_publisher(
-            ConeDetections, "/perception/detections_debug", 1
-        )
-
         self.heartbeat_publisher_ = self.create_publisher(
             Heartbeat, self.heartbeat_topic_, 1
         )
 
-        self.perception_debug_publisher_left_ = self.create_publisher(
-            PerceptionDebug, self.perception_debug_topic_ + "_left", 1
+        if self.debug_:
+            self.undistorted_publisher_left_ = self.create_publisher(
+                Image, "/perception/debug_undistorted_left", 1
+            )
+
+            self.undistorted_publisher_right_ = self.create_publisher(
+                Image, "/perception/debug_undistorted_right", 1
+            )
+
+            self.perception_debug_publisher_left_ = self.create_publisher(
+                PerceptionDebug, self.perception_debug_topic_ + "_left", 1
+            )
+
+            self.perception_debug_publisher_right_ = self.create_publisher(
+                PerceptionDebug, self.perception_debug_topic_ + "_right", 1
+            )
+
+            self.lidar_projection_publisher_left_ = self.create_publisher(
+                PerceptionDebug, "/perception/lidar_projection_left", 1
+            )
+
+            self.lidar_projection_publisher_right_ = self.create_publisher(
+                PerceptionDebug, "/perception/lidar_projection_right", 1
+            )
+
+            self.lidar_projection_publisher_matched_left_ = self.create_publisher(
+                PerceptionDebug, "/perception/lidar_projection_matched_left", 1
+            )
+
+            self.lidar_projection_publisher_matched_right_ = self.create_publisher(
+                PerceptionDebug, "/perception/lidar_projection_matched_right", 1
+            )
+
+        self.left_cam_processed_publisher_ = self.create_publisher(
+            Heartbeat, "/perception/left_processed", 1
         )
 
-        self.perception_debug_publisher_right_ = self.create_publisher(
-            PerceptionDebug, self.perception_debug_topic_ + "_right", 1
+        self.right_cam_processed_publisher_ = self.create_publisher(
+            Heartbeat, "/perception/right_processed", 1
         )
 
     def initServices(self):
@@ -399,13 +481,20 @@ class PerceptionNode(Node):
         )
         self.right_camera_request_ = Trigger.Request()
 
+        self.caml = (
+            self.get_clock().now().seconds_nanoseconds()[0]
+            + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+        )
+
     def initTimers(self):
         """
         Initialize main update timer for timerCB.
         """
         # convert timer period in [ms] to timper period in [s]
         timer_period_s = self.update_rate_ / 1000
-        self.timer_ = self.create_timer(timer_period_s, self.timerCB)
+        self.timer_ = self.create_timer(
+            timer_period_s, self.timerCB, callback_group=self.timer_group
+        )
 
         # Call the timer_  to prevent unused variable warnings
         self.timer_
@@ -456,15 +545,61 @@ class PerceptionNode(Node):
         """
         Callback function for left_cam_subscriber_ with CompressedImage message
         """
+        now = (
+            self.get_clock().now().seconds_nanoseconds()[0]
+            + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+        )
+        # print("Cam CB: ", now - self.caml)
+        print("-----------")
+        self.caml = now
         try:
+            startTime = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+            )
             # Convert the CompressedImage message to a CV2 image
             np_arr = np.frombuffer(msg.data, np.uint8)
-            self.left_img_ = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode JPEG image
+            left_img_ = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode JPEG image
+            self.left_img_gpu.upload(left_img_)
+            now1 = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+            )
 
+            print("upload time: " + str(now1 - startTime))
+
+            startTime = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+            )
+            left_img_ = cv2.cuda.remap(
+                self.left_img_gpu,
+                self.mapx_left_gpu,
+                self.mapy_left_gpu,
+                interpolation=cv2.INTER_NEAREST,
+            )
+            now2 = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+            )
+            print("remap time: " + str(now2 - startTime))
+
+            startTime = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+            )
+            self.left_img_ = left_img_.download()
+            now69 = (
+                self.get_clock().now().seconds_nanoseconds()[0]
+                + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+            )
+            print("download time: " + str(now69 - startTime))
+            # self.left_img_ = left_img_
             # Check if the image is valid
             if self.left_img_ is not None:
                 self.left_img_header = msg.header
-                self.left_img_recieved_ = True
+                self.left_frame_id = msg.header.frame_id
+                self.new_left_img_recieved_ = True
 
                 if not self.first_img_arrived_:
                     self.previous_left_img_ = self.left_img_
@@ -479,6 +614,17 @@ class PerceptionNode(Node):
             exception = "Perception::leftCameraCB: " + str(e)
             self.get_logger().error(exception)
 
+        now = (
+            self.get_clock().now().seconds_nanoseconds()[0]
+            + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+        )
+        print("Cam CB total: ", now - self.caml)
+        print("-----------")
+
+        left_process = Heartbeat()
+        left_process.header.stamp = self.get_clock().now().to_msg()
+        self.left_cam_processed_publisher_.publish(left_process)
+
     def rightCameraCB(self, msg):
         """
         Callback function for right_cam_subscriber_ with CompressedImage message
@@ -486,14 +632,24 @@ class PerceptionNode(Node):
         try:
             # Convert the CompressedImage message to a CV2 image
             np_arr = np.frombuffer(msg.data, np.uint8)
-            self.right_img_ = cv2.imdecode(
-                np_arr, cv2.IMREAD_COLOR
-            )  # Decode JPEG image
+            right_img_ = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode JPEG image
+            self.right_img_gpu.upload(right_img_)
+
+            right_img_ = cv2.cuda.remap(
+                self.right_img_gpu,
+                self.mapx_right_gpu,
+                self.mapy_right_gpu,
+                interpolation=cv2.INTER_NEAREST,
+            )
+
+            # convert to cpu
+            self.right_img_ = right_img_.download()
 
             # Check if the image is valid
             if self.right_img_ is not None:
                 self.right_img_header = msg.header
-                self.right_img_recieved_ = True
+                self.right_frame_id = msg.header.frame_id
+                self.new_right_img_recieved_ = True
 
                 if not self.first_img_arrived_:
                     self.previous_right_img_ = self.right_img_
@@ -507,6 +663,10 @@ class PerceptionNode(Node):
         except Exception as e:
             exception = "Perception::rightCameraCB: " + str(e)
             self.get_logger().error(exception)
+
+        right_process = Heartbeat()
+        right_process.header.stamp = self.get_clock().now().to_msg()
+        self.right_cam_processed_publisher_.publish(right_process)
 
     def leftCameraReadyCB(self, msg):
         """
@@ -528,6 +688,8 @@ class PerceptionNode(Node):
         # processed lidar point cloud whenever lidarCB is called
         # self.get_logger().warn("Received latest lidar message")
         self.lidar_msg = msg  # Store the incoming lidar data
+        if self.lidar_msg:
+            self.new_lidar_msg_received_ = True
 
     def process(self, left_img_, right_img_):
         """
@@ -542,40 +704,28 @@ class PerceptionNode(Node):
           right_bounding_boxes: array of right camera detections
           cone_detections: array of 3d cone detections using stereo ([x, y, z, color])
         """
-
-        left_bounding_boxes, left_classes, left_scores, left_image = deep_process(
-            left_img_,
-            self.translation,
-            self.intrinsics_left,
-            self.session,
-            self.confidence_,
+        start = (
+            self.get_clock().now().seconds_nanoseconds()[0]
+            + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
         )
-        right_bounding_boxes, right_classes, right_scores, right_image = deep_process(
-            right_img_,
-            self.translation,
-            self.intrinsics_left,
-            self.session,
-            self.confidence_,
-        )
-
-        # change bounding_boxes_to_cone_detections to return 3d cone
-        # detections using camera intrinsics and simple triangulation depth
-        # need to refactor this: make cone detections separately
-        # use the left_bounding_boxes, right_bounding_boxes to get depth measurements
-        # get 3d estimates
-        # ALSO: need to split cone_detections into left and right detections and return them
-        # dont need to return the bounding boxes
-
-        left_cone_detections = bounding_boxes_to_cone_detections(
-            left_bounding_boxes, left_classes, self.intrinsics_left, self.cone_heights
-        )
-
-        right_cone_detections = bounding_boxes_to_cone_detections(
+        (
+            left_bounding_boxes,
+            left_classes,
+            left_scores,
             right_bounding_boxes,
             right_classes,
-            self.intrinsics_right,
-            self.cone_heights,
+            right_scores,
+        ) = deep_process(
+            self.model,
+            left_img_,
+            right_img_,
+            self.confidence_,
         )
+        end = (
+            self.get_clock().now().seconds_nanoseconds()[0]
+            + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
+        )
+        print("deep process time: ", end - start)
 
         return (
             left_bounding_boxes,
@@ -584,8 +734,6 @@ class PerceptionNode(Node):
             right_bounding_boxes,
             right_classes,
             right_scores,
-            left_cone_detections,
-            right_cone_detections,
         )
 
     def timerCB(self):
@@ -595,18 +743,12 @@ class PerceptionNode(Node):
         incoming frames.
         """
 
-        # initialize detection msg
-        # TODO - make 1 detections message and combine them at the end
-        self.detections_msg = ConeDetections()
-        self.detections_msg.header.frame_id = "ground"
-
-        # publish the heartbeat
-        self.publishHeartbeat()
-
+        # Wait for new lidar msg
         if not self.lidar_msg:
             return
 
         if self.lidar_only_detection == False:
+
             # check if ready
             # if not self.left_ready_ or not self.right_ready_:
             #     return
@@ -617,67 +759,35 @@ class PerceptionNode(Node):
             # self.future = self.left_camera_client_.call_async(trigger)
             # self.future = self.right_camera_client_.call_async(trigger)
 
-            if not self.left_img_recieved_:
+            if not self.new_left_img_recieved_ or not self.new_right_img_recieved_:
                 return
-
-            if not self.right_img_recieved_:
-                return
-
-            # undistort
-
-            undist_left = cv2.remap(
-                self.left_img_,
-                self.mapx_left,
-                self.mapy_left,
-                interpolation=cv2.INTER_NEAREST,
-                borderMode=cv2.BORDER_CONSTANT,
-                borderValue=(0, 0, 0, 0),
-            )
-
-            undist_right = cv2.remap(
-                self.right_img_,
-                self.mapx_right,
-                self.mapy_right,
-                interpolation=cv2.INTER_NEAREST,
-                borderMode=cv2.BORDER_CONSTANT,
-                borderValue=(0, 0, 0, 0),
-            )
-
-            # code to resize the image (for faster fps)
-
-            """
-            frame_left_60, frame_right_60 = self.resize_img(undist_left, undist_right, 60)
-            frame_left = frame_left_60
-            frame_right = frame_right_70
-        
-        if self.save_pic == "True":
-        timestamp = int(time.time())
-        local_time = time.ctime(timestamp).replace(" ", "_")
-        self.save_image(frame_left, frame_right, local_time)
-        """
-
-            # equalize histogram
-            """
-            frame_left = self.equalize_hist(frame_left)
-            frame_right = self.equalize_hist(frame_right)
-            """
-
-            frame_left = undist_left
-            frame_right = undist_right
 
             try:
-                # tf from left_cam to lidar
+                # tf from lidar to left_cam
+                tf_lidar_to_leftcam = self.tf_buffer.lookup_transform(
+                    self.left_camera_frame,
+                    "ground",
+                    time=rclpy.time.Time(seconds=0),
+                    timeout=rclpy.time.Duration(seconds=0.1),
+                )
 
-                tf_leftcam_lidar = self.tf_buffer.lookup_transform(
-                    self.lidar_frame,
+                tf_leftcam_to_lidar = self.tf_buffer.lookup_transform(
+                    "ground",
                     self.left_camera_frame,
                     time=rclpy.time.Time(seconds=0),
                     timeout=rclpy.time.Duration(seconds=0.1),
                 )
 
-                # tf from right_cam to lidar
-                tf_rightcam_lidar = self.tf_buffer.lookup_transform(
-                    self.lidar_frame,
+                # tf from lidar to right cam
+                tf_lidar_to_rightcam = self.tf_buffer.lookup_transform(
+                    self.right_camera_frame,
+                    "ground",
+                    rclpy.time.Time(),
+                    timeout=rclpy.duration.Duration(seconds=0.1),
+                )
+
+                tf_rightcam_to_lidar = self.tf_buffer.lookup_transform(
+                    "ground",
                     self.right_camera_frame,
                     rclpy.time.Time(),
                     timeout=rclpy.duration.Duration(seconds=0.1),
@@ -686,8 +796,9 @@ class PerceptionNode(Node):
             except TransformException as ex:
                 self.get_logger().info(f"{ex}")
                 return
-            # get the detections
 
+            frame_left = self.left_img_
+            frame_right = self.right_img_
             (
                 results_left,
                 classes_left,
@@ -695,298 +806,582 @@ class PerceptionNode(Node):
                 results_right,
                 classes_right,
                 scores_right,
-                left_cone_detections,
-                right_cone_detections,
             ) = self.process(frame_left, frame_right)
-
-            # transform camera detections to lidar frame
-            left_detections_lidar_frame = transform_det_lidar(
-                left_cone_detections, tf_leftcam_lidar
-            )
-            right_detections_lidar_frame = transform_det_lidar(
-                right_cone_detections, tf_rightcam_lidar
-            )
 
             # Extract point cloud data
             lidar_point_cloud_data = point_cloud2.read_points_numpy(
                 self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
             )
 
-            # print(left_detections_lidar_frame.shape, right_detections_lidar_frame.shape)
-            # concatenate into one array
-            if left_detections_lidar_frame.shape[0] == 0:
-                total_cam_det = right_detections_lidar_frame
-            elif right_detections_lidar_frame.shape[0] == 0:
-                total_cam_det = left_detections_lidar_frame
-            else:
-                total_cam_det = np.concatenate(
-                    (left_detections_lidar_frame, right_detections_lidar_frame), axis=0
+            # transform lidar detections to left cam frame
+            lidar_det_leftcam_frame = self.transform_det_lidar(
+                lidar_point_cloud_data, tf_lidar_to_leftcam
+            )
+
+            # tf lidar to right cam frame
+            lidar_det_rightcam_frame = self.transform_det_lidar(
+                lidar_point_cloud_data, tf_lidar_to_rightcam
+            )
+
+            # Transform 3D camera frame to 3D camera optical frame (axis swap)
+            # x in the left cam frame = z in the transformation frame
+            lidar_det_leftcam_frame = self.tf_cam_axis_swap(lidar_det_leftcam_frame)
+            lidar_det_rightcam_frame = self.tf_cam_axis_swap(lidar_det_rightcam_frame)
+
+            # 3D optical frame to 2D pixel coordinates projection with depth
+            left_projected_pts = self.point_3d_to_image(
+                lidar_det_leftcam_frame, self.intrinsics_left
+            )  # list of u, v, depth
+            left_projected_pts[:, :2] = np.round(left_projected_pts[:, :2])
+
+            right_projected_pts = self.point_3d_to_image(
+                lidar_det_rightcam_frame, self.intrinsics_right
+            )  # list of u, v, depth
+            right_projected_pts[:, :2] = np.round(right_projected_pts[:, :2])
+
+            valid_idx_left = self.filter_points_in_fov(
+                left_projected_pts, self.img_size
+            )
+            valid_idx_right = self.filter_points_in_fov(
+                right_projected_pts, self.img_size
+            )
+            filtered_left_projected_pts = left_projected_pts[valid_idx_left]
+            filtered_right_projected_pts = right_projected_pts[valid_idx_right]
+
+            # Hungarian algorithm for matching
+            left_matched, right_matched, left_class, right_class = self.h_matching(
+                filtered_left_projected_pts,
+                filtered_right_projected_pts,
+                results_left,
+                classes_left,
+                results_right,
+                classes_right,
+                duplicate_threshold=0.1,
+                cost_threshold=1000.0,
+                depth_weight=0.5,
+                alpha=0.5,
+            )
+
+            matched_cam_frame_left = []
+            for matched in left_matched:
+                matched_cam_frame_left.append(
+                    self.image_to_3d_point(matched, self.intrinsics_left)
                 )
-            # total_cam_det = left_detections_lidar_frame
-            # total_cam_det = right_detections_lidar_frame
 
-            # perception detections debug
-            self.detections_debug = ConeDetections()
-            self.detections_debug.header.frame_id = "ground"
+            matched_cam_frame_right = []
+            for matched in right_matched:
+                matched_cam_frame_right.append(
+                    self.image_to_3d_point(matched, self.intrinsics_right)
+                )
 
-            self.detections_debug.header.stamp = self.get_clock().now().to_msg()
+            matched_cam_frame_left = self.tf_cam_axis_swap_inv(
+                np.array(matched_cam_frame_left)
+            )
+            matched_cam_frame_right = self.tf_cam_axis_swap_inv(
+                np.array(matched_cam_frame_right)
+            )
 
-            for i in range(len(total_cam_det)):
-                self.cone_template = Cone()
-                self.cone_template.pos.x = float(total_cam_det[i][0])  # left
-                self.cone_template.pos.y = float(total_cam_det[i][1])  # up
-                self.cone_template.pos.z = float(total_cam_det[i][2])  # front
-                self.cone_template.type = int(total_cam_det[i][3])
+            matched_lidar_frame_left = self.transform_det_lidar(
+                matched_cam_frame_left, tf_leftcam_to_lidar
+            )
 
-                if self.cone_template.type == 1:  # blue
-                    self.detections_debug.left_cones.append(self.cone_template)
-                elif self.cone_template.type == 2:  # yellow
-                    self.detections_debug.right_cones.append(self.cone_template)
-                elif self.cone_template.type == 3:
-                    self.detections_debug.small_orange_cones.append(self.cone_template)
-                elif self.cone_template.type == 4:
-                    self.detections_debug.large_orange_cones.append(self.cone_template)
+            matched_lidar_frame_right = self.transform_det_lidar(
+                matched_cam_frame_right, tf_rightcam_to_lidar
+            )
+
+            cone_detections = ConeDetections()
+            # print("------START---------")
+
+            # TODO: clean this up and just use the same enum format as in the cone msg template
+            for i, point in enumerate(matched_lidar_frame_left):
+                cone = Cone()
+                cone.pos.x = float(point[0])
+                cone.pos.y = float(point[1])
+                cone.pos.z = float(point[2])
+
+                # print(point.pt[0], point.pt[1], point.pt[2])
+
+                if left_class[i] == "blue_cone":  # blue
+                    cone.type = 1
+                    cone_detections.left_cones.append(cone)
+                elif left_class[i] == "yellow_cone":  # yellow
+                    cone.type = 2
+                    cone_detections.right_cones.append(cone)
+                elif left_class[i] == "small_orange_cone":
+                    cone.type = 3
+                    cone_detections.small_orange_cones.append(cone)
+                elif left_class[i] == "large_orange_cone":
+                    cone.type = 4
+                    cone_detections.large_orange_cones.append(cone)
                 else:  # unknown cones cone template type == 0
-                    self.detections_debug.unknown_cones.append(self.cone_template)
+                    cone.type = 0
+                    cone_detections.unknown_cones.append(cone)
 
-            self.cone_detections_debug_.publish(self.detections_debug)
+            # TODO: clean this up and just use the same enum format as in the cone msg template
+            for i, point in enumerate(matched_lidar_frame_right):
+                cone = Cone()
+                cone.pos.x = float(point[0])
+                cone.pos.y = float(point[1])
+                cone.pos.z = float(point[2])
 
-            # hungarian matching
-            if total_cam_det.shape[0] > 0:
+                # print(point.pt[0], point.pt[1], point.pt[2])
 
-                diffs = lidar_point_cloud_data[:, :3].reshape(-1, 1, 3) - total_cam_det[
-                    :, :3
-                ].reshape(1, -1, 3)
+                if right_class[i] == "blue_cone":  # blue
+                    cone.type = 1
+                    cone_detections.left_cones.append(cone)
+                elif right_class[i] == "yellow_cone":  # yellow
+                    cone.type = 2
+                    cone_detections.right_cones.append(cone)
+                elif right_class[i] == "small_orange_cone":
+                    cone.type = 3
+                    cone_detections.small_orange_cones.append(cone)
+                elif right_class[i] == "large_orange_cone":
+                    cone.type = 4
+                    cone_detections.large_orange_cones.append(cone)
+                else:  # unknown cones cone template type == 0
+                    cone.type = 0
+                    cone_detections.unknown_cones.append(cone)
 
-                cost_matrix = np.linalg.norm(diffs, axis=2)
+            cone_detections.header.stamp = self.get_clock().now().to_msg()
+            cone_detections.header.frame_id = "ground"
+            self.cone_detections_publisher_.publish(cone_detections)
+            # print("------END---------")
 
-                row_ind, col_ind = linear_sum_assignment(cost_matrix)
-
-                positions = lidar_point_cloud_data[row_ind][:, :3]
-                colours = total_cam_det[col_ind][:, 3:]
-
-                # TODO - cost matrix where indices have cost above certain threshold, make the type unknown
-                costs = cost_matrix[row_ind, col_ind]
-                above_threshold = np.where(costs > 4.0)[0]
-                for ind in above_threshold:
-                    colours[ind] = 0
-
-                cone_detections = np.concatenate((positions, colours), axis=1)
-                # print(col_ind)
-                # to combine cam and lidar dets
-                camera_det = np.delete(total_cam_det, col_ind, axis=0)
-                cone_detections = np.concatenate((cone_detections, camera_det), axis=0)
-                # print(cone_detections.shape)
-            else:
-
-                positions = lidar_point_cloud_data[:, :3]
-                colours = np.zeros((positions.shape[0], 1))
-                cone_detections = np.concatenate((positions, colours), axis=1)
-
-            # self.visualize_detections(frame_left, frame_right, results_left, results_right, cone_detections)
-
-            # perception debug msg
-
-            if len(results_left) == 0:
-                pass
-            else:
-                self.perception_debug_msg_left = PerceptionDebug()
-                self.perception_debug_msg_left.header.stamp = self.left_img_header.stamp
-                for i in range(len(results_left)):
-                    bounding_box_left = BoundingBox()
-                    bounding_box_left.x = int(results_left[i][0])
-                    bounding_box_left.y = int(results_left[i][1])
-                    bounding_box_left.width = int(results_left[i][2])
-                    bounding_box_left.height = int(results_left[i][3])
-                    bounding_box_left.type = labelColor(classes_left[i])
-                    bounding_box_left.score = scores_left[i]
-                    self.perception_debug_msg_left.left.append(bounding_box_left)
-
-                self.perception_debug_publisher_left_.publish(
-                    self.perception_debug_msg_left
+            # Cam det bounding boxes and lidar det points on image
+            if self.debug_:
+                self.publish_2d_projected_det(
+                    left_projected_pts=filtered_left_projected_pts,
+                    left_stamp=self.left_img_header.stamp,
+                    right_projected_pts=filtered_right_projected_pts,
+                    right_stamp=self.right_img_header.stamp,
                 )
-
-            if len(results_right) == 0:
-                pass
-            else:
-                self.perception_debug_msg_right = PerceptionDebug()
-                self.perception_debug_msg_right.header.stamp = (
-                    self.right_img_header.stamp
+                self.publish_2d_projected_det_matched(
+                    left_projected_pts=left_matched,
+                    left_stamp=self.left_img_header.stamp,
+                    right_projected_pts=right_matched,
+                    right_stamp=self.right_img_header.stamp,
                 )
-                for i in range(len(results_right)):
-                    bounding_box_right = BoundingBox()
-                    bounding_box_right.x = int(results_right[i][0])
-                    bounding_box_right.y = int(results_right[i][1])
-                    bounding_box_right.width = int(results_right[i][2])
-                    bounding_box_right.height = int(results_right[i][3])
-                    bounding_box_right.type = labelColor(classes_right[i])
-                    bounding_box_right.score = scores_right[i]
-                    self.perception_debug_msg_right.right.append(bounding_box_right)
-
-                self.perception_debug_publisher_right_.publish(
-                    self.perception_debug_msg_right
+                self.displayBoundingBox(
+                    results_left,
+                    classes_left,
+                    scores_left,
+                    results_right,
+                    classes_right,
+                    scores_right,
                 )
-
-            # imshow for opencv
-            """
-            cv2.imshow('left_camera', frame_left)
-            k = cv2.waitKey(1)
-
-            cv2.imshow('right_camera', frame_right)
-            cv2.waitKey(1)
-            """
-
-            # print("cone detections: " + str(cone_detections))
-
-            if cone_detections.size != 0:
-                # order cones by distance
-                # cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
-
-                # publish cone detections
-                self.detections_msg.header.stamp = self.get_clock().now().to_msg()
-
-                for i in range(len(cone_detections)):
-                    self.cone_template = Cone()
-                    self.cone_template.pos.x = float(cone_detections[i][0])  # left
-                    self.cone_template.pos.y = float(cone_detections[i][1])  # up
-                    self.cone_template.pos.z = float(cone_detections[i][2])  # front
-                    self.cone_template.type = int(cone_detections[i][3])
-
-                    if self.cone_template.type == 1:  # blue
-                        self.detections_msg.left_cones.append(self.cone_template)
-                    elif self.cone_template.type == 2:  # yellow
-                        self.detections_msg.right_cones.append(self.cone_template)
-                    elif self.cone_template.type == 3:
-                        self.detections_msg.small_orange_cones.append(
-                            self.cone_template
-                        )
-                    elif self.cone_template.type == 4:
-                        self.detections_msg.large_orange_cones.append(
-                            self.cone_template
-                        )
-                    else:  # unknown cones cone template type == 0
-                        self.detections_msg.unknown_cones.append(self.cone_template)
-
-                self.detections_msg.header.stamp = self.get_clock().now().to_msg()
-
-                self.cone_detections_publisher_.publish(self.detections_msg)
 
             self.left_img_recieved_ = False
             self.right_img_recieved_ = False
 
+            if self.debug_:
+                self.publish_undistorted(frame_left, frame_right)
+
         else:
-            print("LIDAR_ONLY")
-            # Extract point cloud data
-            lidar_point_cloud_data = point_cloud2.read_points_numpy(
-                self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
-            )
+            self.publish_cone_dets_lidar()
 
-            for i in range(len(lidar_point_cloud_data)):
-                self.cone_template = Cone()
-                self.cone_template.pos.x = float(lidar_point_cloud_data[i][0])  # left
-                self.cone_template.pos.y = float(lidar_point_cloud_data[i][1])  # up
-                self.cone_template.pos.z = float(lidar_point_cloud_data[i][2])  # front
-                self.cone_template.type = 1
+        # publish the heartbeat
+        self.publishHeartbeat()
 
-                self.detections_msg.left_cones.append(self.cone_template)
+    def publish_cone_dets(self, cone_detections):
+        print("cone detections: " + str(cone_detections))
 
-            self.detections_msg.header.stamp = self.get_clock().now().to_msg()
-            self.cone_detections_publisher_.publish(self.detections_msg)
+        if cone_detections.size != 0:
+            # order cones by distance
+            # cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
 
-    # Helper functions:
+            # publish cone detections
+            detections_msg = ConeDetections()
+            detections_msg.header.frame_id = "ground"
 
-    def save_image(self, left_img_, right_img_, rosbag_name):
-        left_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"
-        cv2.imwrite(
-            "/home/utfrdv/utfr_dv_ros2/src/perception/images_to_mp4_left/"
-            + left_img_name,
-            left_img_,
+            for i in range(len(cone_detections)):
+                cone_template = Cone()
+                cone_template.pos.x = float(cone_detections[i][0])  # left
+                cone_template.pos.y = float(cone_detections[i][1])  # up
+                cone_template.pos.z = float(cone_detections[i][2])  # front
+                cone_template.type = int(cone_detections[i][3])
+
+                if cone_template.type == 1:  # blue
+                    detections_msg.left_cones.append(cone_template)
+                elif cone_template.type == 2:  # yellow
+                    detections_msg.right_cones.append(cone_template)
+                elif cone_template.type == 3:
+                    detections_msg.small_orange_cones.append(cone_template)
+                elif cone_template.type == 4:
+                    detections_msg.large_orange_cones.append(cone_template)
+                else:  # unknown cones cone template type == 0
+                    detections_msg.unknown_cones.append(cone_template)
+
+            detections_msg.header.stamp = self.get_clock().now().to_msg()
+            self.cone_detections_publisher_.publish(detections_msg)
+
+    # Helper functions
+    def publish_cone_dets_lidar(self):
+        print("LIDAR_ONLY")
+        # Extract point cloud data
+        lidar_point_cloud_data = point_cloud2.read_points_numpy(
+            self.lidar_msg, field_names=["x", "y", "z"], skip_nans=True
         )
+        detections_msg = ConeDetections()
+        detections_msg.header.frame_id = "ground"
 
-        right_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"
-        cv2.imwrite(
-            "/home/utfrdv/utfr_dv_ros2/src/perception/images_to_mp4_right/"
-            + right_img_name,
-            right_img_,
-        )
+        for i in range(len(lidar_point_cloud_data)):
+            cone_template = Cone()
+            cone_template.pos.x = float(lidar_point_cloud_data[i][0])  # left
+            cone_template.pos.y = float(lidar_point_cloud_data[i][1])  # up
+            cone_template.pos.z = float(lidar_point_cloud_data[i][2])  # front
+            cone_template.type = 1
 
-        self.saved_count += 1
+            detections_msg.unknown_cones.append(cone_template)
 
-    def resize_img(self, left_img_, right_img_, scale_percent):
-        # Downsize image resolution/size
+        detections_msg.header.stamp = self.get_clock().now().to_msg()
+        self.cone_detections_publisher_.publish(detections_msg)
 
-        right_width = int(right_img_.shape[1] * scale_percent / 100)
-        right_height = int(right_img_.shape[0] * scale_percent / 100)
-        right_dim = (right_width, right_height)
-
-        # resize image
-        frame_right = cv2.resize(right_img_, right_dim, interpolation=cv2.INTER_AREA)
-
-        left_width = int(left_img_.shape[1] * scale_percent / 100)
-        left_height = int(left_img_.shape[0] * scale_percent / 100)
-        left_dim = (left_width, left_height)
-
-        # resize image
-        frame_left = cv2.resize(left_img_, left_dim, interpolation=cv2.INTER_AREA)
-
-        return frame_left, frame_right
-
-    def visualize_detections(
-        self, frame_left, frame_right, results_left, results_right, cone_detections
+    def publish_2d_projected_det(
+        self, left_projected_pts, left_stamp, right_projected_pts, right_stamp
     ):
-        i = 0
-        # visualizing detections loop
-        for x, y, w, h in results_left:
-            if y <= 470:
-                continue
-            cv2.rectangle(frame_left, (x, y), (x + w, y + h), (255, 0, 0), 2)
-            x_3d, y_3d, z_3d, color = cone_detections[i]
-            cv2.putText(
-                frame_left,
-                text="("
-                + str(round(x_3d, 2))
-                + ", "
-                + str(round(y_3d, 2))
-                + ", "
-                + str(round(z_3d, 2))
-                + ")",
-                org=(int(x), int(y - 10)),
-                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                fontScale=0.5,
-                color=(0, 0, 255),
-                thickness=1,
-                lineType=cv2.LINE_AA,
+        perception_debug_msg_left = PerceptionDebug()
+        perception_debug_msg_left.header.stamp = left_stamp
+        perception_debug_msg_left.header.frame_id = "raw"
+
+        for point in left_projected_pts:
+            bounding_box_left = BoundingBox()
+            bounding_box_left.x = int(point[0])
+            bounding_box_left.y = int(point[1])
+            bounding_box_left.width = 20
+            bounding_box_left.height = 20
+            perception_debug_msg_left.left.append(bounding_box_left)
+
+        self.lidar_projection_publisher_left_.publish(perception_debug_msg_left)
+
+        perception_debug_msg_right = PerceptionDebug()
+        perception_debug_msg_right.header.stamp = self.right_img_header.stamp
+        perception_debug_msg_right.header.frame_id = "raw"
+
+        for point in right_projected_pts:
+            bounding_box_right = BoundingBox()
+            bounding_box_right.x = int(point[0])
+            bounding_box_right.y = int(point[1])
+            bounding_box_right.width = 20
+            bounding_box_right.height = 20
+            perception_debug_msg_right.right.append(bounding_box_right)
+
+        self.lidar_projection_publisher_right_.publish(perception_debug_msg_right)
+
+    def publish_2d_projected_det_matched(
+        self, left_projected_pts, left_stamp, right_projected_pts, right_stamp
+    ):
+        perception_debug_msg_left = PerceptionDebug()
+        perception_debug_msg_left.header.stamp = left_stamp
+        perception_debug_msg_left.header.frame_id = "matched"
+
+        for point in left_projected_pts:
+            bounding_box_left = BoundingBox()
+            bounding_box_left.x = int(point[0])
+            bounding_box_left.y = int(point[1])
+            bounding_box_left.width = 20
+            bounding_box_left.height = 20
+            perception_debug_msg_left.left.append(bounding_box_left)
+
+        self.lidar_projection_publisher_matched_left_.publish(perception_debug_msg_left)
+
+        perception_debug_msg_right = PerceptionDebug()
+        perception_debug_msg_right.header.stamp = self.right_img_header.stamp
+        perception_debug_msg_right.header.frame_id = "matched"
+
+        for point in right_projected_pts:
+            bounding_box_right = BoundingBox()
+            bounding_box_right.x = int(point[0])
+            bounding_box_right.y = int(point[1])
+            bounding_box_right.width = 20
+            bounding_box_right.height = 20
+            perception_debug_msg_right.right.append(bounding_box_right)
+
+        self.lidar_projection_publisher_matched_right_.publish(
+            perception_debug_msg_right
+        )
+
+    def publish_undistorted(self, frame_left, frame_right):
+        """Print undistorted left and right images"""
+        self.undistorted_publisher_left_.publish(self.bridge.cv2_to_imgmsg(frame_left))
+        self.undistorted_publisher_right_.publish(
+            self.bridge.cv2_to_imgmsg(frame_right)
+        )
+
+    def displayBoundingBox(
+        self,
+        results_left,
+        classes_left,
+        scores_left,
+        results_right,
+        classes_right,
+        scores_right,
+    ):
+        # Bounding boxes from deep learning model
+        if len(results_left) != 0:
+            perception_debug_msg_left = PerceptionDebug()
+            perception_debug_msg_left.header.stamp = self.left_img_header.stamp
+            for i in range(len(results_left)):
+                bounding_box_left = BoundingBox()
+                bounding_box_left.x = int(results_left[i][0])
+                bounding_box_left.y = int(results_left[i][1])
+                bounding_box_left.width = int(results_left[i][2])
+                bounding_box_left.height = int(results_left[i][3])
+                bounding_box_left.type = labelColor(classes_left[i])
+                bounding_box_left.score = scores_left[i]
+                perception_debug_msg_left.left.append(bounding_box_left)
+
+            self.perception_debug_publisher_left_.publish(perception_debug_msg_left)
+
+        if len(results_right) != 0:
+            perception_debug_msg_right = PerceptionDebug()
+            perception_debug_msg_right.header.stamp = self.right_img_header.stamp
+            for i in range(len(results_right)):
+                bounding_box_right = BoundingBox()
+                bounding_box_right.x = int(results_right[i][0])
+                bounding_box_right.y = int(results_right[i][1])
+                bounding_box_right.width = int(results_right[i][2])
+                bounding_box_right.height = int(results_right[i][3])
+                bounding_box_right.type = labelColor(classes_right[i])
+                bounding_box_right.score = scores_right[i]
+                perception_debug_msg_right.right.append(bounding_box_right)
+
+            self.perception_debug_publisher_right_.publish(perception_debug_msg_right)
+
+    def tf_cam_axis_swap(self, points):
+        return np.column_stack(
+            [-points[:, 1], -points[:, 2], points[:, 0]]  # -y  # -z  # x
+        )
+
+    def tf_cam_axis_swap_inv(self, points):
+        if len(points) == 0:
+            return np.array([])
+        return np.column_stack(
+            [points[:, 2], -points[:, 0], -points[:, 1]]  # x  # -z  # -y
+        )
+
+    def point_3d_to_image(self, points, camera_matrix):
+        """Projects 3D points to 2D image coordinates using a camera matrix."""
+        # Ensure the camera matrix is a NumPy array
+        camera_matrix = np.array(camera_matrix).reshape(3, 3)
+
+        # Transform points to normalized camera coordinates
+        # No need for adding homogeneous coordinates; just use points directly
+        normalized_coords = np.dot(points, camera_matrix.T)
+
+        # Convert to 2D image coordinates
+        u = normalized_coords[:, 0] / normalized_coords[:, 2]
+        v = normalized_coords[:, 1] / normalized_coords[:, 2]
+        depth = normalized_coords[:, 2]
+
+        # Combine u, v, and depth into a single array
+        result = np.stack((u, v, depth), axis=-1)
+
+        return result
+
+    def image_to_3d_point(self, image_point, camera_matrix):
+        # Add a homogeneous coordinate to the 2D image point
+        # TODO: put Z instead of 1??
+        image_point_homogeneous = np.array([image_point[0], image_point[1], 1])
+
+        # Invert the camera matrix
+        inv_camera_matrix = np.linalg.inv(camera_matrix)
+
+        # Transform to normalized camera coordinates
+        normalized_coords = np.dot(inv_camera_matrix, image_point_homogeneous)
+
+        # 3D point with unit depth
+        point_3d = normalized_coords / normalized_coords[2]
+
+        # 3D point multiplied by monocular depth
+        point_3d *= image_point[2]
+
+        return point_3d
+
+    def transform_det_lidar(self, lidar_points, transform):
+        """Transforms from lidar detections to camera frames using NumPy for efficiency."""
+        try:
+            # Create a list to store transformed points
+            transformed_points = []
+
+            # Iterate over each point and transform
+            for point in lidar_points:
+                # Create a PointStamped object
+                p = PointStamped()
+                p.point = Point(x=float(point[0]), y=float(point[1]), z=float(point[2]))
+
+                p_tf = tf2_geometry_msgs.do_transform_point(p, transform).point
+                transformed_points.append([p_tf.x, p_tf.y, p_tf.z])
+
+            return np.array(transformed_points)
+
+        except TransformException as ex:
+            print(ex)
+            return np.array([])  # Return an empty array in case of an exception
+
+    def update_smoothed_positions(self, cone_id, new_position, alpha):
+        if cone_id in self.previous_detections:
+            # Apply EMA: position(t) = alpha * position(t-1) + (1 - alpha) * position_current
+            prev_pos = self.previous_detections[cone_id]["position"]
+            smoothed_position = alpha * np.array(prev_pos) + (1 - alpha) * np.array(
+                new_position
             )
-            i += 1
+            self.previous_detections[cone_id]["position"] = smoothed_position
+        else:
+            # Initialize detection
+            self.previous_detections[cone_id] = {"position": new_position}
 
-        # visualizing cone detections in right camera
-        for x, y, w, h in results_right:
-            # if y <= 470:
-            # continue
-            cv2.rectangle(frame_right, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        return self.previous_detections[cone_id]["position"]
 
-    def equalize_hist(self, image):
-        # convert from RGB color-space to YCrCb
-        ycrcb_img = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+    def cost_mtx_from_bbox(
+        self, projected_lidar_detections, camera_detections, depth_factor
+    ):
+        cost_matrix = np.zeros(
+            (len(projected_lidar_detections), len(camera_detections))
+        )
+        for i, (lidar_x, lidar_y, lidar_depth) in enumerate(projected_lidar_detections):
+            for j, (cam_x, cam_y, cam_w, cam_h) in enumerate(camera_detections):
+                # Check if lidar point is inside the bounding box
+                if (
+                    cam_x - 10 <= lidar_x <= cam_x + cam_w + 10
+                    and cam_y - 10 <= lidar_y <= cam_y + cam_h + 10
+                ):
+                    # Lidar point is inside the bounding box (minimal cost)
+                    euclidean_distance = 0
+                else:
+                    # If outside, calculate the distance to the nearest edge of the bounding box
+                    nearest_x = max(cam_x, min(lidar_x, cam_x + cam_w))
+                    nearest_y = max(cam_y, min(lidar_y, cam_y + cam_h))
+                    euclidean_distance = np.linalg.norm(
+                        [lidar_x - nearest_x, lidar_y - nearest_y]
+                    )
 
-        # equalize the histogram of the Y channel
-        ycrcb_img[:, :, 0] = cv2.equalizeHist(ycrcb_img[:, :, 0])
+                # Add depth-based weighting to the cost
+                cost_matrix[i, j] = euclidean_distance * (
+                    1 + depth_factor * (lidar_depth)
+                )
 
-        # convert back to RGB color-space from YCrCb
-        equalized_img = cv2.cvtColor(ycrcb_img, cv2.COLOR_YCrCb2BGR)
+        return cost_matrix
 
-        return equalized_img
+    def h_matching(
+        self,
+        left_projected_lidar_pts,
+        right_projected_lidar_pts,
+        left_cam_dets,
+        classes_left,
+        right_cam_dets,
+        classes_right,
+        duplicate_threshold,
+        cost_threshold,
+        depth_weight,
+        alpha,
+    ):
+        """Performs Hungarian matching for lidar points and bounding boxes."""
 
-    def hasVisualArtifacts(self, frame):
-        """
-        Returns true if the frame has visual artifacts, defined
-        as contours found after blurring and thresholding the image.
-        """
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, (5, 5), 0)
-        thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-        contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        return len(contours) > 0
+        # Perform matching for left camera
+        cost_matrix_left = self.cost_mtx_from_bbox(
+            left_projected_lidar_pts, left_cam_dets, depth_factor=depth_weight
+        )
+        row_ind_left, col_ind_left = linear_sum_assignment(cost_matrix_left)
+
+        # Perform matching for right camera
+        cost_matrix_right = self.cost_mtx_from_bbox(
+            right_projected_lidar_pts, right_cam_dets, depth_factor=depth_weight
+        )
+        row_ind_right, col_ind_right = linear_sum_assignment(cost_matrix_right)
+
+        matched_lidar_left = [left_projected_lidar_pts[i] for i in row_ind_left]
+        matched_lidar_right = [right_projected_lidar_pts[i] for i in row_ind_right]
+
+        # Store results after Hungarian matching
+        left_matches, right_matches, left_classes, right_classes = [], [], [], []
+
+        for i, lidar_point_left in enumerate(matched_lidar_left):
+            cost_left = cost_matrix_left[row_ind_left[i], col_ind_left[i]]
+            if cost_left > cost_threshold:
+                continue
+            left_matches.append(lidar_point_left)
+            left_classes.append(classes_left[col_ind_left[i]])
+        for j, lidar_point_right in enumerate(matched_lidar_right):
+            cost_right = cost_matrix_right[row_ind_right[j], col_ind_right[j]]
+            if cost_right > cost_threshold:
+                continue
+            right_matches.append(lidar_point_right)
+            right_classes.append(classes_right[col_ind_right[j]])
+
+        # Apply EMA smoothing to left camera matches
+        # for i, lidar_point_left in enumerate(left_projected_lidar_pts):
+        #     if cost_matrix_left[row_ind_left[i], col_ind_left[i]] <= cost_threshold:
+        #         cone_id = row_ind_left[i]  # Unique ID based on match
+        #         smoothed_position = self.update_smoothed_positions(
+        #             cone_id, lidar_point_left, alpha
+        #         )
+        #         left_matches.append(smoothed_position)
+        #         left_classes.append(classes_left[col_ind_left[i]])
+
+        # Apply EMA smoothing to right camera matches
+        # for i, lidar_point_right in enumerate(right_projected_lidar_pts):
+        #     if cost_matrix_right[row_ind_right[i], col_ind_right[i]] <= cost_threshold:
+        #         cone_id = row_ind_right[i]  # Unique ID based on match
+        #         smoothed_position = self.update_smoothed_positions(
+        #             cone_id, lidar_point_right, alpha
+        #         )
+        #         right_matches.append(smoothed_position)
+        #         right_classes.append(classes_right[col_ind_right[i]])
+
+        return left_matches, right_matches, left_classes, right_classes
+
+    def filter_points_in_fov(self, projected_points, image_size):
+        """Filters out points that are outside the image boundaries."""
+
+        image_width, image_height = image_size
+        # Create a boolean mask for points inside the image boundaries
+        valid_mask = (
+            (projected_points[:, 0] >= 0)
+            & (projected_points[:, 0] < image_width)
+            & (projected_points[:, 1] >= 0)
+            & (projected_points[:, 1] < image_height)
+        )
+
+        # Return the indices of the valid points
+        valid_indices = np.where(valid_mask)[0]
+
+        return valid_indices
+
+    # def save_image(self, left_img_, right_img_, rosbag_name):
+    #     left_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"
+    #     cv2.imwrite(
+    #         "/home/utfrdv/utfr_dv_ros2/src/perception/images_to_mp4_left/"
+    #         + left_img_name,
+    #         left_img_,
+    #     )
+
+    #     right_img_name = rosbag_name + "_" + str(self.saved_count) + ".png"
+    #     cv2.imwrite(
+    #         "/home/utfrdv/utfr_dv_ros2/src/perception/images_to_mp4_right/"
+    #         + right_img_name,
+    #         right_img_,
+    #     )
+
+    #     self.saved_count += 1
+
+    # def resize_img(self, left_img_, right_img_, scale_percent):
+    #     # Downsize image resolution/size
+
+    #     right_width = int(right_img_.shape[1] * scale_percent / 100)
+    #     right_height = int(right_img_.shape[0] * scale_percent / 100)
+    #     right_dim = (right_width, right_height)
+
+    #     # resize image
+    #     frame_right = cv2.resize(right_img_, right_dim, interpolation=cv2.INTER_AREA)
+
+    #     left_width = int(left_img_.shape[1] * scale_percent / 100)
+    #     left_height = int(left_img_.shape[0] * scale_percent / 100)
+    #     left_dim = (left_width, left_height)
+
+    #     # resize image
+    #     frame_left = cv2.resize(left_img_, left_dim, interpolation=cv2.INTER_AREA)
+
+    #     return frame_left, frame_right
 
     def frameChanged(self, frame, prev_frame):
         """
@@ -999,6 +1394,17 @@ class PerceptionNode(Node):
         _, thresh = cv2.threshold(blur, 20, 255, cv2.THRESH_BINARY)
         dilated = cv2.dilate(thresh, None, iterations=3)
         contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        return len(contours) > 0
+
+    def hasVisualArtifacts(self, frame):
+        """
+        Returns true if the frame has visual artifacts, defined
+        as contours found after blurring and thresholding the image.
+        """
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (5, 5), 0)
+        thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+        contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         return len(contours) > 0
 
     def cameraStatus(self):
@@ -1051,20 +1457,23 @@ class PerceptionNode(Node):
             return 1  # ACTIVE
         return 1
 
-    def monitorCamera(self):
-        """
-        Monitor camera status and publish heartbeat message.
-        Function or line below to be called in the main loop.
-        """
-        self.publishHeartbeat()
-
 
 def main(args=None):
     rclpy.init(args=args)
     node = PerceptionNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    executor = MultiThreadedExecutor(
+        num_threads=6
+    )  # Adjust the number of threads as needed
+    executor.add_node(node)
+    try:
+        executor.spin()
+    finally:
+        executor.shutdown()
+        node.destroy_node()
+        rclpy.shutdown()
+    # rclpy.spin(node)
+    # node.destroy_node()
+    # rclpy.shutdown()
 
 
 if __name__ == "__main__":

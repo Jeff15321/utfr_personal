@@ -33,7 +33,12 @@
 
 // Message Requirements
 #include <geometry_msgs/msg/polygon_stamped.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <sensor_msgs/msg/compressed_image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 #include <utfr_msgs/msg/cone_detections.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/parametric_spline.hpp>
@@ -86,7 +91,11 @@ private:
 
   void pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr input);
 
-  sensor_msgs::msg::PointCloud2
+  void leftImageCB(const sensor_msgs::msg::CompressedImage::SharedPtr msg);
+
+  void rightImageCB(const sensor_msgs::msg::CompressedImage::SharedPtr msg);
+
+  sensor_msgs::msg::PointCloud2::SharedPtr
   convertToPointCloud2(const std::vector<std::array<float, 3>> &points,
                        const std::string &frame_id);
 
@@ -94,7 +103,7 @@ private:
       const PointCloud &cloud,
       const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
 
-  PointCloud convertToCustomPointCloud(
+  PointCloud filterAndConvertToCustomPointCloud(
       const sensor_msgs::msg::PointCloud2::SharedPtr &input);
 
   void timerCB();
@@ -113,6 +122,10 @@ private:
   utfr_msgs::msg::Heartbeat heartbeat_;
   sensor_msgs::msg::PointCloud2::SharedPtr latest_point_cloud;
 
+  // TF2 buffer and listener for transform handling
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
+
   // Subscribers
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr
       point_cloud_subscriber_;
@@ -124,6 +137,19 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr
       pub_lidar_detected;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+
+  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr
+      left_image_publisher;
+  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr
+      right_image_publisher;
+  rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr
+      left_image_subscriber;
+  rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr
+      right_image_subscriber;
+
+  bool hold_image = true;
+  sensor_msgs::msg::CompressedImage left_img;
+  sensor_msgs::msg::CompressedImage right_img;
 };
 } // namespace lidar_proc
 } // namespace utfr_dv

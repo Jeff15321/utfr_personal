@@ -37,6 +37,7 @@ class VisualizationNode(Node):
         self.initPublishers()
         self.initServices()
         self.initTimers()
+        self.get_logger().info("Starting visualization node")
 
     def loadParams(self):
         pass
@@ -58,14 +59,40 @@ class VisualizationNode(Node):
             PerceptionDebug, "/perception/debug_right", self.perceptionDebugRightCB, 1
         )
 
+        self.lidar_projection_subscriber_left_ = self.create_subscription(
+            PerceptionDebug,
+            "/perception/lidar_projection_left",
+            self.lidarProjectionLeftCB,
+            1,
+        )
+
+        self.lidar_projection_subscriber_left_ = self.create_subscription(
+            PerceptionDebug,
+            "/perception/lidar_projection_right",
+            self.lidarProjectionRightCB,
+            1,
+        )
+
+        self.lidar_projection_subscriber_left_ = self.create_subscription(
+            PerceptionDebug,
+            "/perception/lidar_projection_matched_left",
+            self.lidarProjectionMatchedLeftCB,
+            1,
+        )
+
+        self.lidar_projection_subscriber_left_ = self.create_subscription(
+            PerceptionDebug,
+            "/perception/lidar_projection_matched_right",
+            self.lidarProjectionMatchedRightCB,
+            1,
+        )
+
         self.cone_detections_ = self.create_subscription(
             ConeDetections,
             "/perception/cone_detections",
             self.perceptionConeDetectionsCB,
             1,
         )
-        print(self.perception_debug_subscriber_left_)
-        print(self.perception_debug_subscriber_right_)
 
     def initPublishers(self):
         self.left_image_marker_publisher_ = self.create_publisher(
@@ -84,11 +111,31 @@ class VisualizationNode(Node):
             ImageAnnotations, "/visualization/right_image_text", 1
         )
 
+        self.lidar_projection_publisher_left_ = self.create_publisher(
+            ImageMarkerArray, "/visualization/lidar_projection_left", 1
+        )
+
+        self.lidar_projection_publisher_right_ = self.create_publisher(
+            ImageMarkerArray, "/visualization/lidar_projection_right", 1
+        )
+
+        self.lidar_projection_publisher_matched_left_ = self.create_publisher(
+            ImageMarkerArray, "/visualization/lidar_projection_matched_left", 1
+        )
+
+        self.lidar_projection_publisher_matched_right_ = self.create_publisher(
+            ImageMarkerArray, "/visualization/lidar_projection_matched_right", 1
+        )
+
         self.cone_markers_publisher_ = self.create_publisher(
             MarkerArray, "/visualization/cone_markers", 1
         )
 
-        print(self.left_image_marker_publisher_)
+        self.cone_debug_markers_publisher = self.create_publisher(
+            MarkerArray, "/visualization/cone_debug_markers", 1
+        )
+
+        # print(self.left_image_marker_publisher_)
 
     def initServices(self):
         pass
@@ -96,295 +143,246 @@ class VisualizationNode(Node):
     def initTimers(self):
         pass
 
-    def perceptionDebugLeftCB(self, msg):
-        self.get_logger().warn("Recieved left perception debug msg")
+    # colors for the different types of cones
+    colorRGBALUT = [
+        ColorRGBA(r=0.0, g=1.0, b=1.0, a=1.0),
+        ColorRGBA(r=0.0, g=0.0, b=1.0, a=1.0),
+        ColorRGBA(r=1.0, g=0.3, b=0.0, a=1.0),
+        ColorRGBA(r=1.0, g=0.0, b=1.0, a=1.0),
+        ColorRGBA(r=0.0, g=0.0, b=0.0, a=1.0),
+    ]
+    colorLUT = [
+        Color(r=0.0, g=1.0, b=1.0, a=1.0),
+        Color(r=0.0, g=0.0, b=1.0, a=1.0),
+        Color(r=1.0, g=0.3, b=0.0, a=1.0),
+        Color(r=1.0, g=0.0, b=1.0, a=1.0),
+        Color(r=0.0, g=0.0, b=0.0, a=1.0),
+    ]
+    textLUT = [
+        "Unknown Cone",
+        "Blue Cones",
+        "Yellow Cone",
+        "Small Orange Cone",
+        "Large Orange Cone",
+    ]
+
+    def boundaryBoxPoints(self, bounding_box):
+        """Returns verticies of bounding boxes as points, given a bounding_box object"""
+        return [
+            Point(
+                x=float(bounding_box.x),
+                y=float(bounding_box.y),
+                z=0.0,
+            ),
+            Point(
+                x=float(bounding_box.x + bounding_box.width),
+                y=float(bounding_box.y),
+                z=0.0,
+            ),
+            Point(
+                x=float(bounding_box.x + bounding_box.width),
+                y=float(bounding_box.y + bounding_box.height),
+                z=0.0,
+            ),
+            Point(
+                x=float(bounding_box.x),
+                y=float(bounding_box.y + bounding_box.height),
+                z=0.0,
+            ),
+        ]
+
+    def lidarProjectionBoundaryBoxPoints(self, bounding_box):
+        """Returns verticies of bounding boxes of lidar projections as points, given a bounding_box object
+        different from the other one because we want the center of the box to be the point
+        """
+        return [
+            Point(
+                x=float(bounding_box.x - bounding_box.width / 2.0),
+                y=float(bounding_box.y - bounding_box.height / 2.0),
+                z=0.0,
+            ),
+            Point(
+                x=float(bounding_box.x + bounding_box.width / 2.0),
+                y=float(bounding_box.y - bounding_box.height / 2.0),
+                z=0.0,
+            ),
+            Point(
+                x=float(bounding_box.x + bounding_box.width / 2.0),
+                y=float(bounding_box.y + bounding_box.height / 2.0),
+                z=0.0,
+            ),
+            Point(
+                x=float(bounding_box.x - bounding_box.width / 2.0),
+                y=float(bounding_box.y + bounding_box.height / 2.0),
+                z=0.0,
+            ),
+        ]
+
+    def lidarProjectionLeftCB(self, msg):
+        # self.get_logger().warn("Received lidar projection left msg")
         markers = ImageMarkerArray()
-        image_annotation = ImageAnnotations()
-        print(msg.header.stamp)
+        left_projections = msg.left
+        if msg.header.frame_id == "matched":
+            color = ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0)
+        else:
+            color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
+
+        for point in left_projections:
+            markers.markers.append(
+                ImageMarker(
+                    header=msg.header,
+                    scale=2.5,
+                    type=ImageMarker.POLYGON,
+                    filled=True,
+                    fill_color=color,
+                    outline_color=color,
+                    points=self.lidarProjectionBoundaryBoxPoints(point),
+                )
+            )
+
+        # publish image marker array
+        self.lidar_projection_publisher_left_.publish(markers)
+
+    def lidarProjectionRightCB(self, msg):
+        # self.get_logger().warn("Received lidar projection right msg")
+        markers = ImageMarkerArray()
+        right_projections = msg.right
+        if msg.header.frame_id == "matched":
+            color = ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0)
+        else:
+            color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
+
+        for point in right_projections:
+            markers.markers.append(
+                ImageMarker(
+                    header=msg.header,
+                    scale=2.5,
+                    type=ImageMarker.POLYGON,
+                    filled=True,
+                    fill_color=color,
+                    outline_color=color,
+                    points=self.lidarProjectionBoundaryBoxPoints(point),
+                )
+            )
+
+        self.lidar_projection_publisher_right_.publish(markers)
+
+    def lidarProjectionMatchedLeftCB(self, msg):
+        # self.get_logger().warn("Received lidar projection left msg")
+        markers = ImageMarkerArray()
+        left_projections = msg.left
+        if msg.header.frame_id == "matched":
+            color = ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0)
+        else:
+            color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
+
+        for point in left_projections:
+            markers.markers.append(
+                ImageMarker(
+                    header=msg.header,
+                    scale=2.5,
+                    type=ImageMarker.POLYGON,
+                    filled=True,
+                    fill_color=color,
+                    outline_color=color,
+                    points=self.lidarProjectionBoundaryBoxPoints(point),
+                )
+            )
+
+        # publish image marker array
+        self.lidar_projection_publisher_matched_left_.publish(markers)
+
+    def lidarProjectionMatchedRightCB(self, msg):
+        # self.get_logger().warn("Received lidar projection right msg")
+        markers = ImageMarkerArray()
+        right_projections = msg.right
+        if msg.header.frame_id == "matched":
+            color = ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0)
+        else:
+            color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
+
+        for point in right_projections:
+            markers.markers.append(
+                ImageMarker(
+                    header=msg.header,
+                    scale=2.5,
+                    type=ImageMarker.POLYGON,
+                    filled=True,
+                    fill_color=color,
+                    outline_color=color,
+                    points=self.lidarProjectionBoundaryBoxPoints(point),
+                )
+            )
+
+        self.lidar_projection_publisher_matched_right_.publish(markers)
+
+    def perceptionDebugLeftCB(self, msg):
+        # self.get_logger().warn("Recieved left perception debug msg")
+        left_markers = ImageMarkerArray()
+        left_image_annotation = ImageAnnotations()
+        # print(msg.header.stamp)
 
         left_detections = msg.left
-        for bounding_box in left_detections:
-            # initialize image marker array
-            if bounding_box.type == 0:  # unknown cone
-                markers.markers.append(
+        for left_bounding_box in left_detections:
+            if (
+                left_bounding_box.type < len(self.colorLUT)
+                and left_bounding_box.type > 0
+            ):
+                left_markers.markers.append(
                     ImageMarker(
                         header=msg.header,
                         scale=2.5,
                         type=ImageMarker.POLYGON,
-                        outline_color=ColorRGBA(r=0.0, g=1.0, b=1.0, a=1.0),
-                        points=[
-                            Point(
-                                x=float(bounding_box.x), y=float(bounding_box.y), z=0.0
-                            ),
-                            Point(
-                                x=float(bounding_box.x + bounding_box.width),
-                                y=float(bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(bounding_box.x + bounding_box.width),
-                                y=float(bounding_box.y + bounding_box.height),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(bounding_box.x),
-                                y=float(bounding_box.y + bounding_box.height),
-                                z=0.0,
-                            ),
-                        ],
+                        outline_color=self.colorRGBALUT[left_bounding_box.type],
+                        points=self.boundaryBoxPoints(left_bounding_box),
                     )
                 )
 
                 # add text annotation
-
-                image_annotation.texts.append(
+                left_image_annotation.texts.append(
                     TextAnnotation(
                         timestamp=msg.header.stamp,
                         position=Point2(
-                            x=float(bounding_box.x),
-                            y=float(bounding_box.y - 10),
+                            x=float(left_bounding_box.x),
+                            y=float(left_bounding_box.y - 10),
                         ),
-                        text="Unknown Cone " + str(bounding_box.score),
+                        text=self.textLUT[left_bounding_box.type]
+                        + " "
+                        + str(left_bounding_box.score),
                         font_size=20.0,
                         text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
-                        background_color=Color(r=0.0, g=1.0, b=1.0, a=1.0),
+                        background_color=self.colorLUT[left_bounding_box.type],
                     )
                 )
-
-            elif bounding_box.type == 1:  # blue cone
-                markers.markers.append(
-                    ImageMarker(
-                        header=msg.header,
-                        scale=2.5,
-                        type=ImageMarker.POLYGON,
-                        outline_color=ColorRGBA(r=0.0, g=0.0, b=1.0, a=1.0),
-                        points=[
-                            Point(
-                                x=float(bounding_box.x), y=float(bounding_box.y), z=0.0
-                            ),
-                            Point(
-                                x=float(bounding_box.x + bounding_box.width),
-                                y=float(bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(bounding_box.x + bounding_box.width),
-                                y=float(bounding_box.y + bounding_box.height),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(bounding_box.x),
-                                y=float(bounding_box.y + bounding_box.height),
-                                z=0.0,
-                            ),
-                        ],
-                    )
-                )
-
-                image_annotation.texts.append(
-                    TextAnnotation(
-                        timestamp=msg.header.stamp,
-                        position=Point2(
-                            x=float(bounding_box.x),
-                            y=float(bounding_box.y - 10),
-                        ),
-                        text="Blue Cone " + str(bounding_box.score),
-                        font_size=20.0,
-                        text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
-                        background_color=Color(r=0.0, g=0.0, b=1.0, a=1.0),
-                    )
-                )
-
-            elif bounding_box.type == 2:  # yellow cone
-                markers.markers.append(
-                    ImageMarker(
-                        header=msg.header,
-                        scale=2.5,
-                        type=ImageMarker.POLYGON,
-                        outline_color=ColorRGBA(r=1.0, g=0.3, b=0.0, a=1.0),
-                        points=[
-                            Point(
-                                x=float(bounding_box.x), y=float(bounding_box.y), z=0.0
-                            ),
-                            Point(
-                                x=float(bounding_box.x + bounding_box.width),
-                                y=float(bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(bounding_box.x + bounding_box.width),
-                                y=float(bounding_box.y + bounding_box.height),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(bounding_box.x),
-                                y=float(bounding_box.y + bounding_box.height),
-                                z=0.0,
-                            ),
-                        ],
-                    )
-                )
-
-                image_annotation.texts.append(
-                    TextAnnotation(
-                        timestamp=msg.header.stamp,
-                        position=Point2(
-                            x=float(bounding_box.x),
-                            y=float(bounding_box.y - 20),
-                        ),
-                        text="Yellow Cone " + str(bounding_box.score),
-                        font_size=20.0,
-                        text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
-                        background_color=Color(r=1.0, g=0.3, b=0.0, a=1.0),
-                    )
-                )
-
-            elif bounding_box.type == 3:  # small orange cone
-                markers.markers.append(
-                    ImageMarker(
-                        header=msg.header,
-                        scale=2.5,
-                        type=ImageMarker.POLYGON,
-                        outline_color=ColorRGBA(r=1.0, g=0.0, b=1.0, a=1.0),
-                        points=[
-                            Point(
-                                x=float(bounding_box.x), y=float(bounding_box.y), z=0.0
-                            ),
-                            Point(
-                                x=float(bounding_box.x + bounding_box.width),
-                                y=float(bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(bounding_box.x + bounding_box.width),
-                                y=float(bounding_box.y + bounding_box.height),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(bounding_box.x),
-                                y=float(bounding_box.y + bounding_box.height),
-                                z=0.0,
-                            ),
-                        ],
-                    )
-                )
-                image_annotation.texts.append(
-                    TextAnnotation(
-                        timestamp=msg.header.stamp,
-                        position=Point2(
-                            x=float(bounding_box.x),
-                            y=float(bounding_box.y - 20),
-                        ),
-                        text="Small Orange Cone " + str(bounding_box.score),
-                        font_size=20.0,
-                        text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
-                        background_color=Color(r=1.0, g=0.0, b=1.0, a=1.0),
-                    )
-                )
-
-            elif bounding_box.type == 4:  # large orange cone
-                markers.markers.append(
-                    ImageMarker(
-                        header=msg.header,
-                        scale=2.5,
-                        type=ImageMarker.POLYGON,
-                        outline_color=ColorRGBA(r=0.0, g=0.0, b=0.0, a=1.0),
-                        points=[
-                            Point(
-                                x=float(bounding_box.x), y=float(bounding_box.y), z=0.0
-                            ),
-                            Point(
-                                x=float(bounding_box.x + bounding_box.width),
-                                y=float(bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(bounding_box.x + bounding_box.width),
-                                y=float(bounding_box.y + bounding_box.height),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(bounding_box.x),
-                                y=float(bounding_box.y + bounding_box.height),
-                                z=0.0,
-                            ),
-                        ],
-                    )
-                )
-                image_annotation.texts.append(
-                    TextAnnotation(
-                        timestamp=msg.header.stamp,
-                        position=Point2(
-                            x=float(bounding_box.x),
-                            y=float(bounding_box.y - 20),
-                        ),
-                        text="Large Orange Cone " + str(bounding_box.score),
-                        font_size=20.0,
-                        text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
-                        background_color=Color(r=0.0, g=0.0, b=0.0, a=1.0),
-                    )
-                )
-
             else:
                 continue
-        # initialize text
 
-        # done for loop, publish image marker array
-        self.left_image_marker_publisher_.publish(markers)
-
-        self.left_image_text_publisher_.publish(image_annotation)
+        # publish image marker array
+        self.left_image_marker_publisher_.publish(left_markers)
+        self.left_image_text_publisher_.publish(left_image_annotation)
 
     def perceptionDebugRightCB(self, msg):
-        self.get_logger().warn("Recieved right perception debug msg")
+        # self.get_logger().warn("Recieved right perception debug msg")
         right_markers = ImageMarkerArray()
         right_image_annotation = ImageAnnotations()
-
         right_detections = msg.right
 
         for right_bounding_box in right_detections:
-            # initialize image marker array
-            if right_bounding_box.type == 0:  # unknown cone
+            if (
+                right_bounding_box.type < len(self.colorLUT)
+                and right_bounding_box.type > 0
+            ):
                 right_markers.markers.append(
                     ImageMarker(
                         header=msg.header,
                         scale=2.5,
                         type=ImageMarker.POLYGON,
-                        outline_color=ColorRGBA(r=0.0, g=1.0, b=1.0, a=1.0),
-                        points=[
-                            Point(
-                                x=float(right_bounding_box.x),
-                                y=float(right_bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(
-                                    right_bounding_box.x + right_bounding_box.width
-                                ),
-                                y=float(right_bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(
-                                    right_bounding_box.x + right_bounding_box.width
-                                ),
-                                y=float(
-                                    right_bounding_box.y + right_bounding_box.height
-                                ),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(right_bounding_box.x),
-                                y=float(
-                                    right_bounding_box.y + right_bounding_box.height
-                                ),
-                                z=0.0,
-                            ),
-                        ],
+                        outline_color=self.colorRGBALUT[right_bounding_box.type],
+                        points=self.boundaryBoxPoints(right_bounding_box),
                     )
                 )
 
                 # add text annotation
-
                 right_image_annotation.texts.append(
                     TextAnnotation(
                         timestamp=msg.header.stamp,
@@ -392,240 +390,63 @@ class VisualizationNode(Node):
                             x=float(right_bounding_box.x),
                             y=float(right_bounding_box.y - 10),
                         ),
-                        text="Unknown Cone " + str(right_bounding_box.score),
+                        text=self.textLUT[right_bounding_box.type]
+                        + " "
+                        + str(right_bounding_box.score),
                         font_size=20.0,
                         text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
-                        background_color=Color(r=0.0, g=1.0, b=1.0, a=1.0),
+                        background_color=self.colorLUT[right_bounding_box.type],
                     )
                 )
-
-            elif right_bounding_box.type == 1:  # blue cone
-                right_markers.markers.append(
-                    ImageMarker(
-                        header=msg.header,
-                        scale=2.5,
-                        type=ImageMarker.POLYGON,
-                        outline_color=ColorRGBA(r=0.0, g=0.0, b=1.0, a=1.0),
-                        points=[
-                            Point(
-                                x=float(right_bounding_box.x),
-                                y=float(right_bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(
-                                    right_bounding_box.x + right_bounding_box.width
-                                ),
-                                y=float(right_bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(
-                                    right_bounding_box.x + right_bounding_box.width
-                                ),
-                                y=float(
-                                    right_bounding_box.y + right_bounding_box.height
-                                ),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(right_bounding_box.x),
-                                y=float(
-                                    right_bounding_box.y + right_bounding_box.height
-                                ),
-                                z=0.0,
-                            ),
-                        ],
-                    )
-                )
-
-                right_image_annotation.texts.append(
-                    TextAnnotation(
-                        timestamp=msg.header.stamp,
-                        position=Point2(
-                            x=float(right_bounding_box.x),
-                            y=float(right_bounding_box.y - 10),
-                        ),
-                        text="Blue Cone " + str(right_bounding_box.score),
-                        font_size=20.0,
-                        text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
-                        background_color=Color(r=0.0, g=0.0, b=1.0, a=1.0),
-                    )
-                )
-
-            elif right_bounding_box.type == 2:  # yellow cone
-                right_markers.markers.append(
-                    ImageMarker(
-                        header=msg.header,
-                        scale=2.5,
-                        type=ImageMarker.POLYGON,
-                        outline_color=ColorRGBA(r=1.0, g=0.3, b=0.0, a=1.0),
-                        points=[
-                            Point(
-                                x=float(right_bounding_box.x),
-                                y=float(right_bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(
-                                    right_bounding_box.x + right_bounding_box.width
-                                ),
-                                y=float(right_bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(
-                                    right_bounding_box.x + right_bounding_box.width
-                                ),
-                                y=float(
-                                    right_bounding_box.y + right_bounding_box.height
-                                ),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(right_bounding_box.x),
-                                y=float(
-                                    right_bounding_box.y + right_bounding_box.height
-                                ),
-                                z=0.0,
-                            ),
-                        ],
-                    )
-                )
-
-                right_image_annotation.texts.append(
-                    TextAnnotation(
-                        timestamp=msg.header.stamp,
-                        position=Point2(
-                            x=float(right_bounding_box.x),
-                            y=float(right_bounding_box.y - 20),
-                        ),
-                        text="Yellow Cone " + str(right_bounding_box.score),
-                        font_size=20.0,
-                        text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
-                        background_color=Color(r=1.0, g=0.3, b=0.0, a=1.0),
-                    )
-                )
-
-            elif right_bounding_box.type == 3:  # small orange cone
-                right_markers.markers.append(
-                    ImageMarker(
-                        header=msg.header,
-                        scale=2.5,
-                        type=ImageMarker.POLYGON,
-                        outline_color=ColorRGBA(r=1.0, g=0.0, b=1.0, a=1.0),
-                        points=[
-                            Point(
-                                x=float(right_bounding_box.x),
-                                y=float(right_bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(
-                                    right_bounding_box.x + right_bounding_box.width
-                                ),
-                                y=float(right_bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(
-                                    right_bounding_box.x + right_bounding_box.width
-                                ),
-                                y=float(
-                                    right_bounding_box.y + right_bounding_box.height
-                                ),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(right_bounding_box.x),
-                                y=float(
-                                    right_bounding_box.y + right_bounding_box.height
-                                ),
-                                z=0.0,
-                            ),
-                        ],
-                    )
-                )
-                right_image_annotation.texts.append(
-                    TextAnnotation(
-                        timestamp=msg.header.stamp,
-                        position=Point2(
-                            x=float(right_bounding_box.x),
-                            y=float(right_bounding_box.y - 20),
-                        ),
-                        text="Small Orange Cone " + str(right_bounding_box.score),
-                        font_size=20.0,
-                        text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
-                        background_color=Color(r=1.0, g=0.0, b=1.0, a=1.0),
-                    )
-                )
-
-            elif right_bounding_box.type == 4:  # large orange cone
-                right_markers.markers.append(
-                    ImageMarker(
-                        header=msg.header,
-                        scale=2.5,
-                        type=ImageMarker.POLYGON,
-                        outline_color=ColorRGBA(r=0.0, g=0.0, b=0.0, a=1.0),
-                        points=[
-                            Point(
-                                x=float(right_bounding_box.x),
-                                y=float(right_bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(
-                                    right_bounding_box.x + right_bounding_box.width
-                                ),
-                                y=float(right_bounding_box.y),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(
-                                    right_bounding_box.x + right_bounding_box.width
-                                ),
-                                y=float(
-                                    right_bounding_box.y + right_bounding_box.height
-                                ),
-                                z=0.0,
-                            ),
-                            Point(
-                                x=float(right_bounding_box.x),
-                                y=float(
-                                    right_bounding_box.y + right_bounding_box.height
-                                ),
-                                z=0.0,
-                            ),
-                        ],
-                    )
-                )
-                right_image_annotation.texts.append(
-                    TextAnnotation(
-                        timestamp=msg.header.stamp,
-                        position=Point2(
-                            x=float(right_bounding_box.x),
-                            y=float(right_bounding_box.y - 20),
-                        ),
-                        text="Large Orange Cone " + str(right_bounding_box.score),
-                        font_size=20.0,
-                        text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
-                        background_color=Color(r=0.0, g=0.0, b=0.0, a=1.0),
-                    )
-                )
-
             else:
                 continue
 
-        # done for loop, publish image marker array
+        # publish image marker array
         self.right_image_marker_publisher_.publish(right_markers)
-
         self.right_image_text_publisher_.publish(right_image_annotation)
+
+    # (r,g,b,a), follow eunm order in cone msg
+    cubeColorLUT = [
+        (1.0, 1.0, 1.0, 1.0),
+        (0.0, 0.0, 1.0, 1.0),
+        (1.0, 1.0, 0.0, 1.0),
+        (1.0, 0.647, 0.0, 1.0),
+        (1.0, 0.647, 0.0, 1.0),
+    ]
+
+    def cubeMarkerFromCone(self, cone, header, id):
+        cube_marker = Marker()
+        # populate the marker
+        cube_marker.header = header
+        cube_marker.header.frame_id = header.frame_id
+        cube_marker.ns = "utfr_foxglove"
+        cube_marker.id = id
+        cube_marker.type = 1  # cube
+        cube_marker.action = 0  # add
+        cube_marker.pose.position.x = cone.pos.x
+        cube_marker.pose.position.y = cone.pos.y
+        cube_marker.pose.position.z = cone.pos.z
+        cube_marker.pose.orientation.x = 0.0
+        cube_marker.pose.orientation.y = 0.0
+        cube_marker.pose.orientation.z = 0.0
+        cube_marker.pose.orientation.w = 1.0
+        cube_marker.scale.x = 0.2
+        cube_marker.scale.y = 0.2
+        cube_marker.scale.z = 0.2
+
+        color = self.cubeColorLUT[cone.type]
+        cube_marker.color.r = color[0]
+        cube_marker.color.g = color[1]
+        cube_marker.color.b = color[2]
+        cube_marker.color.a = color[3]
+
+        return cube_marker
 
     def perceptionConeDetectionsCB(self, msg):
         """
         Publish the cone detections as yellow cube markers
         """
-        self.get_logger().warn("Recieved cone detections msg")
+        # self.get_logger().warn("Recieved cone detections msg")
         cube_cone_dets = MarkerArray()
         left_cones = msg.left_cones
         right_cones = msg.right_cones
@@ -634,140 +455,28 @@ class VisualizationNode(Node):
         unknown_cones = msg.unknown_cones
         i = 0
         for cone in left_cones:
-            cube_marker = Marker()
-            # populate the marker
-            cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
-            cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = i
-            cube_marker.type = 1  # cube
-            cube_marker.action = 0  # add
-            cube_marker.pose.position = cone.pos
-            cube_marker.pose.position.z = 0.0
-            cube_marker.pose.orientation.x = 0.0
-            cube_marker.pose.orientation.y = 0.0
-            cube_marker.pose.orientation.z = 0.0
-            cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.2
-            cube_marker.scale.y = 0.2
-            cube_marker.scale.z = 0.2
-            cube_marker.color.a = 1.0
-            cube_marker.color.r = 1.0
-            cube_marker.color.g = 1.0
-            cube_marker.color.b = 0.0
-
-            cube_cone_dets.markers.append(cube_marker)
+            cube_cone_dets.markers.append(self.cubeMarkerFromCone(cone, msg.header, i))
             i += 1
 
         for cone in right_cones:
-            cube_marker = Marker()
-            # populate the marker
-            cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
-            cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = i
-            cube_marker.type = 1  # cube
-            cube_marker.action = 0  # add
-            cube_marker.pose.position = cone.pos
-            cube_marker.pose.position.z = 0.0
-            cube_marker.pose.orientation.x = 0.0
-            cube_marker.pose.orientation.y = 0.0
-            cube_marker.pose.orientation.z = 0.0
-            cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.2
-            cube_marker.scale.y = 0.2
-            cube_marker.scale.z = 0.2
-            cube_marker.color.a = 1.0
-            cube_marker.color.r = 0.0
-            cube_marker.color.g = 1.0
-            cube_marker.color.b = 1.0
-
-            cube_cone_dets.markers.append(cube_marker)
+            cube_cone_dets.markers.append(self.cubeMarkerFromCone(cone, msg.header, i))
             i += 1
 
         for cone in large_orange_cones:
-            cube_marker = Marker()
-            # populate the marker
-            cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
-            cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = i
-            cube_marker.type = 1  # cube
-            cube_marker.action = 0  # add
-            cube_marker.pose.position = cone.pos
-            cube_marker.pose.position.z = 0.0
-            cube_marker.pose.orientation.x = 0.0
-            cube_marker.pose.orientation.y = 0.0
-            cube_marker.pose.orientation.z = 0.0
-            cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.2
-            cube_marker.scale.y = 0.2
-            cube_marker.scale.z = 0.5
-            cube_marker.color.a = 1.0
-            cube_marker.color.r = 1.0
-            cube_marker.color.g = 0.5
-            cube_marker.color.b = 0.0
-
-            cube_cone_dets.markers.append(cube_marker)
+            cube_cone_dets.markers.append(self.cubeMarkerFromCone(cone, msg.header, i))
             i += 1
 
         for cone in small_orange_cones:
-            cube_marker = Marker()
-            # populate the marker
-            cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
-            cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = i
-            cube_marker.type = 1  # cube
-            cube_marker.action = 0  # add
-            cube_marker.pose.position = cone.pos
-            cube_marker.pose.position.z = 0.0
-            cube_marker.pose.orientation.x = 0.0
-            cube_marker.pose.orientation.y = 0.0
-            cube_marker.pose.orientation.z = 0.0
-            cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.2
-            cube_marker.scale.y = 0.2
-            cube_marker.scale.z = 0.2
-            cube_marker.color.a = 1.0
-            cube_marker.color.r = 1.0
-            cube_marker.color.g = 0.5
-            cube_marker.color.b = 0.0
-
-            cube_cone_dets.markers.append(cube_marker)
+            cube_cone_dets.markers.append(self.cubeMarkerFromCone(cone, msg.header, i))
             i += 1
 
         for cone in unknown_cones:
-            cube_marker = Marker()
-            # populate the marker
-            cube_marker.header = msg.header
-            cube_marker.header.frame_id = "ground"
-            cube_marker.ns = "utfr_foxglove"
-            cube_marker.id = i
-            cube_marker.type = 1  # cube
-            cube_marker.action = 0  # add
-            cube_marker.pose.position = cone.pos
-            cube_marker.pose.position.z = 0.0
-            cube_marker.pose.orientation.x = 0.0
-            cube_marker.pose.orientation.y = 0.0
-            cube_marker.pose.orientation.z = 0.0
-            cube_marker.pose.orientation.w = 1.0
-            cube_marker.scale.x = 0.2
-            cube_marker.scale.y = 0.2
-            cube_marker.scale.z = 0.2
-            cube_marker.color.a = 1.0
-            cube_marker.color.r = 1.0
-            cube_marker.color.g = 1.0
-            cube_marker.color.b = 1.0
-
-            cube_cone_dets.markers.append(cube_marker)
+            cube_cone_dets.markers.append(self.cubeMarkerFromCone(cone, msg.header, i))
             i += 1
-
         self.cone_markers_publisher_.publish(cube_cone_dets)
 
 
 def main(args=None):
-    print("Hi from visualization.")
     rclpy.init(args=args)
     node = VisualizationNode()
     rclpy.spin(node)

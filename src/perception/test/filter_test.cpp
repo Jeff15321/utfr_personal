@@ -8,7 +8,7 @@ TEST(FilterTest, TestViewFilter) {
   ViewBounds bounds = {{0, 10, 0, 10}, {2, 8, 2, 8}};
   Filter filter(bounds, 3, 3);
   PointCloud points = {{1, 1, 1}, {3, 3, 3}, {5, 5, 5}, {7, 7, 7}, {9, 9, 9}};
-  tuple<PointCloud, Grid> filtered_points = filter.view_filter(points);
+  tuple<PointCloud, Grid> filtered_points = filter.ground_grid(points);
   PointCloud expected_points = {{1, 1, 1}, {9, 9, 9}};
 
   EXPECT_EQ(get<0>(filtered_points), expected_points);
@@ -57,7 +57,7 @@ TEST(FilterTest, TestOuterBoxFiltering) {
   Filter filter(bounds, 3, 3);
   PointCloud points = {{-1, 1, 1}, {11, 11, 11}};
 
-  std::tuple<PointCloud, Grid> output = filter.view_filter(points);
+  std::tuple<PointCloud, Grid> output = filter.ground_grid(points);
   PointCloud filtered_points = get<0>(output);
 
   EXPECT_TRUE(filtered_points.empty());
@@ -68,7 +68,7 @@ TEST(FilterTest, TestInnerBoxFiltering) {
   Filter filter(bounds, 3, 3);
   PointCloud points = {{3, 3, 3}, {7, 7, 7}};
 
-  std::tuple<PointCloud, Grid> output = filter.view_filter(points);
+  std::tuple<PointCloud, Grid> output = filter.ground_grid(points);
   PointCloud filtered_points = get<0>(output);
 
   EXPECT_TRUE(filtered_points.empty());
@@ -79,7 +79,7 @@ TEST(FilterTest, TestGridLowestPointCalculation) {
   Filter filter(bounds, 10, 10);
   PointCloud points = {{1, 1, 5}, {1, 1, 3}, {1, 1, 7}};
 
-  Grid grid = get<1>(filter.view_filter(points));
+  Grid grid = get<1>(filter.ground_grid(points));
 
   EXPECT_EQ(grid[1][1][2], 3);
 }

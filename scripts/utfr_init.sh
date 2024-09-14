@@ -68,7 +68,7 @@ sudo apt-get install -y libcgal-dev libboost-all-dev \
 ros-humble-rosbag2-storage-mcap clang-format \ 
 ros-humble-foxglove-bridge ros-humble-foxglove-msgs \
 ros-humble-nmea-msgs ros-humble-mavros-msgs \
-ros-humble-rmw-cyclonedds-cpp
+ros-humble-rmw-cyclonedds-cpp ros-humble-camera-calibration
 
 echo "==========================================="
 echo "=            Install rosdeps              ="

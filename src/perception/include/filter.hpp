@@ -45,6 +45,8 @@ public:
   int grid_size_x;
   int grid_size_y;
 
+  ViewBounds getBounds() { return bounds; }
+
   Filter(){};
 
   /**
@@ -67,13 +69,12 @@ public:
   std::array<int, 2> get_grid_index(Point point);
 
   /**
-   * @brief Filter the point cloud to only include points within the specified
-   * view bounds and create a grid of the lowest points in each grid cell
+   * @brief Create a grid of the lowest points in each grid cell
    *
    * @param points The point cloud to filter
    *
    * @return A tuple containing the filtered point cloud and the grid of lowest
    * points
    */
-  std::tuple<PointCloud, Grid> view_filter(PointCloud points);
+  Grid ground_grid(PointCloud points);
 };
