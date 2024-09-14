@@ -38,6 +38,7 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
   this->initPublishers();
   this->initTimers();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+
 }
 
 using SlamBlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1>>;
@@ -76,7 +77,7 @@ void BuildGraphNode::initParams() {
   transformStamped.transform.rotation.x = 0;
   transformStamped.transform.rotation.y = 0;
   transformStamped.transform.rotation.z = 0;
-  transformStamped.transform.rotation.w = 0;
+  transformStamped.transform.rotation.w = 1.0;
 
   // Broadcast the transform
   broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
@@ -110,6 +111,7 @@ void BuildGraphNode::initPublishers() {
     loop_closure_publisher_ =
         this->create_publisher<std_msgs::msg::Bool>(topics::kLoopClosed, 10);
   }
+
 }
 
 void BuildGraphNode::initTimers() {
@@ -261,7 +263,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           position_x_, nearestCone.x, position_y_, nearestCone.y);
 
       // Do not add if its within 1 of an already seen cone
-      if (displacement <= 1) {
+      if (displacement <= 1 && colour == cone_id_to_color_map_[nearestCone.id]) {
         // Add the ID to the list
         cones_id_list_.push_back(nearestCone.id);
         average_position_[nearestCone.id][0] += position_x_;
@@ -290,7 +292,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
         comparative_displacement = utfr_dv::util::euclidianDistance2D(
             position_x_, std::get<0>(duplicates_potential), position_y_,
             std::get<1>(duplicates_potential));
-        if (comparative_displacement <= 0.5) {
+        if (comparative_displacement <= 0.3) {
           is_duplicate_ = true;
           break;
         }
@@ -324,13 +326,13 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           std::get<1>(potentialPoint));
 
       // Check if cone within 1 of any other new detected cone
-      if (temp_displacement_ <= 1 && colour == std::get<2>(potentialPoint)) {
+      if (temp_displacement_ <= 0.1 && colour == std::get<2>(potentialPoint)) {
         count_ += 1;
         keys.push_back(key_);
         // Check if 30 of same detected
         true_coordinate_x += std::get<0>(potentialPoint);
         true_coordinate_y += std::get<1>(potentialPoint);
-        int count_threshold = 30;
+        int count_threshold = 100;
         if (count_ == count_threshold) {
 
           double average_x = position_x_;
@@ -341,7 +343,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
             double temp_displacement_ = utfr_dv::util::euclidianDistance2D(
                 average_x / number_of_points, std::get<0>(it->second),
                 average_y / number_of_points, std::get<1>(it->second));
-            if (temp_displacement_ <= 1) {
+            if (temp_displacement_ <= 0.1) {
               average_x += std::get<0>(it->second);
               average_y += std::get<1>(it->second);
               number_of_points += 1;
@@ -356,8 +358,8 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           cone_id_to_color_map_[cones_found_] = newCone.type;
           utfr_msgs::msg::PoseGraphData cone_data;
           cone_data.id = cones_found_;
-          cone_data.x = true_coordinate_x / count_threshold;
-          cone_data.y = true_coordinate_y / count_threshold;
+          cone_data.x = true_coordinate_x / number_of_points;
+          cone_data.y = true_coordinate_y / number_of_points;
           cone_nodes_[cones_found_] = (cone_data);
           average_position_[cones_found_] = {position_x_, position_y_, 1};
           cone_id_to_vertex_map_[cones_found_] = cone_data;
@@ -465,6 +467,7 @@ void BuildGraphNode::timerCB() {
   // Print the x and y position of the car
   current_state_ = current_ego_state_;
 
+
   if (current_pose_id_ == 1000) {
     current_state_.pose.pose.position.x = 0;
     current_state_.pose.pose.position.y = 0;
@@ -546,6 +549,7 @@ void BuildGraphNode::timerCB() {
     poseGraph.run_slam = do_graph_slam_;
     pose_graph_publisher_->publish(poseGraph);
     loop_closure_publisher_->publish(closed_loop_once);
+    
 
     if (do_graph_slam_) {
       do_graph_slam_ = false;

@@ -15,6 +15,7 @@
 
 // ROS2 Requirements
 #include <rclcpp/rclcpp.hpp>
+#include <tf2_ros/transform_broadcaster.h>
 
 // System Requirements
 #include <chrono>
@@ -28,14 +29,16 @@
 #include <vector>
 
 // Message Requirements
-#include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "sensor_msgs/msg/imu.hpp"
+#include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <utfr_msgs/msg/cone_map.hpp>
 #include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/sensor_can.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
+#include <visualization_msgs/msg/marker.hpp>
+#include <tf2/utils.h>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -99,11 +102,11 @@ public:
 
   /*! GPS sensor callback function
    */
- // void gpsCB(const nav_msgs::msg::Odometry msg);
+  // void gpsCB(const nav_msgs::msg::Odometry msg);
 
   /*! IMU sensor callback function
    */
-  //void imuCB(const sensor_msgs::msg::Imu msg);
+  // void imuCB(const sensor_msgs::msg::Imu msg);
 
   /*! Implement a kinematic / dynamic vehicle model
    *  Use the throttle, brake, and steering angle to update the vehicle model
@@ -183,23 +186,39 @@ public:
    */
   void timerCB();
 
+  /*! Create transform from ego state
+  */ 
+  geometry_msgs::msg::TransformStamped map_to_imu_link(
+    const utfr_msgs::msg::EgoState &state);
+
+  geometry_msgs::msg::TransformStamped map_to_base_footprint(
+    const utfr_msgs::msg::EgoState &state);
+
   // Publishers
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr ego_state_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr
+      navsatfix_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr state_publisher;
 
   // Subscribers
   // SensorCAN handles GPS, IMU, and wheel/steering speed data!
   rclcpp::Subscription<utfr_msgs::msg::SensorCan>::SharedPtr
       sensorcan_subscriber_;
 
-  //rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gps_subscriber_;
+  // rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gps_subscriber_;
 
   //rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscriber_;
-
+  
+  // Transforms
+  std::unique_ptr<tf2_ros::TransformBroadcaster> tf_br_;
+  
   // Global variables
   utfr_msgs::msg::EgoState current_state_; // Estimated state of the vehicle
   Eigen::MatrixXd P_;
-  std::vector<double> datum_lla;
+  geometry_msgs::msg::Vector3 datum_lla;
+  std::vector<double> last_gps_;
+  double datum_yaw_;
 
   VehicleParameters vehicle_params_;
   utfr_msgs::msg::Heartbeat heartbeat_;

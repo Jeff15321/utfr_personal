@@ -21,7 +21,9 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     geometry_msgs
     utfr_common
     tf2_ros
+    tf2
     sensor_msgs
+    visualization_msgs
 )
 
 ## Find Dependencies

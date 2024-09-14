@@ -41,8 +41,13 @@ void EkfNode::initParams() {
   prev_time_ = this->now();
   current_state_.pose.pose.position.x = 0.0;
   current_state_.pose.pose.position.y = 0.0;
-  datum_lla = {std::nan(""), std::nan(""), std::nan("")};
+  datum_lla = geometry_msgs::msg::Vector3();
   vehicle_params_ = VehicleParameters();
+
+  last_gps_ = {0.0, 0.0};
+  datum_yaw_ = NULL;
+
+  tf_br_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
 }
 
 void EkfNode::initSubscribers() {
@@ -69,6 +74,12 @@ void EkfNode::initPublishers() {
     ego_state_publisher_ =
         this->create_publisher<utfr_msgs::msg::EgoState>(topics::kEgoState, 10);
   }
+
+  state_publisher = this->create_publisher<visualization_msgs::msg::Marker>(
+      "IM_GONNA_KMS", 10);
+
+  navsatfix_publisher_ =
+      this->create_publisher<sensor_msgs::msg::NavSatFix>("xsens/gnss", 10);
 }
 
 void EkfNode::initTimers() {
@@ -92,114 +103,144 @@ void EkfNode::publishHeartbeat(const int status) {
   heartbeat_publisher_->publish(heartbeat_);
 }
 
+geometry_msgs::msg::TransformStamped
+EkfNode::map_to_imu_link(const utfr_msgs::msg::EgoState &state) {
+
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.stamp = this->get_clock()->now();
+  transform.header.frame_id = "map";
+  transform.child_frame_id = "imu_link";
+
+  transform.transform.translation.x = state.pose.pose.position.x;
+  transform.transform.translation.y = state.pose.pose.position.y;
+  transform.transform.translation.z = 0.265;
+
+  transform.transform.rotation = state.pose.pose.orientation;
+  return transform;
+}
+
+geometry_msgs::msg::TransformStamped
+EkfNode::map_to_base_footprint(const utfr_msgs::msg::EgoState &state) {
+
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.stamp = this->get_clock()->now();
+  transform.header.frame_id = "map";
+  transform.child_frame_id = "base_footprint";
+
+  transform.transform.translation.x = state.pose.pose.position.x;
+  transform.transform.translation.y = state.pose.pose.position.y;
+  transform.transform.translation.z = 0.0;
+  tf2::Quaternion q;
+  q.setRPY(M_PI, 0, util::quaternionToYaw(state.pose.pose.orientation));
+
+  transform.transform.rotation.x = q.x();
+  transform.transform.rotation.y = q.y();
+  transform.transform.rotation.z = q.z();
+  transform.transform.rotation.w = q.w();
+
+  return transform;
+}
+
 void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
-    double gps_x = msg.position.latitude;
-    double gps_y = msg.position.longitude;
+  double gps_x = msg.position.latitude;
+  double gps_y = msg.position.longitude;
 
-    std::vector<double> gps_enu = lla2enu({gps_x, gps_y, msg.position.altitude});
-    gps_x = gps_enu[0];
-    gps_y = gps_enu[1];
+  navsatfix_publisher_->publish(msg.position);
 
-    // Initialize a random number generator for noise
-    double standardDeviation = std::sqrt(0.001);  // Define or pass as a parameter
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::normal_distribution<double> distribution(0.0, standardDeviation);
+  if (datum_lla.x == 0.0 && datum_lla.y == 0.0 && datum_lla.z == 0.0) {
+    datum_lla = geometry_msgs::msg::Vector3();
+    datum_lla.x = gps_x;
+    datum_lla.y = gps_y;
+    datum_lla.z = msg.position.altitude;
+  }
 
-    std::uniform_real_distribution<double> angle_distribution(0.0, 2 * M_PI);
-    double angle = angle_distribution(gen);
-    gps_x += distribution(gen) * cos(angle);
-    gps_y += distribution(gen) * sin(angle);
+  if (datum_yaw_ == NULL) {
+    datum_yaw_ = utfr_dv::util::degToRad(msg.rpy.z);
+  }
+
+  utfr_msgs::msg::EgoState res;
+
+  // Check if the current gps position is the same as the last gps position
+  if (last_gps_[0] != gps_x && last_gps_[1] != gps_y) {
+    geometry_msgs::msg::Vector3 lla;
+    lla.x = gps_x;
+    lla.y = gps_y;
+    lla.z = msg.position.altitude;
+
+    geometry_msgs::msg::Vector3 gps_ned =
+        utfr_dv::util::convertLLAtoNED(lla, datum_lla);
+
+    gps_y = gps_ned.x * cos(datum_yaw_) + gps_ned.y * sin(datum_yaw_);
+    gps_x = -gps_ned.x * sin(datum_yaw_) + gps_ned.y * cos(datum_yaw_);
 
     // Get yaw directly from IMU
-    double imu_yaw = utfr_dv::util::quaternionToYaw(msg.imu.orientation);
+    double imu_yaw = utfr_dv::util::degToRad(msg.rpy.z);
+    imu_yaw -= datum_yaw_;
+
+    // Update state with GPS position, IMU yaw, and extracted velocities
+    res = updateState(gps_x, gps_y, imu_yaw);
+    // res.pose.pose.position.x = gps_x;
+    // res.pose.pose.position.y = gps_y;
+    res.header.stamp = this->get_clock()->now();
+    res.header.frame_id = "map";
 
     // Extract velocity data from SensorCan message
     double vel_x = msg.velocity.linear.x;
     double vel_y = msg.velocity.linear.y;
-    double vel_yaw = msg.velocity.angular.z;
+    double vel_yaw = 0;
 
-    // Update state with GPS position, IMU yaw, and extracted velocities
-    utfr_msgs::msg::EgoState res = updateState(gps_x, gps_y, -imu_yaw);
-    res.header.stamp = this->get_clock()->now();
-
-    res.vel.twist.linear.x = vel_x;
-    res.vel.twist.linear.y = vel_y;
+    res.vel.twist.linear.x = vel_x * cos(datum_yaw_) + vel_y * sin(datum_yaw_);
+    res.vel.twist.linear.y = -vel_x * sin(datum_yaw_) + vel_y * cos(datum_yaw_);
     res.vel.twist.angular.z = vel_yaw;
 
     current_state_ = res;
 
-    // Extrapolate state using IMU data
-    double dt = (this->now() - prev_time_).seconds();
-    prev_time_ = this->now();
-    res = extrapolateState(msg.imu, dt);
-    res.header.stamp = this->get_clock()->now();
-    current_state_ = res;
+    last_gps_[0] = gps_x;
+    last_gps_[1] = gps_y;
+  }
 
-    // Adjust position y for specific coordinate system handling
-    res.pose.pose.position.y = -res.pose.pose.position.y;
-
-    // Publish the updated state
-    ego_state_publisher_->publish(res);
-}
-
-// sensor_msgs/NavSatFix position
-// sensor_msgs/Imu imu
-/*
-void EkfNode::gpsCB(const nav_msgs::msg::Odometry msg) {
-  double x = msg.pose.pose.position.x;
-  double y = msg.pose.pose.position.y;
-  double yaw = utfr_dv::util::quaternionToYaw(msg.pose.pose.orientation);
-  // Add random noise to the measurement with a covarience of 0.001
-  double standardDeviation = std::sqrt(0.001);
-
-  // Initialize a random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::normal_distribution<double> distribution(0.0, standardDeviation);
-
-  std::default_random_engine generator;
-  // Create a uniform distribution for angle between 0 and 2*PI
-  std::uniform_real_distribution<double> angle_distribution(0.0, 2 * M_PI);
-
-  // Generate a random angle
-  double angle = angle_distribution(generator);
-  // Add noise to the ground truth value
-  x += distribution(gen) * cos(angle);
-  y += distribution(gen) * sin(angle);
-
-  // get the velocity from the GPS
-  double vel_x = msg.twist.twist.linear.x;
-  double vel_y = msg.twist.twist.linear.y;
-  double vel_yaw = msg.twist.twist.angular.z;
-
-  utfr_msgs::msg::EgoState res = updateState(x, y, -yaw);
-  // std::cout << "x: " << res.pose.pose.position.x << " y: " <<
-  // res.pose.pose.position.y << std::endl;
-  res.header.stamp = this->get_clock()->now();
-  res.vel.twist.linear.x = vel_x;
-  res.vel.twist.linear.y = vel_y;
-  res.vel.twist.angular.z = vel_yaw;
-  current_state_ = res;
-
-  res.pose.pose.position.y = -res.pose.pose.position.y;
-  ego_state_publisher_->publish(res);
-}
-
-void EkfNode::imuCB(const sensor_msgs::msg::Imu msg) {
+  // Extrapolate state using IMU data
   double dt = (this->now() - prev_time_).seconds();
   prev_time_ = this->now();
-
-  utfr_msgs::msg::EgoState res = extrapolateState(msg, dt);
+  res = extrapolateState(msg.imu, dt);
+  res.pose.pose.orientation = utfr_dv::util::yawToQuaternion(
+      utfr_dv::util::degToRad(msg.rpy.z) - datum_yaw_);
   res.header.stamp = this->get_clock()->now();
   current_state_ = res;
 
-  res.pose.pose.position.y = -res.pose.pose.position.y;
+  visualization_msgs::msg::Marker marker;
+  marker.header.frame_id = "map";
+  marker.header.stamp = this->get_clock()->now();
+  marker.type = visualization_msgs::msg::Marker::CUBE;
+
+  if (false) {
+    marker.pose.position.y = 0.0;
+    marker.pose.position.x = 0.0;
+    marker.pose.position.z = 0.0;
+  } else {
+    marker.pose.position.x = current_state_.pose.pose.position.x;
+    marker.pose.position.y = current_state_.pose.pose.position.y;
+    marker.pose.position.z = 0.0;
+  }
+
+  marker.pose.orientation = res.pose.pose.orientation;
+
+  marker.scale.x = 1.8;
+  marker.scale.y = 0.8;
+  marker.scale.z = 0.5;
+
+  marker.color.a = 1.0;
+  marker.color.r = 0.0;
+  marker.color.g = 1.0;
+  marker.color.b = 0.0;
+
+  state_publisher->publish(marker);
+
+  // Publish the updated state
   ego_state_publisher_->publish(res);
-  // std::cout << "x: " << res.pose.pose.position.x << " y: " <<
-  // res.pose.pose.position.y << std::endl;
+  tf_br_->sendTransform(map_to_imu_link(res));
+  tf_br_->sendTransform(map_to_base_footprint(res));
 }
-*/
 
 void EkfNode::kinematicBicycleModel(const float &throttle, const float &brake,
                                     const float &steering_angle,
@@ -480,7 +521,7 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
   Q_(2, 2) = 0.05;    // Variance for x velocity, m/s
   Q_(3, 3) = 0.05;    // Variance for y velocity
   Q_(4, 4) = 0.00872; // Variance for yaw in radian
-  Q_(5, 5) = 0.0064;  // Variance for yaw rate, to be tuned
+  Q_(5, 5) = 1;       // Variance for yaw rate, to be tuned
 
   P_ = F * P_ * F.transpose() + Q_;
 
@@ -496,73 +537,6 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
   state_msg.vel.twist.angular.z = -imu.angular_velocity.z;
 
   return state_msg;
-}
-
-std::vector<double> EkfNode::lla2ecr(const std::vector<double> &inputVector) {
-  double lat = inputVector[0];
-  double lon = inputVector[1];
-  double h = inputVector[2];
-  double Re = 6378137;       // Earth_Equatorial_Radius, in m
-  double Rp = 6356752;       // Earth_Polar_Radius, in m
-  double f = (Re - Rp) / Re; // Earth_Flattening Coefficient
-
-  // Compute the ECR coordinates
-  double temp = Re / std::sqrt(1 + std::pow((1 - f) * std::tan(lat), 2));
-
-  double x = (temp + h * std::cos(lat)) * std::cos(lon);
-  double y = (temp + h * std::cos(lat)) * std::sin(lon);
-  double z = temp * (std::pow((1 - f), 2) * std::tan(lat)) + h * std::sin(lat);
-  std::vector<double> resultVector = {x, y, z};
-  return resultVector;
-}
-
-void EkfNode::ecr2enu(double &x, double &y, double &z,
-                      std::vector<double> &datum_lla) {
-  double lat = datum_lla[0];
-  double lon = datum_lla[1];
-  double h = datum_lla[2];
-
-  Eigen::Matrix3d m;
-  m << -std::sin(lon), std::cos(lon), 0.0, -std::sin(lat) * std::cos(lon),
-      -std::sin(lat) * std::sin(lon), std::cos(lat),
-      std::cos(lat) * std::cos(lon), std::cos(lat) * std::sin(lon),
-      std::sin(lat);
-
-  std::vector<double> radar_ecr = lla2ecr(datum_lla);
-  Eigen::VectorXd a = Eigen::VectorXd(3);
-  a << radar_ecr[0], radar_ecr[1], radar_ecr[2];
-  Eigen::Vector3d b = m * a;
-  Eigen::VectorXd c = Eigen::VectorXd(3);
-  c << x, y, z;
-  Eigen::Vector3d d = m * c;
-
-  // Adjust x, y, z
-  x = d[0] - b[0];
-  y = d[1] - b[1];
-  z = d[2] - b[2];
-}
-std::vector<double> EkfNode::lla2enu(const std::vector<double> &inputVector) {
-
-  std::vector<double> resultVector = {0, 0, 0};
-  if (std::isnan(datum_lla[0])) {
-    for (int i = 0; i < 3; i++) {
-      datum_lla[i] = inputVector[i];
-    }
-
-    return resultVector;
-  }
-
-  std::vector<double> inputECR = lla2ecr(inputVector);
-  double x = inputECR[0];
-  double y = inputECR[1];
-  double z = inputECR[2];
-
-  ecr2enu(x, y, z, datum_lla); // now x y z is in enu
-
-  resultVector[0] = x;
-  resultVector[1] = y;
-  resultVector[2] = z;
-  return resultVector;
 }
 
 void EkfNode::timerCB() {}

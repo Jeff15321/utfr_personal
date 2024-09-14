@@ -29,18 +29,18 @@ def generate_launch_description():
     # left_camera: static transform from left_camera relative to os_sensor
     # right_camera: static transform from right_camera relative to os_sensor
 
-    # ground = Node(  # Ground plane
-    #     package="tf2_ros",
-    #     executable="static_transform_publisher",
-    #     arguments=[
-    #         "--z",
-    #         "0.265",
-    #         "--frame-id",
-    #         "ground",
-    #         "--child-frame-id",
-    #         "imu_link",
-    #     ],
-    # )
+    ground = Node(  # Ground plane
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "--z",
+            "-0.265",
+            "--frame-id",
+            "imu_link",
+            "--child-frame-id",
+            "ground",
+        ],
+    )
 
     # lidar = Node(
     #     package="tf2_ros",
@@ -118,26 +118,27 @@ def generate_launch_description():
         executable="static_transform_publisher",
         arguments=[
             "--x",
-            "0.172",
+            "-0.172",
             "--y",
-            "0.014",
+            "-0.014",
             "--z",
-            "-1.092",
+            "0.826",
             "--pitch",
             # "-0.122173",
             # "-0.139626",
-            "-0.15708",
-            # "-0.174533",
-            # "-0.191986",
+            "0.15708",
+            # "0.174533",
+            # "0.191986",
             # "0.20944",
             "--frame-id",
-            "os_sensor",
+            "imu_link",
             "--child-frame-id",
-            "ground",
+            "os_sensor",
         ],
     )
 
     ld.add_action(lidar)
+    ld.add_action(ground)
     if lidar_only_detection:
         return ld
 

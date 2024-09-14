@@ -27,6 +27,7 @@ CenterPathNode::CenterPathNode() : Node("center_path_node") {
   publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
   this->initSubscribers();
   this->initPublishers();
+  this->initTransforms();
   this->initTimers();
   this->initSector();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
@@ -62,6 +63,8 @@ void CenterPathNode::initParams() {
       this->get_parameter("base_lookahead_distance").as_double();
 
   RCLCPP_INFO(this->get_logger(), "Event: %s", event_.c_str());
+
+  last_time = this->get_clock()->now();
 }
 
 void CenterPathNode::initSubscribers() {
@@ -124,6 +127,11 @@ void CenterPathNode::initPublishers() {
   lap_datum_publisher_ = 
       this->create_publisher<visualization_msgs::msg::Marker>(
           topics::kLapDatum, 10);
+}
+
+void CenterPathNode::initTransforms() {
+  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 }
 
 void CenterPathNode::initEvent() {
@@ -392,6 +400,8 @@ void CenterPathNode::timerCBAccel() {
     std::vector<double> x = {0, 0, 0, 0, 1, 0};
     std::vector<double> y = {0, 0, 0, 0, m, c};
 
+    center_path_msg.header.stamp = this->get_clock()->now();
+    center_path_msg.header.frame_id = "base_footprint";
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
     center_path_msg.lap_count = curr_sector_;
@@ -515,6 +525,7 @@ void CenterPathNode::timerCBAutocross() {
 
     utfr_msgs::msg::ParametricSpline center_path;
     center_path.header.stamp = this->get_clock()->now();
+    center_path.header.frame_id = "base_footprint";
     center_path.x_params = xoft;
     center_path.y_params = yoft;
     center_path.lap_count = curr_sector_;
@@ -584,6 +595,7 @@ void CenterPathNode::timerCBTrackdrive() {
 
     utfr_msgs::msg::ParametricSpline center_path;
     center_path.header.stamp = this->get_clock()->now();
+    center_path.header.frame_id = "base_footprint";
     center_path.x_params = xoft;
     center_path.y_params = yoft;
     center_path.lap_count = curr_sector_;
@@ -633,6 +645,8 @@ void CenterPathNode::timerCBEBS() {
     std::vector<double> x = {0, 0, 0, 0, 1, 0};
     std::vector<double> y = {0, 0, 0, 0, m, c};
 
+    center_path_msg.header.stamp = this->get_clock()->now();
+    center_path_msg.header.frame_id = "base_footprint";
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
     center_path_msg.lap_count = curr_sector_;
@@ -1655,6 +1669,8 @@ void CenterPathNode::skidPadFit() {
     std::vector<double> x = {0, 0, 0, 0, 1, 0};
     std::vector<double> y = {0, 0, 0, 0, m, c};
 
+    center_path_msg.header.stamp = this->get_clock()->now();
+    center_path_msg.header.frame_id = "base_footprint";
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
     center_path_msg.lap_count = curr_sector_;
