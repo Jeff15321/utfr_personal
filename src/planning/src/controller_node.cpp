@@ -126,6 +126,7 @@ void ControllerNode::initTimers() {
   if (event_ == "accel") {
     last_lap_count_ = 2;
     use_mapping_ = false;
+    base_lookahead_distance_ = 10.0
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBAccel, this));
