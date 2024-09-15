@@ -178,6 +178,10 @@ void CenterPathNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
   }
   }
 
+  if (as_state == 2 && msg.as_state == 3) {
+    start_time_ = this->get_clock()->now();
+  }
+
   as_state = msg.as_state;
 }
 
@@ -475,7 +479,7 @@ void CenterPathNode::timerCBAutocross() {
     return;
   }
   const std::string function_name{"center_path_timerCB:"};
-
+  RCLCPP_WARN(this->get_logger(), "Autocross Timer CB");
   try {
     if (cone_detections_ == nullptr || cone_map_ == nullptr ||
         ego_state_ == nullptr) {
@@ -499,15 +503,15 @@ void CenterPathNode::timerCBAutocross() {
     geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
     geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
 
-    delaunay_midpoints_stamped.header.frame_id = "base_footprint";
+    delaunay_midpoints_stamped.header.frame_id = "ground";
     delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
-    first_midpoint_stamped.header.frame_id = "base_footprint";
+    first_midpoint_stamped.header.frame_id = "ground";
     first_midpoint_stamped.header.stamp = this->get_clock()->now();
     geometry_msgs::msg::Point32 midpoint_pt32;
 
     for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
       midpoint_pt32.x = bezier_curve[i].x();
-      midpoint_pt32.y = bezier_curve[i].y() * -1;
+      midpoint_pt32.y = bezier_curve[i].y();
       midpoint_pt32.z = 0.0;
 
       delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
@@ -515,7 +519,7 @@ void CenterPathNode::timerCBAutocross() {
 
     for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
       midpoint_pt32.x = bezier_curve[i].x();
-      midpoint_pt32.y = bezier_curve[i].y() * -1;
+      midpoint_pt32.y = bezier_curve[i].y();
       midpoint_pt32.z = 0.0;
 
       delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
@@ -525,7 +529,7 @@ void CenterPathNode::timerCBAutocross() {
 
     utfr_msgs::msg::ParametricSpline center_path;
     center_path.header.stamp = this->get_clock()->now();
-    center_path.header.frame_id = "base_footprint";
+    center_path.header.frame_id = "ground";
     center_path.x_params = xoft;
     center_path.y_params = yoft;
     center_path.lap_count = curr_sector_;
@@ -902,7 +906,7 @@ double CenterPathNode::midpointCostFunction(
     std::vector<utfr_msgs::msg::Cone> yellow_cones,
     std::vector<utfr_msgs::msg::Cone> blue_cones,
     std::vector<std::pair<int, int>> midpoint_index_to_cone_indices) {
-  double A = 0.7;
+  double A = 0.9;
   double B = 2.0;
   double C = 2.0;
   double D = 3.0;
@@ -1122,8 +1126,11 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
     double translated_x = global_x - ego_state_->pose.pose.position.x;
     double translated_y = global_y - ego_state_->pose.pose.position.y;
     double local_x = translated_x * cos(-yaw) - translated_y * sin(-yaw);
+    double local_y = translated_x * sin(-yaw) + translated_y * cos(-yaw);
 
-    if (local_x < 0) {
+    double distance = sqrt(pow(local_x, 2) + pow(local_y, 2));
+
+    if (local_x < 0 || distance > 15) {
       continue;
     }
 
@@ -1143,7 +1150,7 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
   visualization_msgs::msg::Marker midpoint_viz;
   midpoint_viz.type = visualization_msgs::msg::Marker::SPHERE_LIST;
   midpoint_viz.header.stamp = this->get_clock()->now();
-  midpoint_viz.header.frame_id = "base_footprint";
+  midpoint_viz.header.frame_id = "ground";
   midpoint_viz.scale.x = 0.1;
   midpoint_viz.scale.y = 0.1;
   midpoint_viz.scale.z = 0.1;
@@ -1163,7 +1170,7 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
     double local_y = translated_x * sin(-yaw) + translated_y * cos(-yaw);
 
     point.x = local_x;
-    point.y = -local_y;
+    point.y = local_y;
     point.z = 0.0;
     midpoint_viz.points.push_back(point);
   }
