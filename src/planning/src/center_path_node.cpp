@@ -650,7 +650,7 @@ void CenterPathNode::timerCBEBS() {
     std::vector<double> y = {0, 0, 0, 0, m, c};
 
     center_path_msg.header.stamp = this->get_clock()->now();
-    center_path_msg.header.frame_id = "base_footprint";
+    center_path_msg.header.frame_id = "ground";
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
     center_path_msg.lap_count = curr_sector_;
@@ -841,7 +841,7 @@ std::vector<double> CenterPathNode::getAccelPath() {
     geometry_msgs::msg::PolygonStamped accel_path_msg;
 
     accel_path_msg.header.stamp = this->get_clock()->now();
-    accel_path_msg.header.frame_id = "base_footprint";
+    accel_path_msg.header.frame_id = "ground";
     geometry_msgs::msg::Point32 point;
     point.x = 0;
     point.y = -final_c;
