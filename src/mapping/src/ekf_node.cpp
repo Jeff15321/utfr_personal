@@ -167,10 +167,6 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   double imu_yaw = utfr_dv::util::degToRad(msg.rpy.z);
   imu_yaw -= datum_yaw_;
 
-  // Get yaw directly from IMU
-  double imu_yaw = utfr_dv::util::degToRad(msg.rpy.z);
-  imu_yaw -= datum_yaw_;
-
   // Check if the current gps position is the same as the last gps position
   if (last_gps_[0] != gps_x && last_gps_[1] != gps_y) {
     geometry_msgs::msg::Vector3 lla;

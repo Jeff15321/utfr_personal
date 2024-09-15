@@ -276,7 +276,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           position_x_, nearestCone.x, position_y_, nearestCone.y);
 
       // Do not add if its within 1 of an already seen cone
-      if (displacement <= 2) {
+      if (displacement <= 1.5) {
         // Add the ID to the list
         cones_id_list_.push_back(nearestCone.id);
         average_position_[nearestCone.id][0] += position_x_;
@@ -339,13 +339,13 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           std::get<1>(potentialPoint));
 
       // Check if cone within 1 of any other new detected cone
-      if (temp_displacement_ <= 2 && colour == std::get<2>(potentialPoint)) {
+      if (temp_displacement_ <= 1.5 && colour == std::get<2>(potentialPoint)) {
         count_ += 1;
         keys.push_back(key_);
         // Check if 30 of same detected
         true_coordinate_x += std::get<0>(potentialPoint);
         true_coordinate_y += std::get<1>(potentialPoint);
-        int count_threshold = 5;
+        int count_threshold = 7;
         if (count_ == count_threshold) {
 
           double average_x = position_x_;
@@ -356,7 +356,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
             double temp_displacement_ = utfr_dv::util::euclidianDistance2D(
                 average_x / number_of_points, std::get<0>(it->second),
                 average_y / number_of_points, std::get<1>(it->second));
-            if (temp_displacement_ <= 2) {
+            if (temp_displacement_ <= 1.5) {
               average_x += std::get<0>(it->second);
               average_y += std::get<1>(it->second);
               number_of_points += 1;
