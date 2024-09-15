@@ -637,6 +637,16 @@ void ControllerNode::timerCBEBS() {
 
     target_ = target;
 
+    double time = this->get_clock_now();
+    double time_diff = (curr_time - time).seconds();
+
+    if (time_diff > 10.0){
+      target_.speed = 0.0;
+      target_.steering_angle = 0.0;
+      publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
+      return;
+    }
+
     // print target state
     // RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
     //             "Target steering: %f \n Target velocity: %f",
