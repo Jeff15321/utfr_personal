@@ -238,7 +238,7 @@ class PerceptionNode(Node):
         self.rectify_left = np.array(self.rectify_left).reshape(3, 3)
         self.rectify_right = np.array(self.rectify_right).reshape(3, 3)
         self.distortion_left = np.array(self.distortion_left)
-        self.distortion_right = np.array(self.distortion_right)
+        self.distortion_right = np.array(self.disheartbeat_topic_tortion_right)
         self.translation = np.array(self.translation)
         self.cone_heights = np.array(self.cone_heights)
 

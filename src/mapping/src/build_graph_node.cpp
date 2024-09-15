@@ -55,6 +55,10 @@ void BuildGraphNode::initParams() {
   update_rate_ = this->get_parameter("update_rate").as_double();
   this->declare_parameter("mapping_mode", 0);
   mapping_mode_ = this->get_parameter("mapping_mode").as_int();
+  this->declare_parameter("displacement_radius", 0.0);
+  displacement_radius_ = this->get_parameter("displacement_radius").as_double();
+  this->declare_parameter("count_threshold", 0);
+  count_threshold_ = this->get_parameter("count_threshold").as_int();
   
   loop_closed_ = false;
   landmarked_cone_id_ = std::nullopt;
@@ -276,7 +280,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           position_x_, nearestCone.x, position_y_, nearestCone.y);
 
       // Do not add if its within 1 of an already seen cone
-      if (displacement <= 1.5) {
+      if (displacement <= displacement_radius_) {
         // Add the ID to the list
         cones_id_list_.push_back(nearestCone.id);
         average_position_[nearestCone.id][0] += position_x_;
@@ -339,14 +343,14 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           std::get<1>(potentialPoint));
 
       // Check if cone within 1 of any other new detected cone
-      if (temp_displacement_ <= 1.5 && colour == std::get<2>(potentialPoint)) {
+      if (temp_displacement_ <= displacement_radius_ && colour == std::get<2>(potentialPoint)) {
         count_ += 1;
         keys.push_back(key_);
         // Check if 30 of same detected
         true_coordinate_x += std::get<0>(potentialPoint);
         true_coordinate_y += std::get<1>(potentialPoint);
-        int count_threshold = 7;
-        if (count_ == count_threshold) {
+        std::cout << "count: " << count_threshold_ << std::endl;
+        if (count_ == count_threshold_) {
 
           double average_x = position_x_;
           double average_y = position_y_;
@@ -356,7 +360,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
             double temp_displacement_ = utfr_dv::util::euclidianDistance2D(
                 average_x / number_of_points, std::get<0>(it->second),
                 average_y / number_of_points, std::get<1>(it->second));
-            if (temp_displacement_ <= 1.5) {
+            if (temp_displacement_ <= displacement_radius_) {
               average_x += std::get<0>(it->second);
               average_y += std::get<1>(it->second);
               number_of_points += 1;

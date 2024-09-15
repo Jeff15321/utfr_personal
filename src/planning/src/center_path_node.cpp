@@ -179,7 +179,7 @@ void CenterPathNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
   }
 
   if (as_state == 2 && msg.as_state == 3) {
-    start_time_ = this->get_clock()->now();
+    last_time = this->get_clock()->now();
   }
 
   as_state = msg.as_state;
@@ -327,7 +327,7 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     cone_map_->large_orange_cones = msg.large_orange_cones;
     cone_map_->small_orange_cones = msg.small_orange_cones;
     (*cone_map_raw_) = msg;
-  } else if (use_mapping_ && (event_ == "skidpad" || event_ == "accel")) {
+  } else if (use_mapping_ && (event_ == "skidpad" || event_ == "accel" || event_ == "EBSTEST")) {
     cone_map_->header = msg.header;
     cone_map_->left_cones = getConesInHemisphere(msg.left_cones, 15.0);
     cone_map_->right_cones = getConesInHemisphere(msg.right_cones, 15.0);

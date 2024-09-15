@@ -188,6 +188,9 @@ public:
   utfr_msgs::msg::Heartbeat heartbeat_;
   double update_rate_;
   rclcpp::TimerBase::SharedPtr main_timer_;
+
+  double displacement_radius_ = 1.5;
+  int count_threshold_ = 6;
 };
 } // namespace build_graph
 } // namespace utfr_dv

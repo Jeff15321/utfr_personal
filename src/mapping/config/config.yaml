@@ -19,7 +19,8 @@ build_graph_node: # Name of Module
     # 2: No Localization or Mapping
     mapping_mode: 0
     ekf_on: 1
-
+    count_threshold: 5
+    displacement_radius: 1.5
 
 compute_graph_node: # Name of Module
   ros__parameters:
