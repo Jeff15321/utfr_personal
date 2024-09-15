@@ -638,7 +638,7 @@ void ControllerNode::timerCBEBS() {
     target_ = target;
 
     double time = this->get_clock_now();
-    double time_diff = (curr_time - time).seconds();
+    double time_diff = (time - start_time_).seconds();
 
     if (time_diff > 10.0){
       target_.speed = 0.0;
