@@ -78,8 +78,8 @@ void EkfNode::initPublishers() {
   state_publisher = this->create_publisher<visualization_msgs::msg::Marker>(
       "IM_GONNA_KMS", 10);
 
-  gps_state_publisher = this->create_publisher<visualization_msgs::msg::Marker>(
-      "GPS_STATE", 10);
+  gps_state_publisher =
+      this->create_publisher<visualization_msgs::msg::Marker>("GPS_STATE", 10);
 
   navsatfix_publisher_ =
       this->create_publisher<sensor_msgs::msg::NavSatFix>("xsens/gnss", 10);
@@ -167,6 +167,10 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   double imu_yaw = utfr_dv::util::degToRad(msg.rpy.z);
   imu_yaw -= datum_yaw_;
 
+  // Get yaw directly from IMU
+  double imu_yaw = utfr_dv::util::degToRad(msg.rpy.z);
+  imu_yaw -= datum_yaw_;
+
   // Check if the current gps position is the same as the last gps position
   if (last_gps_[0] != gps_x && last_gps_[1] != gps_y) {
     geometry_msgs::msg::Vector3 lla;
@@ -193,7 +197,7 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     last_gps_[1] = gps_y;
 
     visualization_msgs::msg::Marker marker;
-    marker.header.frame_id = "os_sensor";
+    marker.header.frame_id = "map";
     marker.header.stamp = this->get_clock()->now();
     marker.type = visualization_msgs::msg::Marker::CUBE;
 
@@ -204,7 +208,7 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     marker.pose.orientation = res.pose.pose.orientation;
 
     marker.scale.x = 1.8;
-    marker.scale.y = 0.8;
+    marker.scale.y = 1.5;
     marker.scale.z = 0.5;
 
     marker.color.a = 1.0;
@@ -215,7 +219,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     gps_state_publisher->publish(marker);
 
   } else {
-    current_state_.pose.pose.orientation = utfr_dv::util::yawToQuaternion(imu_yaw);
+    current_state_.pose.pose.orientation =
+        utfr_dv::util::yawToQuaternion(imu_yaw);
   }
 
   // Extract velocity data from SensorCan message
@@ -223,8 +228,10 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   double vel_y = msg.velocity.linear.y;
   double vel_yaw = msg.velocity.angular.z;
 
-  current_state_.vel.twist.linear.x = vel_y * cos(datum_yaw_) + vel_x * sin(datum_yaw_);
-  current_state_.vel.twist.linear.y = -vel_y * sin(datum_yaw_) + vel_x * cos(datum_yaw_);
+  current_state_.vel.twist.linear.x =
+      vel_y * cos(datum_yaw_) + vel_x * sin(datum_yaw_);
+  current_state_.vel.twist.linear.y =
+      -vel_y * sin(datum_yaw_) + vel_x * cos(datum_yaw_);
   current_state_.vel.twist.angular.z = vel_yaw;
 
   // Extrapolate state using IMU data
@@ -234,13 +241,14 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   res.pose.pose.orientation = utfr_dv::util::yawToQuaternion(
       utfr_dv::util::degToRad(msg.rpy.z) - datum_yaw_);
 
-  res.vel.twist.linear.x = sqrt(pow(msg.velocity.linear.x, 2) + pow(msg.velocity.linear.y, 2));
+  res.vel.twist.linear.x =
+      sqrt(pow(msg.velocity.linear.x, 2) + pow(msg.velocity.linear.y, 2));
   res.vel.twist.linear.y = 0;
   res.header.stamp = this->get_clock()->now();
-  
+
   current_state_ = res;
   visualization_msgs::msg::Marker marker;
-  marker.header.frame_id = "os_sensor";
+  marker.header.frame_id = "map";
   marker.header.stamp = this->get_clock()->now();
   marker.type = visualization_msgs::msg::Marker::CUBE;
 
@@ -285,6 +293,9 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y,
   H(2, 4) = 1; // Map yaw
 
   R = Eigen::MatrixXd::Identity(3, 3);
+  R(0, 0) = 0.06; // Variance for x measurement
+  R(1, 1) = 0.06; // Variance for y measurement
+  R(2, 2) = 0.06; // Variance for yaw measurement
   R(0, 0) = 0.06; // Variance for x measurement
   R(1, 1) = 0.06; // Variance for y measurement
   R(2, 2) = 0.06; // Variance for yaw measurement
@@ -340,6 +351,10 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
   F(0, 3) = dt;
   F(1, 2) = dt;
   F(1, 3) = dt;
+  F(0, 2) = dt;
+  F(0, 3) = dt;
+  F(1, 2) = dt;
+  F(1, 3) = dt;
   F(4, 5) = dt;
   F(5, 5) = 0;
 
@@ -368,8 +383,10 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
 
   sensor_msgs::msg::Imu imu_msg = imu;
 
-  imu_msg.linear_acceleration.y = accel_x * cos(datum_yaw_) + accel_y * sin(datum_yaw_);
-  imu_msg.linear_acceleration.x = -accel_x * sin(datum_yaw_) + accel_y * cos(datum_yaw_);
+  imu_msg.linear_acceleration.y =
+      accel_x * cos(datum_yaw_) + accel_y * sin(datum_yaw_);
+  imu_msg.linear_acceleration.x =
+      -accel_x * sin(datum_yaw_) + accel_y * cos(datum_yaw_);
 
   Eigen::VectorXd input = Eigen::VectorXd(3);
   input << imu_msg.linear_acceleration.x, imu_msg.linear_acceleration.y,
@@ -380,13 +397,12 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
   // P = FPF^T + Q
   Eigen::MatrixXd Q_; // Process noise covariance matrix
   Q_ = Eigen::MatrixXd::Identity(6, 6);
-  Q_(0, 0) = 0.001;    // Variance for x position, in m
-  Q_(1, 1) = 0.001;    // Variance for y position
+  Q_(0, 0) = 0.001;   // Variance for x position, in m
+  Q_(1, 1) = 0.001;   // Variance for y position
   Q_(2, 2) = 0.01;    // Variance for x velocity, m/s
   Q_(3, 3) = 0.01;    // Variance for y velocity
   Q_(4, 4) = 0.00872; // Variance for yaw in radian
-  Q_(5, 5) = 0.08;       // Variance for yaw rate, to be tuned
-
+  Q_(5, 5) = 0.08;    // Variance for yaw rate, to be tuned
 
   P_ = F * P_ * F.transpose() + Q_;
 
