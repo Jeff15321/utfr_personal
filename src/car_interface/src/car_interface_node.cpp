@@ -19,7 +19,7 @@ namespace car_interface {
 
 CarInterface::CarInterface() : Node("car_interface_node") {
   this->initParams();
-  // this->initMonitor();
+  this->initMonitor();
   this->initSubscribers();
   this->initPublishers();
   this->initCAN();
@@ -27,12 +27,11 @@ CarInterface::CarInterface() : Node("car_interface_node") {
 }
 
 void CarInterface::initParams() {
-  // std::vector<std::string> default_modules = {
-  //     "perception",          "lidar_proc",      "ekf",
-  //     "mapping_build",       "mapping_compute", "planning_cp",
-  //     "planning_controller", "controls",
-  // };
-  std::vector<std::string> default_modules = {""};
+  std::vector<std::string> default_modules = {
+      "perception",          "lidar_proc",      "ekf",
+      "mapping_build",       "mapping_compute", "planning_cp",
+      "planning_controller", "controls",
+  };
 
   this->declare_parameter("update_rate", 33.33);
   this->declare_parameter("ema_gain", 0.6);
@@ -80,20 +79,20 @@ void CarInterface::initSubscribers() {
   cone_map_subscriber_ = this->create_subscription<utfr_msgs::msg::ConeMap>(
       topics::kConeMap, 10, std::bind(&CarInterface::ConeMapCB, this, _1));
 
-  // for (const auto &module_name : heartbeat_modules_) {
+  for (const auto &module_name : heartbeat_modules_) {
 
-  //   auto search = heartbeat_topics_map_.find(module_name);
-  //   if (search == heartbeat_topics_map_.end()) { // Module not found :
-  //     RCLCPP_ERROR(this->get_logger(), "%s Module %s topic not in map",
-  //                  function_name.c_str(), module_name.c_str());
-  //     continue;
-  //   }
+    auto search = heartbeat_topics_map_.find(module_name);
+    if (search == heartbeat_topics_map_.end()) { // Module not found :
+      RCLCPP_ERROR(this->get_logger(), "%s Module %s topic not in map",
+                   function_name.c_str(), module_name.c_str());
+      continue;
+    }
 
-  //   std::string topic = heartbeat_topics_map_[module_name];
-  //   heartbeat_subscribers_[module_name] =
-  //       this->create_subscription<utfr_msgs::msg::Heartbeat>(
-  //           topic, 10, std::bind(&CarInterface::heartbeatCB, this, _1));
-  // }
+    std::string topic = heartbeat_topics_map_[module_name];
+    heartbeat_subscribers_[module_name] =
+        this->create_subscription<utfr_msgs::msg::Heartbeat>(
+            topic, 10, std::bind(&CarInterface::heartbeatCB, this, _1));
+  }
 
   RCLCPP_INFO(this->get_logger(), "Finished Initializing Subscribers");
 }
@@ -136,14 +135,14 @@ void CarInterface::initMonitor() {
 }
 
 void CarInterface::heartbeatCB(const utfr_msgs::msg::Heartbeat &msg) {
-  // heartbeat_monitor_->updateHeartbeat(msg, this->get_clock()->now());
+  heartbeat_monitor_->updateHeartbeat(msg, this->get_clock()->now());
 
-  // if (msg.module.data == "controller_node") {
-  //   system_status_.lap_counter = msg.lap_count;
-  //   if (msg.status == utfr_msgs::msg::Heartbeat::FINISH) {
-  //     finished_ = true;
-  //   }
-  // }
+  if (msg.module.data == "controller_node") {
+    system_status_.lap_counter = msg.lap_count;
+    if (msg.status == utfr_msgs::msg::Heartbeat::FINISH) {
+      finished_ = true;
+    }
+  }
 }
 
 void CarInterface::controlCmdCB(const utfr_msgs::msg::ControlCmd &msg) {
@@ -267,9 +266,8 @@ void CarInterface::DVCompStateMachine() {
   const std::string function_name{"DVCompStateMachine"};
 
   try {
-    bool heartbeat_status = true;
-
-    // heartbeat_monitor_->verifyHeartbeats(this->get_clock()->now());
+    bool heartbeat_status =
+        heartbeat_monitor_->verifyHeartbeats(this->get_clock()->now());
 
     RCLCPP_INFO(this->get_logger(), "%s: Current state: %d",
                 function_name.c_str(), system_status_.as_state);
@@ -451,7 +449,7 @@ bool CarInterface::launchMission() {
   }
   // Execute the launch command
   int result = std::system(launchCmd.c_str());
-  // heartbeat_monitor_->updateModules(modules, this->get_clock()->now());
+  heartbeat_monitor_->updateModules(modules, this->get_clock()->now());
 
   if (result != 0) {
     RCLCPP_ERROR(this->get_logger(), "%s: Error occurred",
