@@ -44,7 +44,7 @@
 cleanup() {
     echo "Killing all ros2 processes"
     kill $PID_RECORD
-    # kill $PID_LAUNCH
+    kill $PID_LAUNCH
     exit
 }
 
@@ -56,10 +56,35 @@ bash scripts/enable_can.sh
 ros2 launch launcher interface.launch.py &
 PID_LAUNCH=$!
 
-# sleep 30
+sleep 30 # Wait for nodes to boot up
 
-# cd "/media/utfr-dv/1tb ssd/rosbags"
-# ros2 bag record -a -o "$1" &
-# PID_RECORD=$!
+cd "/media/utfr-dv/1tb ssd/rosbags"
+ros2 bag record -s mcap \
+/car_interface/sensor_can \
+/left_image/compressed \
+/right_image/compressed \
+/ouster/points \
+/tf \
+/tf_static \
+/perception/cone_detections \
+/lidar_pipeline/detected \
+/perception/lidar_projection_left \
+/perception/lidar_projection_right \
+/perception/lidar_projection_matched_left \
+/perception/lidar_projection_matched_right \
+/perception/left_processed \
+/perception/right_processed \
+/perception/debug_left \
+/perception/debug_right \
+/mapping/cone_map \
+/ekf/ego_state \
+/planning/accel_path \
+/planning/delaunay_midpoints \
+/planning/delaunay_waypoint \
+/planning/pure_pursuit_point \
+/planning/target_state -o sep15_ebs_test1 &
+PID_RECORD=$!
 
-wait
+sleep 120 # Record for 2 minutes
+
+cleanup # Stop recording after 2 minutes

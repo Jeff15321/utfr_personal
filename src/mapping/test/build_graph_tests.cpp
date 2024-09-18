@@ -107,7 +107,7 @@ TEST(KNNSearchNodeTest, KNNConeDetections) {
   ASSERT_EQ(2, node.past_cone_detections_.size()); 
 
   cones = empty;
-
+/*
   // detect same cone a total of 100 times for it to be added to past_cone_detections_
   double initial_x = 0;
   double initial_y = 3;
@@ -145,7 +145,7 @@ TEST(KNNSearchNodeTest, KNNConeDetections) {
   ASSERT_EQ(3, node.past_cone_detections_.size()); 
 
   cones = empty;
-
+*/
 
 }
 

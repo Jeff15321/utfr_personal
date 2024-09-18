@@ -40,6 +40,7 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 #include <utfr_msgs/msg/cone_detections.hpp>
+#include <utfr_msgs/msg/ego_state.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/parametric_spline.hpp>
 #include <utfr_msgs/msg/system_status.hpp>
@@ -95,6 +96,8 @@ private:
 
   void rightImageCB(const sensor_msgs::msg::CompressedImage::SharedPtr msg);
 
+  void egoStateCB(const utfr_msgs::msg::EgoState::SharedPtr msg);
+
   sensor_msgs::msg::PointCloud2::SharedPtr
   convertToPointCloud2(const std::vector<std::array<float, 3>> &points,
                        const std::string &frame_id);
@@ -146,10 +149,14 @@ private:
       left_image_subscriber;
   rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr
       right_image_subscriber;
+  rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
+      ego_state_subscriber;
+  rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr ego_state_publisher;
 
   bool hold_image = true;
   sensor_msgs::msg::CompressedImage left_img;
   sensor_msgs::msg::CompressedImage right_img;
+  utfr_msgs::msg::EgoState ego_state;
 };
 } // namespace lidar_proc
 } // namespace utfr_dv

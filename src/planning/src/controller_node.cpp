@@ -126,6 +126,7 @@ void ControllerNode::initTimers() {
   if (event_ == "accel") {
     last_lap_count_ = 2;
     use_mapping_ = false;
+    base_lookahead_distance_ = 10.0;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBAccel, this));
@@ -148,6 +149,7 @@ void ControllerNode::initTimers() {
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBTrackdrive, this));
   } else if (event_ == "EBSTest") {
+    base_lookahead_distance_ = 10.0;
     main_timer_ = this->create_wall_timer(
         std::chrono::duration<double, std::milli>(update_rate_),
         std::bind(&ControllerNode::timerCBEBS, this));
@@ -201,7 +203,6 @@ void ControllerNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
     break;
   }
   }
-
   if (as_state == 2 && msg.as_state == 3) {
     start_time_ = this->get_clock()->now();
   }
@@ -638,6 +639,16 @@ void ControllerNode::timerCBEBS() {
 
     target_ = target;
 
+    double time = this->get_clock()->now().seconds();
+    double time_diff = (time - start_time_.seconds());
+
+    if (time_diff > 10.0){
+      target_.speed = 0.0;
+      target_.steering_angle = 0.0;
+      publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
+      return;
+    }
+
     // print target state
     // RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"),
     //             "Target steering: %f \n Target velocity: %f",
@@ -806,14 +817,14 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
 
   geometry_msgs::msg::PolygonStamped path_stamped;
 
-  path_stamped.header.frame_id = "base_footprint";
+  path_stamped.header.frame_id = "ground";
 
   path_stamped.header.stamp = this->get_clock()->now();
 
   for (int i = 0; i < static_cast<int>(discretized_points.size()); i++) {
     geometry_msgs::msg::Point32 point;
     point.x = discretized_points[i].position.x;
-    point.y = -discretized_points[i].position.y;
+    point.y = discretized_points[i].position.y;
     point.z = 0.0;
     path_stamped.polygon.points.push_back(point);
   }
@@ -821,7 +832,7 @@ utfr_msgs::msg::TargetState ControllerNode::purePursuitController(
   for (int i = discretized_points.size() - 1; i > -1; i--) {
     geometry_msgs::msg::Point32 point;
     point.x = discretized_points[i].position.x;
-    point.y = -discretized_points[i].position.y;
+    point.y = discretized_points[i].position.y;
     point.z = 0.0;
     path_stamped.polygon.points.push_back(point);
   }
@@ -864,7 +875,7 @@ ControllerNode::purePursuitController(double max_steering_angle,
 
   // Plotting pure pursuit lookahead point
   visualization_msgs::msg::Marker marker;
-  marker.header.frame_id = "base_footprint";
+  marker.header.frame_id = "ground";
   marker.header.stamp = this->get_clock()->now();
   marker.ns = "lookahead";
   marker.id = 0;
@@ -872,7 +883,7 @@ ControllerNode::purePursuitController(double max_steering_angle,
   marker.action = visualization_msgs::msg::Marker::ADD;
 
   marker.pose.position.x = lookahead_point.position.x;
-  marker.pose.position.y = -lookahead_point.position.y;
+  marker.pose.position.y = lookahead_point.position.y;
   marker.pose.position.z = 0.0;
 
   marker.scale.x = 0.25;
@@ -941,10 +952,14 @@ ControllerNode::purePursuitController(double max_steering_angle,
     desired_velocity = 2.0;
   }
 
+  if (desired_velocity > max_velocity_){
+    desired_velocity = max_velocity_;
+  }
+
   // Set target state values.
   utfr_msgs::msg::TargetState target;
   target.speed = desired_velocity;
-  target.steering_angle = -delta;
+  target.steering_angle = delta;
 
   return target; // Return the target state.
 }

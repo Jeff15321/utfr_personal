@@ -39,6 +39,12 @@ ComputeGraphNode::ComputeGraphNode() : Node("compute_graph_node") {
   this->initPublishers();
   this->initTimers();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+
+  visualization_msgs::msg::MarkerArray marker_array;
+  visualization_msgs::msg::Marker marker;
+  marker.action = visualization_msgs::msg::Marker::DELETEALL;
+  marker_array.markers.push_back(marker);
+  cone_viz_publisher_->publish(marker_array);
 }
 
 using SlamBlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1>>;
@@ -56,8 +62,8 @@ void ComputeGraphNode::initParams() {
   Eigen::DiagonalMatrix<double, 3> P2P;
   Eigen::DiagonalMatrix<double, 2> P2C;
   Eigen::DiagonalMatrix<double, 3> LoopClosure;
-  P2P.diagonal() << 300, 300, 3000;
-  P2C.diagonal() << 100, 1000;
+  P2P.diagonal() << 1200, 1200, 6000;
+  P2C.diagonal() << 60, 600;
   LoopClosure.diagonal() << 500, 500, 5000;
 
   P2PInformationMatrix_ = P2P;
@@ -99,7 +105,10 @@ void ComputeGraphNode::initPublishers() {
 
     slam_state_publisher_ = 
       this->create_publisher<utfr_msgs::msg::PoseGraphData>(topics::kSlamPose, 10);
+  
   }
+  cone_viz_publisher_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("ConeViz", 10);
 }
 
 void ComputeGraphNode::initTimers() {
@@ -237,6 +246,9 @@ void ComputeGraphNode::graphSLAM() {
   optimizer_.optimize(1);
   do_graph_slam_ = false;
 
+  visualization_msgs::msg::MarkerArray markerArray;
+
+  int count = 0;
   for (auto v : optimizer_.vertices()) {
     g2o::VertexPointXY *vertexPointXY =
         dynamic_cast<g2o::VertexPointXY *>(v.second);
@@ -261,22 +273,54 @@ void ComputeGraphNode::graphSLAM() {
 
       // Create a cone object then add it to the cone map
       utfr_msgs::msg::Cone cone;
+      cone.header.frame_id = "os_sensor";
       cone.pos.x = x;
       cone.pos.y = y;
+
+      // Create a marker
+      count += 1;
+      visualization_msgs::msg::Marker marker;
+      marker.header.frame_id = "os_sensor";
+      marker.header.stamp = this->get_clock()->now();
+      marker.type = visualization_msgs::msg::Marker::CUBE;
+      marker.action = visualization_msgs::msg::Marker::ADD;
+      marker.id = count;
+      marker.pose.position.x = x;
+      marker.pose.position.y = y;
+
+      marker.scale.x = 0.5;
+      marker.scale.y = 0.2;
+      marker.scale.z = 0.2;
+
+      marker.color.a = 1.0;
 
       if (color == 1) {
         cone.type = utfr_msgs::msg::Cone::BLUE;
         cone_map_.left_cones.push_back(cone);
+        marker.color.r = 0.0;
+        marker.color.g = 0.0;
+        marker.color.b = 1.0;
       } else if (color == 2) {
         cone.type = utfr_msgs::msg::Cone::YELLOW;
         cone_map_.right_cones.push_back(cone);
+        marker.color.r = 1.0;
+        marker.color.g = 1.0;
+        marker.color.b = 0.0;
       } else if (color == 3) {
         cone.type = utfr_msgs::msg::Cone::SMALL_ORANGE;
         cone_map_.small_orange_cones.push_back(cone);
+        marker.color.r = 1.0;
+        marker.color.g = 0.0;
+        marker.color.b = 0.0;
       } else if (color == 4) {
         cone.type = utfr_msgs::msg::Cone::LARGE_ORANGE;
         cone_map_.large_orange_cones.push_back(cone);
+        marker.color.r = 1.0;
+        marker.color.g = 0.0;
+        marker.color.b = 0.0;
       }
+
+      markerArray.markers.push_back(marker);
 
       // if (fixed_cone_ids_.find(id) == fixed_cone_ids_.end()) {
       //   fixed_cone_map_[id] = new_cone;
@@ -284,6 +328,8 @@ void ComputeGraphNode::graphSLAM() {
       // }
     }
   }
+
+  cone_viz_publisher_->publish(markerArray);
 
   // Loop through all the edges and save them
   for (auto e : optimizer_.edges()) {

@@ -38,6 +38,12 @@ BuildGraphNode::BuildGraphNode() : Node("build_graph_node") {
   this->initPublishers();
   this->initTimers();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
+
+  visualization_msgs::msg::MarkerArray marker_array;
+  visualization_msgs::msg::Marker marker;
+  marker.action = visualization_msgs::msg::Marker::DELETEALL;
+  marker_array.markers.push_back(marker);
+  cone_viz_publisher_->publish(marker_array);
 }
 
 using SlamBlockSolver = g2o::BlockSolver<g2o::BlockSolverTraits<-1, -1>>;
@@ -45,10 +51,14 @@ using SlamLinearSolver =
     g2o::LinearSolverEigen<SlamBlockSolver::PoseMatrixType>;
 
 void BuildGraphNode::initParams() {
-  this->declare_parameter("update_rate", 33.33);
+  this->declare_parameter("update_rate", 100.00);
   update_rate_ = this->get_parameter("update_rate").as_double();
   this->declare_parameter("mapping_mode", 0);
   mapping_mode_ = this->get_parameter("mapping_mode").as_int();
+  this->declare_parameter("displacement_radius", 0.0);
+  displacement_radius_ = this->get_parameter("displacement_radius").as_double();
+  this->declare_parameter("count_threshold", 0);
+  count_threshold_ = this->get_parameter("count_threshold").as_int();
   
   loop_closed_ = false;
   landmarked_cone_id_ = std::nullopt;
@@ -76,7 +86,7 @@ void BuildGraphNode::initParams() {
   transformStamped.transform.rotation.x = 0;
   transformStamped.transform.rotation.y = 0;
   transformStamped.transform.rotation.z = 0;
-  transformStamped.transform.rotation.w = 0;
+  transformStamped.transform.rotation.w = 1.0;
 
   // Broadcast the transform
   broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
@@ -93,7 +103,7 @@ void BuildGraphNode::initSubscribers() {
 
   state_estimation_subscriber_ =
       this->create_subscription<utfr_msgs::msg::EgoState>(
-          topics::kEgoState, 1,
+          "perception_ego_state", 1,
           std::bind(&BuildGraphNode::stateEstimationCB, this,
                     std::placeholders::_1));
   }
@@ -110,6 +120,15 @@ void BuildGraphNode::initPublishers() {
     loop_closure_publisher_ =
         this->create_publisher<std_msgs::msg::Bool>(topics::kLoopClosed, 10);
   }
+
+  cone_viz_publisher_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("ConeViz", 10);
+
+  visualization_msgs::msg::MarkerArray marker_array;
+  visualization_msgs::msg::Marker marker;
+  marker.action = visualization_msgs::msg::Marker::DELETEALL;
+  marker_array.markers.push_back(marker);
+  cone_viz_publisher_->publish(marker_array);
 }
 
 void BuildGraphNode::initTimers() {
@@ -261,7 +280,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           position_x_, nearestCone.x, position_y_, nearestCone.y);
 
       // Do not add if its within 1 of an already seen cone
-      if (displacement <= 1) {
+      if (displacement <= displacement_radius_) {
         // Add the ID to the list
         cones_id_list_.push_back(nearestCone.id);
         average_position_[nearestCone.id][0] += position_x_;
@@ -290,7 +309,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
         comparative_displacement = utfr_dv::util::euclidianDistance2D(
             position_x_, std::get<0>(duplicates_potential), position_y_,
             std::get<1>(duplicates_potential));
-        if (comparative_displacement <= 0.5) {
+        if (comparative_displacement <= 0.3) {
           is_duplicate_ = true;
           break;
         }
@@ -324,14 +343,14 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           std::get<1>(potentialPoint));
 
       // Check if cone within 1 of any other new detected cone
-      if (temp_displacement_ <= 1 && colour == std::get<2>(potentialPoint)) {
+      if (temp_displacement_ <= displacement_radius_ && colour == std::get<2>(potentialPoint)) {
         count_ += 1;
         keys.push_back(key_);
         // Check if 30 of same detected
         true_coordinate_x += std::get<0>(potentialPoint);
         true_coordinate_y += std::get<1>(potentialPoint);
-        int count_threshold = 30;
-        if (count_ == count_threshold) {
+        //std::cout << "count: " << count_threshold_ << std::endl;
+        if (count_ == count_threshold_) {
 
           double average_x = position_x_;
           double average_y = position_y_;
@@ -341,7 +360,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
             double temp_displacement_ = utfr_dv::util::euclidianDistance2D(
                 average_x / number_of_points, std::get<0>(it->second),
                 average_y / number_of_points, std::get<1>(it->second));
-            if (temp_displacement_ <= 1) {
+            if (temp_displacement_ <= displacement_radius_) {
               average_x += std::get<0>(it->second);
               average_y += std::get<1>(it->second);
               number_of_points += 1;
@@ -356,8 +375,8 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           cone_id_to_color_map_[cones_found_] = newCone.type;
           utfr_msgs::msg::PoseGraphData cone_data;
           cone_data.id = cones_found_;
-          cone_data.x = true_coordinate_x / count_threshold;
-          cone_data.y = true_coordinate_y / count_threshold;
+          cone_data.x = average_x / number_of_points;
+          cone_data.y = average_y / number_of_points;
           cone_nodes_[cones_found_] = (cone_data);
           average_position_[cones_found_] = {position_x_, position_y_, 1};
           cone_id_to_vertex_map_[cones_found_] = cone_data;
@@ -368,8 +387,8 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
           edge_data.dx = newCone.pos.x;
           edge_data.dy = newCone.pos.y;
           pose_to_cone_edges_.push_back(edge_data);
-          kd_tree_knn::Point newPoint(true_coordinate_x / count_threshold,
-                                      true_coordinate_y / count_threshold, cones_found_);
+          kd_tree_knn::Point newPoint(average_x / number_of_points,
+                                      average_y / number_of_points, cones_found_);
           detection_counts[cones_found_] = 3;
           // std::cout << "Cone x: " << position_x_ << " Cone y: " <<
           // position_y_ << " Cone id: " << cones_found_ << std::endl;
@@ -465,6 +484,73 @@ void BuildGraphNode::timerCB() {
   // Print the x and y position of the car
   current_state_ = current_ego_state_;
 
+  visualization_msgs::msg::MarkerArray markerArray;
+
+  int count = 0;
+
+  for (utfr_msgs::msg::Cone cone : current_cone_detections_.left_cones) {
+    count += 1;
+    visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = "os_sensor";
+    marker.header.stamp = this->get_clock()->now();
+    marker.id = count;
+    marker.type = visualization_msgs::msg::Marker::SPHERE;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.pose.position.x = cone.pos.x;
+    marker.pose.position.y = cone.pos.y;
+    marker.pose.position.z = 0;
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0.5;
+    marker.color.a = 1.0; // Don't forget to set the alpha!
+    marker.color.r = 0.0;
+    marker.color.g = 0.0;
+    marker.color.b = 1.0;
+    markerArray.markers.push_back(marker);
+  }
+
+  for (utfr_msgs::msg::Cone cone : current_cone_detections_.right_cones) {
+    count += 1;
+    visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = "os_sensor";
+    marker.header.stamp = this->get_clock()->now();
+    marker.id = count;
+    marker.type = visualization_msgs::msg::Marker::SPHERE;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.pose.position.x = cone.pos.x;
+    marker.pose.position.y = cone.pos.y;
+    marker.pose.position.z = 0;
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 0.5;
+    marker.color.a = 1.0; // Don't forget to set the alpha!
+    marker.color.r = 0.0;
+    marker.color.g = 0.5;
+    marker.color.b = 0.5;
+    markerArray.markers.push_back(marker);
+  }
+
+  for (int i = count+1; i < 15; i++) {
+    // Delete the marker if it's not being used
+    visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = "os_sensor";
+    marker.header.stamp = this->get_clock()->now();
+    marker.id = i;
+    marker.type = visualization_msgs::msg::Marker::SPHERE;
+    marker.action = visualization_msgs::msg::Marker::DELETE;
+    markerArray.markers.push_back(marker);
+  }
+
+  // cone_viz_publisher_->publish(markerArray);
+
   if (current_pose_id_ == 1000) {
     current_state_.pose.pose.position.x = 0;
     current_state_.pose.pose.position.y = 0;
@@ -546,6 +632,7 @@ void BuildGraphNode::timerCB() {
     poseGraph.run_slam = do_graph_slam_;
     pose_graph_publisher_->publish(poseGraph);
     loop_closure_publisher_->publish(closed_loop_once);
+    
 
     if (do_graph_slam_) {
       do_graph_slam_ = false;

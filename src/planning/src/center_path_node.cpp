@@ -27,6 +27,7 @@ CenterPathNode::CenterPathNode() : Node("center_path_node") {
   publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
   this->initSubscribers();
   this->initPublishers();
+  this->initTransforms();
   this->initTimers();
   this->initSector();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
@@ -62,6 +63,8 @@ void CenterPathNode::initParams() {
       this->get_parameter("base_lookahead_distance").as_double();
 
   RCLCPP_INFO(this->get_logger(), "Event: %s", event_.c_str());
+
+  last_time = this->get_clock()->now();
 }
 
 void CenterPathNode::initSubscribers() {
@@ -126,6 +129,11 @@ void CenterPathNode::initPublishers() {
           topics::kLapDatum, 10);
 }
 
+void CenterPathNode::initTransforms() {
+  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+}
+
 void CenterPathNode::initEvent() {
   if (event_ == "read") {
     mission_subscriber_ =
@@ -168,6 +176,10 @@ void CenterPathNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
     event_set_ = true;
     break;
   }
+  }
+
+  if (as_state == 2 && msg.as_state == 3) {
+    last_time = this->get_clock()->now();
   }
 
   as_state = msg.as_state;
@@ -315,7 +327,7 @@ void CenterPathNode::coneMapCB(const utfr_msgs::msg::ConeMap &msg) {
     cone_map_->large_orange_cones = msg.large_orange_cones;
     cone_map_->small_orange_cones = msg.small_orange_cones;
     (*cone_map_raw_) = msg;
-  } else if (use_mapping_ && (event_ == "skidpad" || event_ == "accel")) {
+  } else if (use_mapping_ && (event_ == "skidpad" || event_ == "accel" || event_ == "EBSTEST")) {
     cone_map_->header = msg.header;
     cone_map_->left_cones = getConesInHemisphere(msg.left_cones, 15.0);
     cone_map_->right_cones = getConesInHemisphere(msg.right_cones, 15.0);
@@ -392,6 +404,8 @@ void CenterPathNode::timerCBAccel() {
     std::vector<double> x = {0, 0, 0, 0, 1, 0};
     std::vector<double> y = {0, 0, 0, 0, m, c};
 
+    center_path_msg.header.stamp = this->get_clock()->now();
+    center_path_msg.header.frame_id = "base_footprint";
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
     center_path_msg.lap_count = curr_sector_;
@@ -465,7 +479,7 @@ void CenterPathNode::timerCBAutocross() {
     return;
   }
   const std::string function_name{"center_path_timerCB:"};
-
+  RCLCPP_WARN(this->get_logger(), "Autocross Timer CB");
   try {
     if (cone_detections_ == nullptr || cone_map_ == nullptr ||
         ego_state_ == nullptr) {
@@ -489,15 +503,15 @@ void CenterPathNode::timerCBAutocross() {
     geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
     geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
 
-    delaunay_midpoints_stamped.header.frame_id = "base_footprint";
+    delaunay_midpoints_stamped.header.frame_id = "ground";
     delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
-    first_midpoint_stamped.header.frame_id = "base_footprint";
+    first_midpoint_stamped.header.frame_id = "ground";
     first_midpoint_stamped.header.stamp = this->get_clock()->now();
     geometry_msgs::msg::Point32 midpoint_pt32;
 
     for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
       midpoint_pt32.x = bezier_curve[i].x();
-      midpoint_pt32.y = bezier_curve[i].y() * -1;
+      midpoint_pt32.y = bezier_curve[i].y();
       midpoint_pt32.z = 0.0;
 
       delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
@@ -505,7 +519,7 @@ void CenterPathNode::timerCBAutocross() {
 
     for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
       midpoint_pt32.x = bezier_curve[i].x();
-      midpoint_pt32.y = bezier_curve[i].y() * -1;
+      midpoint_pt32.y = bezier_curve[i].y();
       midpoint_pt32.z = 0.0;
 
       delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
@@ -515,6 +529,7 @@ void CenterPathNode::timerCBAutocross() {
 
     utfr_msgs::msg::ParametricSpline center_path;
     center_path.header.stamp = this->get_clock()->now();
+    center_path.header.frame_id = "ground";
     center_path.x_params = xoft;
     center_path.y_params = yoft;
     center_path.lap_count = curr_sector_;
@@ -584,6 +599,7 @@ void CenterPathNode::timerCBTrackdrive() {
 
     utfr_msgs::msg::ParametricSpline center_path;
     center_path.header.stamp = this->get_clock()->now();
+    center_path.header.frame_id = "base_footprint";
     center_path.x_params = xoft;
     center_path.y_params = yoft;
     center_path.lap_count = curr_sector_;
@@ -633,6 +649,8 @@ void CenterPathNode::timerCBEBS() {
     std::vector<double> x = {0, 0, 0, 0, 1, 0};
     std::vector<double> y = {0, 0, 0, 0, m, c};
 
+    center_path_msg.header.stamp = this->get_clock()->now();
+    center_path_msg.header.frame_id = "ground";
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
     center_path_msg.lap_count = curr_sector_;
@@ -823,7 +841,7 @@ std::vector<double> CenterPathNode::getAccelPath() {
     geometry_msgs::msg::PolygonStamped accel_path_msg;
 
     accel_path_msg.header.stamp = this->get_clock()->now();
-    accel_path_msg.header.frame_id = "base_footprint";
+    accel_path_msg.header.frame_id = "ground";
     geometry_msgs::msg::Point32 point;
     point.x = 0;
     point.y = -final_c;
@@ -888,7 +906,7 @@ double CenterPathNode::midpointCostFunction(
     std::vector<utfr_msgs::msg::Cone> yellow_cones,
     std::vector<utfr_msgs::msg::Cone> blue_cones,
     std::vector<std::pair<int, int>> midpoint_index_to_cone_indices) {
-  double A = 0.7;
+  double A = 0.9;
   double B = 2.0;
   double C = 2.0;
   double D = 3.0;
@@ -1108,8 +1126,11 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
     double translated_x = global_x - ego_state_->pose.pose.position.x;
     double translated_y = global_y - ego_state_->pose.pose.position.y;
     double local_x = translated_x * cos(-yaw) - translated_y * sin(-yaw);
+    double local_y = translated_x * sin(-yaw) + translated_y * cos(-yaw);
 
-    if (local_x < 0) {
+    double distance = sqrt(pow(local_x, 2) + pow(local_y, 2));
+
+    if (local_x < 0 || distance > 15) {
       continue;
     }
 
@@ -1129,7 +1150,7 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
   visualization_msgs::msg::Marker midpoint_viz;
   midpoint_viz.type = visualization_msgs::msg::Marker::SPHERE_LIST;
   midpoint_viz.header.stamp = this->get_clock()->now();
-  midpoint_viz.header.frame_id = "base_footprint";
+  midpoint_viz.header.frame_id = "ground";
   midpoint_viz.scale.x = 0.1;
   midpoint_viz.scale.y = 0.1;
   midpoint_viz.scale.z = 0.1;
@@ -1149,7 +1170,7 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
     double local_y = translated_x * sin(-yaw) + translated_y * cos(-yaw);
 
     point.x = local_x;
-    point.y = -local_y;
+    point.y = local_y;
     point.z = 0.0;
     midpoint_viz.points.push_back(point);
   }
@@ -1655,6 +1676,8 @@ void CenterPathNode::skidPadFit() {
     std::vector<double> x = {0, 0, 0, 0, 1, 0};
     std::vector<double> y = {0, 0, 0, 0, m, c};
 
+    center_path_msg.header.stamp = this->get_clock()->now();
+    center_path_msg.header.frame_id = "base_footprint";
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
     center_path_msg.lap_count = curr_sector_;
