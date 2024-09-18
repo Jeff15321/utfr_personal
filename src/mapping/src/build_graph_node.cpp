@@ -349,7 +349,7 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
         // Check if 30 of same detected
         true_coordinate_x += std::get<0>(potentialPoint);
         true_coordinate_y += std::get<1>(potentialPoint);
-        std::cout << "count: " << count_threshold_ << std::endl;
+        //std::cout << "count: " << count_threshold_ << std::endl;
         if (count_ == count_threshold_) {
 
           double average_x = position_x_;
