@@ -164,11 +164,11 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   utfr_msgs::msg::EgoState res;
 
   // Get yaw directly from IMU
-  double imu_yaw = utfr_dv::util::degToRad(msg.rpy.z);
+  imu_yaw = utfr_dv::util::degToRad(msg.rpy.z);
   imu_yaw -= datum_yaw_;
 
   // Check if the current gps position is the same as the last gps position
-  if (last_gps_[0] != gps_x && last_gps_[1] != gps_y) {
+  if (last_gps_[0] != msg.position.latitude && last_gps_[1] != msg.position.longitude) {
     geometry_msgs::msg::Vector3 lla;
     lla.x = gps_x;
     lla.y = gps_y;
@@ -189,8 +189,8 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
 
     current_state_ = res;
 
-    last_gps_[0] = gps_x;
-    last_gps_[1] = gps_y;
+    last_gps_[0] = msg.position.latitude;
+    last_gps_[1] = msg.position.longitude;
 
     visualization_msgs::msg::Marker marker;
     marker.header.frame_id = "map";
@@ -380,9 +380,9 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
   sensor_msgs::msg::Imu imu_msg = imu;
 
   imu_msg.linear_acceleration.y =
-      accel_x * cos(datum_yaw_) + accel_y * sin(datum_yaw_);
+      accel_x * cos(imu_yaw) - accel_y * sin(imu_yaw);
   imu_msg.linear_acceleration.x =
-      -accel_x * sin(datum_yaw_) + accel_y * cos(datum_yaw_);
+      accel_x * sin(imu_yaw) + accel_y * cos(imu_yaw);
 
   Eigen::VectorXd input = Eigen::VectorXd(3);
   input << imu_msg.linear_acceleration.x, imu_msg.linear_acceleration.y,
