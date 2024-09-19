@@ -6,7 +6,7 @@ car_interface: # Name of Module
     heartbeat_modules:
       [
         "perception",
-        "lidar_proc",
+        "lidar_proc_node",
         "ekf",
         "mapping_build",
         "mapping_compute",
@@ -17,7 +17,7 @@ car_interface: # Name of Module
     heartbeat_modules_accel:
       [
         "perception",
-        "lidar_proc",
+        "lidar_proc_node",
         "planning_cp",
         "planning_controller",
         "controls",
