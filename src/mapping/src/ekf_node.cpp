@@ -177,6 +177,7 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     geometry_msgs::msg::Vector3 gps_ned =
         utfr_dv::util::convertLLAtoNED(lla, datum_lla);
 
+    // ned to map frame (datum yaw to account for the initial orientation of the vehicle relative to ned)
     gps_y = gps_ned.x * cos(datum_yaw_) + gps_ned.y * sin(datum_yaw_);
     gps_x = -gps_ned.x * sin(datum_yaw_) + gps_ned.y * cos(datum_yaw_);
 
@@ -224,10 +225,9 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   double vel_y = msg.velocity.linear.y;
   double vel_yaw = msg.velocity.angular.z;
 
-  current_state_.vel.twist.linear.x =
-      vel_y * cos(datum_yaw_) + vel_x * sin(datum_yaw_);
-  current_state_.vel.twist.linear.y =
-      -vel_y * sin(datum_yaw_) + vel_x * cos(datum_yaw_);
+  // no need to transform since velocity alr in global **pre sure***double check
+  current_state_.vel.twist.linear.x = vel_x;
+  current_state_.vel.twist.linear.y = vel_y;
   current_state_.vel.twist.angular.z = vel_yaw;
 
   // Extrapolate state using IMU data
