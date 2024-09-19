@@ -45,7 +45,7 @@ void EkfNode::initParams() {
   vehicle_params_ = VehicleParameters();
 
   last_gps_ = {0.0, 0.0};
-  datum_yaw_ = NULL;
+  datum_yaw_ = std::numeric_limits<double>::quiet_NaN();
 
   tf_br_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
 }
@@ -157,7 +157,7 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
     datum_lla.z = msg.position.altitude;
   }
 
-  if (datum_yaw_ == NULL) {
+  if (std::isnan(datum_yaw_)) {
     datum_yaw_ = utfr_dv::util::degToRad(msg.rpy.z);
   }
 
@@ -225,10 +225,18 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   double vel_y = msg.velocity.linear.y;
   double vel_yaw = msg.velocity.angular.z;
 
-  // no need to transform since velocity alr in global **pre sure***double check
-  current_state_.vel.twist.linear.x = vel_x;
-  current_state_.vel.twist.linear.y = vel_y;
+  // vel from global to map
+  /*
+  current_state_.vel.twist.linear.x =  vel_x * cos(datum_yaw_) + vel_y * sin(datum_yaw_);
+  current_state_.vel.twist.linear.y = -vel_x * sin(datum_yaw_) + vel_y * cos(datum_yaw_);
   current_state_.vel.twist.angular.z = vel_yaw;
+  */
+  // vel is now in body, body to map frame
+  current_state_.vel.twist.linear.x =  vel_x * cos(imu_yaw) + vel_y * sin(imu_yaw);
+  current_state_.vel.twist.linear.y = -vel_x * sin(imu_yaw) + vel_y * cos(imu_yaw);
+  current_state_.vel.twist.angular.z = vel_yaw;
+  
+
 
   // Extrapolate state using IMU data
   double dt = (this->now() - prev_time_).seconds();
@@ -292,9 +300,7 @@ utfr_msgs::msg::EgoState EkfNode::updateState(const double x, const double y,
   R(0, 0) = 0.06; // Variance for x measurement
   R(1, 1) = 0.06; // Variance for y measurement
   R(2, 2) = 0.06; // Variance for yaw measurement
-  R(0, 0) = 0.06; // Variance for x measurement
-  R(1, 1) = 0.06; // Variance for y measurement
-  R(2, 2) = 0.06; // Variance for yaw measurement
+
 
   // Compute the Kalman gain
   // K = P * H^T * (H * P * H^T + R)^-1
@@ -347,10 +353,6 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
   F(0, 3) = dt;
   F(1, 2) = dt;
   F(1, 3) = dt;
-  F(0, 2) = dt;
-  F(0, 3) = dt;
-  F(1, 2) = dt;
-  F(1, 3) = dt;
   F(4, 5) = dt;
   F(5, 5) = 0;
 
@@ -373,16 +375,13 @@ EkfNode::extrapolateState(const sensor_msgs::msg::Imu imu, const double dt) {
       current_state_.vel.twist.linear.y, yaw,
       current_state_.vel.twist.angular.z;
 
-  // Transform the acceleration data from the IMU to the map frame
   double accel_x = imu.linear_acceleration.x;
   double accel_y = imu.linear_acceleration.y;
 
   sensor_msgs::msg::Imu imu_msg = imu;
-
-  imu_msg.linear_acceleration.y =
-      accel_x * cos(imu_yaw) - accel_y * sin(imu_yaw);
-  imu_msg.linear_acceleration.x =
-      accel_x * sin(imu_yaw) + accel_y * cos(imu_yaw);
+  // accel transform from body to map frame
+  imu_msg.linear_acceleration.x = accel_x * cos(imu_yaw) - accel_y * sin(imu_yaw);
+  imu_msg.linear_acceleration.y = accel_x * sin(imu_yaw) + accel_y * cos(imu_yaw);
 
   Eigen::VectorXd input = Eigen::VectorXd(3);
   input << imu_msg.linear_acceleration.x, imu_msg.linear_acceleration.y,
