@@ -280,8 +280,8 @@ private:
     OFF = 1,
     READY = 2,
     DRIVING = 3,
-    EMERGENCY = 4,
-    FINISH = 5
+    FINISH = 4,
+    EMERGENCY = 5
   };
 
   uint8_t dv_pc_state_ = DV_PC_STATE::OFF;
