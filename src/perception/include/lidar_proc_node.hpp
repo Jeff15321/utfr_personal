@@ -34,7 +34,7 @@
 // Message Requirements
 #include <geometry_msgs/msg/polygon_stamped.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
-#include <sensor_msgs/msg/compressed_image.hpp>
+#include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -92,9 +92,9 @@ private:
 
   void pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr input);
 
-  void leftImageCB(const sensor_msgs::msg::CompressedImage::SharedPtr msg);
+  void leftImageCB(const sensor_msgs::msg::Image::SharedPtr msg);
 
-  void rightImageCB(const sensor_msgs::msg::CompressedImage::SharedPtr msg);
+  void rightImageCB(const sensor_msgs::msg::Image::SharedPtr msg);
 
   void egoStateCB(const utfr_msgs::msg::EgoState::SharedPtr msg);
 
@@ -141,21 +141,19 @@ private:
       pub_lidar_detected;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
 
-  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr
-      left_image_publisher;
-  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr
-      right_image_publisher;
-  rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr left_image_publisher;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr right_image_publisher;
+  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr
       left_image_subscriber;
-  rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr
+  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr
       right_image_subscriber;
   rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr
       ego_state_subscriber;
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr ego_state_publisher;
 
   bool hold_image = true;
-  sensor_msgs::msg::CompressedImage left_img;
-  sensor_msgs::msg::CompressedImage right_img;
+  sensor_msgs::msg::Image left_img;
+  sensor_msgs::msg::Image right_img;
   utfr_msgs::msg::EgoState ego_state;
 };
 } // namespace lidar_proc

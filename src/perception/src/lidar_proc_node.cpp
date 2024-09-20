@@ -149,14 +149,13 @@ void LidarProcNode::initSubscribers() {
           rclcpp::QoS(10).reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT),
           std::bind(&LidarProcNode::pointCloudCallback, this, _1));
 
-  left_image_subscriber =
-      this->create_subscription<sensor_msgs::msg::CompressedImage>(
-          "/left_camera/images", 10,
-          std::bind(&LidarProcNode::leftImageCB, this, _1));
-  right_image_subscriber =
-      this->create_subscription<sensor_msgs::msg::CompressedImage>(
-          "/right_camera/images", 10,
-          std::bind(&LidarProcNode::rightImageCB, this, _1));
+  left_image_subscriber = this->create_subscription<sensor_msgs::msg::Image>(
+      "/left_camera/images", 10,
+      std::bind(&LidarProcNode::leftImageCB, this, _1));
+
+  right_image_subscriber = this->create_subscription<sensor_msgs::msg::Image>(
+      "/right_camera/images", 10,
+      std::bind(&LidarProcNode::rightImageCB, this, _1));
   ego_state_subscriber = this->create_subscription<utfr_msgs::msg::EgoState>(
       topics::kEgoState, 10, std::bind(&LidarProcNode::egoStateCB, this, _1));
 }
@@ -171,11 +170,9 @@ void LidarProcNode::initPublishers() {
   pub_lidar_detected = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       topics::kDetected, 10);
   left_image_publisher =
-      this->create_publisher<sensor_msgs::msg::CompressedImage>(
-          "synced_left_image", 10);
+      this->create_publisher<sensor_msgs::msg::Image>("synced_left_image", 10);
   right_image_publisher =
-      this->create_publisher<sensor_msgs::msg::CompressedImage>(
-          "synced_right_image", 10);
+      this->create_publisher<sensor_msgs::msg::Image>("synced_right_image", 10);
   ego_state_publisher =
       this->create_publisher<utfr_msgs::msg::EgoState>("synced_ego_state", 10);
 }
@@ -307,24 +304,26 @@ void LidarProcNode::pointCloudCallback(
   // RCLCPP_INFO(this->get_logger(), "Published Processed Point Clouds");
 }
 
-void LidarProcNode::leftImageCB(
-    const sensor_msgs::msg::CompressedImage::SharedPtr msg) {
+void LidarProcNode::leftImageCB(const sensor_msgs::msg::Image::SharedPtr msg) {
   if (!hold_image) {
     left_img.header = msg->header;
-
-    left_img.format = msg->format;
-
+    left_img.height = msg->height;
+    left_img.width = msg->width;
+    left_img.encoding = msg->encoding;
+    left_img.is_bigendian = msg->is_bigendian;
+    left_img.step = msg->step;
     left_img.data = msg->data;
   }
 }
 
-void LidarProcNode::rightImageCB(
-    const sensor_msgs::msg::CompressedImage::SharedPtr msg) {
+void LidarProcNode::rightImageCB(const sensor_msgs::msg::Image::SharedPtr msg) {
   if (!hold_image) {
     right_img.header = msg->header;
-
-    right_img.format = msg->format;
-
+    right_img.height = msg->height;
+    right_img.width = msg->width;
+    right_img.encoding = msg->encoding;
+    right_img.is_bigendian = msg->is_bigendian;
+    right_img.step = msg->step;
     right_img.data = msg->data;
   }
 }
