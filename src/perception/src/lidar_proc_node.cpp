@@ -151,16 +151,14 @@ void LidarProcNode::initSubscribers() {
 
   left_image_subscriber =
       this->create_subscription<sensor_msgs::msg::CompressedImage>(
-          "/left_camera_node/images/compressed", 10,
+          "/left_camera/images", 10,
           std::bind(&LidarProcNode::leftImageCB, this, _1));
   right_image_subscriber =
       this->create_subscription<sensor_msgs::msg::CompressedImage>(
-          "/right_camera_node/images/compressed", 10,
+          "/right_camera/images", 10,
           std::bind(&LidarProcNode::rightImageCB, this, _1));
-  ego_state_subscriber = 
-      this->create_subscription<utfr_msgs::msg::EgoState>(
-          topics::kEgoState, 10,
-          std::bind(&LidarProcNode::egoStateCB, this, _1));
+  ego_state_subscriber = this->create_subscription<utfr_msgs::msg::EgoState>(
+      topics::kEgoState, 10, std::bind(&LidarProcNode::egoStateCB, this, _1));
 }
 
 void LidarProcNode::initPublishers() {
@@ -332,7 +330,7 @@ void LidarProcNode::rightImageCB(
 }
 
 void LidarProcNode::egoStateCB(const utfr_msgs::msg::EgoState::SharedPtr msg) {
-  if (!hold_image){
+  if (!hold_image) {
     ego_state.header = msg->header;
 
     ego_state.pose = msg->pose;

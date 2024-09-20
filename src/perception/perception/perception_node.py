@@ -128,10 +128,10 @@ class PerceptionNode(Node):
         """
         self.declare_parameter("baseline", 10.0)
         self.declare_parameter(
-            "left_camera_topic", "/left_camera_node/images/compressed"
+            "left_camera_topic", "/left_camera/images"
         )
         self.declare_parameter(
-            "right_camera_topic", "/right_camera_node/images/compressed"
+            "right_camera_topic", "/right_camera/images"
         )
         self.declare_parameter("cone_detections_topic", "/perception/cone_detections")
         self.declare_parameter("heartbeat_topic", "/perception/heartbeat")
@@ -354,7 +354,7 @@ class PerceptionNode(Node):
           msg: sensor_msgs::PointCloud2, topic:
         """
         self.left_cam_subscriber_ = self.create_subscription(
-            CompressedImage,
+            Image,
             self.left_camera_topic,
             self.leftCameraCB,
             1,
@@ -362,7 +362,7 @@ class PerceptionNode(Node):
         )
 
         self.right_cam_subscriber_ = self.create_subscription(
-            CompressedImage,
+            Image,
             self.right_camera_topic,
             self.rightCameraCB,
             1,
@@ -567,8 +567,7 @@ class PerceptionNode(Node):
                 + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
             )
             # Convert the CompressedImage message to a CV2 image
-            np_arr = np.frombuffer(msg.data, np.uint8)
-            left_img_ = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode JPEG image
+            left_img_ = self.bridge.imgmsg_to_cv2(msg)
             self.left_img_gpu.upload(left_img_)
             now1 = (
                 self.get_clock().now().seconds_nanoseconds()[0]
@@ -639,9 +638,8 @@ class PerceptionNode(Node):
         Callback function for right_cam_subscriber_ with CompressedImage message
         """
         try:
-            # Convert the CompressedImage message to a CV2 image
-            np_arr = np.frombuffer(msg.data, np.uint8)
-            right_img_ = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # Decode JPEG image
+            # Convert the Image message to a CV2 image
+            right_img_ = self.bridge.imgmsg_to_cv2(msg)
             self.right_img_gpu.upload(right_img_)
 
             right_img_ = cv2.cuda.remap(
