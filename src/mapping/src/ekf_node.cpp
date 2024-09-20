@@ -168,57 +168,54 @@ void EkfNode::sensorCB(const utfr_msgs::msg::SensorCan msg) {
   imu_yaw -= datum_yaw_;
 
   // Check if the current gps position is the same as the last gps position
-  if (last_gps_[0] != msg.position.latitude && last_gps_[1] != msg.position.longitude) {
-    geometry_msgs::msg::Vector3 lla;
-    lla.x = gps_x;
-    lla.y = gps_y;
-    lla.z = msg.position.altitude;
 
-    geometry_msgs::msg::Vector3 gps_ned =
-        utfr_dv::util::convertLLAtoNED(lla, datum_lla);
+  geometry_msgs::msg::Vector3 lla;
+  lla.x = gps_x;
+  lla.y = gps_y;
+  lla.z = msg.position.altitude;
 
-    // ned to map frame (datum yaw to account for the initial orientation of the vehicle relative to ned)
-    gps_y = gps_ned.x * cos(datum_yaw_) + gps_ned.y * sin(datum_yaw_);
-    gps_x = -gps_ned.x * sin(datum_yaw_) + gps_ned.y * cos(datum_yaw_);
+  geometry_msgs::msg::Vector3 gps_ned =
+      utfr_dv::util::convertLLAtoNED(lla, datum_lla);
 
-    // Update state with GPS position, IMU yaw, and extracted velocities
-    res = updateState(gps_x, gps_y, imu_yaw);
-    // res.pose.pose.position.x = gps_x;
-    // res.pose.pose.position.y = gps_y;
-    res.header.stamp = this->get_clock()->now();
-    res.header.frame_id = "map";
+  // ned to map frame (datum yaw to account for the initial orientation of the vehicle relative to ned)
+  gps_y = gps_ned.x * cos(datum_yaw_) + gps_ned.y * sin(datum_yaw_);
+  gps_x = -gps_ned.x * sin(datum_yaw_) + gps_ned.y * cos(datum_yaw_);
 
-    current_state_ = res;
+  // Update state with GPS position, IMU yaw, and extracted velocities
+  res = updateState(gps_x, gps_y, imu_yaw);
+  // res.pose.pose.position.x = gps_x;
+  // res.pose.pose.position.y = gps_y;
+  res.header.stamp = this->get_clock()->now();
+  res.header.frame_id = "map";
 
-    last_gps_[0] = msg.position.latitude;
-    last_gps_[1] = msg.position.longitude;
+  current_state_ = res;
 
-    visualization_msgs::msg::Marker marker;
-    marker.header.frame_id = "map";
-    marker.header.stamp = this->get_clock()->now();
-    marker.type = visualization_msgs::msg::Marker::CUBE;
+  last_gps_[0] = msg.position.latitude;
+  last_gps_[1] = msg.position.longitude;
 
-    marker.pose.position.y = current_state_.pose.pose.position.y;
-    marker.pose.position.x = current_state_.pose.pose.position.x;
-    marker.pose.position.z = 0.0;
+  visualization_msgs::msg::Marker marker2;
+  marker2.header.frame_id = "map";
+  marker2.header.stamp = this->get_clock()->now();
+  marker2.type = visualization_msgs::msg::Marker::CUBE;
 
-    marker.pose.orientation = res.pose.pose.orientation;
+  marker2.pose.position.y = current_state_.pose.pose.position.y;
+  marker2.pose.position.x = current_state_.pose.pose.position.x;
+  marker2.pose.position.z = 0.0;
 
-    marker.scale.x = 1.8;
-    marker.scale.y = 1.5;
-    marker.scale.z = 0.5;
+  marker2.pose.orientation = res.pose.pose.orientation;
 
-    marker.color.a = 1.0;
-    marker.color.r = 0.0;
-    marker.color.g = 0.0;
-    marker.color.b = 1.0;
+  marker2.scale.x = 1.8;
+  marker2.scale.y = 1.5;
+  marker2.scale.z = 0.5;
 
-    gps_state_publisher->publish(marker);
+  marker2.color.a = 1.0;
+  marker2.color.r = 0.0;
+  marker2.color.g = 0.0;
+  marker2.color.b = 1.0;
 
-  } else {
-    current_state_.pose.pose.orientation =
-        utfr_dv::util::yawToQuaternion(imu_yaw);
-  }
+  gps_state_publisher->publish(marker2);
+
+  
 
   // Extract velocity data from SensorCan message
   double vel_x = msg.velocity.linear.x;
