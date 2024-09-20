@@ -21,10 +21,12 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     geometry_msgs
     utfr_common
     tf2_ros
+    tf2_geometry_msgs
     tf2
     sensor_msgs
     visualization_msgs
 )
+
 
 ## Find Dependencies
 foreach(DEPENDENCY IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
@@ -149,6 +151,7 @@ target_link_libraries(mapping_test g2o_core g2o_stuff g2o_types_data g2o_types_s
 
 target_link_libraries(build_graph_tests fmt::fmt)
 target_link_libraries(build_graph_tests g2o_core g2o_stuff g2o_types_data g2o_types_slam2d)
+
 
 ## Add source files related to the tests
 target_sources(mapping_test PRIVATE src/build_graph_node.cpp)

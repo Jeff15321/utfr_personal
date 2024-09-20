@@ -12,6 +12,7 @@
 * desc: ekf node header
 */
 #pragma once
+#include <GeographicLib/LocalCartesian.hpp>
 
 // ROS2 Requirements
 #include <rclcpp/rclcpp.hpp>
@@ -39,6 +40,10 @@
 #include <utfr_msgs/msg/system_status.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include <tf2/utils.h>
+#include "geometry_msgs/msg/vector3_stamped.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
+#include "geometry_msgs/msg/quaternion_stamped.hpp"
+
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -95,10 +100,14 @@ public:
 
   HeartBeatState heartbeat_state_;
   double heartbeat_rate_;
+  
 
   /*! CAN sensor callback function
    */
   void sensorCB(const utfr_msgs::msg::SensorCan msg);
+  void poseCB(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg);
+  void twistCB(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
+  void orientationCB(const geometry_msgs::msg::QuaternionStamped::SharedPtr msg);
 
   /*! GPS sensor callback function
    */
@@ -194,23 +203,30 @@ public:
   geometry_msgs::msg::TransformStamped map_to_base_footprint(
     const utfr_msgs::msg::EgoState &state);
 
+    
+
   // Publishers
   rclcpp::Publisher<utfr_msgs::msg::EgoState>::SharedPtr ego_state_publisher_;
   rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr
       navsatfix_publisher_;
-  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr state_publisher;
-  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr gps_state_publisher;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr state_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr gps_state_publisher_;
 
   // Subscribers
   // SensorCAN handles GPS, IMU, and wheel/steering speed data!
   rclcpp::Subscription<utfr_msgs::msg::SensorCan>::SharedPtr
       sensorcan_subscriber_;
 
-  // rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gps_subscriber_;
+  rclcpp::Subscription<geometry_msgs::msg::Vector3Stamped>::SharedPtr
+      pose_subscriber_;
 
-  //rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscriber_;
+  rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr
+      twist_subscriber_;
   
+  rclcpp::Subscription<geometry_msgs::msg::QuaternionStamped>::SharedPtr 
+      orientation_subscriber_;
+
   // Transforms
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_br_;
   
@@ -219,14 +235,19 @@ public:
   Eigen::MatrixXd P_;
   geometry_msgs::msg::Vector3 datum_lla;
   std::vector<double> last_gps_;
-  double datum_yaw_;
+  bool datum_initialized_;
+  double datum_latitude_;
+  double datum_longitude_;
+  double datum_altitude_;
+
 
   VehicleParameters vehicle_params_;
   utfr_msgs::msg::Heartbeat heartbeat_;
   double update_rate_;
   int mapping_mode_;
   int ekf_on_;
-  double imu_yaw;
+  double imu_yaw_;
+  double datum_yaw_;
   rclcpp::TimerBase::SharedPtr main_timer_;
 
   rclcpp::Time prev_time_;
