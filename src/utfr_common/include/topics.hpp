@@ -25,7 +25,7 @@ const std::string kExample{"example/topic"};
 // Perception
 const std::string kConeDetections{"perception/cone_detections"};
 const std::string kPerceptionHeartbeat{"perception/heartbeat"};
-const std::string kLidarProcHeartbeat{"lidar_proc/heartbeat"};
+const std::string kLidarProcHeartbeat{"lidar_proc_node/heartbeat"};
 
 const std::string kFiltered{"/lidar_pipeline/filtered"};
 const std::string kNoGround{"/lidar_pipeline/no_ground"};

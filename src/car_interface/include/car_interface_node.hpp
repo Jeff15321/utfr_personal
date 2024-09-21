@@ -296,7 +296,7 @@ private:
   // Heartbeat map
   std::unordered_map<std::string, std::string> heartbeat_topics_map_{
       {"perception", topics::kPerceptionHeartbeat},
-      {"lidar_proc", topics::kLidarProcHeartbeat},
+      {"lidar_proc_node", topics::kLidarProcHeartbeat},
       {"ekf", topics::kEKFHeartbeat},
       {"mapping_build", topics::kMappingBuildHeartbeat},
       {"mapping_compute", topics::kMappingComputeHeartbeat},

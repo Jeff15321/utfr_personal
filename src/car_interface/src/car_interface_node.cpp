@@ -393,7 +393,7 @@ void CarInterface::sendStateAndCmd() {
     apps_canfd = can0_->setSignal(apps_canfd, 8, 8, 1, apps_command / 256);
 
     // Transmit
-    if (cmd_ ) {
+    if (cmd_) {
       can0_->write_can(dv_can_msg::STR_MOTOR_CMD, steering_canfd, true);
       can0_->write_can(dv_can_msg::APPS, apps_canfd, true);
     }
