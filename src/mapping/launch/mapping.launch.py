@@ -39,5 +39,5 @@ def generate_launch_description():
 
     ld.add_action(compute_graph_node)
     ld.add_action(build_graph_node)
-    #ld.add_action(ekf_node)
+    ld.add_action(ekf_node)
     return ld

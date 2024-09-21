@@ -16,7 +16,6 @@ namespace ekf {
 EkfNode::EkfNode() : Node("ekf_node") {
   this->initParams();
   this->initHeartbeat();
-  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
   this->initSubscribers();
   this->initPublishers();
   this->initTimers();
@@ -24,8 +23,9 @@ EkfNode::EkfNode() : Node("ekf_node") {
 }
 
 void EkfNode::initParams() {
+  std::cout << "You acc suck";
   this->declare_parameter("update_rate", 33.33);
-  update_rate_ = this->get_parameter("update_rate").as_double();
+  update_rate_ = 10.0; //this->get_parameter("update_rate").as_double();
   this->declare_parameter("mapping_mode", 0);
   mapping_mode_ = this->get_parameter("mapping_mode").as_int();
   this->declare_parameter("ekf_on", 1);
@@ -204,7 +204,7 @@ void EkfNode::orientationCB(const geometry_msgs::msg::QuaternionStamped::SharedP
   imu_yaw_ -= datum_yaw_;
   tf2::Quaternion corrected_q;
   corrected_q.setRPY(0, 0, imu_yaw_);
-  current_state_.pose.pose.orientation = tf2::toMsg(corrected_q);
+  current_state_.pose.pose.orientation = utfr_dv::util::yawToQuaternion(imu_yaw_); //tf2::toMsg(corrected_q);
 }
 
 void EkfNode::twistCB(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
@@ -213,50 +213,15 @@ void EkfNode::twistCB(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
   double vel_y = msg->twist.linear.y;
   double vel_yaw = msg->twist.angular.z;
 
-  // Transform velocities from body frame to map frame
-  double vel_x_map = vel_x * cos(imu_yaw_) - vel_y * sin(imu_yaw_);
-  double vel_y_map = vel_x * sin(imu_yaw_) + vel_y * cos(imu_yaw_);
+  // Transform velocities from global to map frame
+  double vel_x_map = vel_y * cos(datum_yaw_+imu_yaw_) -
+                 vel_x * sin(datum_yaw_+imu_yaw_);
+  double vel_y_map = vel_y * sin(datum_yaw_+imu_yaw_) +
+                 vel_x * cos(datum_yaw_+imu_yaw_);
 
   current_state_.vel.twist.linear.x = vel_x_map;
   current_state_.vel.twist.linear.y = vel_y_map;
   current_state_.vel.twist.angular.z = vel_yaw;
-
-  // Update the current state position based on velocities and time delta
-  rclcpp::Time current_time = this->now();
-  double dt = (current_time - prev_time_).seconds();
-  prev_time_ = current_time;
-
-  // Integrate velocities to update position
-  current_state_.pose.pose.position.x += vel_x_map * dt;
-  current_state_.pose.pose.position.y += vel_y_map * dt;
-
-  // Prepare and publish marker
-  visualization_msgs::msg::Marker marker;
-  marker.header.frame_id = "map";
-  marker.header.stamp = current_time;
-  marker.type = visualization_msgs::msg::Marker::CUBE;
-
-  marker.pose.position.x = current_state_.pose.pose.position.x;
-  marker.pose.position.y = current_state_.pose.pose.position.y;
-  marker.pose.position.z = 0.0;
-
-  marker.pose.orientation = current_state_.pose.pose.orientation;
-
-  marker.scale.x = 1.8;
-  marker.scale.y = 0.8;
-  marker.scale.z = 0.5;
-
-  marker.color.a = 1.0;
-  marker.color.r = 0.0;
-  marker.color.g = 1.0;
-  marker.color.b = 0.0;
-
-  state_publisher_->publish(marker);
-
-  // Publish the updated state
-  current_state_.header.stamp = current_time;
-  current_state_.header.frame_id = "map";
-  ego_state_publisher_->publish(current_state_);
 
   //tf_br_->sendTransform(map_to_imu_link(current_state_));
   //tf_br_->sendTransform(map_to_base_footprint(current_state_));
@@ -264,6 +229,10 @@ void EkfNode::twistCB(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
 
 void EkfNode::timerCB() {
   // Timer callback (if needed)
+  // Publish the updated state
+  current_state_.header.stamp = this->now();
+  current_state_.header.frame_id = "map";
+  ego_state_publisher_->publish(current_state_);
 }
 
 }  // namespace ekf
