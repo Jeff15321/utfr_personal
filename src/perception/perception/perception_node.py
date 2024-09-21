@@ -34,7 +34,6 @@ import tf2_geometry_msgs
 import torch
 
 # Message Requirements
-from sensor_msgs.msg import CompressedImage
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2
@@ -127,12 +126,8 @@ class PerceptionNode(Node):
 
         """
         self.declare_parameter("baseline", 10.0)
-        self.declare_parameter(
-            "left_camera_topic", "/left_camera/images"
-        )
-        self.declare_parameter(
-            "right_camera_topic", "/right_camera/images"
-        )
+        self.declare_parameter("left_camera_topic", "/left_camera/images")
+        self.declare_parameter("right_camera_topic", "/right_camera/images")
         self.declare_parameter("cone_detections_topic", "/perception/cone_detections")
         self.declare_parameter("heartbeat_topic", "/perception/heartbeat")
         self.declare_parameter("processed_lidar_topic", "/lidar_pipeline/clustered")
@@ -339,6 +334,9 @@ class PerceptionNode(Node):
         self.right_img_gpu = cv2.cuda_GpuMat()
 
         self.previous_detections = {}
+
+        self.previous_right_img_ = None
+        self.previous_left_img_ = None
 
     def initSubscribers(self):
         """
@@ -566,8 +564,10 @@ class PerceptionNode(Node):
                 self.get_clock().now().seconds_nanoseconds()[0]
                 + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
             )
-            # Convert the CompressedImage message to a CV2 image
-            left_img_ = self.bridge.imgmsg_to_cv2(msg)
+            # Convert the Image in BayerRG8 message to a CV2 image
+            left_img_ = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+            left_img_ = cv2.cvtColor(left_img_, cv2.COLOR_BayerRG2RGB)
+
             self.left_img_gpu.upload(left_img_)
             now1 = (
                 self.get_clock().now().seconds_nanoseconds()[0]
@@ -638,8 +638,9 @@ class PerceptionNode(Node):
         Callback function for right_cam_subscriber_ with CompressedImage message
         """
         try:
-            # Convert the Image message to a CV2 image
-            right_img_ = self.bridge.imgmsg_to_cv2(msg)
+            # Convert the Image in BayerRG8 message to a CV2 image
+            right_img_ = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+            right_img_ = cv2.cvtColor(right_img_, cv2.COLOR_BayerRG2RGB)
             self.right_img_gpu.upload(right_img_)
 
             right_img_ = cv2.cuda.remap(
