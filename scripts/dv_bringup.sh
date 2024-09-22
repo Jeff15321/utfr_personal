@@ -61,8 +61,8 @@ sleep 30 # Wait for nodes to boot up
 cd "/media/utfr-dv/1tb ssd/rosbags"
 ros2 bag record -s mcap \
 /car_interface/sensor_can \
-/left_image/compressed \
-/right_image/compressed \
+/left_camera/images \
+/right_camera/images \
 /ouster/points \
 /tf \
 /tf_static \
@@ -82,7 +82,7 @@ ros2 bag record -s mcap \
 /planning/delaunay_midpoints \
 /planning/delaunay_waypoint \
 /planning/pure_pursuit_point \
-/planning/target_state -o sep15_ebs_test1 &
+/planning/target_state -o sep21_ebs_test1 &
 PID_RECORD=$!
 
 sleep 120 # Record for 2 minutes
