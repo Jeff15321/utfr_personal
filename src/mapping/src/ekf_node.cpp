@@ -18,6 +18,7 @@ EkfNode::EkfNode() : Node("ekf_node") {
   this->initHeartbeat();
   this->initSubscribers();
   this->initPublishers();
+  publishHeartbeat(utfr_msgs::msg::Heartbeat::NOT_READY);
   this->initTimers();
   publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
 }
@@ -30,8 +31,6 @@ void EkfNode::initParams() {
   mapping_mode_ = this->get_parameter("mapping_mode").as_int();
   this->declare_parameter("ekf_on", 1);
   ekf_on_ = this->get_parameter("ekf_on").as_int();
-
-  P_ = 1 * Eigen::MatrixXd::Identity(6, 6);
   prev_time_ = this->now();
   current_state_.pose.pose.position.x = 0.0;
   current_state_.pose.pose.position.y = 0.0;
@@ -45,15 +44,15 @@ void EkfNode::initParams() {
 void EkfNode::initSubscribers() {
   if (mapping_mode_ != 2 && ekf_on_ == 1) {
     pose_subscriber_ = this->create_subscription<geometry_msgs::msg::Vector3Stamped>(
-        "/filter/positionlla", rclcpp::SensorDataQoS(),
+        "/filter/positionlla", rclcpp::QoS(10),
         std::bind(&EkfNode::poseCB, this, std::placeholders::_1));
 
     twist_subscriber_ = this->create_subscription<geometry_msgs::msg::TwistStamped>(
-        "/filter/twist", rclcpp::SensorDataQoS(),
+        "/filter/twist", rclcpp::QoS(10),
         std::bind(&EkfNode::twistCB, this, std::placeholders::_1));
 
     orientation_subscriber_ = this->create_subscription<geometry_msgs::msg::QuaternionStamped>(
-        "/filter/quaternion", rclcpp::SensorDataQoS(),
+        "/filter/quaternion", rclcpp::QoS(10),
         std::bind(&EkfNode::orientationCB, this, std::placeholders::_1));
   }
 }
@@ -230,8 +229,8 @@ void EkfNode::twistCB(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
 
   std::cout << "twist cb end";
 
-  tf_br_->sendTransform(map_to_imu_link(current_state_));
-  tf_br_->sendTransform(map_to_base_footprint(current_state_));
+  //tf_br_->sendTransform(map_to_imu_link(current_state_));
+  //tf_br_->sendTransform(map_to_base_footprint(current_state_));
 }
 
 void EkfNode::timerCB() {
