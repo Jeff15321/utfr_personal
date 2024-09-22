@@ -405,7 +405,7 @@ void CenterPathNode::timerCBAccel() {
     std::vector<double> y = {0, 0, 0, 0, m, c};
 
     center_path_msg.header.stamp = this->get_clock()->now();
-    center_path_msg.header.frame_id = "base_footprint";
+    center_path_msg.header.frame_id = "ground";
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
     center_path_msg.lap_count = curr_sector_;
@@ -573,9 +573,9 @@ void CenterPathNode::timerCBTrackdrive() {
     geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
     geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
 
-    delaunay_midpoints_stamped.header.frame_id = "base_footprint";
+    delaunay_midpoints_stamped.header.frame_id = "ground";
     delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
-    first_midpoint_stamped.header.frame_id = "base_footprint";
+    first_midpoint_stamped.header.frame_id = "ground";
     first_midpoint_stamped.header.stamp = this->get_clock()->now();
     geometry_msgs::msg::Point32 midpoint_pt32;
 
@@ -599,7 +599,7 @@ void CenterPathNode::timerCBTrackdrive() {
 
     utfr_msgs::msg::ParametricSpline center_path;
     center_path.header.stamp = this->get_clock()->now();
-    center_path.header.frame_id = "base_footprint";
+    center_path.header.frame_id = "ground";
     center_path.x_params = xoft;
     center_path.y_params = yoft;
     center_path.lap_count = curr_sector_;
@@ -1638,7 +1638,7 @@ utfr_msgs::msg::EgoState CenterPathNode::getTrackDriveDatum(const utfr_msgs::msg
   // visualize to lap_datum_publisher_ as rviz marker
   /*
   visualization_msgs::msg::Marker datum_marker;
-  datum_marker.header.frame_id = "base_footprint";
+  datum_marker.header.frame_id = "ground";
   datum_marker.header.stamp = this->get_clock()->now();
   datum_marker.ns = "datum";  datum_marker.id = 0;  datum_marker.type = visualization_msgs::msg::Marker::SPHERE;
   datum_marker.action = visualization_msgs::msg::Marker::ADD;
@@ -1677,7 +1677,7 @@ void CenterPathNode::skidPadFit() {
     std::vector<double> y = {0, 0, 0, 0, m, c};
 
     center_path_msg.header.stamp = this->get_clock()->now();
-    center_path_msg.header.frame_id = "base_footprint";
+    center_path_msg.header.frame_id = "ground";
     center_path_msg.x_params = x;
     center_path_msg.y_params = y;
     center_path_msg.lap_count = curr_sector_;
@@ -1685,7 +1685,7 @@ void CenterPathNode::skidPadFit() {
     center_path_publisher_->publish(center_path_msg);
 
     geometry_msgs::msg::PolygonStamped circleavg;
-    circleavg.header.frame_id = "base_footprint";
+    circleavg.header.frame_id = "ground";
     circleavg.header.stamp = this->get_clock()->now();
     Point32 pointavg;
 
@@ -1720,7 +1720,7 @@ void CenterPathNode::skidPadFit() {
 
     geometry_msgs::msg::PolygonStamped circleavg;
 
-    circleavg.header.frame_id = "base_footprint";
+    circleavg.header.frame_id = "ground";
 
     circleavg.header.stamp = this->get_clock()->now();
 
@@ -1753,7 +1753,7 @@ void CenterPathNode::skidPadFit() {
     skidpad_path_publisher_avg_->publish(circleavg);
 
     utfr_msgs::msg::ParametricSpline avg_circle_msg;
-    avg_circle_msg.header.frame_id = "base_footprint";
+    avg_circle_msg.header.frame_id = "ground";
     avg_circle_msg.header.stamp = this->get_clock()->now();
 
     avg_circle_msg.skidpad_params = {b, k, r};
@@ -1782,7 +1782,7 @@ void CenterPathNode::skidPadFit() {
 
     geometry_msgs::msg::PolygonStamped circleavg;
 
-    circleavg.header.frame_id = "base_footprint";
+    circleavg.header.frame_id = "ground";
     circleavg.header.stamp = this->get_clock()->now();
 
     double b = (xc1 + xc2) / 2.0;
@@ -1814,7 +1814,7 @@ void CenterPathNode::skidPadFit() {
     skidpad_path_publisher_avg_->publish(circleavg);
 
     utfr_msgs::msg::ParametricSpline avg_circle_msg;
-    avg_circle_msg.header.frame_id = "base_footprint";
+    avg_circle_msg.header.frame_id = "ground";
     avg_circle_msg.header.stamp = this->get_clock()->now();
 
     avg_circle_msg.skidpad_params = {b, k, r};
@@ -1833,9 +1833,9 @@ void CenterPathNode::publishLine(double m_left, double m_right, double c_left,
 
   geometry_msgs::msg::PolygonStamped line1_stamped, line2_stamped, lineavg;
 
-  line1_stamped.header.frame_id = "base_footprint";
-  line2_stamped.header.frame_id = "base_footprint";
-  lineavg.header.frame_id = "base_footprint";
+  line1_stamped.header.frame_id = "ground";
+  line2_stamped.header.frame_id = "ground";
+  lineavg.header.frame_id = "ground";
 
   line1_stamped.header.stamp = this->get_clock()->now();
   line2_stamped.header.stamp = this->get_clock()->now();
@@ -1876,7 +1876,7 @@ void CenterPathNode::publishLine(double m_left, double m_right, double c_left,
   skidpad_path_publisher_2_->publish(line2_stamped);
   skidpad_path_publisher_avg_->publish(lineavg);
 
-  avg_line_msg.header.frame_id = "base_footprint";
+  avg_line_msg.header.frame_id = "ground";
   avg_line_msg.header.stamp = this->get_clock()->now();
   avg_line_msg.x_params = {0, 0, 0, 0, 1, 0};
   avg_line_msg.y_params = {
@@ -2366,7 +2366,7 @@ void CenterPathNode::GlobalWaypoints() {
   double carX = ego_state_->pose.pose.position.x;
   double carY = ego_state_->pose.pose.position.y;
   double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
-  points_stamped.header.frame_id = "base_footprint";
+  points_stamped.header.frame_id = "ground";
   points_stamped.header.stamp = this->get_clock()->now();
   points_stamped.polygon.points.clear();
 
@@ -2536,7 +2536,7 @@ CenterPathNode::skidpadCircleCentres() {
     circle_stamped_global.header.frame_id = "map";
     circle_stamped_global.header.stamp = this->get_clock()->now();
     PolygonStamped circle_stamped_local;
-    circle_stamped_local.header.frame_id = "base_footprint";
+    circle_stamped_local.header.frame_id = "ground";
     circle_stamped_local.header.stamp = this->get_clock()->now();
 
     double carX = ego_state_->pose.pose.position.x;
@@ -2683,7 +2683,7 @@ std::tuple<double, double, double, double> CenterPathNode::getCentresColourblind
     circle_stamped_global.header.frame_id = "map";
     circle_stamped_global.header.stamp = this->get_clock()->now();
     PolygonStamped circle_stamped_local;
-    circle_stamped_local.header.frame_id = "base_footprint";
+    circle_stamped_local.header.frame_id = "ground";
     circle_stamped_local.header.stamp = this->get_clock()->now();
 
     double carX = ego_state_->pose.pose.position.x;
