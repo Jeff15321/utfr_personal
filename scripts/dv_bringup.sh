@@ -52,9 +52,10 @@ cleanup() {
 
 trap cleanup SIGINT
 
-cd ~/utfr_dv
+cd /home/utfr-dv/utfr_dv/
 source install/setup.bash
 bash scripts/enable_can.sh
+ros2 launch xsens_mti_ros2_driver xsens_mti_node.launch.py &
 ros2 launch launcher interface.launch.py &
 PID_LAUNCH=$!
 
@@ -86,8 +87,14 @@ ros2 bag record -s mcap \
 /planning/pure_pursuit_point \
 /planning/target_state \
 controls/control_cmd \
-car_interface/system_status \ 
--s mcap -o "$1" &
+car_interface/system_status \
+filter/positionlla \
+filter/quaternion \
+filter/euler \
+filter/twist \
+filter/velocity \
+filter/free_acceleration \ 
+-s mcap &
 
 PID_RECORD=$!
 
