@@ -12,7 +12,6 @@
 * desc: ekf node header
 */
 #pragma once
-#include <GeographicLib/LocalCartesian.hpp>
 
 // ROS2 Requirements
 #include <rclcpp/rclcpp.hpp>

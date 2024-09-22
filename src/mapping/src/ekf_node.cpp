@@ -161,7 +161,7 @@ void EkfNode::poseCB(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg) {
   double gps_x_map =
       gps_ned.x * cos(datum_yaw_) + gps_ned.y * sin(datum_yaw_);
   double gps_y_map =
-      -gps_ned.x * sin(datum_yaw_) + gps_ned.y * cos(datum_yaw_);
+      gps_ned.x * sin(datum_yaw_) - gps_ned.y * cos(datum_yaw_);
 
   current_state_.pose.pose.position.x = gps_x_map;
   current_state_.pose.pose.position.y = gps_y_map;
