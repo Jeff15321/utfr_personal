@@ -17,7 +17,7 @@
 # [Service]
 # ExecStart=/usr/local/bin/my_script.sh
 # Type=simple
-# Restart=on-failure
+# Restart=no
 
 # [Install]
 # WantedBy=multi-user.target
@@ -45,6 +45,8 @@ cleanup() {
     echo "Killing all ros2 processes"
     kill $PID_RECORD
     kill $PID_LAUNCH
+    sudo ip link set can0 down
+    pkill -f "ros2"
     exit
 }
 
@@ -82,7 +84,11 @@ ros2 bag record -s mcap \
 /planning/delaunay_midpoints \
 /planning/delaunay_waypoint \
 /planning/pure_pursuit_point \
-/planning/target_state -o sep21_ebs_test1 &
+/planning/target_state \
+controls/control_cmd \
+car_interface/system_status \ 
+-s mcap -o "$1" &
+
 PID_RECORD=$!
 
 sleep 120 # Record for 2 minutes
