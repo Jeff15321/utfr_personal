@@ -45,7 +45,7 @@ void EkfNode::initParams() {
 void EkfNode::initSubscribers() {
   if (mapping_mode_ != 2 && ekf_on_ == 1) {
     pose_subscriber_ = this->create_subscription<geometry_msgs::msg::Vector3Stamped>(
-        "/filter_positionlla", rclcpp::SensorDataQoS(),
+        "/filter/positionlla", rclcpp::SensorDataQoS(),
         std::bind(&EkfNode::poseCB, this, std::placeholders::_1));
 
     twist_subscriber_ = this->create_subscription<geometry_msgs::msg::TwistStamped>(
@@ -136,6 +136,8 @@ EkfNode::map_to_base_footprint(const utfr_msgs::msg::EgoState &state) {
 }
 
 void EkfNode::poseCB(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg) {
+  std::cout << "pose cb start";
+
   double gps_x = msg->vector.x;
   double gps_y = msg->vector.y;
   double gps_z = msg->vector.z;
@@ -144,6 +146,8 @@ void EkfNode::poseCB(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg) {
     datum_lla.x = gps_x;
     datum_lla.y = gps_y;
     datum_lla.z = gps_z;
+  
+  std::cout << "pose cb end";
   }
 
   geometry_msgs::msg::Vector3 lla;
@@ -188,6 +192,7 @@ void EkfNode::poseCB(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg) {
 }
 
 void EkfNode::orientationCB(const geometry_msgs::msg::QuaternionStamped::SharedPtr msg) {
+  std::cout << "orientation cb start";
   tf2::Quaternion q(
       msg->quaternion.x,
       msg->quaternion.y,
@@ -202,12 +207,12 @@ void EkfNode::orientationCB(const geometry_msgs::msg::QuaternionStamped::SharedP
     datum_yaw_ = imu_yaw_;
   }
   imu_yaw_ -= datum_yaw_;
-  tf2::Quaternion corrected_q;
-  corrected_q.setRPY(0, 0, imu_yaw_);
-  current_state_.pose.pose.orientation = utfr_dv::util::yawToQuaternion(imu_yaw_); //tf2::toMsg(corrected_q);
+  current_state_.pose.pose.orientation = utfr_dv::util::yawToQuaternion(imu_yaw_); 
+  std::cout << "orientation cb end";
 }
 
 void EkfNode::twistCB(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
+  std::cout << "twist cb start";
   // Extract velocity data
   double vel_x = msg->twist.linear.x;
   double vel_y = msg->twist.linear.y;
@@ -223,16 +228,20 @@ void EkfNode::twistCB(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
   current_state_.vel.twist.linear.y = vel_y_map;
   current_state_.vel.twist.angular.z = vel_yaw;
 
-  //tf_br_->sendTransform(map_to_imu_link(current_state_));
-  //tf_br_->sendTransform(map_to_base_footprint(current_state_));
+  std::cout << "twist cb end";
+
+  tf_br_->sendTransform(map_to_imu_link(current_state_));
+  tf_br_->sendTransform(map_to_base_footprint(current_state_));
 }
 
 void EkfNode::timerCB() {
   // Timer callback (if needed)
   // Publish the updated state
+  // std::cout << "timer cb start";
   current_state_.header.stamp = this->now();
   current_state_.header.frame_id = "map";
   ego_state_publisher_->publish(current_state_);
+  // std::cout << "timer cb end";
 }
 
 }  // namespace ekf
