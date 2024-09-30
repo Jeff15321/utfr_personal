@@ -3,7 +3,7 @@
 # Prerequisite: Ubuntu 22.04 environment
 # Author: Daniel Asadi
 # Description: One-time script for first time repo setup + ROS 2 Humble installation
-# Usage: In dv24/ run 'bash scripts/utfr_init.sh'
+# Usage: In utfr_dv/ run 'bash scripts/utfr_init.sh'
 
 install_ros2_humble(){
   echo "ROS 2 Humble is not installed. Installing ROS 2 Humble..."

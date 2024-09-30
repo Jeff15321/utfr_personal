@@ -1,4 +1,4 @@
-name: UTFR DV24 Pipeline
+name: UTFR utfr_dv Pipeline
 
 on:
   pull_request:

@@ -50,7 +50,7 @@ cleanup() {
 
 trap cleanup SIGINT
 
-cd ~/dv24
+cd ~/utfr_dv
 source install/setup.bash
 bash scripts/enable_can.sh
 ros2 launch launcher interface.launch.py &

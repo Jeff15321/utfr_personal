@@ -3,7 +3,7 @@
 <package format="3">
   <name>launcher</name>
   <version>1.0.0</version>
-  <description>All global launcher for dv24</description>
+  <description>All global launcher for utfr_dv</description>
 
   <maintainer email="daniel.asadi91@gmail.com">Daniel Asadi</maintainer>
 

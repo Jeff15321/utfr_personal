@@ -107,7 +107,7 @@
         "syncstream": "cpp"
     },
     "yaml.schemas": {
-        "https://json.schemastore.org/github-workflow.json": "file:///home/$USER/dv24/.github/workflows/workflows.yaml"
+        "https://json.schemastore.org/github-workflow.json": "file:///home/$USER/utfr_dv/.github/workflows/workflows.yaml"
     },
     "ros.distro": "humble",
     "git.detectSubmodulesLimit": 0,

@@ -53,7 +53,7 @@ trap cleanup SIGINT
 
 sleep 30 # Wait for sensors to boot up
 
-cd ~/dv24
+cd ~/utfr_dv
 source install/setup.bash
 ros2 launch launcher sensors.launch.py &
 PID_LAUNCH=$!

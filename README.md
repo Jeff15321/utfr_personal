@@ -1,5 +1,5 @@
-# dv24
-![workflow](https://github.com/UTFR/dv24/actions/workflows/workflows.yaml/badge.svg)
+# utfr_dv
+![workflow](https://github.com/UTFR/utfr_dv/actions/workflows/workflows.yaml/badge.svg)
 
 ### VsCode setup
 * Install C++, Python extensions

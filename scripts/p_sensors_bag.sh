@@ -13,7 +13,7 @@ cleanup() {
 
 trap cleanup SIGINT
 
-cd ~/dv24
+cd ~/utfr_dv
 source install/setup.bash
 ros2 launch launcher p_sensors.launch.py &
 PID_LAUNCH=$!
