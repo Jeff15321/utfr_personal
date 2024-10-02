@@ -416,7 +416,7 @@ void BuildGraphNode::loopClosure(std::vector<int> const& current_frame_cones)
     for (auto const& [past_cone_id, past_cone] : past_cone_detections_)
     {
       if (past_cone_id == current_frame_cone_id &&
-          utfr_dv::util::isLargeOrangeCone(past_cone.type) &&
+          (past_cone_id == 0 || past_cone_id == 1) &&
           !landmarked_cone_id_.has_value())
       {
         // Set first large orange cone listed to be landmark cone
