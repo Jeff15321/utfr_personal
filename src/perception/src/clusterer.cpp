@@ -12,7 +12,11 @@
 * desc: clusterer class
 */
 
+#include <chrono>
 #include <clusterer.hpp>
+
+using std::chrono::duration;
+using std::chrono::high_resolution_clock;
 
 PointCloud Clusterer::remove_ground(PointCloud points, Grid min_points_grid) {
 
@@ -197,14 +201,45 @@ Clusterer::reconstruct(PointCloud points, std::vector<Point> cluster_centers) {
 
 std::tuple<PointCloud, std::vector<PointCloud>>
 Clusterer::clean_and_cluster(PointCloud points, Grid min_points_grid) {
+  // profiling code
+  //  auto startTime = high_resolution_clock::now();
+  //  auto t1 = high_resolution_clock::now();
+
   // Remove ground points
   PointCloud filtered_points = remove_ground(points, min_points_grid);
+
+  // auto t2 = high_resolution_clock::now();
+  // duration<double, std::milli> ms_double = t2 - t1;
+  // std::cout << "ground remove " << ms_double.count() << "ms\n";
+  // t1 = high_resolution_clock::now();
 
   // Cluster the remaining points
   std::vector<Point> cluster_centers = cluster(filtered_points);
 
+  // t2 = high_resolution_clock::now();
+  // ms_double = t2 - t1;
+  // std::cout << "cluster " << ms_double.count() << "ms\n";
+  // t1 = high_resolution_clock::now();
+
   // Reconstruct the clusters
   std::vector<PointCloud> clusters = reconstruct(points, cluster_centers);
 
-  return std::make_tuple(filtered_points, clusters);
+  // t2 = high_resolution_clock::now();
+  // ms_double = t2 - t1;
+  // std::cout << "reconstruct " << ms_double.count() << "ms\n";
+  // t1 = high_resolution_clock::now();
+
+  // ms_double = high_resolution_clock::now() - startTime;
+  // std::cout << "final time: " << ms_double.count() << "ms\n";
+
+  // t1 = high_resolution_clock::now();
+
+  auto tuple = std::make_tuple(filtered_points, clusters);
+
+  // t2 = high_resolution_clock::now();
+  // ms_double = t2 - t1;
+  // std::cout << "reconstruct " << ms_double.count() << "ms\n";
+  // t1 = high_resolution_clock::now();
+
+  return tuple;
 }
