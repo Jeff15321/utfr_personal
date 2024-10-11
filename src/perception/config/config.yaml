@@ -77,44 +77,10 @@ perception_node: # Name of Node
     cone_heights: [0.0, 325.0, 325.0, 325.0, 505.0]
     lidar_only_detection: False
 
-    # shopping cart
-    # intrinsics_left:
-    #   [1154.0316, 0.0, 735.5679, 0.0, 1149.3709, 556.7507, 0.0, 0.0, 1.0]
-    # intrinsics_right:
-    #   [1152.2591, 0.0, 738.7035, 0.0, 1147.0141, 560.6309, 0.0, 0.0, 1.0]
-    # rotation: [1.0, 0.002, -0.0046, -0.0021, 1.0, -0.0031, 0.0046, 0.0031, 1.0]
-    # translation: [-352.5918, 0.4288, -5.68]
-
-    # # on car rectify:
-    # rectify_left:
-    #   [
-    #     0.85645177,
-    #     -0.05329929,
-    #     0.51346816,
-    #     0.05183408,
-    #     0.99850776,
-    #     0.01718969,
-    #     -0.51361814,
-    #     0.01189301,
-    #     0.85793646,
-    #   ]
-    # rectify_right:
-    #   [
-    #     0.79975706,
-    #     -0.04506969,
-    #     0.59862957,
-    #     0.04680415,
-    #     0.99882373,
-    #     0.01267014,
-    #     -0.59849646,
-    #     0.01788531,
-    #     0.80092578,
-    #   ]
-
 lidar_proc_node:
   ros__parameters:
     update_rate: 100.0 #[ms]
-    debug: false
+    debug: False
     topics: # TODO: fix
       input: "/ouster/points"
       filtered: "/lidar_pipeline/filtered"

@@ -204,51 +204,63 @@ void LidarProcNode::pointCloudCallback(
   hold_image = true;
 
   std::cout << "\nBegin point cloud processing" << std::endl;
+  int startTime;
   int initialStartTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+
   PointCloud filtered_cloud = filterAndConvertToCustomPointCloud(point_cloud);
 
-  std::cout << "filter and conversion to custom point cloud: ms"
-            << int(this->get_clock()->now().nanoseconds() / 1000000 -
-                   initialStartTime)
-            << std::endl;
-
-  int startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+  if (debug_) {
+    std::cout << "filter and conversion to custom point cloud: ms"
+              << int(this->get_clock()->now().nanoseconds() / 1000000 -
+                     initialStartTime)
+              << std::endl;
+    startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+  }
 
   // Filtering
   Grid min_points_grid = filter.ground_grid(filtered_cloud);
 
-  std::cout << "make ground grid: ms"
-            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
-            << std::endl;
-  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
-
   if (debug_) {
+    std::cout << "make ground grid: ms"
+              << int(this->get_clock()->now().nanoseconds() / 1000000 -
+                     startTime)
+              << std::endl;
+    startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
     publishPointCloud(filtered_cloud, pub_filtered);
+    std::cout << "DEBUG ENABLED. PUBLISHING POINT CLOUD TAKES 20-30 MS!"
+              << std::endl;
   }
 
   // Clustering and reconstruction
   std::tuple<PointCloud, std::vector<PointCloud>> cluster_results =
       clusterer.clean_and_cluster(filtered_cloud, min_points_grid);
 
-  std::cout << "clean and cluster: ms"
-            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
-            << std::endl;
-  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+  if (debug_) {
+    std::cout << "clean and cluster: ms"
+              << int(this->get_clock()->now().nanoseconds() / 1000000 -
+                     startTime)
+              << std::endl;
+    startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+  }
 
   PointCloud no_ground_cloud = std::get<0>(cluster_results);
 
-  std::cout << "no ground cloud: ms"
-            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
-            << std::endl;
-  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+  if (debug_) {
+    std::cout << "no ground cloud: ms"
+              << int(this->get_clock()->now().nanoseconds() / 1000000 -
+                     startTime)
+              << std::endl;
+    startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+  }
 
   std::vector<PointCloud> reconstructed_clusters = std::get<1>(cluster_results);
-  std::cout << "reconstructed clusters: ms"
-            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
-            << std::endl;
-  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
 
   if (debug_) {
+    std::cout << "reconstructed clusters: ms"
+              << int(this->get_clock()->now().nanoseconds() / 1000000 -
+                     startTime)
+              << std::endl;
+    startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
     publishPointCloud(no_ground_cloud, pub_no_ground);
   }
 
@@ -260,12 +272,13 @@ void LidarProcNode::pointCloudCallback(
       combined_clusters.push_back(reconstructed_clusters[i][j]);
     }
   }
-  std::cout << "combined_clusters clusters: ms"
-            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
-            << std::endl;
-  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
 
   if (debug_) {
+    std::cout << "combined_clusters clusters: ms"
+              << int(this->get_clock()->now().nanoseconds() / 1000000 -
+                     startTime)
+              << std::endl;
+    startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
     publishPointCloud(combined_clusters, pub_clustered);
   }
 
@@ -273,20 +286,26 @@ void LidarProcNode::pointCloudCallback(
   PointCloud cluster_centers =
       cone_filter.filter_clusters(reconstructed_clusters);
 
-  std::cout << "combined_clusters clusters: ms"
-            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
-            << std::endl;
-  startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+  if (debug_) {
+    std::cout << "filter clusters: ms"
+              << int(this->get_clock()->now().nanoseconds() / 1000000 -
+                     startTime)
+              << std::endl;
+    startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+  }
 
   if (cluster_centers.size() > 0) {
     publishPointCloud(cluster_centers, pub_lidar_detected);
   }
 
-  std::cout << "cluster centers: ms"
-            << int(this->get_clock()->now().nanoseconds() / 1000000 - startTime)
-            << std::endl;
+  if (debug_) {
+    std::cout << "cluster centers: ms"
+              << int(this->get_clock()->now().nanoseconds() / 1000000 -
+                     startTime)
+              << std::endl;
+  }
 
-  std::cout << "final time: ms"
+  std::cout << "lidar proc time: ms"
             << int(this->get_clock()->now().nanoseconds() / 1000000 -
                    initialStartTime)
             << std::endl;
@@ -297,7 +316,7 @@ void LidarProcNode::pointCloudCallback(
 
   hold_image = false;
 
-  // RCLCPP_INFO(this->get_logger(), "Published Processed Point Clouds");
+  RCLCPP_INFO(this->get_logger(), "Published Processed Point Clouds");
 }
 
 void LidarProcNode::leftImageCB(const sensor_msgs::msg::Image::SharedPtr msg) {
@@ -369,6 +388,7 @@ PointCloud LidarProcNode::filterAndConvertToCustomPointCloud(
   z) coordinates*/
 
   PointCloud custom_cloud;
+  custom_cloud.reserve(10000);
 
   // Offsets for x, y, z fields in PointCloud2 data
   int x_offset = input->fields[0].offset;
@@ -384,8 +404,7 @@ PointCloud LidarProcNode::filterAndConvertToCustomPointCloud(
               input->is_dense, x_offset, y_offset, z_offset);
 
   int data_size = input->height * input->row_step;
-  for (uint32_t i = 0; i < data_size;
-       i += input->point_step) {
+  for (uint32_t i = 0; i < data_size; i += input->point_step) {
 
     pt[0] = *reinterpret_cast<const float *>(&input->data[i + x_offset]);
     pt[1] = *reinterpret_cast<const float *>(&input->data[i + y_offset]);
@@ -397,8 +416,6 @@ PointCloud LidarProcNode::filterAndConvertToCustomPointCloud(
       // Check if point is outside inner box
       if (!(pt[0] >= bound.inner_box.x_min && pt[0] <= bound.inner_box.x_max &&
             pt[1] >= bound.inner_box.y_min && pt[1] <= bound.inner_box.y_max)) {
-        // Points are in the specified view
-
         // add to cloud if it's within the view
         custom_cloud.push_back(pt);
       }
