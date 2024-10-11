@@ -20,7 +20,8 @@ PID_LAUNCH=$!
 
 sleep 30
 
-cd "/media/utfr-dv/1tb ssd/rosbags"
+# cd "/media/utfr-dv/1tb ssd/rosbags"
+cd "/home/rosbags"
 ros2 bag record -s mcap /ouster/points /right_image /right_camera_node/ready /left_image /left_camera_node/ready -o "$1" &
 PID_RECORD=$!
 

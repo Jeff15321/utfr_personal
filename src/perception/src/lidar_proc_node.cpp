@@ -156,6 +156,7 @@ void LidarProcNode::initSubscribers() {
   right_image_subscriber = this->create_subscription<sensor_msgs::msg::Image>(
       "/right_camera/images", 10,
       std::bind(&LidarProcNode::rightImageCB, this, _1));
+
   ego_state_subscriber = this->create_subscription<utfr_msgs::msg::EgoState>(
       topics::kEgoState, 10, std::bind(&LidarProcNode::egoStateCB, this, _1));
 }
@@ -206,18 +207,13 @@ void LidarProcNode::pointCloudCallback(
   int initialStartTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
   PointCloud filtered_cloud = filterAndConvertToCustomPointCloud(point_cloud);
 
-  int size = 0;
-  // for (Point point : filtered_cloud) {
-  //   size++;
-  // }
-
-  std::cout << size << std::endl;
   std::cout << "filter and conversion to custom point cloud: ms"
             << int(this->get_clock()->now().nanoseconds() / 1000000 -
                    initialStartTime)
             << std::endl;
 
   int startTime = this->get_clock()->now().nanoseconds() / 1000000; // ms
+
   // Filtering
   Grid min_points_grid = filter.ground_grid(filtered_cloud);
 
@@ -380,14 +376,20 @@ PointCloud LidarProcNode::filterAndConvertToCustomPointCloud(
   int z_offset = input->fields[2].offset;
   ViewBounds bound = filter.getBounds();
   Point pt;
-  for (uint32_t i = 0; i < input->height * input->width; ++i) {
 
-    pt[0] = *reinterpret_cast<const float *>(
-        &input->data[i * input->point_step + x_offset]);
-    pt[1] = *reinterpret_cast<const float *>(
-        &input->data[i * input->point_step + y_offset]);
-    pt[2] = *reinterpret_cast<const float *>(
-        &input->data[i * input->point_step + z_offset]);
+  RCLCPP_WARN(this->get_logger(),
+              "Height: %d, and Width: %d, point_step: %d and row_step: %d, "
+              "is_dense: %d, x_off: %d, y_off: %d, z_off: %d",
+              input->height, input->width, input->point_step, input->row_step,
+              input->is_dense, x_offset, y_offset, z_offset);
+
+  int data_size = input->height * input->row_step;
+  for (uint32_t i = 0; i < data_size;
+       i += input->point_step) {
+
+    pt[0] = *reinterpret_cast<const float *>(&input->data[i + x_offset]);
+    pt[1] = *reinterpret_cast<const float *>(&input->data[i + y_offset]);
+    pt[2] = *reinterpret_cast<const float *>(&input->data[i + z_offset]);
 
     // Check if point is within outer box
     if (pt[0] >= bound.outer_box.x_min && pt[0] <= bound.outer_box.x_max &&

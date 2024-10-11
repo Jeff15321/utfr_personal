@@ -290,9 +290,7 @@ class PerceptionNode(Node):
         self.mapy_right_gpu.upload(self.mapy_right)
 
         # create ultralytics model for inference
-        file_name = "src/perception/perception/models/yolov8n_batched.engine"
-        # file_name = "src/perception/perception/yolov8n.pt"
-        # file_name = "src/perception/perception/yolov8n.onnx"
+        file_name = "/home/utfr-dv/utfr_dv/src/perception/perception/models/yolov8n_batched.engine"
         print("Deep filename: ", file_name)
 
         if file_name.endswith(".engine"):
@@ -566,7 +564,7 @@ class PerceptionNode(Node):
             )
             # Convert the Image in BayerRG8 message to a CV2 image
             left_img_ = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
-            left_img_ = cv2.cvtColor(left_img_, cv2.COLOR_BayerRG2RGB)
+            left_img_ = cv2.cvtColor(left_img_, cv2.IMREAD_COLOR)
 
             self.left_img_gpu.upload(left_img_)
             now1 = (
@@ -640,7 +638,7 @@ class PerceptionNode(Node):
         try:
             # Convert the Image in BayerRG8 message to a CV2 image
             right_img_ = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
-            right_img_ = cv2.cvtColor(right_img_, cv2.COLOR_BayerRG2RGB)
+            right_img_ = cv2.cvtColor(right_img_, cv2.IMREAD_COLOR)
             self.right_img_gpu.upload(right_img_)
 
             right_img_ = cv2.cuda.remap(

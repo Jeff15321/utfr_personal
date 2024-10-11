@@ -7,7 +7,7 @@ left_camera: # node name ASADI DON'T CHANGE THIS NODE NAME PLEASE
     # transmission_delay: 0.0
     trigger_mode: false
     qos_reliability: "system_default"
-    pixelformat: "bayer_rggb8"
+    pixelformat: "rgb8"
     start_delay: 5000.0
 right_camera: # node name
   ros__parameters:
@@ -17,5 +17,5 @@ right_camera: # node name
     # transmission_delay: 0.15
     trigger_mode: false
     qos_reliability: "system_default"
-    pixelformat: "bayer_rggb8"
+    pixelformat: "rgb8"
     start_delay: 10000.0

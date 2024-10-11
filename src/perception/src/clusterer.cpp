@@ -27,6 +27,11 @@ PointCloud Clusterer::remove_ground(PointCloud points, Grid min_points_grid) {
   }
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
+  if (min_points.size() == 0) {
+    PointCloud empty_cloud;
+    return empty_cloud;
+  }
+
   // Resize the PCL point cloud
   cloud->width = min_points.size();
   cloud->height = 1; // This makes the point cloud unorganized

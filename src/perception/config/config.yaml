@@ -114,7 +114,7 @@ perception_node: # Name of Node
 lidar_proc_node:
   ros__parameters:
     update_rate: 100.0 #[ms]
-    debug: True
+    debug: false
     topics: # TODO: fix
       input: "/ouster/points"
       filtered: "/lidar_pipeline/filtered"
@@ -125,7 +125,7 @@ lidar_proc_node:
     view_filter:
       outer_box: #remove all points outside of outer box
         xmin: 0.0
-        xmax: 35.0
+        xmax: 30.0
         ymin: -12.0
         ymax: 12.0
       inner_box: #remove all points within inner box
