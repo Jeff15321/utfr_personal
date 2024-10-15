@@ -174,6 +174,10 @@ void LidarProcNode::initPublishers() {
       this->create_publisher<sensor_msgs::msg::Image>("synced_left_image", 10);
   right_image_publisher =
       this->create_publisher<sensor_msgs::msg::Image>("synced_right_image", 10);
+  left_image_publisher_viz = this->create_publisher<sensor_msgs::msg::Image>(
+      "synced_left_image_viz", 10);
+  right_image_publisher_viz = this->create_publisher<sensor_msgs::msg::Image>(
+      "synced_right_image_viz", 10);
   ego_state_publisher =
       this->create_publisher<utfr_msgs::msg::EgoState>("synced_ego_state", 10);
 }
@@ -311,7 +315,9 @@ void LidarProcNode::pointCloudCallback(
             << std::endl;
 
   left_image_publisher->publish(left_img);
+  left_image_publisher_viz->publish(left_img);
   right_image_publisher->publish(right_img);
+  right_image_publisher_viz->publish(right_img);
   ego_state_publisher->publish(ego_state);
 
   hold_image = false;

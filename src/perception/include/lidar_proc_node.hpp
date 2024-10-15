@@ -143,6 +143,10 @@ private:
 
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr left_image_publisher;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr right_image_publisher;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr
+      left_image_publisher_viz;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr
+      right_image_publisher_viz;
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr
       left_image_subscriber;
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr

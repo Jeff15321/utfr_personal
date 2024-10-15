@@ -562,8 +562,9 @@ class PerceptionNode(Node):
                 self.get_clock().now().seconds_nanoseconds()[0]
                 + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
             )
-            # Convert the Image in BayerRG8 message to a CV2 image
-            left_img_ = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+
+            # rgb8
+            left_img_ = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
             left_img_ = cv2.cvtColor(left_img_, cv2.IMREAD_COLOR)
 
             self.left_img_gpu.upload(left_img_)
@@ -637,7 +638,7 @@ class PerceptionNode(Node):
         """
         try:
             # Convert the Image in BayerRG8 message to a CV2 image
-            right_img_ = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+            right_img_ = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
             right_img_ = cv2.cvtColor(right_img_, cv2.IMREAD_COLOR)
             self.right_img_gpu.upload(right_img_)
 
