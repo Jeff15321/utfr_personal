@@ -142,49 +142,27 @@ def generate_launch_description():
     if lidar_only_detection:
         return ld
 
-    left_camera = Node(
+    camera = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
         arguments=[
             "--x",
-            "0.056",
+            "0.0",
             "--y",
-            "0.109",
+            "0.0",
             "--z",
-            "0.014",
+            "-0.014",
             "--yaw",
-            "0.53",
+            "0.0",
             "--pitch",
-            "-0.06",
+            "-0.15",
             "--frame-id",
             "os_sensor",
             "--child-frame-id",
-            "left_camera",
+            "camera",
         ],
     )
 
-    right_camera = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        arguments=[
-            "--x",
-            "0.056",
-            "--y",
-            "-0.109",
-            "--z",
-            "0.014",
-            "--yaw",
-            "-0.540",
-            "--pitch",
-            "-0.05",
-            "--frame-id",
-            "os_sensor",
-            "--child-frame-id",
-            "right_camera",
-        ],
-    )
-
-    ld.add_action(left_camera)
-    ld.add_action(right_camera)
+    ld.add_action(camera)
 
     return ld

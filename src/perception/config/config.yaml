@@ -7,23 +7,10 @@ perception_node: # Name of Node
     cone_detections_topic: "perception/cone_detections"
     processed_lidar_topic: "/lidar_pipeline/detected"
     baseline: 10.0
-    update_rate: 100.0 #[ms]
+    update_rate: 33.0 #[ms]
     debug: True
-    distortion_left: [-0.2632632062603271, 0.12474952835752845, 0.0, 0.0, 0.0]
-    distortion_right: [-0.269633921151086, 0.12944192627838266, 0.0, 0.0, 0.0]
-    intrinsics_left:
-      [
-        1176.4720209159348,
-        0.0,
-        717.3175336097887,
-        0.0,
-        1176.4502103799837,
-        555.1127066183973,
-        0.0,
-        0.0,
-        1.0,
-      ]
-    intrinsics_right:
+    distortion: [-0.269633921151086, 0.12944192627838266, 0.0, 0.0, 0.0]
+    intrinsics:
       [
         1169.929054195447,
         0.0,
@@ -48,7 +35,7 @@ perception_node: # Name of Node
         0.9947,
       ]
     translation: [-516.6818, 29.1172, -386.7437]
-    rectify_left:
+    rectify:
       [
         0.999933395,
         0.000876606484,
@@ -59,18 +46,6 @@ perception_node: # Name of Node
         -0.0115094592,
         0.00153809852,
         0.999932581,
-      ]
-    rectify_right:
-      [
-        0.99986953,
-        -0.00121598,
-        0.01610718,
-        0.00119112,
-        0.99999809,
-        0.00155276,
-        -0.01610904,
-        -0.00153337,
-        0.99986907,
       ]
     save_pic: "False"
     confidence: 0.40
