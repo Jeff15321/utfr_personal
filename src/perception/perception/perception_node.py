@@ -210,7 +210,7 @@ class PerceptionNode(Node):
 
         # Work
         self.img_ = None
-        self.img_size = (1440, 1080)  # should be in config yaml
+        self.img_size = (1280, 720)  # should be in config yaml
 
         # Initialize image conversion bridge:
         self.bridge = CvBridge()
@@ -231,17 +231,19 @@ class PerceptionNode(Node):
             print("Attempting to connect to camera again")
             self.cam_capture = cv2.VideoCapture(0)
 
-        # self.mapx_gpu = cv2.cuda_GpuMat()
-        self.mapx_gpu = self.mapx
-        # self.mapx_gpu.upload(self.mapx)
+        self.mapx_gpu = cv2.cuda_GpuMat()
+        self.mapx_gpu.upload(self.mapx)
 
-        # self.mapy_gpu = cv2.cuda_GpuMat()
-        self.mapy_gpu = self.mapy
-        # self.mapy_gpu.upload(self.mapy)
+        self.mapy_gpu = cv2.cuda_GpuMat()
+        self.mapy_gpu.upload(self.mapy)
+
+        # For CPU
+        # self.mapx_gpu = self.mapx
+        # self.mapy_gpu = self.mapy
 
         # create ultralytics model for inference
-        # file_name = "/home/utfr-dv/utfr_dv/src/perception/perception/models/yolov8n_batched.engine"
-        file_name = "~/Documents/dv24/src/perception/perception/models/yolov8n.pt"
+        file_name = "/home/utfr-dv/utfr_dv/src/perception/perception/models/yolov8n_batched.engine"
+
         print("Deep filename: ", file_name)
 
         if file_name.endswith(".engine"):
@@ -491,6 +493,10 @@ class PerceptionNode(Node):
             print("Error: Could not read frame.")
             return
 
+        # to do calibration:
+        # img_ = cv2.cvtColor(img_, cv2.COLOR_BGR2GRAY)
+        # self.publish_undistorted(img_)
+
         processStartTime = time.time()
         try:
             # TODO: set for publishing images
@@ -501,7 +507,7 @@ class PerceptionNode(Node):
 
             startTime = time.time()
 
-            # self.img_gpu.upload(img_)
+            self.img_gpu.upload(img_)
 
             now1 = time.time()
             print("upload time: " + str(now1 - startTime))
@@ -509,20 +515,20 @@ class PerceptionNode(Node):
             startTime = time.time()
 
             # rectification
-            # img_ = cv2.cuda.remap(
-            #     self.img_gpu,
-            #     self.mapx_gpu,
-            #     self.mapy_gpu,
-            #     interpolation=cv2.INTER_NEAREST,
-            # )
-
-            # rectification
-            img_ = cv2.remap(
-                img_,
+            img_ = cv2.cuda.remap(
+                self.img_gpu,
                 self.mapx_gpu,
                 self.mapy_gpu,
                 interpolation=cv2.INTER_NEAREST,
             )
+
+            # rectification CPU
+            # img_ = cv2.remap(
+            #     img_,
+            #     self.mapx_gpu,
+            #     self.mapy_gpu,
+            #     interpolation=cv2.INTER_NEAREST,
+            # )
 
             # compare time it takes to resize on the GPU vs time you save in preprocessing in the YOLO model
             # img_ = cv2.resize(img_, (640, 640))
@@ -532,8 +538,8 @@ class PerceptionNode(Node):
 
             startTime = time.time()
 
-            # self.img_ = img_.download()
-            self.img_ = img_
+            self.img_ = img_.download()
+            # self.img_ = img_
 
             now3 = time.time()
             print("download time: " + str(now3 - startTime))
@@ -543,7 +549,7 @@ class PerceptionNode(Node):
                 self.first_img_arrived_ = True
 
             if self.debug_:
-                self.publish_undistorted(img_)
+                self.publish_undistorted(self.img_)
 
         except CvBridgeError as e:
             exception = "Perception::TimerCB: " + str(e)
@@ -789,6 +795,7 @@ class PerceptionNode(Node):
 
     def publish_undistorted(self, frame):
         """Print undistorted left and right images"""
+        # to do calibration, set self.bridge.cv2_to_imgmsg(frame, "mono8")
         self.undistorted_publisher_.publish(self.bridge.cv2_to_imgmsg(frame))
 
     def displayBoundingBox(self, results_left, classes_left, scores_left, img_stamp):
