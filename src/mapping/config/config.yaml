@@ -1,6 +1,6 @@
 ekf_node: # Name of Module
   ros__parameters:
-    update_rate: 33.33 #[ms]
+    update_rate: 10.00 #[ms]
     slam_rate: 33.33 #[ms]
     # MAPPING MODE
     # 0: Full SLAM
@@ -8,6 +8,9 @@ ekf_node: # Name of Module
     # 2: No Localization or Mapping
     mapping_mode: 0
     ekf_on: 1
+    current_state_pose_x: 0.0
+    current_state_pose_y: 0.0
+    imu_yaw: 0.0
 
 build_graph_node: # Name of Module
   ros__parameters:
@@ -21,6 +24,24 @@ build_graph_node: # Name of Module
     ekf_on: 1
     count_threshold: 5
     displacement_radius: 1.5
+    loop_closed: false
+    out_of_frame: -1
+    cones_found: 0
+    current_pose_id: 1000
+    first_detection_pose_id: 0
+    count: 0
+    cones_potential: 0
+    do_graph_slam: false
+    close_loop_once_data: false
+    transformStamped_header_frameid: "world"
+    transformStamped_child_frameid: "child"
+    transformStamped_translation_x: 0
+    transformStamped_translation_y: 0
+    transformStamped_translation_z: 0
+    transformStamped_rotation_x: 0
+    transformStamped_rotation_y: 0
+    transformStamped_rotation_z: 0
+    transformStamped_rotation_w: 1.0
 
 compute_graph_node: # Name of Module
   ros__parameters:
