@@ -62,9 +62,28 @@ void ComputeGraphNode::initParams() {
   Eigen::DiagonalMatrix<double, 3> P2P;
   Eigen::DiagonalMatrix<double, 2> P2C;
   Eigen::DiagonalMatrix<double, 3> LoopClosure;
-  P2P.diagonal() << 1200, 1200, 6000;
-  P2C.diagonal() << 60, 600;
-  LoopClosure.diagonal() << 500, 500, 5000;
+  
+  this->declare_parameter("P2P_ev1", 1200);
+  this->declare_parameter("P2P_ev2", 1200);
+  this->declare_parameter("P2P_ev3", 6000);
+  this->declare_parameter("P2C_ev1", 60);
+  this->declare_parameter("P2C_ev2", 600);
+  this->declare_parameter("LoopClosure_ev1", 500);
+  this->declare_parameter("LoopClosure_ev2", 500);
+  this->declare_parameter("LoopClosure_ev3", 5000);
+
+  int P2P_ev1_ = this->get_parameter("P2P_ev1").as_int()
+  int P2P_ev2_ = this->get_parameter("P2P_ev2").as_int()
+  int P2P_ev3_ = this->get_parameter("P2P_ev3").as_int()
+  int P2C_ev1_ = this->get_parameter("P2C_ev1").as_int()
+  int P2C_ev2_ = this->get_parameter("P2C_ev2").as_int()
+  int LoopClosure_ev1_ = this->get_parameter("LoopClosure_ev1").as_int()
+  int LoopClosure_ev2_ = this->get_parameter("LoopClosure_ev2").as_int()
+  int LoopClosure_ev3_ = this->get_parameter("LoopClosure_ev3").as_int()
+
+  P2P.diagonal() << P2P_ev1_, P2P_ev2_, P2P_ev3_;
+  P2C.diagonal() << P2C_ev1_, P2C_ev2_;
+  LoopClosure.diagonal() << LoopClosure_ev1_, LoopClosure_ev2_, LoopClosure_ev3_;
 
   P2PInformationMatrix_ = P2P;
   P2CInformationMatrix_ = P2C;

@@ -53,3 +53,12 @@ compute_graph_node: # Name of Module
     # 2: No Localization or Mapping
     mapping_mode: 0
     ekf_on: 1
+
+    P2P_ev1: 1200
+    P2P_ev2: 1200
+    P2P_ev3: 6000
+    P2C_ev1: 60
+    P2C_ev2: 600
+    LoopClosure_ev1: 500
+    LoopClosure_ev2: 500
+    LoopClosure_ev3: 5000
