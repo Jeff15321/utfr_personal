@@ -42,6 +42,10 @@ build_graph_node: # Name of Module
     transformStamped_rotation_y: 0
     transformStamped_rotation_z: 0
     transformStamped_rotation_w: 1.0
+    comparative_displacement: 0.0
+    is_duplicate: false
+    true_coordinate_x: 0.0
+    true_coordinate_y: 0.0
 
 compute_graph_node: # Name of Module
   ros__parameters:

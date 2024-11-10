@@ -72,14 +72,25 @@ void ComputeGraphNode::initParams() {
   this->declare_parameter("LoopClosure_ev2", 500);
   this->declare_parameter("LoopClosure_ev3", 5000);
 
-  int P2P_ev1_ = this->get_parameter("P2P_ev1").as_int()
-  int P2P_ev2_ = this->get_parameter("P2P_ev2").as_int()
-  int P2P_ev3_ = this->get_parameter("P2P_ev3").as_int()
-  int P2C_ev1_ = this->get_parameter("P2C_ev1").as_int()
-  int P2C_ev2_ = this->get_parameter("P2C_ev2").as_int()
-  int LoopClosure_ev1_ = this->get_parameter("LoopClosure_ev1").as_int()
-  int LoopClosure_ev2_ = this->get_parameter("LoopClosure_ev2").as_int()
-  int LoopClosure_ev3_ = this->get_parameter("LoopClosure_ev3").as_int()
+  int P2P_ev1_ = this->get_parameter("P2P_ev1").as_int();
+  int P2P_ev2_ = this->get_parameter("P2P_ev2").as_int();
+  int P2P_ev3_ = this->get_parameter("P2P_ev3").as_int();
+  int P2C_ev1_ = this->get_parameter("P2C_ev1").as_int();
+  int P2C_ev2_ = this->get_parameter("P2C_ev2").as_int();
+  int LoopClosure_ev1_ = this->get_parameter("LoopClosure_ev1").as_int();
+  int LoopClosure_ev2_ = this->get_parameter("LoopClosure_ev2").as_int();
+  int LoopClosure_ev3_ = this->get_parameter("LoopClosure_ev3").as_int();
+
+  this->declare_parameter("count", 0);
+  int count_ = this->get_parameter("count").as_int();
+  this->declare_parameter("pose_window_term1", 1500);
+  int pose_window_term1_ = this->get_parameter("pose_window_term1").as_int();
+  this->declare_parameter("pose_window_term2", 500);
+  int pose_window_term2_ = this->get_parameter("pose_window_term2").as_int();
+  this->declare_parameter("cone_window_term1", 4500);
+  int cone_window_term1_ = this->get_parameter("cone_window_term1").as_int();
+  this->declare_parameter("cone_window_term2", 1500);
+  int cone_window_term2_ = this->get_parameter("cone_window_term2").as_int();
 
   P2P.diagonal() << P2P_ev1_, P2P_ev2_, P2P_ev3_;
   P2C.diagonal() << P2C_ev1_, P2C_ev2_;
@@ -216,8 +227,8 @@ void ComputeGraphNode::poseGraphCB(const utfr_msgs::msg::PoseGraph msg) {
 void ComputeGraphNode::graphSLAM() {
   // Set the fixed node as 1001
 
-  int POSE_WINDOW = do_graph_slam_ ? 1500 : 500;
-  int CONE_WINDOW = do_graph_slam_ ? 4500 : 1500;
+  int POSE_WINDOW = do_graph_slam_ ? pose_window_term1_ : pose_window_term2_;
+  int CONE_WINDOW = do_graph_slam_ ? cone_window_term1_ : cone_window_term2_;
 
   for (size_t i = 0; i < pose_nodes_.size(); i++) {
     if (fixed_pose_ids_.find(pose_nodes_[i]->id()) == fixed_pose_ids_.end()) {
@@ -267,7 +278,6 @@ void ComputeGraphNode::graphSLAM() {
 
   visualization_msgs::msg::MarkerArray markerArray;
 
-  int count = 0;
   for (auto v : optimizer_.vertices()) {
     g2o::VertexPointXY *vertexPointXY =
         dynamic_cast<g2o::VertexPointXY *>(v.second);
@@ -411,8 +421,8 @@ void ComputeGraphNode::timerCB() {
     return;
   }
 
-  int POSE_WINDOW = do_graph_slam_ ? 1500 : 500;
-  int CONE_WINDOW = do_graph_slam_ ? 4500 : 1500;
+  int POSE_WINDOW = do_graph_slam_ ? pose_window_term1_ : pose_window_term2_;
+  int CONE_WINDOW = do_graph_slam_ ? cone_window_term1_ : cone_window_term2_;
 
   utfr_msgs::msg::PoseGraph local_data = data;
   pose_nodes_.clear();

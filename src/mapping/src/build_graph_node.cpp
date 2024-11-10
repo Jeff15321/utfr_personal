@@ -106,6 +106,15 @@ void BuildGraphNode::initParams() {
   this->declare_parameter("transformStamped_rotation_z", 1.0);
   transformStamped.transform.rotation.w = this->get_parameter("transformStamped_rotation_y").as_double();
 
+  this->declare_parameter("comparative_displacement", 0.0);
+  comparative_displacement = this->get_parameter("comparative_displacement").as_double();
+  this->declare_parameter("is_duplicate", false);
+  is_duplicate_ = this->get_parameter("is_duplicate").as_bool();
+  this->declare_parameter("true_coordinate_x", 0.0);
+  true_coordinate_x = this->get_parameter("true_coordinate_x").as_double();
+  this->declare_parameter("true_coordinate_y", 0.0);
+  true_coordinate_y = this->get_parameter("true_coordinate_y").as_double();
+
   // Broadcast the transform
   broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
   broadcaster_->sendTransform(transformStamped);
@@ -321,8 +330,6 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
 
       // Do not add if its within 0.5 of another cone deteced within the current
       // call of the function (rejecting duplicate detections)
-      double comparative_displacement = 0.0;
-      bool is_duplicate_ = false;
       for (const auto &duplicates_potential : current_round_cones_) {
         comparative_displacement = utfr_dv::util::euclidianDistance2D(
             position_x_, std::get<0>(duplicates_potential), position_y_,
@@ -348,8 +355,6 @@ BuildGraphNode::KNN(const utfr_msgs::msg::ConeDetections &cones) {
     std::vector<int> keys{};
 
     count_ = 0;
-    double true_coordinate_x = 0.0;
-    double true_coordinate_y = 0.0;
     // Check if same cone detected in three different time instances
     for (auto pointer = potential_cones_.begin();
          pointer != potential_cones_.end(); ++pointer) {
