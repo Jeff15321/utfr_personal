@@ -226,11 +226,13 @@ class PerceptionNode(Node):
         )
 
         # TODO: index 0 but it could be something else, so do a check of all connected cameras
-        self.cam_capture = cv2.VideoCapture(0)
-        while not self.cam_capture.isOpened():
-            print("Attempting to connect to camera again")
-            self.cam_capture = cv2.VideoCapture(0)
-
+        self.cam_capture, index = self.find_camera()
+        if self.cam_capture:
+            while not self.cam_capture.isOpened():
+                print("Attempting to connect to camera again")
+                self.cam_capture = cv2.VideoCapture(index)
+        else:
+            raise RuntimeError("Unable to detect camera")
         self.mapx_gpu = cv2.cuda_GpuMat()
         self.mapx_gpu.upload(self.mapx)
 
@@ -434,6 +436,16 @@ class PerceptionNode(Node):
         Callback function for ego state subscriber
         """
         self.ego_state = msg
+
+    def find_camera(self):
+        for index in range(10):  # Check first 10 indices
+            cam_capture = cv2.VideoCapture(index)
+            if cam_capture.isOpened():
+                print(f"Connected to camera at index {index}")
+                return cam_capture, index
+            cam_capture.release()
+        print("No cameras found.")
+        return None, -1
 
     def process(self, left_img_, right_img_):
         """

@@ -468,6 +468,10 @@ void ArenaCameraNode::set_nodes_() {
   set_nodes_packet_delay_();
   set_nodes_transmission_delay_();
   set_nodes_trigger_mode_();
+
+  // std::cout << "heartbeat timeout" << 100 << "s\n";
+  // Arena::SetNodeValue<double>(m_pDevice->GetNodeMap(),
+  //                             "DeviceLinkHeartbeatTimeout", 100000000);
   // set_nodes_test_pattern_image_();
 }
 
