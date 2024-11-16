@@ -87,7 +87,7 @@ void BuildGraphNode::initParams() {
   this->declare_parameter("transformStamped_header_frameid", "world");
   transformStamped.header.frame_id = this->get_parameter("transformStamped_header_frameid").as_string();
   this->declare_parameter("transformStamped_child_frameid", "map");
-  transformStamped.child.frame_id = this->get_parameter("transformStamped_child_frameid").as_string();
+  transformStamped.child_frame_id = this->get_parameter("transformStamped_child_frameid").as_string();
 
   // Set the translation and rotation of the transform
   this->declare_parameter("transformStamped_translation_x", 0);
