@@ -106,12 +106,6 @@ void BuildGraphNode::initParams() {
   this->declare_parameter("transformStamped_rotation_w", 1.0);
   transformStamped.transform.rotation.w = this->get_parameter("transformStamped_rotation_w").as_double();
 
-  // transformStamped.transform.rotation.x = 0;
-  // transformStamped.transform.rotation.y = 0;
-  // transformStamped.transform.rotation.z = 0;
-  // transformStamped.transform.rotation.w = 1.0;
-
-
   this->declare_parameter("comparative_displacement", 0.0);
   comparative_displacement = this->get_parameter("comparative_displacement").as_double();
   this->declare_parameter("is_duplicate", false);
