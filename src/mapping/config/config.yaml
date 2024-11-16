@@ -66,3 +66,9 @@ compute_graph_node: # Name of Module
     LoopClosure_ev1: 500
     LoopClosure_ev2: 500
     LoopClosure_ev3: 5000
+
+    count: 0
+    pose_window_term1: 1500
+    pose_window_term2: 500
+    cone_window_term1: 4500
+    cone_window_term2: 1500

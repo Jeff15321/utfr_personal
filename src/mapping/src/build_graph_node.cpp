@@ -91,20 +91,26 @@ void BuildGraphNode::initParams() {
 
   // Set the translation and rotation of the transform
   this->declare_parameter("transformStamped_translation_x", 0);
-  transformStamped.transform.translation.x = this->get_parameter("transformStamped_translation_x").as_double();
+  transformStamped.transform.translation.x = this->get_parameter("transformStamped_translation_x").as_int();
   this->declare_parameter("transformStamped_translation_y", 0);
-  transformStamped.transform.translation.y = this->get_parameter("transformStamped_translation_y").as_double();
+  transformStamped.transform.translation.y = this->get_parameter("transformStamped_translation_y").as_int();
   this->declare_parameter("transformStamped_translation_z", 0);
-  transformStamped.transform.translation.z = this->get_parameter("transformStamped_translation_z").as_double();
+  transformStamped.transform.translation.z = this->get_parameter("transformStamped_translation_z").as_int();
 
   this->declare_parameter("transformStamped_rotation_x", 0);
-  transformStamped.transform.rotation.x = this->get_parameter("transformStamped_rotation_x").as_double();
+  transformStamped.transform.rotation.x = this->get_parameter("transformStamped_rotation_x").as_int();
   this->declare_parameter("transformStamped_rotation_y", 0);
-  transformStamped.transform.rotation.y = this->get_parameter("transformStamped_rotation_y").as_double();
+  transformStamped.transform.rotation.y = this->get_parameter("transformStamped_rotation_y").as_int();
   this->declare_parameter("transformStamped_rotation_z", 0);
-  transformStamped.transform.rotation.z = this->get_parameter("transformStamped_rotation_y").as_double();
-  this->declare_parameter("transformStamped_rotation_z", 1.0);
-  transformStamped.transform.rotation.w = this->get_parameter("transformStamped_rotation_y").as_double();
+  transformStamped.transform.rotation.z = this->get_parameter("transformStamped_rotation_z").as_int();
+  this->declare_parameter("transformStamped_rotation_w", 1.0);
+  transformStamped.transform.rotation.w = this->get_parameter("transformStamped_rotation_w").as_double();
+
+  // transformStamped.transform.rotation.x = 0;
+  // transformStamped.transform.rotation.y = 0;
+  // transformStamped.transform.rotation.z = 0;
+  // transformStamped.transform.rotation.w = 1.0;
+
 
   this->declare_parameter("comparative_displacement", 0.0);
   comparative_displacement = this->get_parameter("comparative_displacement").as_double();
