@@ -82,7 +82,7 @@ void ComputeGraphNode::initParams() {
   int LoopClosure_ev3_ = this->get_parameter("LoopClosure_ev3").as_int();
 
   this->declare_parameter("count", 0);
-  int count_ = this->get_parameter("count").as_int();
+  int count = this->get_parameter("count").as_int();
   this->declare_parameter("pose_window_term1", 1500);
   int pose_window_term1_ = this->get_parameter("pose_window_term1").as_int();
   this->declare_parameter("pose_window_term2", 500);

@@ -191,6 +191,12 @@ public:
   double update_rate_;
   int mapping_mode_;
   rclcpp::TimerBase::SharedPtr main_timer_;
+
+  int count;
+  int pose_window_term1_;
+  int pose_window_term2_;
+  int cone_window_term1_;
+  int cone_window_term2_;
 };
 } // namespace compute_graph
 } // namespace utfr_dv
