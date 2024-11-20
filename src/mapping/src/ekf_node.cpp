@@ -26,17 +26,20 @@ EkfNode::EkfNode() : Node("ekf_node") {
 void EkfNode::initParams() {
   std::cout << "You acc suck";
   this->declare_parameter("update_rate", 33.33);
-  update_rate_ = 10.0; //this->get_parameter("update_rate").as_double();
+  update_rate_ = this->get_parameter("update_rate").as_double();
   this->declare_parameter("mapping_mode", 0);
   mapping_mode_ = this->get_parameter("mapping_mode").as_int();
   this->declare_parameter("ekf_on", 1);
   ekf_on_ = this->get_parameter("ekf_on").as_int();
   prev_time_ = this->now();
-  current_state_.pose.pose.position.x = 0.0;
-  current_state_.pose.pose.position.y = 0.0;
+  this->declare_parameter("current_state_pose_x", 0.0);
+  current_state_.pose.pose.position.x = this->get_parameter("current_state_pose_x").as_double();
+  this->declare_parameter("current_state_pose_y", 0.0);
+  current_state_.pose.pose.position.y = this->get_parameter("current_state_pose_y").as_double();
   datum_lla = geometry_msgs::msg::Vector3();
   datum_yaw_ = std::numeric_limits<double>::quiet_NaN();
-  imu_yaw_ = 0.0;
+  this->declare_parameter("imu_yaw", 0.0);
+  imu_yaw_ = this->get_parameter("imu_yaw").as_double();
 
   //tf_br_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 }
