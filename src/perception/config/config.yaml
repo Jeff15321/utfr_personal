@@ -29,6 +29,7 @@ perception_node: # Name of Node
     confidence: 0.40
     cone_heights: [0.0, 325.0, 325.0, 325.0, 505.0]
     lidar_only_detection: False
+    is_cuda: False
 
 lidar_proc_node:
   ros__parameters:

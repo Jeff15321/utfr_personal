@@ -137,6 +137,7 @@ class PerceptionNode(Node):
         self.declare_parameter("perception_debug_topic", "/perception/debug")
         self.declare_parameter("cone_heights", [0.0])
         self.declare_parameter("lidar_only_detection", False)
+        self.declare_parameter("is_cuda", True)
 
         self.baseline_ = (
             self.get_parameter("baseline").get_parameter_value().double_value
@@ -196,6 +197,8 @@ class PerceptionNode(Node):
             self.get_parameter("lidar_only_detection").get_parameter_value().bool_value
         )
 
+        self.is_cuda = self.get_parameter("is_cuda").get_parameter_value().bool_value
+
         # reshape the arrays into numpy matrix form
         self.intrinsics = np.array(self.intrinsics).reshape(3, 3)
         self.rotation = np.array(self.rotation).reshape(3, 3)
@@ -233,15 +236,19 @@ class PerceptionNode(Node):
                 self.cam_capture = cv2.VideoCapture(index)
         else:
             raise RuntimeError("Unable to detect camera")
-        self.mapx_gpu = cv2.cuda_GpuMat()
-        self.mapx_gpu.upload(self.mapx)
 
-        self.mapy_gpu = cv2.cuda_GpuMat()
-        self.mapy_gpu.upload(self.mapy)
+        if self.is_cuda:
+            self.mapx_gpu = cv2.cuda_GpuMat()
+            self.mapx_gpu.upload(self.mapx)
+
+            self.mapy_gpu = cv2.cuda_GpuMat()
+            self.mapy_gpu.upload(self.mapy)
 
         # For CPU
-        # self.mapx_gpu = self.mapx
-        # self.mapy_gpu = self.mapy
+        else:
+            pass
+            # self.mapx_gpu = self.mapx
+            # self.mapy_gpu = self.mapy
 
         # create ultralytics model for inference
         file_name = "/home/utfr-dv/utfr_dv/src/perception/perception/models/yolov8n_batched.engine"
@@ -281,7 +288,8 @@ class PerceptionNode(Node):
 
         print(self.tf_listener)
 
-        self.img_gpu = cv2.cuda_GpuMat()
+        if self.is_cuda:
+            self.img_gpu = cv2.cuda_GpuMat()
 
         self.previous_img_ = None
 
@@ -517,44 +525,44 @@ class PerceptionNode(Node):
             # self.left_frame_id = msg.header.frame_id
             # self.new_left_img_recieved_ = True
 
-            startTime = time.time()
+            if self.is_cuda:
+                startTime = time.time()
+                self.img_gpu.upload(img_)
+                now1 = time.time()
+                print("upload time: " + str(now1 - startTime))
+                startTime = time.time()
+                # rectification
+                img_ = cv2.cuda.remap(
+                    self.img_gpu,
+                    self.mapx_gpu,
+                    self.mapy_gpu,
+                    interpolation=cv2.INTER_NEAREST,
+                )
+                now2 = time.time()
+                print("remap time: " + str(now2 - startTime))
 
-            self.img_gpu.upload(img_)
+                startTime = time.time()
 
-            now1 = time.time()
-            print("upload time: " + str(now1 - startTime))
+                self.img_ = img_.download()
+                # self.img_ = img_
 
-            startTime = time.time()
+                now3 = time.time()
+                print("download time: " + str(now3 - startTime))
 
-            # rectification
-            img_ = cv2.cuda.remap(
-                self.img_gpu,
-                self.mapx_gpu,
-                self.mapy_gpu,
-                interpolation=cv2.INTER_NEAREST,
-            )
-
-            # rectification CPU
-            # img_ = cv2.remap(
-            #     img_,
-            #     self.mapx_gpu,
-            #     self.mapy_gpu,
-            #     interpolation=cv2.INTER_NEAREST,
-            # )
+            else:
+                startTime = time.time()
+                # rectification CPU
+                img_ = cv2.remap(
+                    img_,
+                    self.mapx,
+                    self.mapy,
+                    interpolation=cv2.INTER_NEAREST,
+                )
+                self.img_ = img_
+                print("remap cpu time: " + str(time.time() - startTime))
 
             # compare time it takes to resize on the GPU vs time you save in preprocessing in the YOLO model
             # img_ = cv2.resize(img_, (640, 640))
-
-            now2 = time.time()
-            print("remap time: " + str(now2 - startTime))
-
-            startTime = time.time()
-
-            self.img_ = img_.download()
-            # self.img_ = img_
-
-            now3 = time.time()
-            print("download time: " + str(now3 - startTime))
 
             if not self.first_img_arrived_:
                 self.previous_img_ = self.img_
