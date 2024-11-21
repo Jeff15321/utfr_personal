@@ -18,7 +18,7 @@ def generate_launch_description():
     # )
 
     # DV stack
-    perception_dir = get_package_share_directory("perception")
+    perception_dir = get_package_share_directory("launcher")
     perception_launch = IncludeLaunchDescription(
         launch_description_sources.PythonLaunchDescriptionSource(
             perception_dir + "/launch/perception.launch.py"

@@ -136,8 +136,7 @@ void CarInterface::initMonitor() {
 
 void CarInterface::heartbeatCB(const utfr_msgs::msg::Heartbeat &msg) {
   heartbeat_monitor_->updateHeartbeat(msg, this->get_clock()->now());
-
-  if (msg.module.data == "controller_node") {
+  if (std::strcmp(msg.module.data.c_str(), "planning_controller") == 0) {
     system_status_.lap_counter = msg.lap_count;
     if (msg.status == utfr_msgs::msg::Heartbeat::FINISH) {
       finished_ = true;
@@ -272,6 +271,9 @@ void CarInterface::DVCompStateMachine() {
     RCLCPP_INFO(this->get_logger(), "%s: Current state: %d",
                 function_name.c_str(), system_status_.as_state);
 
+    RCLCPP_INFO(this->get_logger(), "%s: DV state: %d", function_name.c_str(),
+                dv_pc_state_);
+
     // DV System Status
 
     switch (system_status_.as_state) {
@@ -326,7 +328,6 @@ void CarInterface::DVCompStateMachine() {
     }
     case utfr_msgs::msg::SystemStatus::AS_STATE_FINISH: {
       dv_pc_state_ = DV_PC_STATE::FINISH; // Should already be finish
-      cmd_ = false;                       // Should already be false
       if (!shutdown_) {
         shutdown_ = shutdownNodes();
       }
@@ -368,6 +369,15 @@ void CarInterface::sendStateAndCmd() {
 
     uint64_t steering_position = steering_cmd_ * 10000;
     uint64_t steering_canfd = 0;
+
+    int apps_command = 0;
+    uint64_t apps_canfd = 0;
+
+    if (dv_pc_state_ == DV_PC_STATE::FINISH) {
+      steering_position = 0;
+      throttle_cmd_ = 0;
+    }
+
     steering_canfd = can0_->setSignal(steering_canfd, 24, 8, 1,
                                       0x000000FF & steering_position);
     steering_canfd = can0_->setSignal(steering_canfd, 16, 8, 1,
@@ -377,27 +387,17 @@ void CarInterface::sendStateAndCmd() {
     steering_canfd = can0_->setSignal(steering_canfd, 0, 8, 1,
                                       (0xFF000000 & steering_position) >> 24);
 
-    // Inverter command
-    RCLCPP_INFO(this->get_logger(), "%s: throttle commanded: %d",
-                function_name.c_str(), throttle_cmd_);
-    // int torque_commanded = 0;
-    // int speed_commanded = 0;
-    // bool enable_inverter = false;
-    // bool torque_mode = false;
-    // int torque_limit = 20;
-    // bool regen = false; // Need to do regen checks.
-
-    // double curr_time = this->now().seconds();
-    // double time_diff = curr_time - start_time;
-
-    int apps_command = throttle_cmd_ * 10;
-    uint64_t apps_canfd = 0;
+    apps_command = throttle_cmd_ * 10;
+    apps_canfd = 0;
     apps_canfd = can0_->setSignal(apps_canfd, 0, 8, 1, apps_command % 256);
     apps_canfd = can0_->setSignal(apps_canfd, 8, 8, 1, apps_command / 256);
 
     // Transmit
-    can0_->write_can(dv_can_msg::STR_MOTOR_CMD, steering_canfd, true);
-    can0_->write_can(dv_can_msg::APPS, apps_canfd, true);
+    if (cmd_) {
+      can0_->write_can(dv_can_msg::STR_MOTOR_CMD, steering_canfd, true);
+      can0_->write_can(dv_can_msg::APPS, apps_canfd, true);
+    }
+
     can0_->write_can(dv_can_msg::DV_COMP_STATE, dv_comp_state, true);
 
   } catch (int e) {

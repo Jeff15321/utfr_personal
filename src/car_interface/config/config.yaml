@@ -2,11 +2,11 @@ car_interface: # Name of Module
   ros__parameters:
     update_rate: 10.0 #[ms]
     ema_gain: 0.6
-    heartbeat_tolerance: 4.0
+    heartbeat_tolerance: 6.0
     heartbeat_modules:
       [
         "perception",
-        "lidar_proc",
+        "lidar_proc_node",
         "ekf",
         "mapping_build",
         "mapping_compute",
@@ -17,7 +17,7 @@ car_interface: # Name of Module
     heartbeat_modules_accel:
       [
         "perception",
-        "lidar_proc",
+        "lidar_proc_node",
         "planning_cp",
         "planning_controller",
         "controls",

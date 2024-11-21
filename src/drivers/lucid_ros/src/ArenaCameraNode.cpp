@@ -257,8 +257,14 @@ void ArenaCameraNode::run_() {
 
 void ArenaCameraNode::publish_images_() {
   Arena::IImage *pImage = nullptr;
+  using std::chrono::duration;
+  using std::chrono::high_resolution_clock;
+
+  auto startTime = high_resolution_clock::now();
   while (rclcpp::ok()) {
     try {
+      auto t1 = high_resolution_clock::now();
+
       auto p_image_msg = std::make_unique<sensor_msgs::msg::Image>();
       pImage = m_pDevice->GetImage(1000);
       msg_form_image_(pImage, *p_image_msg);
@@ -269,6 +275,10 @@ void ArenaCameraNode::publish_images_() {
       //          " published to " + topic_);
       this->m_pDevice->RequeueBuffer(pImage);
 
+      auto t2 = high_resolution_clock::now();
+      duration<double, std::milli> ms_double = t2 - t1;
+      std::cout << "cam: " << (1000.0 / ms_double.count()) << "fps\n";
+      continue;
     } catch (std::exception &e) {
       if (pImage) {
         this->m_pDevice->RequeueBuffer(pImage);
@@ -296,7 +306,7 @@ void ArenaCameraNode::msg_form_image_(Arena::IImage *pImage,
         static_cast<uint32_t>(pImage->GetTimestampNs() / 1000000000);
     image_msg.header.stamp.nanosec =
         static_cast<uint32_t>(pImage->GetTimestampNs() % 1000000000);
-    image_msg.header.frame_id = std::to_string(pImage->GetFrameId());
+    // image_msg.header.frame_id = std::to_string(pImage->GetFrameId());
 
     //
     // 2 ) Height
@@ -383,6 +393,7 @@ void ArenaCameraNode::publish_an_image_on_trigger_(
     pImage = m_pDevice->GetImage(1000);
     auto msg = std::string("image ") + std::to_string(pImage->GetFrameId()) +
                " published to " + topic_;
+
     msg_form_image_(pImage, *p_image_msg);
     // m_pub_->publish(std::move(p_image_msg));
     image_publisher_.publish(std::move(p_image_msg));

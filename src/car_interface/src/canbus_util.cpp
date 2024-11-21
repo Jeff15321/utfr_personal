@@ -38,7 +38,7 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::ACTUAL_TORQUE, 0x0B0},    // torque feedback
 
     {(uint8_t)dv_can_msg::DVDrivingDynamics1, 0x500}, // FSG DV logging
-    {(uint8_t)dv_can_msg::DVDrivingDynamics2, 0x501}, // FSG DV logging
+    {(uint8_t)dv_can_msg::DVDrivingDynamics2, 0x510}, // FSG DV logging TODO: Go back to 501 for FSG
     {(uint8_t)dv_can_msg::DVSystemStatus, 0x502},     // FSG DV logging
 
     {(uint8_t)dv_can_msg::FULL_AS_STATE, 0x504}, // DV state from car
@@ -46,12 +46,12 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::MISSION, 0x508},       // DV Mission select from dial
 
     {(uint8_t)dv_can_msg::SetSTRMotorPos,
-     0x0000040F}, // Set Pos on Steering motor
+     0x00000401}, // Set Pos on Steering motor
     {(uint8_t)dv_can_msg::SetSTRMotorOrigin,
-     0x0000050F}, // Set Origin on Steering motor
+     0x00000501}, // Set Origin on Steering motor
     {(uint8_t)dv_can_msg::SetSTRMotorPosSpeedAcc,
-     0x0000060F}, // Set Pos, speed, and accel on Steering motor
-    {(uint8_t)dv_can_msg::StrMotorInfo, 0x0000290F}, // Status of Steering motor
+     0x00000601}, // Set Pos, speed, and accel on Steering motor
+    {(uint8_t)dv_can_msg::StrMotorInfo, 0x00002901}, // Status of Steering motor
     // GPS CAN
     {(uint8_t)dv_can_msg::GPS_ERROR_CODE, 0x001},
     {(uint8_t)dv_can_msg::GPS_SAMPLE_TIME,
@@ -63,7 +63,7 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::GPS_VEL_XYZ, 0x076},
     {(uint8_t)dv_can_msg::GPS_ACCELERATION, 0x034},
     {(uint8_t)dv_can_msg::GPS_RTK_STATUS, 0x009}, 
-    {(uint8_t)dv_can_msg::STR_MOTOR_CMD, 0x0000040F}, 
+    {(uint8_t)dv_can_msg::STR_MOTOR_CMD, 0x00000401}, 
     {(uint8_t)dv_can_msg::DV_COMMANDED, 0x0D0},
     {(uint8_t)dv_can_msg::APPS, 0x004}
     };

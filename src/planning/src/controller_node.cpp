@@ -203,7 +203,7 @@ void ControllerNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
     break;
   }
   }
-  if (as_state == 2 && msg.as_state == 3) {
+  if (as_state == utfr_msgs::msg::SystemStatus::AS_STATE_READY && msg.as_state == utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING) {
     start_time_ = this->get_clock()->now();
   }
 
@@ -353,7 +353,7 @@ void ControllerNode::homeScreenCB() {
   {
     initTimers();
   }
-  if (as_state != 3) {
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
@@ -362,7 +362,7 @@ void ControllerNode::homeScreenCB() {
 void ControllerNode::timerCBAccel() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (as_state != 3) {
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
@@ -419,7 +419,7 @@ void ControllerNode::timerCBAccel() {
 void ControllerNode::timerCBSkidpad() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (as_state != 3) {
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
@@ -486,7 +486,7 @@ void ControllerNode::timerCBSkidpad() {
 void ControllerNode::timerCBAutocross() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (as_state != 3) {
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
@@ -543,7 +543,7 @@ void ControllerNode::timerCBAutocross() {
 void ControllerNode::timerCBTrackdrive() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (as_state != 3) {
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
@@ -602,7 +602,7 @@ void ControllerNode::timerCBTrackdrive() {
 void ControllerNode::timerCBEBS() {
   const std::string function_name{"controller_timerCB:"};
 
-  if (as_state != 3) {
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
@@ -642,7 +642,7 @@ void ControllerNode::timerCBEBS() {
     double time = this->get_clock()->now().seconds();
     double time_diff = (time - start_time_.seconds());
 
-    if (time_diff > 10.0){
+    if (time_diff > 10.0) {
       target_.speed = 0.0;
       target_.steering_angle = 0.0;
       publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
@@ -664,19 +664,18 @@ void ControllerNode::timerCBEBS() {
 }
 
 void ControllerNode::timerCBAS() {
-  if (as_state != 3) {
-    RCLCPP_WARN(rclcpp::get_logger("TrajectoryRollout"), "here lol");
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
   double curr_time = this->now().seconds();
   double time_diff = curr_time - start_time_.seconds();
 
-  if (as_state == 3 && time_diff < 30.0) {
+  if (as_state == utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING && time_diff < 30.0) {
     target_.speed = 1.0;
     target_.steering_angle = sin(time_diff * 3.1415 / 3) * max_steering_angle_;
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
-  } else if (as_state == 3) {
+  } else if (as_state == utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING) {
     target_.speed = 0.0;
     target_.steering_angle = 0.0;
     publishHeartbeat(utfr_msgs::msg::Heartbeat::FINISH);
@@ -952,7 +951,7 @@ ControllerNode::purePursuitController(double max_steering_angle,
     desired_velocity = 2.0;
   }
 
-  if (desired_velocity > max_velocity_){
+  if (desired_velocity > max_velocity_) {
     desired_velocity = max_velocity_;
   }
 

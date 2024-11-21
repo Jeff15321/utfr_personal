@@ -17,7 +17,7 @@
 # [Service]
 # ExecStart=/usr/local/bin/my_script.sh
 # Type=simple
-# Restart=on-failure
+# Restart=no
 
 # [Install]
 # WantedBy=multi-user.target
@@ -45,14 +45,17 @@ cleanup() {
     echo "Killing all ros2 processes"
     kill $PID_RECORD
     kill $PID_LAUNCH
+    sudo ip link set can0 down
+    pkill -f "ros2"
     exit
 }
 
 trap cleanup SIGINT
 
-cd ~/utfr_dv
+cd /home/utfr-dv/utfr_dv/
 source install/setup.bash
 bash scripts/enable_can.sh
+ros2 launch xsens_mti_ros2_driver xsens_mti_node.launch.py &
 ros2 launch launcher interface.launch.py &
 PID_LAUNCH=$!
 
@@ -61,8 +64,8 @@ sleep 30 # Wait for nodes to boot up
 cd "/media/utfr-dv/1tb ssd/rosbags"
 ros2 bag record -s mcap \
 /car_interface/sensor_can \
-/left_image/compressed \
-/right_image/compressed \
+/left_camera/images \
+/right_camera/images \
 /ouster/points \
 /tf \
 /tf_static \
@@ -82,7 +85,17 @@ ros2 bag record -s mcap \
 /planning/delaunay_midpoints \
 /planning/delaunay_waypoint \
 /planning/pure_pursuit_point \
-/planning/target_state -o sep15_ebs_test1 &
+/planning/target_state \
+controls/control_cmd \
+car_interface/system_status \
+filter/positionlla \
+filter/quaternion \
+filter/euler \
+filter/twist \
+filter/velocity \
+filter/free_acceleration \ 
+-s mcap &
+
 PID_RECORD=$!
 
 sleep 120 # Record for 2 minutes

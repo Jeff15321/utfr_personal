@@ -100,7 +100,7 @@ bool HeartbeatMonitor::verifyHeartbeats(const rclcpp::Time &curr_time) {
       RCLCPP_ERROR(rclcpp::get_logger("heartbeat_monitor"),
                    "%s Module %s heartbeat not yet started!",
                    function_name.c_str(), element.first.c_str());
-      //return false; FOR DEBUGGING COMMENT OUT
+      return false; // FOR DEBUGGING COMMENT OUT
     }
 
     double current_diff = (curr_time - new_stamp).nanoseconds() / 1000000;
@@ -114,6 +114,7 @@ bool HeartbeatMonitor::verifyHeartbeats(const rclcpp::Time &curr_time) {
       RCLCPP_ERROR(rclcpp::get_logger("heartbeat_monitor"),
                    "%s Module %s exceed max duration!", function_name.c_str(),
                    element.first.c_str());
+      return true;
       return false;
     }
     // RCLCPP_INFO(rclcpp::get_logger("heartbeat_monitor"),

@@ -1,0 +1,41 @@
+# Make enable can script not need password
+utfr-dv ALL=(ALL) NOPASSWD: /home/utfr-dv/dv24/scripts/enable_can.sh, /home/utfr-dv/dv24/scripts/dv_bringup.sh
+
+
+# Create a service file:
+sudo nano /etc/systemd/system/dv_bringup.service
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+
+[Unit]
+Description=My Startup Script
+After=network.target
+
+[Service]
+ExecStart=/home/utfr-dv/dv24/scripts/dv_bringup.sh
+Type=simple
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+
+# Make the script executable:
+sudo chmod +x /home/utfr-dv/dv24/scripts/dv_bringup.sh
+
+# Reload systemd to recognize the new service and enable it so it runs at boot:
+sudo systemctl daemon-reload
+sudo systemctl enable dv_bringup.service
+
+# Start the service immediately and check its status:
+sudo systemctl start dv_bringup.service
+sudo systemctl status dv_bringup.service
+
+# Stop/disable the service:
+sudo systemctl stop dv_bringup.service
+sudo systemctl disable dv_bringup.service
+
+# Remove service file:
+sudo rm /etc/systemd/system/dv_bringup.service
+sudo systemctl daemon-reload

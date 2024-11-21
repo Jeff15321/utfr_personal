@@ -280,8 +280,8 @@ private:
     OFF = 1,
     READY = 2,
     DRIVING = 3,
-    EMERGENCY = 4,
-    FINISH = 5
+    FINISH = 4,
+    EMERGENCY = 5
   };
 
   uint8_t dv_pc_state_ = DV_PC_STATE::OFF;
@@ -296,7 +296,7 @@ private:
   // Heartbeat map
   std::unordered_map<std::string, std::string> heartbeat_topics_map_{
       {"perception", topics::kPerceptionHeartbeat},
-      {"lidar_proc", topics::kLidarProcHeartbeat},
+      {"lidar_proc_node", topics::kLidarProcHeartbeat},
       {"ekf", topics::kEKFHeartbeat},
       {"mapping_build", topics::kMappingBuildHeartbeat},
       {"mapping_compute", topics::kMappingComputeHeartbeat},
