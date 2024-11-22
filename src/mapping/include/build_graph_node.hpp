@@ -191,6 +191,11 @@ public:
 
   double displacement_radius_ = 1.5;
   int count_threshold_ = 6;
+
+  double comparative_displacement;
+  bool is_duplicate_;
+  double true_coordinate_x;
+  double true_coordinate_y;
 };
 } // namespace build_graph
 } // namespace utfr_dv
