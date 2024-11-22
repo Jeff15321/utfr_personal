@@ -376,7 +376,7 @@ class PerceptionNode(Node):
         """
         Initialize main update timer for timerCB.
         """
-        # convert timer period in [ms] to timper period in [s]
+        # convert timer period in [ms] to timer period in [s]
         timer_period_s = self.update_rate_ / 1000
         self.timer_ = self.create_timer(
             timer_period_s, self.timerCB, callback_group=self.timer_group
@@ -447,9 +447,12 @@ class PerceptionNode(Node):
 
     def find_camera(self):
         for index in range(10):  # Check first 10 indices
-            cam_capture = cv2.VideoCapture(index)
+            cam_capture = cv2.VideoCapture(index, cv2.CAP_V4L2)
             if cam_capture.isOpened():
                 print(f"Connected to camera at index {index}")
+                cam_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                cam_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                cam_capture.set(cv2.CAP_PROP_FPS, 30)
                 return cam_capture, index
             cam_capture.release()
         print("No cameras found.")
@@ -506,6 +509,7 @@ class PerceptionNode(Node):
         Send Asynchronous Trigger to both cameras at once, and process
         incoming frames.
         """
+        fullyStartTime = time.perf_counter()
         print("Capturing Frame")
         # TODO: check if unplugging camera will crash this. Also, We should be trying to reconnect to webcam if it disconnects
         ret, img_ = self.cam_capture.read()
@@ -584,6 +588,7 @@ class PerceptionNode(Node):
 
         now = time.time()
         print("Cam CB total: ", now - processStartTime)
+        print("TOTAL TIMERCB TIME", time.perf_counter() - fullyStartTime)
         print("-----------")
 
         # publish the heartbeat
