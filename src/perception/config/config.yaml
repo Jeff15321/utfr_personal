@@ -7,7 +7,8 @@ perception_node: # Name of Node
     cone_detections_topic: "perception/cone_detections"
     processed_lidar_topic: "/lidar_pipeline/detected"
     baseline: 10.0
-    update_rate: 33.0 #[ms]
+    camera_capture_rate: 33.0 #[ms]
+    heartbeat_rate: 33.0 #[ms]
     debug: True
     distortion: [-0.363003, 0.113201, -0.000775, 0.000498, 0.000000]
     intrinsics:
@@ -29,7 +30,8 @@ perception_node: # Name of Node
     confidence: 0.40
     cone_heights: [0.0, 325.0, 325.0, 325.0, 505.0]
     lidar_only_detection: False
-    is_cuda: False
+    is_cuda_cv: False
+    is_cuda_deep: False
 
 lidar_proc_node:
   ros__parameters:

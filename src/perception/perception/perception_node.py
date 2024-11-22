@@ -23,11 +23,15 @@ from ultralytics import YOLO
 # ROS2 Requirements
 import rclpy
 from rclpy.node import Node
+
+# from rclpy.executors import SingleThreadedExecutor
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
-from rclpy.callback_groups import ReentrantCallbackGroup
+
+# from rclpy.callback_groups import ReentrantCallbackGroup
 from cv_bridge import CvBridge, CvBridgeError
-from rclpy.qos import QoSProfile, QoSDurabilityPolicy
+
+# from rclpy.qos import QoSProfile, QoSDurabilityPolicy
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
@@ -38,7 +42,8 @@ import torch
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2
-from std_msgs.msg import Bool
+
+# from std_msgs.msg import Bool
 from utfr_msgs.msg import ConeDetections
 from utfr_msgs.msg import Heartbeat
 from utfr_msgs.msg import Cone
@@ -53,7 +58,8 @@ from std_srvs.srv import Trigger
 
 # Import deep process functions
 from perception.submodules.deep import deep_process
-from perception.submodules.deep import check_for_cuda
+
+# from perception.submodules.deep import check_for_cuda
 from perception.submodules.deep import labelColor
 
 
@@ -63,7 +69,9 @@ class PerceptionNode(Node):
         self.lidar_group = (
             MutuallyExclusiveCallbackGroup()
         )  # TODO: maybe change to reentrant
-        self.timer_group = MutuallyExclusiveCallbackGroup()
+        self.cam_timer_group = MutuallyExclusiveCallbackGroup()
+        self.preproc_timer_group = MutuallyExclusiveCallbackGroup()
+        self.heartbeat_timer_group = MutuallyExclusiveCallbackGroup()
 
         self.loadParams()
         self.initVariables()
@@ -108,11 +116,11 @@ class PerceptionNode(Node):
         save_pic : boolean
           true to save all frames while node is running, false to not
 
-          confidence : double:
-            minimum confidence value to accept a cone detection
+        confidence : double:
+          minimum confidence value to accept a cone detection
 
-          perception_debug_topic : string:
-            name of perception debug topic (cone bounding boxes)
+        perception_debug_topic : string:
+          name of perception debug topic (cone bounding boxes)
 
         cone_heights: array:
           array of cone heights in mm [0, blue, yellow, small orange, large
@@ -126,7 +134,8 @@ class PerceptionNode(Node):
         self.declare_parameter("cone_detections_topic", "/perception/cone_detections")
         self.declare_parameter("heartbeat_topic", "/perception/heartbeat")
         self.declare_parameter("processed_lidar_topic", "/lidar_pipeline/clustered")
-        self.declare_parameter("update_rate", 33.33)
+        self.declare_parameter("camera_capture_rate")
+        self.declare_parameter("heartbeat_rate")
         self.declare_parameter("debug", True)
         self.declare_parameter("distortion", [0.0])
         self.declare_parameter("intrinsics", [0.0])
@@ -137,7 +146,8 @@ class PerceptionNode(Node):
         self.declare_parameter("perception_debug_topic", "/perception/debug")
         self.declare_parameter("cone_heights", [0.0])
         self.declare_parameter("lidar_only_detection", False)
-        self.declare_parameter("is_cuda", True)
+        self.declare_parameter("is_cuda_cv", True)
+        self.declare_parameter("is_cuda_deep", True)
 
         self.baseline_ = (
             self.get_parameter("baseline").get_parameter_value().double_value
@@ -161,8 +171,11 @@ class PerceptionNode(Node):
             .get_parameter_value()
             .string_value
         )
-        self.update_rate_ = (
-            self.get_parameter("update_rate").get_parameter_value().double_value
+        self.camera_capture_rate_ = (
+            self.get_parameter("camera_capture_rate").get_parameter_value().double_value
+        )
+        self.heartbeat_rate = (
+            self.get_parameter("heartbeat_rate").get_parameter_value().double_value
         )
         self.debug_ = self.get_parameter("debug").get_parameter_value().bool_value
         self.distortion = (
@@ -197,7 +210,13 @@ class PerceptionNode(Node):
             self.get_parameter("lidar_only_detection").get_parameter_value().bool_value
         )
 
-        self.is_cuda = self.get_parameter("is_cuda").get_parameter_value().bool_value
+        self.is_cuda_cv = (
+            self.get_parameter("is_cuda_cv").get_parameter_value().bool_value
+        )
+
+        self.is_cuda_deep = (
+            self.get_parameter("is_cuda_deep").get_parameter_value().bool_value
+        )
 
         # reshape the arrays into numpy matrix form
         self.intrinsics = np.array(self.intrinsics).reshape(3, 3)
@@ -208,11 +227,12 @@ class PerceptionNode(Node):
 
     def initVariables(self):
         # Initialize callback variables:
-        self.new_cam_recieved_ = False
+        self.new_cam_received_ = False
         self.first_img_arrived_ = False
 
         # Work
         self.img_ = None
+        self.img_raw_ = None
         self.img_size = (1280, 720)  # should be in config yaml
 
         # Initialize image conversion bridge:
@@ -237,7 +257,7 @@ class PerceptionNode(Node):
         else:
             raise RuntimeError("Unable to detect camera")
 
-        if self.is_cuda:
+        if self.is_cuda_cv:
             self.mapx_gpu = cv2.cuda_GpuMat()
             self.mapx_gpu.upload(self.mapx)
 
@@ -251,7 +271,10 @@ class PerceptionNode(Node):
             # self.mapy_gpu = self.mapy
 
         # create ultralytics model for inference
-        file_name = "/home/utfr-dv/utfr_dv/src/perception/perception/models/yolov8n_batched.engine"
+        if self.is_cuda_deep:
+            file_name = "src/perception/perception/models/yolov8n_batched.engine"
+        else:
+            file_name = "src/perception/perception/models/yolov8n.pt"
 
         print("Deep filename: ", file_name)
 
@@ -275,7 +298,6 @@ class PerceptionNode(Node):
             else:
                 print("CUDA is not available. Using CPU for PyTorch model...")
                 self.model.to("cpu")
-        # self.model.export(format="engine")
 
         # create transform frame variables
         self.lidar_frame = "os_sensor"
@@ -288,10 +310,12 @@ class PerceptionNode(Node):
 
         print(self.tf_listener)
 
-        if self.is_cuda:
+        if self.is_cuda_cv:
             self.img_gpu = cv2.cuda_GpuMat()
 
         self.previous_img_ = None
+        self.lastCamCaptureTime = time.time()
+        self.lastPreProcTime = time.time()
 
     def initSubscribers(self):
         """
@@ -369,21 +393,32 @@ class PerceptionNode(Node):
         """
         Initialize Services
         """
-
         pass
 
     def initTimers(self):
         """
         Initialize main update timer for timerCB.
         """
-        # convert timer period in [ms] to timer period in [s]
-        timer_period_s = self.update_rate_ / 1000
-        self.timer_ = self.create_timer(
-            timer_period_s, self.timerCB, callback_group=self.timer_group
+        self.cameraCaptureTimer_ = self.create_timer(
+            self.camera_capture_rate_ / 1000,
+            self.cameraCaptureTimerCB,
+            callback_group=self.cam_timer_group,
+        )
+
+        self.heartbeatTimer_ = self.create_timer(
+            self.heartbeat_rate / 1000,
+            self.heartbeatCB,
+            callback_group=self.heartbeat_timer_group,
+        )
+
+        self.preProcTimer_ = self.create_timer(
+            0.001, self.preProcCB, callback_group=self.preproc_timer_group
         )
 
         # Call the timer_  to prevent unused variable warnings
-        self.timer_
+        self.cameraCaptureTimer_
+        self.heartbeatTimer_
+        self.preProcTimer_
 
     def initHeartbeat(self):
         """
@@ -397,12 +432,12 @@ class PerceptionNode(Node):
         self.heartbeat_ = Heartbeat()
 
         self.heartbeat_.module.data = "perception"
-        self.heartbeat_.update_rate = self.update_rate_
+        self.heartbeat_.update_rate = self.camera_capture_rate_
         # TODO: Put these in a config/yaml file and read from there
         self.MIN_HEIGHT = 720
         self.MIN_WIDTH = 1020
         self.MAX_FRAME_RATE = 1.0
-        if self.first_img_arrived_ == True:
+        if self.first_img_arrived_ is True:
             self.previous_img_ = self.img_
 
         self.heartbeat_publisher_ = self.create_publisher(
@@ -446,7 +481,7 @@ class PerceptionNode(Node):
         self.ego_state = msg
 
     def find_camera(self):
-        for index in range(10):  # Check first 10 indices
+        for index in range(0, 10):  # Check first 10 indices
             cam_capture = cv2.VideoCapture(index, cv2.CAP_V4L2)
             if cam_capture.isOpened():
                 print(f"Connected to camera at index {index}")
@@ -458,7 +493,7 @@ class PerceptionNode(Node):
         print("No cameras found.")
         return None, -1
 
-    def process(self, left_img_, right_img_):
+    def process(self, img_):
         """
         main detection function for perception node
 
@@ -475,18 +510,8 @@ class PerceptionNode(Node):
             self.get_clock().now().seconds_nanoseconds()[0]
             + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
         )
-        (
-            left_bounding_boxes,
-            left_classes,
-            left_scores,
-            right_bounding_boxes,
-            right_classes,
-            right_scores,
-        ) = deep_process(
-            self.model,
-            left_img_,
-            right_img_,
-            self.confidence_,
+        (bounding_boxes, classes, scores) = deep_process(
+            self.model, img_, self.confidence_
         )
         end = (
             self.get_clock().now().seconds_nanoseconds()[0]
@@ -494,20 +519,92 @@ class PerceptionNode(Node):
         )
         print("deep process time: ", end - start)
 
-        return (
-            left_bounding_boxes,
-            left_classes,
-            left_scores,
-            right_bounding_boxes,
-            right_classes,
-            right_scores,
-        )
+        return (bounding_boxes, classes, scores)
 
-    def timerCB(self):
+    def preProcCB(self):
+        # print("preproc ")
+        if not self.new_cam_received_:
+            return
+
+        fullyStartTime = time.perf_counter()
+
+        # Color formart change:
+        # img_ = cv2.cvtColor(self.img_raw_, cv2.COLOR_BGR2GRAY)
+
+        # self.publish_undistorted(self.img_raw_)
+
+        try:
+            # TODO: set for publishing images
+            self.img_stamp_ = self.get_clock().now().to_msg()
+
+            # self.left_frame_id = msg.header.frame_id
+            # self.new_left_img_recieved_ = True
+
+            if self.is_cuda_cv:
+                startTime = time.perf_counter()
+                self.img_gpu.upload(self.img_raw_)
+                print("upload time: " + str(time.perf_counter() - startTime))
+
+                startTime = time.perf_counter()
+                # rectification
+                img_ = cv2.cuda.remap(
+                    self.img_gpu,
+                    self.mapx_gpu,
+                    self.mapy_gpu,
+                    interpolation=cv2.INTER_NEAREST,
+                )
+                print("remap time: " + str(time.perf_counter() - startTime))
+
+                startTime = time.perf_counter()
+                self.img_ = img_.download()
+                print("download time: " + str(time.perf_counter() - startTime))
+
+            else:
+                startTime = time.perf_counter()
+                # rectification CPU
+                self.img_ = cv2.remap(
+                    self.img_raw_,
+                    self.mapx,
+                    self.mapy,
+                    interpolation=cv2.INTER_NEAREST,
+                )
+                print("remap cpu time: " + str(time.perf_counter() - startTime))
+
+            # compare time it takes to resize on the GPU vs time you save in preprocessing in the YOLO model
+            # img_ = cv2.resize(img_, (640, 640))
+
+            if not self.first_img_arrived_:
+                self.previous_img_ = self.img_
+                self.first_img_arrived_ = True
+
+            self.new_cam_received_ = False
+
+            if self.debug_:
+                self.publish_undistorted(self.img_)
+
+            print("Pre Proc Hz: ", 1 / (time.time() - self.lastPreProcTime))
+            self.lastPreProcTime = time.time()
+
+        except CvBridgeError as e:
+            exception = "Perception::TimerCB: " + str(e)
+            self.get_logger().error(exception)
+        except Exception as e:
+            exception = "Perception::TimerCB: " + str(e)
+            self.get_logger().error(exception)
+
+        print("TOTAL TIMERCB TIME", time.perf_counter() - fullyStartTime)
+        print("-----------")
+
+    def heartbeatCB(self):
+        # publish the heartbeat
+        cam_process = Heartbeat()
+        cam_process.header.stamp = self.get_clock().now().to_msg()
+        self.cam_processed_publisher_.publish(cam_process)
+        self.publishHeartbeat()
+
+    def cameraCaptureTimerCB(self):
         """
-        Main Processing loop for perception module.
-        Send Asynchronous Trigger to both cameras at once, and process
-        incoming frames.
+        Runs to capture raw images from the webcam and place into img_ buffer
         """
         fullyStartTime = time.perf_counter()
         print("Capturing Frame")
@@ -517,87 +614,16 @@ class PerceptionNode(Node):
             print("Error: Could not read frame.")
             return
 
-        # to do calibration:
-        # img_ = cv2.cvtColor(img_, cv2.COLOR_BGR2GRAY)
-        # self.publish_undistorted(img_)
+        self.img_raw_ = img_
+        self.new_cam_received_ = True
 
-        processStartTime = time.time()
-        try:
-            # TODO: set for publishing images
-            self.img_stamp_ = self.get_clock().now().to_msg()
-
-            # self.left_frame_id = msg.header.frame_id
-            # self.new_left_img_recieved_ = True
-
-            if self.is_cuda:
-                startTime = time.time()
-                self.img_gpu.upload(img_)
-                now1 = time.time()
-                print("upload time: " + str(now1 - startTime))
-                startTime = time.time()
-                # rectification
-                img_ = cv2.cuda.remap(
-                    self.img_gpu,
-                    self.mapx_gpu,
-                    self.mapy_gpu,
-                    interpolation=cv2.INTER_NEAREST,
-                )
-                now2 = time.time()
-                print("remap time: " + str(now2 - startTime))
-
-                startTime = time.time()
-
-                self.img_ = img_.download()
-                # self.img_ = img_
-
-                now3 = time.time()
-                print("download time: " + str(now3 - startTime))
-
-            else:
-                startTime = time.time()
-                # rectification CPU
-                img_ = cv2.remap(
-                    img_,
-                    self.mapx,
-                    self.mapy,
-                    interpolation=cv2.INTER_NEAREST,
-                )
-                self.img_ = img_
-                print("remap cpu time: " + str(time.time() - startTime))
-
-            # compare time it takes to resize on the GPU vs time you save in preprocessing in the YOLO model
-            # img_ = cv2.resize(img_, (640, 640))
-
-            if not self.first_img_arrived_:
-                self.previous_img_ = self.img_
-                self.first_img_arrived_ = True
-
-            if self.debug_:
-                self.publish_undistorted(self.img_)
-
-        except CvBridgeError as e:
-            exception = "Perception::TimerCB: " + str(e)
-            self.get_logger().error(exception)
-        except Exception as e:
-            exception = "Perception::TimerCB: " + str(e)
-            self.get_logger().error(exception)
-
-        cam_process = Heartbeat()
-        cam_process.header.stamp = self.get_clock().now().to_msg()
-        self.cam_processed_publisher_.publish(cam_process)
-
-        now = time.time()
-        print("Cam CB total: ", now - processStartTime)
-        print("TOTAL TIMERCB TIME", time.perf_counter() - fullyStartTime)
-        print("-----------")
-
-        # publish the heartbeat
-        self.publishHeartbeat()
+        print("Capture time: ", time.perf_counter() - fullyStartTime)
+        print("Capture Hz: ", 1 / (time.time() - self.lastCamCaptureTime))
+        self.lastCamCaptureTime = time.time()
 
     def deep_and_matching(self, lidar_msg):
         if self.lidar_only_detection == False:
             try:
-                # TODO: move this to init variables
                 # tf from lidar to cam
                 tf_lidar_to_cam = self.tf_buffer.lookup_transform(
                     self.camera_frame,
@@ -618,14 +644,7 @@ class PerceptionNode(Node):
                 return
 
             frame = self.img_
-            (
-                results_left,
-                classes_left,
-                scores_left,
-                results_right,
-                classes_right,
-                scores_right,
-            ) = self.process(frame, frame)
+            (results_left, classes_left, scores_left) = self.process(frame)
 
             # Extract point cloud data
             lidar_point_cloud_data = point_cloud2.read_points_numpy(
@@ -652,14 +671,10 @@ class PerceptionNode(Node):
             filtered_projected_pts = projected_pts[valid_idx]
 
             # Hungarian algorithm for matching
-            # TODO: no need for two lefts anymore, so remove that redundancy
-            matched, _, left_class, right_class = self.h_matching(
-                filtered_projected_pts,
-                filtered_projected_pts,
-                results_left,
-                classes_left,
-                results_right,
-                classes_right,
+            matched, left_class = self.h_matching(
+                left_projected_lidar_pts=filtered_projected_pts,
+                left_cam_dets=results_left,
+                classes_left=classes_left,
                 duplicate_threshold=0.1,
                 cost_threshold=1000.0,
                 depth_weight=0.5,
@@ -677,8 +692,6 @@ class PerceptionNode(Node):
             )
 
             cone_detections = ConeDetections()
-            # print("------START---------")
-
             # TODO: clean this up and just use the same enum format as in the cone msg template
             for i, point in enumerate(matched_lidar_frame):
                 cone = Cone()
@@ -707,7 +720,6 @@ class PerceptionNode(Node):
             cone_detections.header.stamp = self.get_clock().now().to_msg()
             cone_detections.header.frame_id = "ground"
             self.cone_detections_publisher_.publish(cone_detections)
-            # print("------END---------")
 
             # Cam det bounding boxes and lidar det points on image
             if self.debug_:
@@ -944,11 +956,8 @@ class PerceptionNode(Node):
     def h_matching(
         self,
         left_projected_lidar_pts,
-        right_projected_lidar_pts,
         left_cam_dets,
         classes_left,
-        right_cam_dets,
-        classes_right,
         duplicate_threshold,
         cost_threshold,
         depth_weight,
@@ -962,17 +971,10 @@ class PerceptionNode(Node):
         )
         row_ind_left, col_ind_left = linear_sum_assignment(cost_matrix_left)
 
-        # Perform matching for right camera
-        cost_matrix_right = self.cost_mtx_from_bbox(
-            right_projected_lidar_pts, right_cam_dets, depth_factor=depth_weight
-        )
-        row_ind_right, col_ind_right = linear_sum_assignment(cost_matrix_right)
-
         matched_lidar_left = [left_projected_lidar_pts[i] for i in row_ind_left]
-        matched_lidar_right = [right_projected_lidar_pts[i] for i in row_ind_right]
 
         # Store results after Hungarian matching
-        left_matches, right_matches, left_classes, right_classes = [], [], [], []
+        left_matches, left_classes = [], []
 
         for i, lidar_point_left in enumerate(matched_lidar_left):
             cost_left = cost_matrix_left[row_ind_left[i], col_ind_left[i]]
@@ -980,14 +982,8 @@ class PerceptionNode(Node):
                 continue
             left_matches.append(lidar_point_left)
             left_classes.append(classes_left[col_ind_left[i]])
-        for j, lidar_point_right in enumerate(matched_lidar_right):
-            cost_right = cost_matrix_right[row_ind_right[j], col_ind_right[j]]
-            if cost_right > cost_threshold:
-                continue
-            right_matches.append(lidar_point_right)
-            right_classes.append(classes_right[col_ind_right[j]])
 
-        return left_matches, right_matches, left_classes, right_classes
+        return left_matches, left_classes
 
     def filter_points_in_fov(self, projected_points, image_size):
         """Filters out points that are outside the image boundaries."""
