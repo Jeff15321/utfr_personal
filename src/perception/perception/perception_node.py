@@ -233,7 +233,8 @@ class PerceptionNode(Node):
         # Work
         self.img_ = None
         self.img_raw_ = None
-        self.img_size = (1280, 720)  # should be in config yaml
+        self.img_size = (1024, 576)  # should be in config yaml
+        # 480 272 gives 30fps for this webcam and 1024 x 576 gives 20fps
 
         # Initialize image conversion bridge:
         self.bridge = CvBridge()
@@ -485,8 +486,8 @@ class PerceptionNode(Node):
             cam_capture = cv2.VideoCapture(index, cv2.CAP_V4L2)
             if cam_capture.isOpened():
                 print(f"Connected to camera at index {index}")
-                cam_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-                cam_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                cam_capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.img_size[0])
+                cam_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.img_size[1])
                 cam_capture.set(cv2.CAP_PROP_FPS, 30)
                 return cam_capture, index
             cam_capture.release()
@@ -568,7 +569,7 @@ class PerceptionNode(Node):
                     self.mapy,
                     interpolation=cv2.INTER_NEAREST,
                 )
-                print("remap cpu time: " + str(time.perf_counter() - startTime))
+                # print("remap cpu time: " + str(time.perf_counter() - startTime))
 
             # compare time it takes to resize on the GPU vs time you save in preprocessing in the YOLO model
             # img_ = cv2.resize(img_, (640, 640))
@@ -582,8 +583,8 @@ class PerceptionNode(Node):
             if self.debug_:
                 self.publish_undistorted(self.img_)
 
-            print("Pre Proc Hz: ", 1 / (time.time() - self.lastPreProcTime))
-            self.lastPreProcTime = time.time()
+                print("Pre Proc Hz: ", 1 / (time.time() - self.lastPreProcTime))
+                self.lastPreProcTime = time.time()
 
         except CvBridgeError as e:
             exception = "Perception::TimerCB: " + str(e)
@@ -592,8 +593,8 @@ class PerceptionNode(Node):
             exception = "Perception::TimerCB: " + str(e)
             self.get_logger().error(exception)
 
-        print("TOTAL TIMERCB TIME", time.perf_counter() - fullyStartTime)
-        print("-----------")
+        # print("TOTAL TIMERCB TIME", time.perf_counter() - fullyStartTime)
+        # print("-----------")
 
     def heartbeatCB(self):
         # publish the heartbeat
@@ -607,7 +608,6 @@ class PerceptionNode(Node):
         Runs to capture raw images from the webcam and place into img_ buffer
         """
         fullyStartTime = time.perf_counter()
-        print("Capturing Frame")
         # TODO: check if unplugging camera will crash this. Also, We should be trying to reconnect to webcam if it disconnects
         ret, img_ = self.cam_capture.read()
         if not ret or img_.size == None:
@@ -616,10 +616,10 @@ class PerceptionNode(Node):
 
         self.img_raw_ = img_
         self.new_cam_received_ = True
-
-        print("Capture time: ", time.perf_counter() - fullyStartTime)
-        print("Capture Hz: ", 1 / (time.time() - self.lastCamCaptureTime))
-        self.lastCamCaptureTime = time.time()
+        if self.debug_:
+            print("Capture time: ", time.perf_counter() - fullyStartTime)
+            print("Capture Hz: ", 1 / (time.time() - self.lastCamCaptureTime))
+            self.lastCamCaptureTime = time.time()
 
     def deep_and_matching(self, lidar_msg):
         if self.lidar_only_detection == False:
