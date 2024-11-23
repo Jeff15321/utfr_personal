@@ -62,7 +62,7 @@ void ComputeGraphNode::initParams() {
   Eigen::DiagonalMatrix<double, 3> P2P;
   Eigen::DiagonalMatrix<double, 2> P2C;
   Eigen::DiagonalMatrix<double, 3> LoopClosure;
-  
+
   this->declare_parameter("P2P_ev1", 1200);
   this->declare_parameter("P2P_ev2", 1200);
   this->declare_parameter("P2P_ev3", 6000);
@@ -82,19 +82,20 @@ void ComputeGraphNode::initParams() {
   int LoopClosure_ev3_ = this->get_parameter("LoopClosure_ev3").as_int();
 
   this->declare_parameter("count", 0);
-  int count = this->get_parameter("count").as_int();
+  count = this->get_parameter("count").as_int();
   this->declare_parameter("pose_window_term1", 1500);
-  int pose_window_term1_ = this->get_parameter("pose_window_term1").as_int();
+  pose_window_term1_ = this->get_parameter("pose_window_term1").as_int();
   this->declare_parameter("pose_window_term2", 500);
-  int pose_window_term2_ = this->get_parameter("pose_window_term2").as_int();
+  pose_window_term2_ = this->get_parameter("pose_window_term2").as_int();
   this->declare_parameter("cone_window_term1", 4500);
-  int cone_window_term1_ = this->get_parameter("cone_window_term1").as_int();
+  cone_window_term1_ = this->get_parameter("cone_window_term1").as_int();
   this->declare_parameter("cone_window_term2", 1500);
-  int cone_window_term2_ = this->get_parameter("cone_window_term2").as_int();
+  cone_window_term2_ = this->get_parameter("cone_window_term2").as_int();
 
   P2P.diagonal() << P2P_ev1_, P2P_ev2_, P2P_ev3_;
   P2C.diagonal() << P2C_ev1_, P2C_ev2_;
-  LoopClosure.diagonal() << LoopClosure_ev1_, LoopClosure_ev2_, LoopClosure_ev3_;
+  LoopClosure.diagonal() << LoopClosure_ev1_, LoopClosure_ev2_,
+      LoopClosure_ev3_;
 
   P2PInformationMatrix_ = P2P;
   P2CInformationMatrix_ = P2C;
@@ -122,30 +123,33 @@ void ComputeGraphNode::initParams() {
 
 void ComputeGraphNode::initSubscribers() {
   if (mapping_mode_ == 0) {
-    pose_graph_subscriber_ = this->create_subscription<utfr_msgs::msg::PoseGraph>(
-      topics::kPoseGraph, 1,
-      std::bind(&ComputeGraphNode::poseGraphCB, this, std::placeholders::_1));
+    pose_graph_subscriber_ =
+        this->create_subscription<utfr_msgs::msg::PoseGraph>(
+            topics::kPoseGraph, 1,
+            std::bind(&ComputeGraphNode::poseGraphCB, this,
+                      std::placeholders::_1));
   }
 }
 
 void ComputeGraphNode::initPublishers() {
   if (mapping_mode_ == 0) {
     cone_map_publisher_ =
-      this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
+        this->create_publisher<utfr_msgs::msg::ConeMap>(topics::kConeMap, 10);
 
-    slam_state_publisher_ = 
-      this->create_publisher<utfr_msgs::msg::PoseGraphData>(topics::kSlamPose, 10);
-  
+    slam_state_publisher_ =
+        this->create_publisher<utfr_msgs::msg::PoseGraphData>(topics::kSlamPose,
+                                                              10);
   }
   cone_viz_publisher_ =
-      this->create_publisher<visualization_msgs::msg::MarkerArray>("ConeViz", 10);
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("ConeViz",
+                                                                   10);
 }
 
 void ComputeGraphNode::initTimers() {
   if (mapping_mode_ == 0) {
     main_timer_ = this->create_wall_timer(
-      std::chrono::duration<double, std::milli>(this->slam_rate_),
-      std::bind(&ComputeGraphNode::timerCB, this));
+        std::chrono::duration<double, std::milli>(this->slam_rate_),
+        std::bind(&ComputeGraphNode::timerCB, this));
   }
 }
 
@@ -383,14 +387,16 @@ void ComputeGraphNode::graphSLAM() {
   cone_map_publisher_->publish(cone_map_);
 
   // Get the last pose from the optimizer then publish it
-  g2o::VertexSE2 *lastPose = dynamic_cast<g2o::VertexSE2 *>(
-      optimizer_.vertex(pose_nodes_.back()->id()));
-  utfr_msgs::msg::PoseGraphData pose;
-  pose.id = lastPose->id();
-  pose.x = lastPose->estimate().translation().x();
-  pose.y = lastPose->estimate().translation().y();
-  pose.theta = lastPose->estimate().rotation().angle();
-  slam_state_publisher_->publish(pose);
+  if (!pose_nodes_.empty()) {
+    g2o::VertexSE2 *lastPose = dynamic_cast<g2o::VertexSE2 *>(
+        optimizer_.vertex(pose_nodes_.back()->id()));
+    utfr_msgs::msg::PoseGraphData pose;
+    pose.id = lastPose->id();
+    pose.x = lastPose->estimate().translation().x();
+    pose.y = lastPose->estimate().translation().y();
+    pose.theta = lastPose->estimate().rotation().angle();
+    slam_state_publisher_->publish(pose);
+  }
 
   optimizer_.clear();
 
@@ -415,7 +421,6 @@ void ComputeGraphNode::graphSLAM() {
 }
 
 void ComputeGraphNode::timerCB() {
-
   // Check if data has been received
   if (data.states.size() == 0) {
     return;
@@ -470,7 +475,8 @@ void ComputeGraphNode::timerCB() {
     }
   }
 
-  int startConeIndex = std::max(0, (int)local_data.measurement_edges.size() - CONE_WINDOW);
+  int startConeIndex =
+      std::max(0, (int)local_data.measurement_edges.size() - CONE_WINDOW);
   for (int i = startConeIndex; i < local_data.measurement_edges.size(); i++) {
     utfr_msgs::msg::PoseGraphData edge = local_data.measurement_edges[i];
     std::string key = std::to_string(edge.id) + "_" + std::to_string(edge.id2);
