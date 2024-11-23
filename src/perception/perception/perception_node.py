@@ -233,7 +233,7 @@ class PerceptionNode(Node):
         # Work
         self.img_ = None
         self.img_raw_ = None
-        self.img_size = (1024, 576)  # should be in config yaml
+        self.img_size = (1280, 720) #, 576)  # should be in config yaml
         # 480 272 gives 30fps for this webcam and 1024 x 576 gives 20fps
 
         # Initialize image conversion bridge:
