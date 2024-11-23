@@ -69,26 +69,21 @@ def letterbox(
     return im, r, (dw, dh)
 
 
-def deep_process(model, frame_left, frame_right, confidence, visualize=False):
+def deep_process(model, frame, confidence, visualize=False):
     """
     Applies object detection on each frame from a camera using a deep learning model.
     """
-    left_float = frame_left
-    right_float = frame_right
-
-    batch = [left_float, right_float]
+    batch = [frame]
 
     start_time = time.time()
-    output = model.predict(batch)
+    output = model.predict(batch, verbose=False)
 
     end_time = time.time()
 
     print("runtime: ", end_time - start_time)
 
-    left_output, right_output = output[0], output[1]
-
-    outputs = [left_output, right_output]
-    frames = [left_float, right_float]
+    outputs = [output[0]]
+    frames = [frame]
 
     bounding_boxes = []
     classes = []
@@ -140,14 +135,7 @@ def deep_process(model, frame_left, frame_right, confidence, visualize=False):
     end = time.time()
     print("for box deep process: ", end - start)
 
-    return (
-        bounding_boxes[0],
-        classes[0],
-        scores[0],
-        bounding_boxes[1],
-        classes[1],
-        scores[1],
-    )
+    return (bounding_boxes[0], classes[0], scores[0])
 
 
 def labelColor(class_string):

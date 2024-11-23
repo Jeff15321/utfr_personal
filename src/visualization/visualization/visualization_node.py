@@ -55,7 +55,7 @@ class VisualizationNode(Node):
 
     def initVariables(self):
         self.delete_all_marker = Marker()
-        self.delete_all_marker.action = 3 # delete all
+        self.delete_all_marker.action = 3  # delete all
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.tf_br = tf2_ros.TransformBroadcaster(self)
@@ -67,38 +67,21 @@ class VisualizationNode(Node):
         perception debug
         lidar point cloud
         """
-        self.perception_debug_subscriber_left_ = self.create_subscription(
-            PerceptionDebug, "/perception/debug_left", self.perceptionDebugLeftCB, 1
-        )
-        self.perception_debug_subscriber_right_ = self.create_subscription(
-            PerceptionDebug, "/perception/debug_right", self.perceptionDebugRightCB, 1
+        self.perception_debug_subscriber_ = self.create_subscription(
+            PerceptionDebug, "/perception/debug", self.perceptionDebugCB, 1
         )
 
-        self.lidar_projection_subscriber_left_ = self.create_subscription(
+        self.lidar_projection_subscriber_ = self.create_subscription(
             PerceptionDebug,
-            "/perception/lidar_projection_left",
-            self.lidarProjectionLeftCB,
+            "/perception/lidar_projection",
+            self.lidarProjectionCB,
             1,
         )
 
-        self.lidar_projection_subscriber_left_ = self.create_subscription(
+        self.lidar_projection_subscriber_ = self.create_subscription(
             PerceptionDebug,
-            "/perception/lidar_projection_right",
-            self.lidarProjectionRightCB,
-            1,
-        )
-
-        self.lidar_projection_subscriber_left_ = self.create_subscription(
-            PerceptionDebug,
-            "/perception/lidar_projection_matched_left",
-            self.lidarProjectionMatchedLeftCB,
-            1,
-        )
-
-        self.lidar_projection_subscriber_left_ = self.create_subscription(
-            PerceptionDebug,
-            "/perception/lidar_projection_matched_right",
-            self.lidarProjectionMatchedRightCB,
+            "/perception/lidar_projection_matched",
+            self.lidarProjectionMatchedCB,
             1,
         )
 
@@ -109,57 +92,31 @@ class VisualizationNode(Node):
             1,
         )
         self.cone_map_ = self.create_subscription(
-            ConeMap,
-            "/mapping/cone_map",
-            self.mappingConeMapCB,
-            1
+            ConeMap, "/mapping/cone_map", self.mappingConeMapCB, 1
         )
         self.ego_state_ = self.create_subscription(
-            EgoState,
-            "/ekf/ego_state",
-            self.ekfEgoStateCB,
-            1
+            EgoState, "/ekf/ego_state", self.ekfEgoStateCB, 1
         )
         self.controller_path_ = self.create_subscription(
-            ParametricSpline,
-            "/planning/center_path",
-            self.planningControllerPathCB,
-            1
+            ParametricSpline, "/planning/center_path", self.planningControllerPathCB, 1
         )
-        print(self.perception_debug_subscriber_left_)
-        print(self.perception_debug_subscriber_right_)
+        print(self.perception_debug_subscriber_)
 
     def initPublishers(self):
-        self.left_image_marker_publisher_ = self.create_publisher(
-            ImageMarkerArray, "/visualization/left_image_markers", 1
+        self.image_marker_publisher_ = self.create_publisher(
+            ImageMarkerArray, "/visualization/image_markers", 1
         )
 
-        self.left_image_text_publisher_ = self.create_publisher(
-            ImageAnnotations, "/visualization/left_image_text", 1
+        self.image_text_publisher_ = self.create_publisher(
+            ImageAnnotations, "/visualization/image_text", 1
         )
 
-        self.right_image_marker_publisher_ = self.create_publisher(
-            ImageMarkerArray, "/visualization/right_image_markers", 1
+        self.lidar_projection_publisher_ = self.create_publisher(
+            ImageMarkerArray, "/visualization/lidar_projection", 1
         )
 
-        self.right_image_text_publisher_ = self.create_publisher(
-            ImageAnnotations, "/visualization/right_image_text", 1
-        )
-
-        self.lidar_projection_publisher_left_ = self.create_publisher(
-            ImageMarkerArray, "/visualization/lidar_projection_left", 1
-        )
-
-        self.lidar_projection_publisher_right_ = self.create_publisher(
-            ImageMarkerArray, "/visualization/lidar_projection_right", 1
-        )
-
-        self.lidar_projection_publisher_matched_left_ = self.create_publisher(
-            ImageMarkerArray, "/visualization/lidar_projection_matched_left", 1
-        )
-
-        self.lidar_projection_publisher_matched_right_ = self.create_publisher(
-            ImageMarkerArray, "/visualization/lidar_projection_matched_right", 1
+        self.lidar_projection_publisher_matched_ = self.create_publisher(
+            ImageMarkerArray, "/visualization/lidar_projection_matched", 1
         )
 
         self.cone_markers_publisher_ = self.create_publisher(
@@ -177,7 +134,7 @@ class VisualizationNode(Node):
         self.controller_path_publisher_ = self.create_publisher(
             Path, "/visualization/controller_path", 1
         )
-        print(self.left_image_marker_publisher_)
+        print(self.image_marker_publisher_)
 
     def initServices(self):
         pass
@@ -260,7 +217,7 @@ class VisualizationNode(Node):
             ),
         ]
 
-    def lidarProjectionLeftCB(self, msg):
+    def lidarProjectionCB(self, msg):
         # self.get_logger().warn("Received lidar projection left msg")
         markers = ImageMarkerArray()
         left_projections = msg.left
@@ -283,33 +240,9 @@ class VisualizationNode(Node):
             )
 
         # publish image marker array
-        self.lidar_projection_publisher_left_.publish(markers)
+        self.lidar_projection_publisher_.publish(markers)
 
-    def lidarProjectionRightCB(self, msg):
-        # self.get_logger().warn("Received lidar projection right msg")
-        markers = ImageMarkerArray()
-        right_projections = msg.right
-        if msg.header.frame_id == "matched":
-            color = ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0)
-        else:
-            color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
-
-        for point in right_projections:
-            markers.markers.append(
-                ImageMarker(
-                    header=msg.header,
-                    scale=2.5,
-                    type=ImageMarker.POLYGON,
-                    filled=True,
-                    fill_color=color,
-                    outline_color=color,
-                    points=self.lidarProjectionBoundaryBoxPoints(point),
-                )
-            )
-
-        self.lidar_projection_publisher_right_.publish(markers)
-
-    def lidarProjectionMatchedLeftCB(self, msg):
+    def lidarProjectionMatchedCB(self, msg):
         # self.get_logger().warn("Received lidar projection left msg")
         markers = ImageMarkerArray()
         left_projections = msg.left
@@ -332,33 +265,9 @@ class VisualizationNode(Node):
             )
 
         # publish image marker array
-        self.lidar_projection_publisher_matched_left_.publish(markers)
+        self.lidar_projection_publisher_matched_.publish(markers)
 
-    def lidarProjectionMatchedRightCB(self, msg):
-        # self.get_logger().warn("Received lidar projection right msg")
-        markers = ImageMarkerArray()
-        right_projections = msg.right
-        if msg.header.frame_id == "matched":
-            color = ColorRGBA(r=0.0, g=1.0, b=0.0, a=1.0)
-        else:
-            color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
-
-        for point in right_projections:
-            markers.markers.append(
-                ImageMarker(
-                    header=msg.header,
-                    scale=2.5,
-                    type=ImageMarker.POLYGON,
-                    filled=True,
-                    fill_color=color,
-                    outline_color=color,
-                    points=self.lidarProjectionBoundaryBoxPoints(point),
-                )
-            )
-
-        self.lidar_projection_publisher_matched_right_.publish(markers)
-
-    def perceptionDebugLeftCB(self, msg):
+    def perceptionDebugCB(self, msg):
         # self.get_logger().warn("Recieved left perception debug msg")
         left_markers = ImageMarkerArray()
         left_image_annotation = ImageAnnotations()
@@ -400,52 +309,8 @@ class VisualizationNode(Node):
                 continue
 
         # publish image marker array
-        self.left_image_marker_publisher_.publish(left_markers)
-        self.left_image_text_publisher_.publish(left_image_annotation)
-
-    def perceptionDebugRightCB(self, msg):
-        # self.get_logger().warn("Recieved right perception debug msg")
-        right_markers = ImageMarkerArray()
-        right_image_annotation = ImageAnnotations()
-        right_detections = msg.right
-
-        for right_bounding_box in right_detections:
-            if (
-                right_bounding_box.type < len(self.colorLUT)
-                and right_bounding_box.type > 0
-            ):
-                right_markers.markers.append(
-                    ImageMarker(
-                        header=msg.header,
-                        scale=2.5,
-                        type=ImageMarker.POLYGON,
-                        outline_color=self.colorRGBALUT[right_bounding_box.type],
-                        points=self.boundaryBoxPoints(right_bounding_box),
-                    )
-                )
-
-                # add text annotation
-                right_image_annotation.texts.append(
-                    TextAnnotation(
-                        timestamp=msg.header.stamp,
-                        position=Point2(
-                            x=float(right_bounding_box.x),
-                            y=float(right_bounding_box.y - 10),
-                        ),
-                        text=self.textLUT[right_bounding_box.type]
-                        + " "
-                        + str(right_bounding_box.score),
-                        font_size=20.0,
-                        text_color=Color(r=1.0, g=1.0, b=1.0, a=1.0),
-                        background_color=self.colorLUT[right_bounding_box.type],
-                    )
-                )
-            else:
-                continue
-
-        # publish image marker array
-        self.right_image_marker_publisher_.publish(right_markers)
-        self.right_image_text_publisher_.publish(right_image_annotation)
+        self.image_marker_publisher_.publish(left_markers)
+        self.image_text_publisher_.publish(left_image_annotation)
 
     # (r,g,b,a), follow eunm order in cone msg
     cubeColorLUT = [
@@ -511,7 +376,7 @@ class VisualizationNode(Node):
                     cone_marker.type = 1  # cube
                     cone_marker.action = 0  # add
                     cone_marker.pose.position = cone.pos
-                    cone_marker.pose.position.z = scale/2.0
+                    cone_marker.pose.position.z = scale / 2.0
                     cone_marker.pose.orientation.x = 0.0
                     cone_marker.pose.orientation.y = 0.0
                     cone_marker.pose.orientation.z = 0.0
@@ -534,7 +399,7 @@ class VisualizationNode(Node):
 
             self.cone_markers_publisher_.publish(cone_markers)
         except Exception as e:
-            print(f"An error occurred: {e}") 
+            print(f"An error occurred: {e}")
 
     def mappingConeMapCB(self, msg):
         """
@@ -552,7 +417,7 @@ class VisualizationNode(Node):
             large_orange_cones = msg.large_orange_cones
             small_orange_cones = msg.small_orange_cones
             unknown_cones = msg.unknown_cones
-            
+
             def addCones(cones, r, g, b, scale=0.2):
                 for cone in cones:
                     cone_marker = Marker()
@@ -562,8 +427,8 @@ class VisualizationNode(Node):
                     cone_marker.id = len(cone_markers.markers)
                     cone_marker.type = 1  # cube
                     cone_marker.action = 0  # add
-                    cone_marker.pose.position = cone.pos    
-                    cone_marker.pose.position.z = scale/2.0
+                    cone_marker.pose.position = cone.pos
+                    cone_marker.pose.position.z = scale / 2.0
                     cone_marker.pose.orientation.x = 0.0
                     cone_marker.pose.orientation.y = 0.0
                     cone_marker.pose.orientation.z = 0.0
@@ -594,7 +459,7 @@ class VisualizationNode(Node):
         """
         self.get_logger().warn("Recieved ego state msg")
         print(msg.header.frame_id)
-        
+
         # Transform begin
         # transform = TransformStamped()
 
@@ -620,7 +485,7 @@ class VisualizationNode(Node):
         car_marker.action = 0  # add
         car_marker.pose.position.x = 0.26885
         car_marker.pose.position.y = 0.0
-        car_marker.pose.position.z = 1.175/2.0
+        car_marker.pose.position.z = 1.175 / 2.0
         car_marker.pose.orientation.x = 0.0
         car_marker.pose.orientation.y = 0.0
         car_marker.pose.orientation.z = 0.0
@@ -660,19 +525,23 @@ class VisualizationNode(Node):
                 pose_stamped.pose.orientation.z = 0.0
                 pose_stamped.pose.orientation.w = 1.0
 
-
                 s += ds
                 for j in range(6):
-                    pose_stamped.pose.position.x += msg.x_params[j] * pow(s, 5-j)
-                    pose_stamped.pose.position.y -= msg.y_params[j] * pow(s, 5-j)
-                
-                transform = self.tf_buffer.lookup_transform('ground', msg.header.frame_id, rclpy.time.Time())
-                pose_stamped.pose = tf2_geometry_msgs.do_transform_pose(pose_stamped.pose, transform)
+                    pose_stamped.pose.position.x += msg.x_params[j] * pow(s, 5 - j)
+                    pose_stamped.pose.position.y -= msg.y_params[j] * pow(s, 5 - j)
+
+                transform = self.tf_buffer.lookup_transform(
+                    "ground", msg.header.frame_id, rclpy.time.Time()
+                )
+                pose_stamped.pose = tf2_geometry_msgs.do_transform_pose(
+                    pose_stamped.pose, transform
+                )
                 path_msg.poses.append(pose_stamped)
 
             self.controller_path_publisher_.publish(path_msg)
         except Exception as e:
             print(f"An error occurred: {e}")
+
 
 def main(args=None):
     rclpy.init(args=args)

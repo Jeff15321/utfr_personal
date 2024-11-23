@@ -7,79 +7,35 @@ perception_node: # Name of Node
     cone_detections_topic: "perception/cone_detections"
     processed_lidar_topic: "/lidar_pipeline/detected"
     baseline: 10.0
-    update_rate: 100.0 #[ms]
+    camera_capture_rate: 33.0 #[ms]
+    heartbeat_rate: 33.0 #[ms]
     debug: True
-    distortion_left: [-0.2632632062603271, 0.12474952835752845, 0.0, 0.0, 0.0]
-    distortion_right: [-0.269633921151086, 0.12944192627838266, 0.0, 0.0, 0.0]
-    intrinsics_left:
+    distortion: [-0.363003, 0.113201, -0.000775, 0.000498, 0.000000]
+    intrinsics:
       [
-        1176.4720209159348,
-        0.0,
-        717.3175336097887,
-        0.0,
-        1176.4502103799837,
-        555.1127066183973,
-        0.0,
-        0.0,
-        1.0,
+        974.649342,
+        0.000000,
+        655.141605,
+        0.000000,
+        975.211285,
+        340.068068,
+        0.000000,
+        0.000000,
+        1.000000,
       ]
-    intrinsics_right:
-      [
-        1169.929054195447,
-        0.0,
-        732.7234047220617,
-        0.0,
-        1168.6955521426203,
-        539.5227062057302,
-        0.0,
-        0.0,
-        1.0,
-      ]
-    rotation:
-      [
-        0.9948,
-        -0.0030,
-        -0.1020,
-        0.0040,
-        0.9999,
-        0.0094,
-        0.1020,
-        -0.0097,
-        0.9947,
-      ]
+    rotation: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
     translation: [-516.6818, 29.1172, -386.7437]
-    rectify_left:
-      [
-        0.999933395,
-        0.000876606484,
-        0.0115081202,
-        -0.000858846762,
-        0.999998433,
-        -0.00154808535,
-        -0.0115094592,
-        0.00153809852,
-        0.999932581,
-      ]
-    rectify_right:
-      [
-        0.99986953,
-        -0.00121598,
-        0.01610718,
-        0.00119112,
-        0.99999809,
-        0.00155276,
-        -0.01610904,
-        -0.00153337,
-        0.99986907,
-      ]
+    rectify: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
     save_pic: "False"
     confidence: 0.40
     cone_heights: [0.0, 325.0, 325.0, 325.0, 505.0]
     lidar_only_detection: False
+    is_cuda_cv: False
+    is_cuda_deep: True
 
 lidar_proc_node:
   ros__parameters:
-    update_rate: 100.0 #[ms]
+    update_rate: 50.0 #[ms]
     debug: False
     topics: # TODO: fix
       input: "/ouster/points"
@@ -94,6 +50,9 @@ lidar_proc_node:
         xmax: 30.0
         ymin: -12.0
         ymax: 12.0
+        # xmax: 6.0
+        # ymin: -1.50
+        # ymax: 1.50
       inner_box: #remove all points within inner box
         xmin: -1.013
         xmax: 2.1
