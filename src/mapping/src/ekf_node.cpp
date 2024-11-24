@@ -24,7 +24,6 @@ EkfNode::EkfNode() : Node("ekf_node") {
 }
 
 void EkfNode::initParams() {
-  std::cout << "You acc suck";
   this->declare_parameter("update_rate", 33.33);
   update_rate_ = this->get_parameter("update_rate").as_double();
   this->declare_parameter("mapping_mode", 0);
@@ -40,8 +39,6 @@ void EkfNode::initParams() {
   datum_yaw_ = std::numeric_limits<double>::quiet_NaN();
   this->declare_parameter("imu_yaw", 0.0);
   imu_yaw_ = this->get_parameter("imu_yaw").as_double();
-
-  //tf_br_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 }
 
 void EkfNode::initSubscribers() {
@@ -138,8 +135,6 @@ EkfNode::map_to_base_footprint(const utfr_msgs::msg::EgoState &state) {
 }
 
 void EkfNode::poseCB(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg) {
-  std::cout << "pose cb start";
-
   double gps_x = msg->vector.x;
   double gps_y = msg->vector.y;
   double gps_z = msg->vector.z;
@@ -148,8 +143,6 @@ void EkfNode::poseCB(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg) {
     datum_lla.x = gps_x;
     datum_lla.y = gps_y;
     datum_lla.z = gps_z;
-  
-  std::cout << "pose cb end";
   }
 
   geometry_msgs::msg::Vector3 lla;
