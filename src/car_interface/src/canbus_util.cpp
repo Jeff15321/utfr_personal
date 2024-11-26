@@ -29,7 +29,7 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::ImuX, 0x178}, // IMU data
     {(uint8_t)dv_can_msg::ImuZ, 0x17C}, // IMU data
 
-    {(uint8_t)dv_can_msg::ANGSENREC, 0x2B0}, // Steering angle sensor value
+    {(uint8_t)dv_can_msg::SAS_DATA, 0x2B0}, // Steering angle sensor value
     {(uint8_t)dv_can_msg::ANGSENTRA, 0x7C0}, // Setup steering angle sensor
 
     // Motor/inverter

@@ -241,18 +241,24 @@ void CarInterface::getGPSData() {
   }
 }
 
+void CarInterface::getSASData() {
+  steering_angle = can0->getSignal(dv_can_msg::SAS_DATA, 0, 16, true, 0.1);
+  sensor_can_.steering_angle = -(uint16_t)(steering_angle * 0.22);
+}
+
 void CarInterface::getSensorCan() {
   const std::string function_name{"getSensorCan"};
 
   try {
     // Read sensor CAN messages from car
-    getSteeringMotorData();
+    // getSteeringMotorData();
     // getMotorSpeedData();
     // getMotorTorqueData();
     // getServiceBrakeData();
     // getWheelspeedSensorData();
     // getIMUData();
     getGPSData();
+    getSASData();
 
     sensor_can_.header.stamp = this->get_clock()->now();
     sensor_can_publisher_->publish(sensor_can_);
