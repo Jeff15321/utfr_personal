@@ -29,7 +29,7 @@ std::map<uint8_t, canid_t> dv_can_msg_map{
     {(uint8_t)dv_can_msg::ImuX, 0x178}, // IMU data
     {(uint8_t)dv_can_msg::ImuZ, 0x17C}, // IMU data
 
-    {(uint8_t)dv_can_msg::ANGSENREC, 0x2B0}, // Steering angle sensor value
+    {(uint8_t)dv_can_msg::SAS_DATA, 0x2B0}, // Steering angle sensor value
     {(uint8_t)dv_can_msg::ANGSENTRA, 0x7C0}, // Setup steering angle sensor
 
     // Motor/inverter
@@ -106,7 +106,7 @@ bool CanInterface::connect(const char *canline) {
 uint64_t CanInterface::get_can(dv_can_msg msgName) { // TODO: remove
   // while(pthread_mutex_trylock(&readlock)){;}
   uint64_t result;
-  if (msgName == dv_can_msg::ANGSENREC) {
+  if (msgName == dv_can_msg::SAS_DATA) {
     result =
         (int)((messages[dv_can_msg_map[(uint8_t)msgName]].data[0]) |
               (((messages[dv_can_msg_map[(uint8_t)msgName]].data[1]) << 8)));

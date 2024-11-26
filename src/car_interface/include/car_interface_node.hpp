@@ -178,6 +178,11 @@ private:
    */
   void getGPSData();
 
+	/**
+	 * @brief Get the SAS data.
+	 */
+	void getSASData();
+
   /**
    * @brief Get the sensor CAN data.
    */

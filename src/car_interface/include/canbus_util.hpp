@@ -44,7 +44,7 @@ enum dv_can_msg {
   ImuY = 6,
   ImuX = 7,
   ImuZ = 8,
-  ANGSENREC = 9,
+  SAS_DATA = 9,
   ANGSENTRA = 10,
 
   // Motor/inverter
