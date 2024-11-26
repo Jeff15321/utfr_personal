@@ -242,8 +242,10 @@ void CarInterface::getGPSData() {
 }
 
 void CarInterface::getSASData() {
-  steering_angle = can0->getSignal(dv_can_msg::SAS_DATA, 0, 16, true, 0.1);
-  sensor_can_.steering_angle = -(uint16_t)(steering_angle * 0.22);
+  int steering_angle = can0_->getSignal(dv_can_msg::SAS_DATA, 0, 16, true, 0.1);
+  sensor_can_.steering_angle = -(uint16_t)(steering_angle * 0.22) + 84;
+  RCLCPP_INFO(this->get_logger(), "steering angle: %d",
+              sensor_can_.steering_angle);
 }
 
 void CarInterface::getSensorCan() {

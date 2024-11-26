@@ -106,7 +106,7 @@ bool CanInterface::connect(const char *canline) {
 uint64_t CanInterface::get_can(dv_can_msg msgName) { // TODO: remove
   // while(pthread_mutex_trylock(&readlock)){;}
   uint64_t result;
-  if (msgName == dv_can_msg::ANGSENREC) {
+  if (msgName == dv_can_msg::SAS_DATA) {
     result =
         (int)((messages[dv_can_msg_map[(uint8_t)msgName]].data[0]) |
               (((messages[dv_can_msg_map[(uint8_t)msgName]].data[1]) << 8)));
