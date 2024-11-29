@@ -4,7 +4,7 @@ namespace utfr_dv {
 namespace center_path {
 
 void CenterPathNode::timerCBAutocross() {
-  if (as_state != 3){
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING){
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
@@ -22,47 +22,7 @@ void CenterPathNode::timerCBAutocross() {
       return;
     }
 
-    std::vector<Point> midpoints = getBestPath();
-    std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>>
-        result = BezierPoints(midpoints);
-    std::vector<Point> bezier_curve = std::get<0>(result);
-    std::vector<double> xoft = std::get<1>(result);
-    std::vector<double> yoft = std::get<2>(result);
-
-    // Bezier Curve Drawing
-    geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
-    geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
-
-    delaunay_midpoints_stamped.header.frame_id = "ground";
-    delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
-    first_midpoint_stamped.header.frame_id = "ground";
-    first_midpoint_stamped.header.stamp = this->get_clock()->now();
-    geometry_msgs::msg::Point32 midpoint_pt32;
-
-    for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
-      midpoint_pt32.x = bezier_curve[i].x();
-      midpoint_pt32.y = bezier_curve[i].y();
-      midpoint_pt32.z = 0.0;
-
-      delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
-    }
-
-    for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
-      midpoint_pt32.x = bezier_curve[i].x();
-      midpoint_pt32.y = bezier_curve[i].y();
-      midpoint_pt32.z = 0.0;
-
-      delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
-    }
-
-    delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
-
-    utfr_msgs::msg::ParametricSpline center_path;
-    center_path.header.stamp = this->get_clock()->now();
-    center_path.header.frame_id = "ground";
-    center_path.x_params = xoft;
-    center_path.y_params = yoft;
-    center_path.lap_count = curr_sector_;
+    utfr_msgs::msg::ParametricSpline center_path = getBestPath();
     center_path_publisher_->publish(center_path);
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
@@ -75,7 +35,7 @@ void CenterPathNode::timerCBAutocross() {
 }
 
 void CenterPathNode::timerCBTrackdrive() {
-  if (as_state != 3){
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING){
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
@@ -93,47 +53,7 @@ void CenterPathNode::timerCBTrackdrive() {
       return;
     }
 
-    std::vector<Point> midpoints = getBestPath();
-    std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>>
-        result = BezierPoints(midpoints);
-    std::vector<Point> bezier_curve = std::get<0>(result);
-    std::vector<double> xoft = std::get<1>(result);
-    std::vector<double> yoft = std::get<2>(result);
-
-    // Bezier Curve Drawing
-    geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
-    geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
-
-    delaunay_midpoints_stamped.header.frame_id = "ground";
-    delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
-    first_midpoint_stamped.header.frame_id = "ground";
-    first_midpoint_stamped.header.stamp = this->get_clock()->now();
-    geometry_msgs::msg::Point32 midpoint_pt32;
-
-    for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
-      midpoint_pt32.x = bezier_curve[i].x();
-      midpoint_pt32.y = bezier_curve[i].y() * -1;
-      midpoint_pt32.z = 0.0;
-
-      delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
-    }
-
-    for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
-      midpoint_pt32.x = bezier_curve[i].x();
-      midpoint_pt32.y = bezier_curve[i].y() * -1;
-      midpoint_pt32.z = 0.0;
-
-      delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
-    }
-
-    delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
-
-    utfr_msgs::msg::ParametricSpline center_path;
-    center_path.header.stamp = this->get_clock()->now();
-    center_path.header.frame_id = "ground";
-    center_path.x_params = xoft;
-    center_path.y_params = yoft;
-    center_path.lap_count = curr_sector_;
+    utfr_msgs::msg::ParametricSpline center_path = getBestPath();
     center_path_publisher_->publish(center_path);
 
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
@@ -314,9 +234,15 @@ double CenterPathNode::midpointCostFunction(
   return sum;
 }
 
-std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
+utfr_msgs::msg::ParametricSpline CenterPathNode::getBestPath() {
   if (!cone_map_global_) {
-    return std::vector<Point>();
+    utfr_msgs::msg::ParametricSpline path;
+    path.header.stamp = this->get_clock()->now();
+    path.header.frame_id = "ground";
+    path.x_params = {0, 0, 0, 0, 0, 0};
+    path.y_params = {0, 0, 0, 0, 0, 0};;
+    path.lap_count = curr_sector_;
+    return path;
   }
 
   std::vector<std::pair<Point, unsigned int>> points;
@@ -491,10 +417,9 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
                          cone_map_global_->left_cones, midpoint_index_to_cone_indices);
             });
 
+  std::vector<Point> best_path_points;
   if (!all_paths.empty()) {
     const std::vector<int> &best_path_indices = all_paths.front();
-
-    std::vector<Point> best_path_points;
     best_path_points.reserve(best_path_indices.size());
     double yaw = util::quaternionToYaw(ego_state_->pose.pose.orientation);
     for (int index : best_path_indices) {
@@ -506,10 +431,49 @@ std::vector<CGAL::Point_2<CGAL::Epick>> CenterPathNode::getBestPath() {
       double local_y = translated_x * sin(-yaw) + translated_y * cos(-yaw);
       best_path_points.push_back(Point(local_x, local_y));
     }
-    return best_path_points;
-  } else {
-    return std::vector<Point>();
   }
+
+  std::tuple<std::vector<Point>, std::vector<double>, std::vector<double>>
+      result = BezierPoints(best_path_points);
+  std::vector<Point> bezier_curve = std::get<0>(result);
+  std::vector<double> xoft = std::get<1>(result);
+  std::vector<double> yoft = std::get<2>(result);
+
+  // Bezier Curve Drawing
+  geometry_msgs::msg::PolygonStamped delaunay_midpoints_stamped;
+  geometry_msgs::msg::PolygonStamped first_midpoint_stamped;
+
+  delaunay_midpoints_stamped.header.frame_id = "ground";
+  delaunay_midpoints_stamped.header.stamp = this->get_clock()->now();
+  first_midpoint_stamped.header.frame_id = "ground";
+  first_midpoint_stamped.header.stamp = this->get_clock()->now();
+  geometry_msgs::msg::Point32 midpoint_pt32;
+
+  for (int i = 0; i < static_cast<int>(bezier_curve.size()); i++) {
+    midpoint_pt32.x = bezier_curve[i].x();
+    midpoint_pt32.y = bezier_curve[i].y();
+    midpoint_pt32.z = 0.0;
+
+    delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
+  }
+
+  for (int i = static_cast<int>(bezier_curve.size()) - 1; i > 0; i--) {
+    midpoint_pt32.x = bezier_curve[i].x();
+    midpoint_pt32.y = bezier_curve[i].y();
+    midpoint_pt32.z = 0.0;
+
+    delaunay_midpoints_stamped.polygon.points.push_back(midpoint_pt32);
+  }
+  
+  delaunay_path_publisher_->publish(delaunay_midpoints_stamped);
+  
+  utfr_msgs::msg::ParametricSpline path;
+  path.header.stamp = this->get_clock()->now();
+  path.header.frame_id = "ground";
+  path.x_params = xoft;
+  path.y_params = yoft;
+  path.lap_count = curr_sector_;
+  return path;
 }
 
 std::tuple<std::vector<CGAL::Point_2<CGAL::Epick>>, std::vector<double>,

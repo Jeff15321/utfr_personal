@@ -4,7 +4,7 @@ namespace utfr_dv {
 namespace center_path {
 
 void CenterPathNode::timerCBEBS() {
-  if (as_state != 3){
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING){
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
@@ -17,21 +17,9 @@ void CenterPathNode::timerCBEBS() {
       return;
     }
 
-    std::vector<double> accel_path = getAccelPath();
-
     utfr_msgs::msg::ParametricSpline center_path_msg;
-
-    double m = accel_path[0];
-    double c = accel_path[1];
-
-    std::vector<double> x = {0, 0, 0, 0, 1, 0};
-    std::vector<double> y = {0, 0, 0, 0, m, c};
-
-    center_path_msg.header.stamp = this->get_clock()->now();
-    center_path_msg.header.frame_id = "ground";
-    center_path_msg.x_params = x;
-    center_path_msg.y_params = y;
-    center_path_msg.lap_count = curr_sector_;
+    if(use_autocross_for_accel_) center_path_msg = getBestPath();
+    else center_path_msg = getAccelPath();
 
     center_path_publisher_->publish(center_path_msg);
 
@@ -42,7 +30,7 @@ void CenterPathNode::timerCBEBS() {
 }
 
 void CenterPathNode::timerCBAS() {
-  if (as_state != 3){
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING){
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }

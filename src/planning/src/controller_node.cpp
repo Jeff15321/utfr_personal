@@ -39,6 +39,7 @@ void ControllerNode::initParams() {
   this->declare_parameter("cte_angle_error", 1.0);
   this->declare_parameter("ds", 0.01);
   this->declare_parameter("max_velocity", 3.0);
+  this->declare_parameter("min_velocity", 2.0);
   this->declare_parameter("max_steering_angle", 1.0);
   this->declare_parameter("max_steering_rate", 0.4);
   this->declare_parameter("max_tire", 1.5);
@@ -61,6 +62,7 @@ void ControllerNode::initParams() {
   cte_angle_error_ = this->get_parameter("cte_angle_error").as_double();
   ds_ = this->get_parameter("ds").as_double();
   max_velocity_ = this->get_parameter("max_velocity").as_double();
+  min_velocity_ = this->get_parameter("min_velocity").as_double();
   max_steering_angle_ = this->get_parameter("max_steering_angle").as_double();
   max_steering_rate_ = this->get_parameter("max_steering_rate").as_double();
   max_tire_ = this->get_parameter("max_tire").as_double();
@@ -948,8 +950,8 @@ ControllerNode::purePursuitController(double max_steering_angle,
     finished_and_stopped_ = true;
   }
 
-  if (desired_velocity != 0.0 && desired_velocity < 2.0) {
-    desired_velocity = 2.0;
+  if (desired_velocity != 0.0 && desired_velocity < min_velocity_) {
+    desired_velocity = min_velocity_;
   }
 
   if (desired_velocity > max_velocity_) {
