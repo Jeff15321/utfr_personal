@@ -48,6 +48,7 @@
 #include <utfr_msgs/msg/trajectory_point.hpp>
 #include <utfr_msgs/msg/lap_time.hpp>
 #include <visualization_msgs/msg/marker.hpp>
+#include <geometry_msgs/msg/vector3_stamped.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -221,10 +222,6 @@ private:
    */
   void timerCBAS();
 
-  /*! Home Screen callback, before event is set
-   */
-  void homeScreenCB();
-
   /*! Function for sorting cones
    * @param[in] a utfr_msgs::msg::Cone, cone a
    * @param[in] b utfr_msgs::msg::Cone, cone b
@@ -250,13 +247,13 @@ private:
    * @param[out] double, cost of the path
    */
   double midpointCostFunction(
-      std::vector<int> nodes,
+      const std::vector<int> &nodes,
       const std::vector<CGAL::Point_2<CGAL::Epick>> &midpoints,
-      std::vector<std::pair<CGAL::Point_2<CGAL::Epick>, unsigned int>>
-          all_cones,
-      std::vector<utfr_msgs::msg::Cone> yellow_cones,
-      std::vector<utfr_msgs::msg::Cone> blue_cones,
-      std::vector<std::pair<int, int>> midpoint_index_to_cone_indices);
+      const std::vector<std::pair<CGAL::Point_2<CGAL::Epick>, unsigned int>>
+          &all_cones,
+      const std::vector<utfr_msgs::msg::Cone> &yellow_cones,
+      const std::vector<utfr_msgs::msg::Cone> &blue_cones,
+      const std::vector<std::pair<int, int>> &midpoint_index_to_cone_indices);
   
   /*! Get the best path from the midpoints:
    * @param[out] std::vector<CGAL::Point_2<CGAL::Epick>>, list of midpoints
@@ -352,6 +349,40 @@ private:
 
   /*! Initialize global variables:
    */
+  enum EventState{
+    ERROR = 0,
+    // Acceleration FSM
+    ACCEL_STRAIGHT = 1,
+    ACCEL_FINISHED = 2,
+    // Skidpad FSM
+    SMALL_ORANGE_STRAIGHT = 10,
+    LARGE_ORANGE_STRAIGHT = 11,
+    RIGHT_CIRCLE_FIRST = 12,
+    RIGHT_CIRCLE_SECOND = 13,
+    LEFT_CIRCLE_FIRST = 14,
+    LEFT_CIRCLE_SECOND = 15,
+    END_SMALL_ORANGE = 16,
+    SKIDPAD_FINISHED = 17,
+    // Autocross FSM
+    AUTOCROSS_LAP_1 = 20,
+    AUTCROSS_FINISHED = 21,
+    // Trackdrive FSM
+    TRACKDRIVE_LAP_1 = 30,
+    TRACKDRIVE_LAP_2 = 31,
+    TRACKDRIVE_LAP_3 = 32,
+    TRACKDRIVE_LAP_4 = 33,
+    TRACKDRIVE_LAP_5 = 34,
+    TRACKDRIVE_LAP_6 = 35,
+    TRACKDRIVE_LAP_7 = 36,
+    TRACKDRIVE_LAP_8 = 37,
+    TRACKDRIVE_LAP_9 = 38,
+    TRACKDRIVE_LAP_10 = 39,
+    TRACKDRIVE_FINISHED = 40,
+  };
+  
+  void velocityCB(const geometry_msgs::msg::Vector3Stamped &msg);
+  rclcpp::Subscription<geometry_msgs::msg::Vector3Stamped>::SharedPtr vel_subscriber_;
+
   double update_rate_;
   std::string event_;
 
@@ -378,7 +409,6 @@ private:
   int last_sector = 0;
   float best_lap_time = 0.0;
   float last_lap_time = 0.0;
-  bool accel_sector_increase_ = false;
   int detections_in_row_ = 0;
   bool use_mapping_ = false;
   double base_lookahead_distance_;
@@ -398,8 +428,8 @@ private:
   bool colourblind_;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
-  utfr_msgs::msg::ConeMap::SharedPtr cone_map_{nullptr};
-  utfr_msgs::msg::ConeMap::SharedPtr cone_map_raw_{nullptr};
+  utfr_msgs::msg::ConeMap::SharedPtr cone_map_local_{nullptr};
+  utfr_msgs::msg::ConeMap::SharedPtr cone_map_global_{nullptr};
   utfr_msgs::msg::ConeDetections::SharedPtr cone_detections_{nullptr};
   geometry_msgs::msg::Point reference_point_;
 
