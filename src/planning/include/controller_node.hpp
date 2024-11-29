@@ -40,6 +40,7 @@
 #include <utfr_msgs/msg/velocity_profile.hpp>
 #include <utfr_msgs/msg/waypoint_path.hpp>
 #include <visualization_msgs/msg/marker.hpp>
+#include <geometry_msgs/msg/vector3_stamped.hpp>
 
 // UTFR Common Requirements
 #include <utfr_common/frames.hpp>
@@ -166,10 +167,6 @@ private:
    */
   void timerCBAS();
 
-  /*! Home Screen callback, before event is set
-   */
-  void homeScreenCB();
-
   /*! Discretize point on a given path
    * @param[in] spline_params utfr_msgs::msg::ParametricSpline spline parameters
    * @param[in] s double current s value
@@ -253,6 +250,9 @@ private:
   double lookahead_distance_;
   double a_lateral_max_;
   bool use_mapping_ = false;
+
+  void velocityCB(const geometry_msgs::msg::Vector3Stamped &msg);
+  rclcpp::Subscription<geometry_msgs::msg::Vector3Stamped>::SharedPtr vel_subscriber_;
 
   utfr_msgs::msg::EgoState::SharedPtr ego_state_{nullptr};
   utfr_msgs::msg::ParametricSpline::SharedPtr path_{nullptr};
