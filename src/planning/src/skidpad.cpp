@@ -4,7 +4,7 @@ namespace utfr_dv {
 namespace center_path {
 
 void CenterPathNode::timerCBSkidpad() {
-  if (as_state != 3){
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING){
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
@@ -212,23 +212,13 @@ void CenterPathNode::skidPadFit() {
   double xc1, yc1, xc2, yc2, r1, r2;
   if (curr_sector_ == 10 || curr_sector_ == 11 || curr_sector_ == 16 ||
       curr_sector_ == 17) {
-    std::vector<double> accel_path = getAccelPath();
 
-    utfr_msgs::msg::ParametricSpline center_path_msg;
-
-    double m = accel_path[0];
-    double c = accel_path[1];
-
-    std::vector<double> x = {0, 0, 0, 0, 1, 0};
-    std::vector<double> y = {0, 0, 0, 0, m, c};
-
-    center_path_msg.header.stamp = this->get_clock()->now();
-    center_path_msg.header.frame_id = "ground";
-    center_path_msg.x_params = x;
-    center_path_msg.y_params = y;
-    center_path_msg.lap_count = curr_sector_;
+    utfr_msgs::msg::ParametricSpline center_path_msg = getAccelPath();
 
     center_path_publisher_->publish(center_path_msg);
+
+    double m = center_path_msg.y_params[0];
+    double c = center_path_msg.y_params[1];
 
     geometry_msgs::msg::PolygonStamped circleavg;
     circleavg.header.frame_id = "ground";

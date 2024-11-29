@@ -226,6 +226,7 @@ private:
   double cte_angle_error_;
   double ds_;
   double max_velocity_;
+  double min_velocity_;
   double max_steering_angle_;
   double max_steering_rate_;
   double max_tire_;

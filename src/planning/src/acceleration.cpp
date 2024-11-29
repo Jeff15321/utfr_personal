@@ -4,7 +4,7 @@ namespace utfr_dv {
 namespace center_path {
 
 void CenterPathNode::timerCBAccel() {
-  if (as_state != 3) {
+  if (as_state != utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING) {
     publishHeartbeat(utfr_msgs::msg::Heartbeat::READY);
     return;
   }
@@ -17,21 +17,10 @@ void CenterPathNode::timerCBAccel() {
       return;
     }
 
-    std::vector<double> accel_path = getAccelPath();
-
     utfr_msgs::msg::ParametricSpline center_path_msg;
+    if(use_autocross_for_accel_) center_path_msg = getBestPath();
+    else center_path_msg = getAccelPath();
 
-    double m = accel_path[0];
-    double c = accel_path[1];
-
-    std::vector<double> x = {0, 0, 0, 0, 1, 0};
-    std::vector<double> y = {0, 0, 0, 0, m, c};
-
-    center_path_msg.header.stamp = this->get_clock()->now();
-    center_path_msg.header.frame_id = "ground";
-    center_path_msg.x_params = x;
-    center_path_msg.y_params = y;
-    center_path_msg.lap_count = curr_sector_;
     center_path_publisher_->publish(center_path_msg);
 
     int left_size = cone_detections_->left_cones.size();
@@ -57,12 +46,18 @@ void CenterPathNode::timerCBAccel() {
   }
 }
 
-std::vector<double> CenterPathNode::getAccelPath() {
+utfr_msgs::msg::ParametricSpline CenterPathNode::getAccelPath() {
   std::vector<utfr_msgs::msg::Cone> all_cones;
 
   if (cone_map_local_ == nullptr) {
     RCLCPP_WARN(this->get_logger(), "Cone Map is empty");
-    return std::vector<double>();
+    utfr_msgs::msg::ParametricSpline path;
+    path.header.stamp = this->get_clock()->now();
+    path.header.frame_id = "ground";
+    path.x_params = {0, 0, 0, 0, 0, 0};
+    path.y_params = {0, 0, 0, 0, 0, 0};
+    path.lap_count = curr_sector_;
+    return path;
   }
 
   if (curr_sector_ == EventState::ACCEL_STRAIGHT) {
@@ -129,7 +124,13 @@ std::vector<double> CenterPathNode::getAccelPath() {
   }
 
   if(!found1){
-    return {0.0,0.0};
+    utfr_msgs::msg::ParametricSpline path;
+    path.header.stamp = this->get_clock()->now();
+    path.header.frame_id = "ground";
+    path.x_params = {0, 0, 0, 0, 0, 0};
+    path.y_params = {0, 0, 0, 0, 0, 0};
+    path.lap_count = curr_sector_;
+    return path;
   }
 
   bool found2 = false;
@@ -206,10 +207,13 @@ std::vector<double> CenterPathNode::getAccelPath() {
     accel_path_publisher_->publish(accel_path_msg);
   }
 
-  std::vector<double> accel_path;
-  accel_path.push_back(final_m);
-  accel_path.push_back(final_c);
-  return accel_path;
+  utfr_msgs::msg::ParametricSpline path;
+  path.header.stamp = this->get_clock()->now();
+  path.header.frame_id = "ground";
+  path.x_params = {0, 0, 0, 0, 1, 0};
+  path.y_params = {0, 0, 0, 0, final_m, final_c};
+  path.lap_count = curr_sector_;
+  return path;
 }
 
 }  // namespace center_path

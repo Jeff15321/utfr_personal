@@ -235,7 +235,7 @@ private:
      completely colorblind
    * @param[out] std::pair<double, double>, m and c for the line y=mx+c
    */
-  std::vector<double> getAccelPath();
+  utfr_msgs::msg::ParametricSpline getAccelPath();
 
   /*! Cost function to sort midpoint paths:
    * @param[in] nodes std::vector<int>, list of integers representing the midpoints indexes
@@ -258,7 +258,7 @@ private:
   /*! Get the best path from the midpoints:
    * @param[out] std::vector<CGAL::Point_2<CGAL::Epick>>, list of midpoints
    */
-  std::vector<CGAL::Point_2<CGAL::Epick>> getBestPath();
+  utfr_msgs::msg::ParametricSpline getBestPath();
 
   /*! SkidPad Fit Function. Interntally calculates path based on sector count:
    */
@@ -411,6 +411,7 @@ private:
   float last_lap_time = 0.0;
   int detections_in_row_ = 0;
   bool use_mapping_ = false;
+  bool use_autocross_for_accel_ = false;
   double base_lookahead_distance_;
   double lookahead_scaling_factor_;
   int as_state = 0;
