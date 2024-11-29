@@ -42,6 +42,7 @@ void CenterPathNode::initParams() {
   this->declare_parameter("lookahead_scaling_factor", 0.6);
   this->declare_parameter("base_lookahead_distance", 3.0);
   this->declare_parameter("use_mapping", true);
+  this->declare_parameter("use_autocross_for_accel", true);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   event_ = this->get_parameter("event").as_string();
@@ -51,6 +52,7 @@ void CenterPathNode::initParams() {
   threshold_cones_ = this->get_parameter("threshold_cones").as_int();
   max_velocity_ = this->get_parameter("max_velocity").as_double();
   use_mapping_ = this->get_parameter("use_mapping").as_bool();
+  use_autocross_for_accel_ = this->get_parameter("use_autocross_for_accel").as_bool();
 
   waypoints = this->getWaypoints("src/planning/global_waypoints/Waypoints.csv");
   global_path_ = this->get_parameter("global_path").as_int();
@@ -247,6 +249,8 @@ void CenterPathNode::initSector() {
     curr_sector_ = EventState::AUTOCROSS_LAP_1;
   } else if (event_ == "trackdrive") {
     curr_sector_ = EventState::TRACKDRIVE_LAP_1;
+  } else if (event_ == "EBSTest"){
+    curr_sector_ = EventState::ACCEL_STRAIGHT;
   } else {
     curr_sector_ = EventState::ERROR;
   }

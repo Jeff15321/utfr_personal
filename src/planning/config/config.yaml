@@ -14,6 +14,7 @@ center_path_node: # Name of Module
     threshold_cones: 3 # number of cones to check for radius
     global_path: 1
     colourblind: 0
+    use_autocross_for_accel: false
 
     # Pure Pursuit Controller Parameters
     base_lookahead_distance: 3.0 # [m]
@@ -32,6 +33,7 @@ controller_node: # Name of Module
 
     ds: 0.025 # [m] discretization step
     max_velocity: 4.0 # [m/s]
+    min_velocity: 2.0 # [m/s]
     num_points: 150 # number of points to discretize the path
 
     # Stanley Controller Parameters
