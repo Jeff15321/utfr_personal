@@ -4,7 +4,7 @@ center_path_node: # Name of Module
     event: "read" #['accel', 'skidpad', 'autocross', 'trackdrive', 'EBSTest', 'ASTest', 'read']
     baselink_location: 0.79 # [m]
     wheel_base: 1.58 # [m]
-    use_mapping: true
+    use_mapping: false
 
     ds: 0.025 # [m] discretization step
     max_velocity: 4.0 # [m/s]
@@ -14,7 +14,7 @@ center_path_node: # Name of Module
     threshold_cones: 3 # number of cones to check for radius
     global_path: 1
     colourblind: 0
-    use_autocross_for_accel: false
+    use_autocross_for_accel: true
 
     # Pure Pursuit Controller Parameters
     base_lookahead_distance: 3.0 # [m]
@@ -29,7 +29,7 @@ controller_node: # Name of Module
     wheel_base: 1.58 # [m]
     max_steering_angle: 0.34 # [rad]
     max_steering_rate: 0.1 # [rad/s]
-    use_mapping: true
+    use_mapping: false
 
     ds: 0.025 # [m] discretization step
     max_velocity: 4.0 # [m/s]

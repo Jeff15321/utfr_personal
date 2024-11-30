@@ -583,7 +583,7 @@ class PerceptionNode(Node):
             if self.debug_:
                 self.publish_undistorted(self.img_)
 
-                print("Pre Proc Hz: ", 1 / (time.time() - self.lastPreProcTime))
+                # print("Pre Proc Hz: ", 1 / (time.time() - self.lastPreProcTime))
                 self.lastPreProcTime = time.time()
 
         except CvBridgeError as e:
@@ -617,7 +617,7 @@ class PerceptionNode(Node):
         self.img_raw_ = img_
         self.new_cam_received_ = True
         if self.debug_:
-            print("Capture time: ", time.perf_counter() - fullyStartTime)
+            # print("Capture time: ", time.perf_counter() - fullyStartTime)
             print("Capture Hz: ", 1 / (time.time() - self.lastCamCaptureTime))
             self.lastCamCaptureTime = time.time()
 

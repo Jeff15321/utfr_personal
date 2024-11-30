@@ -18,7 +18,7 @@ namespace car_interface {
 
 void CarInterface::getSteeringMotorData() { // TODO: Review
   const std::string function_name{"getSteeringMotorData"};
-  int16_t steering_angle; // TODO: Check proper var type
+  int16_t steering_angle = 0; // TODO: Check proper var type
 
   try {
     // servo mode
@@ -26,8 +26,9 @@ void CarInterface::getSteeringMotorData() { // TODO: Review
         (uint8_t)can0_->getSignal(dv_can_msg::StrMotorInfo, 48, 8, false, 1);
     // TODO: figure out whether getSignal can be used with high byte / low byte
     // format
-    steering_angle = // degrees
-        -(uint16_t)can0_->getSignal(dv_can_msg::StrMotorInfo, 0, 16, true, 0.1);
+    // steering_angle = // degrees
+    //     -(uint16_t)can0_->getSignal(dv_can_msg::StrMotorInfo, 0, 16, true,
+    //     0.1);
 
     RCLCPP_INFO(this->get_logger(), "Steering Motor Angle: %d", steering_angle);
     RCLCPP_INFO(this->get_logger(), "Steering Motor State: %d",
@@ -253,7 +254,7 @@ void CarInterface::getSensorCan() {
 
   try {
     // Read sensor CAN messages from car
-    // getSteeringMotorData();
+    getSteeringMotorData();
     // getMotorSpeedData();
     // getMotorTorqueData();
     // getServiceBrakeData();

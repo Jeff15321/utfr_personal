@@ -438,7 +438,7 @@ bool CarInterface::launchMission() {
   case utfr_msgs::msg::SystemStatus::AMI_STATE_TRACKDRIVE:
     RCLCPP_INFO(this->get_logger(), "%s: Launching DV mission",
                 function_name.c_str());
-    launchCmd = "ros2 launch launcher dv.launch.py &";
+    launchCmd = "ros2 launch launcher dv_accel.launch.py &";
     modules = heartbeat_modules_;
     break;
   default:

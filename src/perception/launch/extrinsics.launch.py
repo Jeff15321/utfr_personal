@@ -148,7 +148,7 @@ def generate_launch_description():
             "--z",
             "0.026",
             "--pitch",
-            "0.121708",
+            "0.01708",  # 0.121708
             "--frame-id",
             "os_sensor",
             "--child-frame-id",

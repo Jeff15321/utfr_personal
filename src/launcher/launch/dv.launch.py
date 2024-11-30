@@ -10,12 +10,12 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     # Drivers
-    # gps_dir = get_package_share_directory("xsens_mti_ros2_driver")
-    # gps_launch = IncludeLaunchDescription(
-    #     launch_description_sources.PythonLaunchDescriptionSource(
-    #         gps_dir + "/launch/xsens_mti_node.launch.py"
-    #     )
-    # )
+    gps_dir = get_package_share_directory("xsens_mti_ros2_driver")
+    gps_launch = IncludeLaunchDescription(
+        launch_description_sources.PythonLaunchDescriptionSource(
+            gps_dir + "/launch/xsens_mti_node.launch.py"
+        )
+    )
 
     # DV stack
     perception_dir = get_package_share_directory("perception")
