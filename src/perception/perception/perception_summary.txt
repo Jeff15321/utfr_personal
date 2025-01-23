@@ -1,0 +1,105 @@
+##Workflow:
+
+Camera Image → Undistortion → YOLO Detection
+                                    ↓
+LiDAR Points → Transform → Project to Image → Hungarian Matching → Final Cone Detections
+
+1. Sensor Nodes
+
+
+Camera Node(s):
+
+Publishes: Raw camera images
+Topics: /left_camera/images, /right_camera/images
+Receivers: Perception Node
+
+
+LiDAR Node:
+
+Publishes: Raw point cloud data
+Topic: /lidar/points
+Receivers: LiDAR Processing Node
+
+
+
+
+LiDAR Processing Node
+
+
+Subscribes to: Raw LiDAR point cloud
+Preprocessing steps:
+
+Filtering
+Noise removal
+Point cloud clustering
+
+
+Publishes:
+
+Topic: /lidar_pipeline/clustered
+Processed point cloud with clustered objects
+
+
+Receivers: Perception Node
+
+
+Perception Node (perception_node.py)
+
+
+Subscribes to:
+
+Camera images
+Processed LiDAR point cloud
+Ego state (vehicle state)
+
+
+Processing steps:
+
+Camera image undistortion
+Object detection using YOLO
+LiDAR and camera sensor fusion
+3D cone localization
+
+
+Publishes:
+
+Cone Detections
+
+Topic: /perception/cone_detections
+Contains:
+
+Blue cones
+Yellow cones
+Small orange cones
+Large orange cones
+Unknown cones
+
+
+
+
+Perception Debug Information
+
+Topic: /perception/debug
+
+
+Ego State
+
+Topic: perception_ego_state
+
+
+
+
+Receivers:
+
+Path Planning Node
+Control Node
+
+##Vocabulary:
+
+Ego-state: vehicle's position, velocity, and orientation in the world coordinate system. (also includes sensor data like LIDAR and camera)
+
+Heartbeat: heartbeat is a periodic signal sent to indicate that a node, process, or device is alive and functioning properly.
+
+CVBridge: Converts ROS image messages (sensor_msgs/Image) to OpenCV-compatible NumPy arrays for processing.
+
+rectification map: a map that corrects for the distortion in the camera lens, allowing for more accurate image processing.

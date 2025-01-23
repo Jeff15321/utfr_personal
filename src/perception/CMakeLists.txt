@@ -109,3 +109,8 @@ install(
 
 ament_package()
 
+# Add CUDA and deep learning dependencies
+# Add OpenCV with CUDA
+# Add header includes
+# Add executable targets
+

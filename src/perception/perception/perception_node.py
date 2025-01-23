@@ -82,6 +82,11 @@ class PerceptionNode(Node):
         self.initConeTemplate()
         self.initTimers()
 
+    #Jeff: Load configuration parameters from ROS2 parameter server, allowing flexible configuration without code changes
+    #Key steps:
+        #Declare default parameters
+        #Retrieve parameter values
+        #Convert some parameters to numpy arrays for computational efficiency
     def loadParams(self):
         """
         Initialize and load params from config.yaml:
@@ -225,6 +230,12 @@ class PerceptionNode(Node):
         self.translation = np.array(self.translation)
         self.cone_heights = np.array(self.cone_heights)
 
+    #Jeff: Set up internal variables, initialize camera connection, and prepare object detection model
+    #Key steps:
+        #Initialize image-related flags and variables
+        #Create camera undistortion maps
+        #Find and connect to camera
+        #Load YOLO object detection model (with GPU support if available)
     def initVariables(self):
         # Initialize callback variables:
         self.new_cam_received_ = False
