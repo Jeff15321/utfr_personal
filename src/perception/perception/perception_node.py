@@ -546,6 +546,7 @@ class PerceptionNode(Node):
 
         return (bounding_boxes, classes, scores)
 
+    #Jeff: preprocCB is the callback that rectifies the image and publishes it
     def preProcCB(self):
         # print("preproc ")
         if not self.new_cam_received_:
