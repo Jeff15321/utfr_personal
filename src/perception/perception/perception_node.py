@@ -339,6 +339,7 @@ class PerceptionNode(Node):
         ego_state_subscriber_ :
             msg: utfr_msgs::EgoState, topic:
         """
+        #self.create_subscription(msg_type, topic_name, callback, qos_profile, callback_group)
 
         self.processed_lidar_subscriber_ = self.create_subscription(
             PointCloud2,
@@ -367,6 +368,14 @@ class PerceptionNode(Node):
 
 
         """
+        #Jeff: self.create_publisher(msg_type, topic_name, qos_profile)
+        #1. cone detections publisher:
+        #2. heartbeat publisher:
+        #3. ego state publisher:
+        #4. perception debug publisher:
+        #5. lidar projection publisher:
+        #6. lidar projection publisher matched:
+        #7. cam processed publisher:
         self.cone_detections_publisher_ = self.create_publisher(
             ConeDetections, self.cone_detections_topic_, 1
         )
@@ -411,6 +420,10 @@ class PerceptionNode(Node):
         """
         Initialize main update timer for timerCB.
         """
+        #Jeff: self.create_timer(timer_period_sec, callback, callback_group=None)
+        #1. camera capture timer:
+        #2. heartbeat timer:
+        #3. preproc timer:
         self.cameraCaptureTimer_ = self.create_timer(
             self.camera_capture_rate_ / 1000,
             self.cameraCaptureTimerCB,

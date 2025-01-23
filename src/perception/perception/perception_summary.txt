@@ -103,3 +103,5 @@ Heartbeat: heartbeat is a periodic signal sent to indicate that a node, process,
 CVBridge: Converts ROS image messages (sensor_msgs/Image) to OpenCV-compatible NumPy arrays for processing.
 
 rectification map: a map that corrects for the distortion in the camera lens, allowing for more accurate image processing.
+
+callback group: a group of callbacks that are executed synchronously, different call back groups will execute in different threads asynchronously.
