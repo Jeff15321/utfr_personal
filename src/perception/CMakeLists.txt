@@ -37,9 +37,15 @@ endforeach()
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
 ## Add Executables
+add_executable(perception_node src/perception_node.cpp)
+ament_target_dependencies(perception_node rclcpp)
+
 # Add test_node executable first
 add_executable(test_node src/test.cpp)
 ament_target_dependencies(test_node rclcpp)
+
+add_executable(perception_node_cpp src/perception_node.cpp)
+ament_target_dependencies(perception_node_cpp rclcpp)
 
 add_executable(lidar_proc src/lidar_proc.cpp)
 target_link_libraries(lidar_proc perception_library ${PCL_LIBRARIES})
@@ -96,7 +102,8 @@ install(TARGETS perception_library
 ## Install Executables
 install(TARGETS 
     lidar_proc
-    test_node 
+    test_node
+    perception_node_cpp
     DESTINATION lib/${PROJECT_NAME})
 
 ## Install Launch file
