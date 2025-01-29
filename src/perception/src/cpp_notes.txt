@@ -1,0 +1,23 @@
+#steps to importing libraries in cpp
+1. Use find_package to locate libraries.
+e.g. find_package(OpenCV REQUIRED)
+2. Use ament_target_dependencies or target_link_libraries to link dependencies.
+e.g. ament_target_dependencies(perception_node_cpp OpenCV)
+3. Use target_include_directories to include headers if needed.
+e.g. target_include_directories(perception_node_cpp ${OpenCV_INCLUDE_DIRS})
+4. Ensure proper linking (static or shared libraries) based on your needs.
+e.g. target_link_libraries(perception_node_cpp ${OpenCV_LIBS})
+
+OpenCV_INCLUDE_DIRS - contains the directories where OpenCV's header files (e.g., opencv2/opencv.hpp) are located
+OpenCV_LIBS - contains the paths to the compiled OpenCV libraries (e.g., opencv_core, opencv_imgproc, opencv_highgui) that need to be linked to your executable or library
+
+#steps to import .hpp files
+
+1. Place .hpp file in the install directory 
+2. #include "<file_name>.hpp"
+3. Add the install directory to the include path in the CMakeLists.txt file
+e.g.
+target_include_directories(perception_node_cpp
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)

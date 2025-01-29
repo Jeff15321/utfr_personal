@@ -26,6 +26,8 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     tf2
     tf2_ros
     tf2_sensor_msgs
+    cv_bridge
+    OpenCV
 )
 
 ## Find Dependencies
@@ -33,19 +35,26 @@ foreach(DEPENDENCY IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${DEPENDENCY} REQUIRED)
 endforeach()
 
+# Find OpenCV explicitly
+# find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+
 ## Export Dependencies for downstream packages
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
-
-## Add Executables
-add_executable(perception_node src/perception_node.cpp)
-ament_target_dependencies(perception_node rclcpp)
 
 # Add test_node executable first
 add_executable(test_node src/test.cpp)
 ament_target_dependencies(test_node rclcpp)
 
+
+# Update perception_node_cpp target
 add_executable(perception_node_cpp src/perception_node.cpp)
-ament_target_dependencies(perception_node_cpp rclcpp)
+target_include_directories(perception_node_cpp PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+ament_target_dependencies(perception_node_cpp rclcpp sensor_msgs OpenCV cv_bridge)
+target_link_libraries(perception_node_cpp ${OpenCV_LIBS})
 
 add_executable(lidar_proc src/lidar_proc.cpp)
 target_link_libraries(lidar_proc perception_library ${PCL_LIBRARIES})
@@ -58,12 +67,13 @@ target_include_directories(lidar_proc
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
 
-## Add Libaries
+## Add Libraries
 add_library(perception_library
    src/lidar_proc_node.cpp
    src/clusterer.cpp
    src/filter.cpp
-   src/cone_filter.cpp)
+   src/cone_filter.cpp
+   src/perception_node.cpp)
 # Set Target Dependencies  
 ament_target_dependencies(perception_library ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
@@ -121,9 +131,3 @@ install(
 #############
 
 ament_package()
-
-# Add CUDA and deep learning dependencies
-# Add OpenCV with CUDA
-# Add header includes
-# Add executable targets
-
