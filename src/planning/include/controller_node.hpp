@@ -247,6 +247,8 @@ private:
   double k_yaw_rate_;
   double k_damp_steer_;
 
+  double steering_gain_;
+
   bool skip_path_opt_;
   double lookahead_distance_;
   double a_lateral_max_;

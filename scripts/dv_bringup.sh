@@ -62,45 +62,45 @@ PID_LAUNCH=$!
 
 # sleep 30 # Wait for nodes to boot up
 cd /home/utfr-dv/utfr_dv/rosbags
-ros2 bag record -s mcap \
-/tf \
-/tf_static \
-/car_interface/system_status \
-/car_interface/sensor_can \
-/controls/control_cmd \
-/left_camera/images \
-/right_camera/images \
-/ouster/points \
-/perception/cone_detections \
-/lidar_pipeline/detected \
-/lidar_pipeline/clustered \
-/lidar_pipeline/filtered \
-/lidar_pipeline/no_ground \
-/perception_ego_state \
-/perception/cone_detections \
-/perception/debug \
-/perception/debug_undistorted \
-/perception/lidar_projection \
-/perception/lidar_projection_matched \
-/synced_ego_state \
-/mapping/cone_map \
-/IM_GONNA_KMS \
-/GPS_STATE \
-/ekf/ego_state \
-/planning/accel_path \
-/planning/delaunay_midpoints \
-/planning/delaunay_waypoint \
-/planning/center_path \
-/planning/pure_pursuit_point \
-/planning/target_state \
-/planning/controller/path \
-filter/positionlla \
-filter/quaternion \
-filter/euler \
-filter/twist \
-filter/velocity \
-filter/free_acceleration \
--s mcap &
+# ros2 bag record -s mcap \
+# /tf \
+# /tf_static \
+# /car_interface/system_status \
+# /car_interface/sensor_can \
+# /controls/control_cmd \
+# /left_camera/images \
+# /right_camera/images \
+# /ouster/points \
+# /perception/cone_detections \
+# /lidar_pipeline/detected \
+# /lidar_pipeline/clustered \
+# /lidar_pipeline/filtered \
+# /lidar_pipeline/no_ground \
+# /perception_ego_state \
+# /perception/cone_detections \
+# /perception/debug \
+# /perception/debug_undistorted \
+# /perception/lidar_projection \
+# /perception/lidar_projection_matched \
+# /synced_ego_state \
+# /mapping/cone_map \
+# /IM_GONNA_KMS \
+# /GPS_STATE \
+# /ekf/ego_state \
+# /planning/accel_path \
+# /planning/delaunay_midpoints \
+# /planning/delaunay_waypoint \
+# /planning/center_path \
+# /planning/pure_pursuit_point \
+# /planning/target_state \
+# /planning/controller/path \
+# filter/positionlla \
+# filter/quaternion \
+# filter/euler \
+# filter/twist \
+# filter/velocity \
+# filter/free_acceleration \
+# -s mcap &
 
 PID_RECORD=$!
 

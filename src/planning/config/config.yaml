@@ -35,6 +35,7 @@ controller_node: # Name of Module
     max_velocity: 4.0 # [m/s]
     min_velocity: 2.0 # [m/s]
     num_points: 150 # number of points to discretize the path
+    steering_gain: 1.1
 
     # Stanley Controller Parameters
     discretized_points: 5000
@@ -43,5 +44,5 @@ controller_node: # Name of Module
     max_tire: 1.5
 
     # Pure Pursuit Controller Parameters
-    base_lookahead_distance: 1.5 # [m]
+    base_lookahead_distance: 3.0 # [m]
     lookahead_scaling_factor: 0.6 # [m]

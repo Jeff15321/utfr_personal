@@ -31,7 +31,7 @@ def generate_launch_description():
             planning_dir + "/launch/planning.launch.py"
         )
     )
-    
+
     mapping_dir = get_package_share_directory("mapping")
     mapping_launch = IncludeLaunchDescription(
         launch_description_sources.PythonLaunchDescriptionSource(
