@@ -8,6 +8,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <chrono>
 #include <memory>
+#include <vector>
 
 namespace perception {
 
@@ -50,15 +51,54 @@ private:
     // ROS timers
     rclcpp::TimerBase::SharedPtr camera_capture_timer_;
     
+    // Add these member variables
+    cv::Mat hsv_;
+    cv::Mat mask_;
+    std::vector<cv::Mat> hsv_channels_;
+    
+    // Add these parameters
+    int hue_low_;
+    int hue_high_;
+    int sat_low_;
+    int sat_high_;
+    int val_low_;
+    int val_high_;
+    
+    // Add these member variables
+    struct TrackedCone {
+        cv::Point2f position;
+        int tracking_id;
+        std::string color;  // "yellow" or "blue"
+        int frames_tracked;
+    };
+    
+    std::vector<TrackedCone> tracked_cones_;
+    int next_tracking_id_ = 0;
+    double max_tracking_distance_ = 50.0;  // pixels
+    int min_frames_tracked_ = 3;
+    
     // Methods
     void loadParams();
     void initVariables();
     void cameraCaptureTimerCallback();
     bool findCamera();
     
+    // Add these methods
+    void processImage();
+    std::vector<cv::Point2f> detectCones(const cv::Mat& frame);
+    bool isValidContour(const std::vector<cv::Point>& contour);
+    cv::Point2f getContourCentroid(const std::vector<cv::Point>& contour);
+    
     // Helper methods
     bool frameChanged(const cv::Mat& frame, const cv::Mat& prev_frame);
     bool hasVisualArtifacts(const cv::Mat& frame);
+    void loadColorParams();
+    void applyColorMask(const cv::Mat& frame);
+    
+    // Add these methods
+    void trackAndClassifyCones(const std::vector<cv::Point2f>& detected_centers);
+    std::string classifyConeColor(const cv::Point2f& position);
+    double getAverageHue(const cv::Point2f& position, int region_size = 10);
 };
 
 } // namespace perception
