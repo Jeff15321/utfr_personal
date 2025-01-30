@@ -6,6 +6,9 @@
 #include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/msg/image.hpp>
+#include <utfr_msgs/msg/cone_detections.hpp>
+#include <utfr_msgs/msg/heartbeat.hpp>
+#include <utfr_msgs/msg/perception_debug.hpp>
 #include <chrono>
 #include <memory>
 #include <vector>
@@ -19,10 +22,7 @@ public:
 
 private:
     // Parameters
-    double baseline_;
-    std::string left_camera_topic_;
-    std::string right_camera_topic_;
-    std::string cone_detections_topic_;
+    std::string camera_topic_;  // Single camera topic
     double camera_capture_rate_;
     bool debug_;
     cv::Mat distortion_;
@@ -77,6 +77,25 @@ private:
     double max_tracking_distance_ = 50.0;  // pixels
     int min_frames_tracked_ = 3;
     
+    // Additional parameters needed
+    std::string heartbeat_topic_;
+    std::string debug_topic_;
+    double heartbeat_rate_;
+    double min_cone_area_;
+    double max_cone_area_;
+    int min_cone_width_;
+    int max_cone_width_;
+    int min_cone_height_;
+    int max_cone_height_;
+    
+    // Publishers
+    rclcpp::Publisher<utfr_msgs::msg::ConeDetections>::SharedPtr cone_detections_pub_;
+    rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_pub_;
+    rclcpp::Publisher<utfr_msgs::msg::PerceptionDebug>::SharedPtr debug_pub_;
+    
+    // Timers
+    rclcpp::TimerBase::SharedPtr heartbeat_timer_;
+    
     // Methods
     void loadParams();
     void initVariables();
@@ -99,6 +118,32 @@ private:
     void trackAndClassifyCones(const std::vector<cv::Point2f>& detected_centers);
     std::string classifyConeColor(const cv::Point2f& position);
     double getAverageHue(const cv::Point2f& position, int region_size = 10);
+    
+    // Additional methods needed
+    void initPublishers();
+    void initTimers();
+    void publishHeartbeat();
+    void publishDebugInfo();
+    
+    // Cone detection methods
+    bool isValidCone(const std::vector<cv::Point>& contour);
+    void filterContours(std::vector<std::vector<cv::Point>>& contours);
+    cv::Rect getBoundingBox(const std::vector<cv::Point>& contour);
+    double getAspectRatio(const cv::Rect& bbox);
+    
+    // Performance tracking
+    struct PerformanceMetrics {
+        double fps;
+        double processing_time;
+        int frame_count;
+        std::chrono::time_point<std::chrono::steady_clock> last_frame_time;
+    };
+    PerformanceMetrics metrics_;
+    void updateMetrics();
+    
+    // Debug visualization
+    void drawDebugInfo(cv::Mat& debug_frame);
+    void showDebugWindows();
 };
 
 } // namespace perception

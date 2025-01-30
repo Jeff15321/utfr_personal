@@ -18,11 +18,8 @@ PerceptionNode::PerceptionNode()
 }
 
 void PerceptionNode::loadParams() {
-    // Declare parameters with defaults
-    this->declare_parameter("baseline", 10.0);
-    this->declare_parameter("left_camera_topic", "/left_camera/images");
-    this->declare_parameter("right_camera_topic", "/right_camera/images");
-    this->declare_parameter("cone_detections_topic", "/perception/cone_detections");
+    // Remove stereo camera parameters
+    this->declare_parameter("camera_topic", "/camera/image");  // Single camera topic
     this->declare_parameter("camera_capture_rate", 30.0);
     this->declare_parameter("debug", true);
     this->declare_parameter("save_pic", false);
@@ -35,12 +32,18 @@ void PerceptionNode::loadParams() {
     this->declare_parameter("sat_high", 255);
     this->declare_parameter("val_low", 0);
     this->declare_parameter("val_high", 255);
+    this->declare_parameter("heartbeat_topic", "/perception/heartbeat");
+    this->declare_parameter("debug_topic", "/perception/debug");
+    this->declare_parameter("heartbeat_rate", 1.0);
+    this->declare_parameter("min_cone_area", 100.0);
+    this->declare_parameter("max_cone_area", 10000.0);
+    this->declare_parameter("min_cone_width", 10);
+    this->declare_parameter("max_cone_width", 100);
+    this->declare_parameter("min_cone_height", 20);
+    this->declare_parameter("max_cone_height", 200);
     
     // Get parameter values
-    baseline_ = this->get_parameter("baseline").as_double();
-    left_camera_topic_ = this->get_parameter("left_camera_topic").as_string();
-    right_camera_topic_ = this->get_parameter("right_camera_topic").as_string();
-    cone_detections_topic_ = this->get_parameter("cone_detections_topic").as_string();
+    camera_topic_ = this->get_parameter("camera_topic").as_string();
     camera_capture_rate_ = this->get_parameter("camera_capture_rate").as_double();
     debug_ = this->get_parameter("debug").as_bool();
     save_pic_ = this->get_parameter("save_pic").as_bool();
@@ -53,6 +56,15 @@ void PerceptionNode::loadParams() {
     sat_high_ = this->get_parameter("sat_high").as_int();
     val_low_ = this->get_parameter("val_low").as_int();
     val_high_ = this->get_parameter("val_high").as_int();
+    heartbeat_topic_ = this->get_parameter("heartbeat_topic").as_string();
+    debug_topic_ = this->get_parameter("debug_topic").as_string();
+    heartbeat_rate_ = this->get_parameter("heartbeat_rate").as_double();
+    min_cone_area_ = this->get_parameter("min_cone_area").as_double();
+    max_cone_area_ = this->get_parameter("max_cone_area").as_double();
+    min_cone_width_ = this->get_parameter("min_cone_width").as_int();
+    max_cone_width_ = this->get_parameter("max_cone_width").as_int();
+    min_cone_height_ = this->get_parameter("min_cone_height").as_int();
+    max_cone_height_ = this->get_parameter("max_cone_height").as_int();
     
     // Get array parameters with proper sizes
     std::vector<double> distortion_vec = this->declare_parameter("distortion", std::vector<double>{0.0, 0.0, 0.0, 0.0, 0.0});
@@ -100,11 +112,22 @@ void PerceptionNode::initVariables() {
     if (!findCamera()) {
         throw std::runtime_error("Unable to detect camera");
     }
+    
+    // Initialize publishers and timers
+    initPublishers();
+    initTimers();
+    
+    // Initialize performance metrics
+    metrics_.fps = 0.0;
+    metrics_.processing_time = 0.0;
+    metrics_.frame_count = 0;
+    metrics_.last_frame_time = std::chrono::steady_clock::now();
 }
 
+//Look through ten cameras to find one that is open
 bool PerceptionNode::findCamera() {
     for (int index = 0; index < 10; ++index) {
-        cam_capture_.open(index, cv::CAP_V4L2);
+        cam_capture_.open(index, cv::CAP_V4L2); //Jeff: assigns camera to cam_capture_
         if (cam_capture_.isOpened()) {
             RCLCPP_INFO(this->get_logger(), "Connected to camera at index %d", index);
             cam_capture_.set(cv::CAP_PROP_FRAME_WIDTH, img_size_.width);
@@ -341,6 +364,64 @@ double PerceptionNode::getAverageHue(const cv::Point2f& position, int region_siz
         return mean[0];  // Hue channel
     }
     return 0.0;
+}
+
+void PerceptionNode::initPublishers() {
+    // Initialize all publishers
+    cone_detections_pub_ = this->create_publisher<utfr_msgs::msg::ConeDetections>(
+        "/perception/cone_detections", 10);
+    heartbeat_pub_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
+        heartbeat_topic_, 10);
+    debug_pub_ = this->create_publisher<utfr_msgs::msg::PerceptionDebug>(
+        debug_topic_, 10);
+}
+
+void PerceptionNode::initTimers() {
+    // Initialize heartbeat timer
+    using namespace std::chrono_literals;
+    heartbeat_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(static_cast<int>(heartbeat_rate_ * 1000.0)),
+        std::bind(&PerceptionNode::publishHeartbeat, this)
+    );
+}
+
+void PerceptionNode::publishHeartbeat() {
+    // Implement heartbeat publishing
+}
+
+void PerceptionNode::publishDebugInfo() {
+    // Implement debug info publishing
+}
+
+bool PerceptionNode::isValidCone(const std::vector<cv::Point>& contour) {
+    // Implement cone validation logic
+    return false;
+}
+
+void PerceptionNode::filterContours(std::vector<std::vector<cv::Point>>& contours) {
+    // Implement contour filtering
+}
+
+cv::Rect PerceptionNode::getBoundingBox(const std::vector<cv::Point>& contour) {
+    // Get bounding box for contour
+    return cv::boundingRect(contour);
+}
+
+double PerceptionNode::getAspectRatio(const cv::Rect& bbox) {
+    // Calculate aspect ratio
+    return static_cast<double>(bbox.width) / bbox.height;
+}
+
+void PerceptionNode::updateMetrics() {
+    // Update performance metrics
+}
+
+void PerceptionNode::drawDebugInfo(cv::Mat& debug_frame) {
+    // Draw debug information on frame
+}
+
+void PerceptionNode::showDebugWindows() {
+    // Show debug windows if enabled
 }
 
 } // namespace perception

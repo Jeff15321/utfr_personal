@@ -1,0 +1,45 @@
+#VideoCapture is a class in OpenCV that allows you to capture video from a camera.
+// Open default camera (usually index 0)
+cv::VideoCapture cap(0);
+
+// Open specific camera with backend
+cv::VideoCapture cap(0, cv::CAP_V4L2);  // Linux
+cv::VideoCapture cap(0, cv::CAP_DSHOW);  // Windows
+
+// Open video file
+cv::VideoCapture cap("video.mp4");
+
+Example:
+cv::VideoCapture cap(0);
+cv::Mat frame;
+
+// Check if camera is opened successfully
+if (!cap.isOpened()) {
+    std::cerr << "Error: Could not open camera." << std::endl;
+    return -1;
+}
+
+// Read a new frame
+cap.read(frame);  // or: cap >> frame;
+
+// Get camera properties
+double fps = cap.get(cv::CAP_PROP_FPS);
+int width = cap.get(cv::CAP_PROP_FRAME_WIDTH);
+int height = cap.get(cv::CAP_PROP_FRAME_HEIGHT);
+
+// Set camera properties
+cap.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
+cap.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
+
+// Release the capture object when done
+cap.release();
+
+==============================================================================
+// 1. This line just prepares the image to be shown
+cv::imshow("Window", frame);  
+
+// 2. This line actually gives the system time to display it
+cv::waitKey(1);  // "Please take at least 1ms to actually display the image"
+
+==============================================================================
+
