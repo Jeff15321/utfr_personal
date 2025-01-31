@@ -273,6 +273,45 @@ void PerceptionNode::cameraCaptureTimerCallback() {
     }
 }
 
+
+
+// ==========================================
+// Callback Functions
+// ==========================================
+void PerceptionNode::lidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+    lidar_msg_count_++;
+    double current_time = this->now().seconds();
+    
+    if (last_lidar_time_ > 0) {
+        double dt = current_time - last_lidar_time_;
+        RCLCPP_INFO(this->get_logger(), 
+            "LiDAR Message Stats:\n"
+            "  Total messages: %d\n"
+            "  Current rate: %.2f Hz\n"
+            "  Points in cloud: %u\n"
+            "  Frame ID: %s",
+            lidar_msg_count_,
+            1.0 / dt,
+            msg->width * msg->height,
+            msg->header.frame_id.c_str());
+    }
+    
+    last_lidar_time_ = current_time;
+    
+    if (!img_.empty()) {
+        // TODO: Implement deep_and_matching functionality
+        // deep_and_matching(msg);
+    }
+}
+
+void PerceptionNode::egoStateCallback(const utfr_msgs::msg::EgoState::SharedPtr msg) {
+    ego_state_msg_count_++;
+    RCLCPP_INFO(this->get_logger(), 
+        "Ego State Message Received (#%d)", 
+        ego_state_msg_count_);
+    ego_state_ = *msg;
+}
+
 // ==========================================
 // Image Processing Functions
 // ==========================================
@@ -498,43 +537,6 @@ bool PerceptionNode::hasVisualArtifacts(const cv::Mat& frame) {
     return !contours.empty();
 }
 
-
-// ==========================================
-// Callback Functions
-// ==========================================
-void PerceptionNode::lidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-    lidar_msg_count_++;
-    double current_time = this->now().seconds();
-    
-    if (last_lidar_time_ > 0) {
-        double dt = current_time - last_lidar_time_;
-        RCLCPP_INFO(this->get_logger(), 
-            "LiDAR Message Stats:\n"
-            "  Total messages: %d\n"
-            "  Current rate: %.2f Hz\n"
-            "  Points in cloud: %u\n"
-            "  Frame ID: %s",
-            lidar_msg_count_,
-            1.0 / dt,
-            msg->width * msg->height,
-            msg->header.frame_id.c_str());
-    }
-    
-    last_lidar_time_ = current_time;
-    
-    if (!img_.empty()) {
-        // TODO: Implement deep_and_matching functionality
-        // deep_and_matching(msg);
-    }
-}
-
-void PerceptionNode::egoStateCallback(const utfr_msgs::msg::EgoState::SharedPtr msg) {
-    ego_state_msg_count_++;
-    RCLCPP_INFO(this->get_logger(), 
-        "Ego State Message Received (#%d)", 
-        ego_state_msg_count_);
-    ego_state_ = *msg;
-}
 
 // ==========================================
 // Utility Functions
