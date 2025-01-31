@@ -28,6 +28,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     tf2_sensor_msgs
     cv_bridge
     OpenCV
+    tf2_geometry_msgs
 )
 
 ## Find Dependencies

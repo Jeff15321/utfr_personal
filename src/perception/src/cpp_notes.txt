@@ -21,3 +21,59 @@ target_include_directories(perception_node_cpp
     PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
+
+===============================================================================================
+
+#threads
+
+1. when two threads run at the same time, they might access the same memory location at the 
+   same time and result in thread safety issues. 
+   E.g.
+   // ❌ NOT thread safe
+    int counter = 0;
+
+    void incrementCounter() {
+        counter++;  // This operation isn't atomic!
+    }
+
+    int main() {
+        std::thread t1(incrementCounter);
+        std::thread t2(incrementCounter);
+        t1.join();
+        t2.join();
+        // counter might not be 2!
+    }
+2. Could use mutual exclusion that locks the code to a single thread at a time to prevent this
+   E.g.
+    std::mutex mtx;
+    int shared_value = 0;
+
+    void updateValue() {
+        mtx.lock();      // Lock the mutex
+        shared_value++;  // Critical section
+        mtx.unlock();    // Unlock the mutex
+    }
+
+    // Better way using RAII (automatically unlocks when lock_guard is destroyed):
+    void updateValueSafer() {
+        std::lock_guard<std::mutex> lock(mtx);  // Locks automatically
+        shared_value++;
+        // Automatically unlocks when function ends
+    }
+3. Or use atomic operations to only allow one thread to access the varaible at a time
+   E.g.
+    std::atomic<int> atomic_counter{0};  // Atomic integer
+
+    void increment() {
+        atomic_counter++;  // This operation is atomic
+    }
+
+    void complexOperation() {
+        // Load, add, and store are all done atomically
+        atomic_counter.fetch_add(1);
+        
+        // Can also do atomic comparisons
+        int expected = 1;
+        bool success = atomic_counter.compare_exchange_strong(expected, 2);
+    }
+   

@@ -1,4 +1,3 @@
-// perception_node.hpp
 #ifndef PERCEPTION_NODE_HPP_
 #define PERCEPTION_NODE_HPP_
 
@@ -9,6 +8,8 @@
 #include <utfr_msgs/msg/cone_detections.hpp>
 #include <utfr_msgs/msg/heartbeat.hpp>
 #include <utfr_msgs/msg/perception_debug.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <utfr_msgs/msg/ego_state.hpp>
 #include <chrono>
 #include <memory>
 #include <vector>
@@ -18,11 +19,12 @@ namespace perception {
 class PerceptionNode : public rclcpp::Node {
 public:
     PerceptionNode();
-    virtual ~PerceptionNode() = default;
+    virtual ~PerceptionNode() = default; 
+    // Jeff: Purpose of defining a virtual destructor is to ensure that the destructor of the derived class is called when an object of the derived class is destroyed.
 
 private:
     // Parameters
-    std::string camera_topic_;  // Single camera topic
+    std::string camera_topic_; 
     double camera_capture_rate_;
     bool debug_;
     cv::Mat distortion_;
@@ -96,6 +98,18 @@ private:
     // Timers
     rclcpp::TimerBase::SharedPtr heartbeat_timer_;
     
+    // Subscribers
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr processed_lidar_subscriber_;
+    rclcpp::Subscription<utfr_msgs::msg::EgoState>::SharedPtr ego_state_subscriber_;
+    
+    // Callback methods
+    void lidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+    void egoStateCallback(const utfr_msgs::msg::EgoState::SharedPtr msg);
+    
+    // Add these variables
+    std::string processed_lidar_topic_;
+    utfr_msgs::msg::EgoState ego_state_;
+    
     // Methods
     void loadParams();
     void initVariables();
@@ -144,6 +158,35 @@ private:
     // Debug visualization
     void drawDebugInfo(cv::Mat& debug_frame);
     void showDebugWindows();
+    
+    // Testing variables
+    int lidar_msg_count_ = 0;
+    int ego_state_msg_count_ = 0;
+    double last_lidar_time_ = 0.0;
+    
+    // Testing methods
+    void printSubscriberStats();
+
+    // Heartbeat status constants
+    static const int STATUS_UNINITIALIZED = 0;
+    static const int STATUS_ACTIVE = 1;
+    static const int STATUS_FATAL = 2;
+    
+    // Add these member variables
+    utfr_msgs::msg::Heartbeat heartbeat_msg_;
+    static const int MIN_HEIGHT = 100;  // For camera status checks
+    static const int MIN_WIDTH = 100;
+
+    // Add these publishers
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr undistorted_pub_;
+    rclcpp::Publisher<utfr_msgs::msg::PerceptionDebug>::SharedPtr lidar_projection_pub_;
+    rclcpp::Publisher<utfr_msgs::msg::PerceptionDebug>::SharedPtr lidar_projection_matched_pub_;
+
+    // Add these methods
+    void deepAndMatching(const sensor_msgs::msg::PointCloud2::SharedPtr& msg);
+    std::vector<cv::Point2f> projectLidarToImage(const std::vector<geometry_msgs::msg::Point>& points);
+
+    int cameraStatus();  // Add this declaration
 };
 
 } // namespace perception
