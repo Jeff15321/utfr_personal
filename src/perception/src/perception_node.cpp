@@ -11,7 +11,7 @@
 namespace perception {
 
 PerceptionNode::PerceptionNode() 
-    : Node("perception_node")
+    : Node("perception_node_cpp")
 {
     loadParams();
     initVariables();
@@ -25,68 +25,106 @@ PerceptionNode::PerceptionNode()
 }
 
 void PerceptionNode::loadParams() {
-    // Remove stereo camera parameters
-    this->declare_parameter("camera_topic", "/camera/image");  // Single camera topic
-    this->declare_parameter("camera_capture_rate", 30.0);
+    // Camera topics and rates
+    this->declare_parameter("camera_topic", "synced_left_image");
+    this->declare_parameter("camera_capture_rate", 33.0);  // [ms]
+    this->declare_parameter("heartbeat_rate", 33.0);  // [ms]
+    
+    // Debug and processing flags
     this->declare_parameter("debug", true);
     this->declare_parameter("save_pic", false);
-    this->declare_parameter("confidence", 0.70);
-    this->declare_parameter("is_cuda_cv", true);
-    this->declare_parameter("is_cuda_deep", true);
+    this->declare_parameter("confidence", 0.40);  // Updated from Python
+    this->declare_parameter("is_cuda_cv", false);
+    this->declare_parameter("is_cuda_deep", false);
+    
+    // Color thresholds
     this->declare_parameter("hue_low", 0);
     this->declare_parameter("hue_high", 180);
     this->declare_parameter("sat_low", 0);
     this->declare_parameter("sat_high", 255);
     this->declare_parameter("val_low", 0);
     this->declare_parameter("val_high", 255);
+    
+    // Topics
     this->declare_parameter("heartbeat_topic", "/perception/heartbeat");
     this->declare_parameter("debug_topic", "/perception/debug");
-    this->declare_parameter("heartbeat_rate", 1.0);
+    this->declare_parameter("processed_lidar_topic", "/lidar_pipeline/detected");
+    
+    // Cone detection parameters
     this->declare_parameter("min_cone_area", 100.0);
     this->declare_parameter("max_cone_area", 10000.0);
     this->declare_parameter("min_cone_width", 10);
     this->declare_parameter("max_cone_width", 100);
     this->declare_parameter("min_cone_height", 20);
     this->declare_parameter("max_cone_height", 200);
-    this->declare_parameter("processed_lidar_topic", "/lidar_pipeline/detected");
     
     // Get parameter values
     camera_topic_ = this->get_parameter("camera_topic").as_string();
     camera_capture_rate_ = this->get_parameter("camera_capture_rate").as_double();
+    heartbeat_rate_ = this->get_parameter("heartbeat_rate").as_double();
     debug_ = this->get_parameter("debug").as_bool();
     save_pic_ = this->get_parameter("save_pic").as_bool();
     confidence_ = this->get_parameter("confidence").as_double();
     is_cuda_cv_ = this->get_parameter("is_cuda_cv").as_bool();
     is_cuda_deep_ = this->get_parameter("is_cuda_deep").as_bool();
+    
+    // Get color thresholds
     hue_low_ = this->get_parameter("hue_low").as_int();
     hue_high_ = this->get_parameter("hue_high").as_int();
     sat_low_ = this->get_parameter("sat_low").as_int();
     sat_high_ = this->get_parameter("sat_high").as_int();
     val_low_ = this->get_parameter("val_low").as_int();
     val_high_ = this->get_parameter("val_high").as_int();
+    
+    // Get topic names
     heartbeat_topic_ = this->get_parameter("heartbeat_topic").as_string();
     debug_topic_ = this->get_parameter("debug_topic").as_string();
-    heartbeat_rate_ = this->get_parameter("heartbeat_rate").as_double();
+    processed_lidar_topic_ = this->get_parameter("processed_lidar_topic").as_string();
+    
+    // Get cone detection parameters
     min_cone_area_ = this->get_parameter("min_cone_area").as_double();
     max_cone_area_ = this->get_parameter("max_cone_area").as_double();
     min_cone_width_ = this->get_parameter("min_cone_width").as_int();
     max_cone_width_ = this->get_parameter("max_cone_width").as_int();
     min_cone_height_ = this->get_parameter("min_cone_height").as_int();
     max_cone_height_ = this->get_parameter("max_cone_height").as_int();
-    processed_lidar_topic_ = this->get_parameter("processed_lidar_topic").as_string();
     
-    // Get array parameters with proper sizes
-    //TODO: fill in the values for distortion, intrinsics, rotation, and translation
-    std::vector<double> distortion_vec = this->declare_parameter("distortion", std::vector<double>{0.0, 0.0, 0.0, 0.0, 0.0});
-    std::vector<double> intrinsics_vec = this->declare_parameter("intrinsics", std::vector<double>{1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0});
-    std::vector<double> rotation_vec = this->declare_parameter("rotation", std::vector<double>{1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0});
-    std::vector<double> translation_vec = this->declare_parameter("translation", std::vector<double>{0.0, 0.0, 0.0});
+    // Camera calibration parameters from config.yaml
+    std::vector<double> distortion_vec = this->declare_parameter("distortion", 
+        std::vector<double>{-0.363003, 0.113201, -0.000775, 0.000498, 0.000000});
     
-    // Convert vectors to OpenCV matrices with proper sizes
+    std::vector<double> intrinsics_vec = this->declare_parameter("intrinsics", 
+        std::vector<double>{
+            974.649342, 0.000000, 655.141605,
+            0.000000, 975.211285, 340.068068,
+            0.000000, 0.000000, 1.000000
+        });
+    
+    std::vector<double> rotation_vec = this->declare_parameter("rotation", 
+        std::vector<double>{
+            1.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 0.0, 1.0
+        });
+    
+    std::vector<double> translation_vec = this->declare_parameter("translation", 
+        std::vector<double>{-516.6818, 29.1172, -386.7437});
+    
+    std::vector<double> rectify_vec = this->declare_parameter("rectify", 
+        std::vector<double>{
+            1.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 0.0, 1.0
+        });
+    
+    // Convert vectors to OpenCV matrices
     distortion_ = cv::Mat(distortion_vec).reshape(1, 5);  // 5x1 distortion coefficients
     intrinsics_ = cv::Mat(intrinsics_vec).reshape(1, 3);  // 3x3 camera matrix
     rotation_ = cv::Mat(rotation_vec).reshape(1, 3);      // 3x3 rotation matrix
     translation_ = cv::Mat(translation_vec).reshape(1, 3); // 3x1 translation vector
+    rectify_ = cv::Mat(rectify_vec).reshape(1, 3);      // 3x3 rectification matrix
+    
+    RCLCPP_INFO(this->get_logger(), "Loaded all parameters");
 }
 
 void PerceptionNode::initVariables() {
@@ -146,7 +184,7 @@ void PerceptionNode::initVariables() {
 
     // Initialize heartbeat message
     heartbeat_msg_.header.stamp = this->now();
-    heartbeat_msg_.module.data = "perception_node";  // Changed from node_name to module.data
+    heartbeat_msg_.module.data = "perception_node_cpp";  // Changed from node_name to module.data
     heartbeat_msg_.status = STATUS_UNINITIALIZED;
 }
 

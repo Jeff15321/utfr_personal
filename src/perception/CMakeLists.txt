@@ -55,7 +55,7 @@ target_include_directories(perception_node_cpp PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 ament_target_dependencies(perception_node_cpp rclcpp sensor_msgs OpenCV cv_bridge utfr_msgs)
-target_link_libraries(perception_node_cpp ${OpenCV_LIBS})
+target_link_libraries(perception_node_cpp ${OpenCV_LIBS} ${YAML_CPP_LIBRARIES})
 
 add_executable(lidar_proc src/lidar_proc.cpp)
 target_link_libraries(lidar_proc perception_library ${PCL_LIBRARIES})

@@ -29,7 +29,8 @@ private:
     bool debug_;
     cv::Mat distortion_;
     cv::Mat intrinsics_;
-    cv::Mat rotation_;
+    cv::Mat rotation_;      // 3x3 rotation matrix
+    cv::Mat rectify_;       // 3x3 rectification matrix
     cv::Mat translation_;
     bool save_pic_;
     double confidence_;

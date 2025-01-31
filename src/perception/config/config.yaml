@@ -78,3 +78,40 @@ lidar_proc_node:
       mse_threshold: 0.00003 #any point as close as threshold is inlier
       lin_threshold: 0.022
       IOUThreshold: 0.06
+
+perception_node_cpp: # Name of Node
+  ros__parameters:
+    # left_camera_topic: "/left_camera_node/images/compressed"
+    # right_camera_topic: "/right_camera_node/images/compressed"
+    # left_camera_topic: "/left_camera/images"
+    # right_camera_topic: "/right_camera/images"
+    left_camera_topic: "synced_left_image"
+    right_camera_topic: "synced_right_image"
+    cone_detections_topic: "perception/cone_detections"
+    processed_lidar_topic: "/lidar_pipeline/detected"
+    baseline: 10.0
+    camera_capture_rate: 33.0 #[ms]
+    heartbeat_rate: 33.0 #[ms]
+    debug: True
+    distortion: [-0.363003, 0.113201, -0.000775, 0.000498, 0.000000]
+    intrinsics:
+      [
+        974.649342,
+        0.000000,
+        655.141605,
+        0.000000,
+        975.211285,
+        340.068068,
+        0.000000,
+        0.000000,
+        1.000000,
+      ]
+    rotation: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    translation: [-516.6818, 29.1172, -386.7437]
+    rectify: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    save_pic: "False"
+    confidence: 0.40
+    cone_heights: [0.0, 325.0, 325.0, 325.0, 505.0]
+    lidar_only_detection: False
+    is_cuda_cv: False
+    is_cuda_deep: False
