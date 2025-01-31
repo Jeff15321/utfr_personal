@@ -2,19 +2,20 @@
 //TODO: fill in the values for distortion, intrinsics, rotation, and translation and correctly distort
 //TODO: fix can't connect to CUDA error
 
-
-
-
-
-
-
 namespace perception {
 
+// ==========================================
+// Constructor
+// ==========================================
 PerceptionNode::PerceptionNode() 
     : Node("perception_node_cpp")
 {
     loadParams();
     initVariables();
+    initSubscribers();
+    initPublishers();
+    initTimers();
+    initHeartbeat();
     
     // Set up camera capture timer
     using namespace std::chrono_literals;
@@ -24,107 +25,62 @@ PerceptionNode::PerceptionNode()
     );
 }
 
+// ==========================================
+// Initialization Functions
+// ==========================================
 void PerceptionNode::loadParams() {
-    // Camera topics and rates
-    this->declare_parameter("camera_topic", "synced_left_image");
-    this->declare_parameter("camera_capture_rate", 33.0);  // [ms]
-    this->declare_parameter("heartbeat_rate", 33.0);  // [ms]
+    // Declare parameters - real values will come from config.yaml
+    this->declare_parameter<std::string>("camera_topic", "");  // Empty default
+    this->declare_parameter<double>("camera_capture_rate", 0.0);  // Zero default
+    this->declare_parameter<double>("heartbeat_rate", 0.0);
+    this->declare_parameter<bool>("debug", false);
     
-    // Debug and processing flags
-    this->declare_parameter("debug", true);
-    this->declare_parameter("save_pic", false);
-    this->declare_parameter("confidence", 0.40);  // Updated from Python
-    this->declare_parameter("is_cuda_cv", false);
-    this->declare_parameter("is_cuda_deep", false);
+    // Declare topic names
+    this->declare_parameter<std::string>("heartbeat_topic", "");
+    this->declare_parameter<std::string>("debug_topic", "");
+    this->declare_parameter<std::string>("processed_lidar_topic", "");
     
-    // Color thresholds
-    this->declare_parameter("hue_low", 0);
-    this->declare_parameter("hue_high", 180);
-    this->declare_parameter("sat_low", 0);
-    this->declare_parameter("sat_high", 255);
-    this->declare_parameter("val_low", 0);
-    this->declare_parameter("val_high", 255);
-    
-    // Topics
-    this->declare_parameter("heartbeat_topic", "/perception/heartbeat");
-    this->declare_parameter("debug_topic", "/perception/debug");
-    this->declare_parameter("processed_lidar_topic", "/lidar_pipeline/detected");
-    
-    // Cone detection parameters
-    this->declare_parameter("min_cone_area", 100.0);
-    this->declare_parameter("max_cone_area", 10000.0);
-    this->declare_parameter("min_cone_width", 10);
-    this->declare_parameter("max_cone_width", 100);
-    this->declare_parameter("min_cone_height", 20);
-    this->declare_parameter("max_cone_height", 200);
-    
-    // Get parameter values
+    // Initialize vectors with empty/identity defaults
+    this->declare_parameter<std::vector<double>>("distortion", std::vector<double>(5, 0.0));  // 5 zeros
+    this->declare_parameter<std::vector<double>>("intrinsics", std::vector<double>(9, 0.0));  // 9 zeros
+    this->declare_parameter<std::vector<double>>("rotation", std::vector<double>(9, 0.0));    // 9 zeros
+    this->declare_parameter<std::vector<double>>("translation", std::vector<double>(3, 0.0)); // 3 zeros
+
+    // Get values from parameters (these will come from config.yaml)
     camera_topic_ = this->get_parameter("camera_topic").as_string();
     camera_capture_rate_ = this->get_parameter("camera_capture_rate").as_double();
     heartbeat_rate_ = this->get_parameter("heartbeat_rate").as_double();
     debug_ = this->get_parameter("debug").as_bool();
-    save_pic_ = this->get_parameter("save_pic").as_bool();
-    confidence_ = this->get_parameter("confidence").as_double();
-    is_cuda_cv_ = this->get_parameter("is_cuda_cv").as_bool();
-    is_cuda_deep_ = this->get_parameter("is_cuda_deep").as_bool();
-    
-    // Get color thresholds
-    hue_low_ = this->get_parameter("hue_low").as_int();
-    hue_high_ = this->get_parameter("hue_high").as_int();
-    sat_low_ = this->get_parameter("sat_low").as_int();
-    sat_high_ = this->get_parameter("sat_high").as_int();
-    val_low_ = this->get_parameter("val_low").as_int();
-    val_high_ = this->get_parameter("val_high").as_int();
     
     // Get topic names
     heartbeat_topic_ = this->get_parameter("heartbeat_topic").as_string();
     debug_topic_ = this->get_parameter("debug_topic").as_string();
     processed_lidar_topic_ = this->get_parameter("processed_lidar_topic").as_string();
-    
-    // Get cone detection parameters
-    min_cone_area_ = this->get_parameter("min_cone_area").as_double();
-    max_cone_area_ = this->get_parameter("max_cone_area").as_double();
-    min_cone_width_ = this->get_parameter("min_cone_width").as_int();
-    max_cone_width_ = this->get_parameter("max_cone_width").as_int();
-    min_cone_height_ = this->get_parameter("min_cone_height").as_int();
-    max_cone_height_ = this->get_parameter("max_cone_height").as_int();
-    
-    // Camera calibration parameters from config.yaml
-    std::vector<double> distortion_vec = this->declare_parameter("distortion", 
-        std::vector<double>{-0.363003, 0.113201, -0.000775, 0.000498, 0.000000});
-    
-    std::vector<double> intrinsics_vec = this->declare_parameter("intrinsics", 
-        std::vector<double>{
-            974.649342, 0.000000, 655.141605,
-            0.000000, 975.211285, 340.068068,
-            0.000000, 0.000000, 1.000000
-        });
-    
-    std::vector<double> rotation_vec = this->declare_parameter("rotation", 
-        std::vector<double>{
-            1.0, 0.0, 0.0,
-            0.0, 1.0, 0.0,
-            0.0, 0.0, 1.0
-        });
-    
-    std::vector<double> translation_vec = this->declare_parameter("translation", 
-        std::vector<double>{-516.6818, 29.1172, -386.7437});
-    
-    std::vector<double> rectify_vec = this->declare_parameter("rectify", 
-        std::vector<double>{
-            1.0, 0.0, 0.0,
-            0.0, 1.0, 0.0,
-            0.0, 0.0, 1.0
-        });
-    
+
+    // Get arrays and convert to OpenCV matrices
+    auto distortion_vec = this->get_parameter("distortion").as_double_array();
+    auto intrinsics_vec = this->get_parameter("intrinsics").as_double_array();
+    auto rotation_vec = this->get_parameter("rotation").as_double_array();
+    auto translation_vec = this->get_parameter("translation").as_double_array();
+
     // Convert vectors to OpenCV matrices
-    distortion_ = cv::Mat(distortion_vec).reshape(1, 5);  // 5x1 distortion coefficients
-    intrinsics_ = cv::Mat(intrinsics_vec).reshape(1, 3);  // 3x3 camera matrix
-    rotation_ = cv::Mat(rotation_vec).reshape(1, 3);      // 3x3 rotation matrix
-    translation_ = cv::Mat(translation_vec).reshape(1, 3); // 3x1 translation vector
-    rectify_ = cv::Mat(rectify_vec).reshape(1, 3);      // 3x3 rectification matrix
+    distortion_ = cv::Mat(distortion_vec).reshape(1, 5);
+    intrinsics_ = cv::Mat(intrinsics_vec).reshape(1, 3);
+    rotation_ = cv::Mat(rotation_vec).reshape(1, 3);
+    translation_ = cv::Mat(translation_vec).reshape(1, 3);
+
+    // Print loaded values for verification
+    RCLCPP_INFO(this->get_logger(), "Loaded parameters from config.yaml");
+    RCLCPP_INFO(this->get_logger(), "  camera_topic: %s", camera_topic_.c_str());
+    RCLCPP_INFO(this->get_logger(), "  camera_capture_rate: %.2f", camera_capture_rate_);
+    RCLCPP_INFO(this->get_logger(), "  debug: %s", debug_ ? "true" : "false");
     
-    RCLCPP_INFO(this->get_logger(), "Loaded all parameters");
+    // Print matrix dimensions for verification
+    RCLCPP_INFO(this->get_logger(), "Matrix dimensions:");
+    RCLCPP_INFO(this->get_logger(), "  distortion: %dx%d", distortion_.rows, distortion_.cols);
+    RCLCPP_INFO(this->get_logger(), "  intrinsics: %dx%d", intrinsics_.rows, intrinsics_.cols);
+    RCLCPP_INFO(this->get_logger(), "  rotation: %dx%d", rotation_.rows, rotation_.cols);
+    RCLCPP_INFO(this->get_logger(), "  translation: %dx%d", translation_.rows, translation_.cols);
 }
 
 void PerceptionNode::initVariables() {
@@ -162,33 +118,111 @@ void PerceptionNode::initVariables() {
     if (!findCamera()) {
         throw std::runtime_error("Unable to detect camera");
     }
-    
-    // Initialize publishers and timers
-    initPublishers();
-    initTimers();
-    
+        
     // Initialize performance metrics
     metrics_.fps = 0.0;
     metrics_.processing_time = 0.0;
     metrics_.frame_count = 0;
     metrics_.last_frame_time = std::chrono::steady_clock::now();
     
-    // Initialize subscribers
+
+}
+
+void PerceptionNode::initSubscribers() {
+    // LiDAR subscriber with callback group
     processed_lidar_subscriber_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
         processed_lidar_topic_, 1,
         std::bind(&PerceptionNode::lidarCallback, this, std::placeholders::_1));
         
+    // Ego state subscriber
     ego_state_subscriber_ = this->create_subscription<utfr_msgs::msg::EgoState>(
         "synced_ego_state", 1,
         std::bind(&PerceptionNode::egoStateCallback, this, std::placeholders::_1));
 
-    // Initialize heartbeat message
-    heartbeat_msg_.header.stamp = this->now();
-    heartbeat_msg_.module.data = "perception_node_cpp";  // Changed from node_name to module.data
-    heartbeat_msg_.status = STATUS_UNINITIALIZED;
+    RCLCPP_INFO(this->get_logger(), "Initialized subscribers");
 }
 
-//Look through ten cameras to find one that is open
+void PerceptionNode::initPublishers() {
+    // Initialize all publishers
+    cone_detections_pub_ = this->create_publisher<utfr_msgs::msg::ConeDetections>(
+        "/perception/cone_detections", 10);
+    debug_pub_ = this->create_publisher<utfr_msgs::msg::PerceptionDebug>(
+        debug_topic_, 10);
+    
+    // Add these publishers
+    undistorted_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
+        "/perception/undistorted", 1);
+    lidar_projection_pub_ = this->create_publisher<utfr_msgs::msg::PerceptionDebug>(
+        "/perception/lidar_projection", 1);
+    lidar_projection_matched_pub_ = this->create_publisher<utfr_msgs::msg::PerceptionDebug>(
+        "/perception/lidar_projection_matched", 1);
+}
+
+void PerceptionNode::initTimers() {
+    // Initialize heartbeat timer
+    using namespace std::chrono_literals;
+    heartbeat_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(static_cast<int>(heartbeat_rate_ * 1000.0)),
+        std::bind(&PerceptionNode::publishHeartbeat, this)
+    );
+}
+
+void PerceptionNode::initHeartbeat() {
+    // Initialize heartbeat message
+    //Jeff: module.data identifies which module/node is sending the heartbeat
+    heartbeat_msg_.module.data = "perception_node_cpp";
+    heartbeat_msg_.header.stamp = this->now();
+    heartbeat_msg_.status = STATUS_UNINITIALIZED;
+    
+    // Create heartbeat publisher
+    heartbeat_pub_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
+        heartbeat_topic_, 10);
+        
+    RCLCPP_INFO(this->get_logger(), "Initialized heartbeat publisher");
+}
+
+
+// ==========================================
+// Publishing Functions
+// ==========================================
+void PerceptionNode::publishHeartbeat() {
+    // Get camera status
+    int status = cameraStatus();
+    
+    // Update heartbeat message
+    heartbeat_msg_.header.stamp = this->now();
+    heartbeat_msg_.status = status;
+    
+    // Add debug info
+    if (debug_) {
+        std::string status_str;
+        switch (status) {
+            case STATUS_UNINITIALIZED:
+                status_str = "UNINITIALIZED";
+                break;
+            case STATUS_ACTIVE:
+                status_str = "ACTIVE";
+                break;
+            case STATUS_FATAL:
+                status_str = "FATAL";
+                break;
+            default:
+                status_str = "UNKNOWN";
+        }
+        RCLCPP_DEBUG(this->get_logger(), "Publishing heartbeat - Status: %s", status_str.c_str());
+    }
+    
+    // Publish heartbeat
+    heartbeat_pub_->publish(heartbeat_msg_);
+}
+
+void PerceptionNode::publishDebugInfo() {
+    // Implement debug info publishing
+}
+
+// ==========================================
+// Camera Functions
+// ==========================================
 bool PerceptionNode::findCamera() {
     for (int index = 0; index < 10; ++index) {
         cam_capture_.open(index, cv::CAP_V4L2); //Jeff: assigns camera to cam_capture_
@@ -215,9 +249,14 @@ void PerceptionNode::cameraCaptureTimerCallback() {
     }
     
     img_raw_ = frame;
+    img_ = frame;
     new_cam_received_ = true;
     
-    // Add this line to process the image
+    if (!first_img_arrived_) {
+        first_img_arrived_ = true;
+        RCLCPP_INFO(this->get_logger(), "First camera frame received");
+    }
+
     processImage();
     
     // Display the captured frame
@@ -234,54 +273,9 @@ void PerceptionNode::cameraCaptureTimerCallback() {
     }
 }
 
-//Helps detect changes in the frame so that we won't process the same frame multiple times
-bool PerceptionNode::frameChanged(const cv::Mat& frame, const cv::Mat& prev_frame) {
-    cv::Mat diff, gray, blur, thresh, dilated;
-    std::vector<std::vector<cv::Point>> contours;
-    
-    // Calculate absolute difference between frames to identify changed pixels
-    // Output: White pixels indicate areas that changed between frames
-    cv::absdiff(frame, prev_frame, diff);
-    
-    // Convert difference image to grayscale for simpler processing
-    cv::cvtColor(diff, gray, cv::COLOR_BGR2GRAY);
-    
-    // Apply Gaussian blur with 5x5 kernel to reduce noise
-    // This helps eliminate small, insignificant changes
-    cv::GaussianBlur(gray, blur, cv::Size(5, 5), 0);
-    
-    // Convert to binary image: pixels > 20 become white (255), others become black (0)
-    // The threshold value of 20 determines how sensitive the change detection is
-    // Lower value = more sensitive to small changes
-    cv::threshold(blur, thresh, 20, 255, cv::THRESH_BINARY);
-    
-    // Dilate the binary image to connect nearby changed regions
-    // This makes the white regions larger and helps merge nearby changes
-    cv::dilate(thresh, dilated, cv::Mat(), cv::Point(-1, -1), 3);
-    
-    // Find continuous regions (contours) in the binary image
-    // RETR_TREE: retrieves all contours and reconstructs their hierarchy
-    // CHAIN_APPROX_SIMPLE: compresses horizontal, vertical, and diagonal segments
-    cv::findContours(dilated, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
-    
-    // Return true if any contours were found (indicating frame changes)
-    // Return false if no changes were detected
-    return !contours.empty();
-}
-
-//Detects if there are visual glitches or corruption in the frame
-bool PerceptionNode::hasVisualArtifacts(const cv::Mat& frame) {
-    cv::Mat gray, blur, thresh;
-    std::vector<std::vector<cv::Point>> contours;
-    
-    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-    cv::GaussianBlur(gray, blur, cv::Size(5, 5), 0);
-    cv::threshold(blur, thresh, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
-    cv::findContours(thresh, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
-    
-    return !contours.empty();
-}
-
+// ==========================================
+// Image Processing Functions
+// ==========================================
 void PerceptionNode::processImage() {
     if (!new_cam_received_) {
         RCLCPP_DEBUG(this->get_logger(), "No new camera frame received, skipping processing");
@@ -336,6 +330,9 @@ void PerceptionNode::applyColorMask(const cv::Mat& frame) {
     mask_ = hue_mask & sat_mask & val_mask;
 }
 
+// ==========================================
+// Cone Detection and Tracking Functions
+// ==========================================
 std::vector<cv::Point2f> PerceptionNode::detectCones(const cv::Mat& frame) {
     std::vector<std::vector<cv::Point>> contours;
     std::vector<cv::Vec4i> hierarchy;
@@ -452,127 +449,59 @@ double PerceptionNode::getAverageHue(const cv::Point2f& position, int region_siz
     return 0.0;
 }
 
-void PerceptionNode::initPublishers() {
-    // Initialize all publishers
-    cone_detections_pub_ = this->create_publisher<utfr_msgs::msg::ConeDetections>(
-        "/perception/cone_detections", 10);
-    heartbeat_pub_ = this->create_publisher<utfr_msgs::msg::Heartbeat>(
-        heartbeat_topic_, 10);
-    debug_pub_ = this->create_publisher<utfr_msgs::msg::PerceptionDebug>(
-        debug_topic_, 10);
+// ==========================================
+// Frame Analysis Functions
+// ==========================================
+bool PerceptionNode::frameChanged(const cv::Mat& frame, const cv::Mat& prev_frame) {
+    cv::Mat diff, gray, blur, thresh, dilated;
+    std::vector<std::vector<cv::Point>> contours;
     
-    // Add these publishers
-    undistorted_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
-        "/perception/undistorted", 1);
-    lidar_projection_pub_ = this->create_publisher<utfr_msgs::msg::PerceptionDebug>(
-        "/perception/lidar_projection", 1);
-    lidar_projection_matched_pub_ = this->create_publisher<utfr_msgs::msg::PerceptionDebug>(
-        "/perception/lidar_projection_matched", 1);
-}
-
-void PerceptionNode::initTimers() {
-    // Initialize heartbeat timer
-    using namespace std::chrono_literals;
-    heartbeat_timer_ = this->create_wall_timer(
-        std::chrono::milliseconds(static_cast<int>(heartbeat_rate_ * 1000.0)),
-        std::bind(&PerceptionNode::publishHeartbeat, this)
-    );
-}
-
-void PerceptionNode::publishHeartbeat() {
-    // Get camera status
-    int status = cameraStatus();
+    // Calculate absolute difference between frames to identify changed pixels
+    // Output: White pixels indicate areas that changed between frames
+    cv::absdiff(frame, prev_frame, diff);
     
-    // Update heartbeat message
-    heartbeat_msg_.header.stamp = this->now();
-    heartbeat_msg_.status = status;
+    // Convert difference image to grayscale for simpler processing
+    cv::cvtColor(diff, gray, cv::COLOR_BGR2GRAY);
     
-    // Add debug info
-    if (debug_) {
-        std::string status_str;
-        switch (status) {
-            case STATUS_UNINITIALIZED:
-                status_str = "UNINITIALIZED";
-                break;
-            case STATUS_ACTIVE:
-                status_str = "ACTIVE";
-                break;
-            case STATUS_FATAL:
-                status_str = "FATAL";
-                break;
-            default:
-                status_str = "UNKNOWN";
-        }
-        RCLCPP_DEBUG(this->get_logger(), "Publishing heartbeat - Status: %s", status_str.c_str());
-    }
+    // Apply Gaussian blur with 5x5 kernel to reduce noise
+    // This helps eliminate small, insignificant changes
+    cv::GaussianBlur(gray, blur, cv::Size(5, 5), 0);
     
-    // Publish heartbeat
-    heartbeat_pub_->publish(heartbeat_msg_);
-}
-
-int PerceptionNode::cameraStatus() {
-    if (first_img_arrived_ == false) {
-        return STATUS_UNINITIALIZED;
-    }
-    else if (img_.empty()) {
-        return STATUS_UNINITIALIZED;
-    }
-    // Check if frame is too small
-    else if (img_.rows < MIN_HEIGHT || img_.cols < MIN_WIDTH) {
-        return STATUS_FATAL;
-    }
-    else if (hasVisualArtifacts(img_)) {
-        return STATUS_FATAL;
-    }
+    // Convert to binary image: pixels > 20 become white (255), others become black (0)
+    // The threshold value of 20 determines how sensitive the change detection is
+    // Lower value = more sensitive to small changes
+    cv::threshold(blur, thresh, 20, 255, cv::THRESH_BINARY);
     
-    // Check if frame has changed significantly
-    bool frame_changed = frameChanged(img_, previous_img_);
+    // Dilate the binary image to connect nearby changed regions
+    // This makes the white regions larger and helps merge nearby changes
+    cv::dilate(thresh, dilated, cv::Mat(), cv::Point(-1, -1), 3);
     
-    // Update previous frame
-    previous_img_ = img_.clone();
+    // Find continuous regions (contours) in the binary image
+    // RETR_TREE: retrieves all contours and reconstructs their hierarchy
+    // CHAIN_APPROX_SIMPLE: compresses horizontal, vertical, and diagonal segments
+    cv::findContours(dilated, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
     
-    if (!frame_changed) {
-        return STATUS_UNINITIALIZED;
-    }
+    // Return true if any contours were found (indicating frame changes)
+    // Return false if no changes were detected
+    return !contours.empty();
+}
+
+bool PerceptionNode::hasVisualArtifacts(const cv::Mat& frame) {
+    cv::Mat gray, blur, thresh;
+    std::vector<std::vector<cv::Point>> contours;
     
-    return STATUS_ACTIVE;
+    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+    cv::GaussianBlur(gray, blur, cv::Size(5, 5), 0);
+    cv::threshold(blur, thresh, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+    cv::findContours(thresh, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+    
+    return !contours.empty();
 }
 
-void PerceptionNode::publishDebugInfo() {
-    // Implement debug info publishing
-}
 
-bool PerceptionNode::isValidCone([[maybe_unused]] const std::vector<cv::Point>& contour) {
-    // Implementation
-    return true;
-}
-
-void PerceptionNode::filterContours([[maybe_unused]] std::vector<std::vector<cv::Point>>& contours) {
-    // Implementation
-}
-
-cv::Rect PerceptionNode::getBoundingBox(const std::vector<cv::Point>& contour) {
-    // Get bounding box for contour
-    return cv::boundingRect(contour);
-}
-
-double PerceptionNode::getAspectRatio(const cv::Rect& bbox) {
-    // Calculate aspect ratio
-    return static_cast<double>(bbox.width) / bbox.height;
-}
-
-void PerceptionNode::updateMetrics() {
-    // Update performance metrics
-}
-
-void PerceptionNode::drawDebugInfo([[maybe_unused]] cv::Mat& debug_frame) {
-    // Implementation
-}
-
-void PerceptionNode::showDebugWindows() {
-    // Show debug windows if enabled
-}
-
+// ==========================================
+// Callback Functions
+// ==========================================
 void PerceptionNode::lidarCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
     lidar_msg_count_++;
     double current_time = this->now().seconds();
@@ -607,6 +536,49 @@ void PerceptionNode::egoStateCallback(const utfr_msgs::msg::EgoState::SharedPtr 
     ego_state_ = *msg;
 }
 
+// ==========================================
+// Utility Functions
+// ==========================================
+int PerceptionNode::cameraStatus() {
+    if (first_img_arrived_ == false) {
+        return STATUS_UNINITIALIZED;
+    }
+    else if (img_.empty()) {
+        return STATUS_UNINITIALIZED;
+    }
+    // Check if frame is too small
+    else if (img_.rows < MIN_HEIGHT || img_.cols < MIN_WIDTH) {
+        return STATUS_FATAL;
+    }
+    else if (hasVisualArtifacts(img_)) {
+        return STATUS_FATAL;
+    }
+    
+    // Check if frame has changed significantly
+    bool frame_changed = frameChanged(img_, previous_img_);
+    
+    // Update previous frame
+    previous_img_ = img_.clone();
+    
+    if (!frame_changed) {
+        return STATUS_UNINITIALIZED;
+    }
+    
+    return STATUS_ACTIVE;
+}
+
+void PerceptionNode::updateMetrics() {
+    // Update performance metrics
+}
+
+void PerceptionNode::drawDebugInfo(cv::Mat& debug_frame) {
+    // Implementation
+}
+
+void PerceptionNode::showDebugWindows() {
+    // Show debug windows if enabled
+}
+
 void PerceptionNode::printSubscriberStats() {
     RCLCPP_INFO(this->get_logger(),
         "\n=== Subscriber Statistics ===\n"
@@ -619,8 +591,9 @@ void PerceptionNode::printSubscriberStats() {
 
 } // namespace perception
 
-// main.cpp
-
+// ==========================================
+// Main Function
+// ==========================================
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<perception::PerceptionNode>();

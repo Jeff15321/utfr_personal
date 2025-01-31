@@ -117,15 +117,23 @@ install(TARGETS
     perception_node_cpp
     DESTINATION lib/${PROJECT_NAME})
 
-## Install Launch file
-install (
+## Install Launch files
+install(
     DIRECTORY launch
-    DESTINATION share/${PROJECT_NAME})
+    DESTINATION share/${PROJECT_NAME}
+)
 
 ## Install Config file
 install(
     DIRECTORY config
     DESTINATION share/${PROJECT_NAME})
+
+## Add these lines to install config and launch files
+install(DIRECTORY
+  config
+  launch
+  DESTINATION share/${PROJECT_NAME}
+)
 
 #############
 ## Testing ##

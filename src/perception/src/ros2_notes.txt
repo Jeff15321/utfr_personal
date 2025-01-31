@@ -78,3 +78,47 @@ public:
    // Thread safe across multiple threads
    void thread1(std::shared_ptr<Data> data) { ... }
    void thread2(std::shared_ptr<Data> data) { ... }
+
+===============================================================================================
+
+#How to use config.yaml parameters in ROS2
+
+1. Declare parameters in node:
+   e.g.
+    // In your node's constructor or init function
+    this->declare_parameter<std::string>("camera_topic", "");  // Empty default
+    this->declare_parameter<double>("camera_capture_rate", 0.0);
+    this->declare_parameter<bool>("debug", false);
+
+    // For arrays/vectors
+    this->declare_parameter<std::vector<double>>("distortion", std::vector<double>(5, 0.0));  // 5 zeros
+
+2. Create a config.yaml file in the package
+   e.g.
+    perception_node_cpp:  # Must match your node name
+        ros__parameters:
+            camera_topic: "synced_left_image"
+            camera_capture_rate: 33.0
+            debug: true
+            distortion: [-0.363003, 0.113201, -0.000775, 0.000498, 0.000000]
+
+3. Create a launch file (launch/perception.launch.xml) to load the config
+    e.g.
+     <launch>
+         <node pkg="perception" exec="perception_node_cpp" name="perception_node_cpp">
+             <param from="$(find-pkg-share perception)/config/config.yaml"/>
+         </node>
+     </launch>
+
+4. Read the parameters in the node:
+   e.g.
+    // Get the values after declaring them
+    camera_topic_ = this->get_parameter("camera_topic").as_string();
+    camera_capture_rate_ = this->get_parameter("camera_capture_rate").as_double();
+    debug_ = this->get_parameter("debug").as_bool();
+
+    // For arrays
+    auto distortion_vec = this->get_parameter("distortion").as_double_array();
+
+5. build then run:
+    ros2 launch perception perception.launch.xml

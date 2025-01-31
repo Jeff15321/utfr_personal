@@ -188,6 +188,11 @@ private:
     std::vector<cv::Point2f> projectLidarToImage(const std::vector<geometry_msgs::msg::Point>& points);
 
     int cameraStatus();  // Add this declaration
+
+    void initHeartbeat();
+
+    // Add this declaration
+    void initSubscribers();
 };
 
 } // namespace perception

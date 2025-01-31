@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="perception" exec="perception_node_cpp" name="perception_node_cpp">
+    <param from="$(find-pkg-share perception)/config/config.yaml"/>
+  </node>
+</launch> 
