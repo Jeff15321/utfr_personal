@@ -500,33 +500,12 @@ bool PerceptionNode::frameChanged(const cv::Mat& frame, const cv::Mat& prev_fram
     cv::Mat diff, gray, blur, thresh, dilated;
     std::vector<std::vector<cv::Point>> contours;
     
-    // Calculate absolute difference between frames to identify changed pixels
-    // Output: White pixels indicate areas that changed between frames
     cv::absdiff(frame, prev_frame, diff);
-    
-    // Convert difference image to grayscale for simpler processing
     cv::cvtColor(diff, gray, cv::COLOR_BGR2GRAY);
-    
-    // Apply Gaussian blur with 5x5 kernel to reduce noise
-    // This helps eliminate small, insignificant changes
     cv::GaussianBlur(gray, blur, cv::Size(5, 5), 0);
-    
-    // Convert to binary image: pixels > 20 become white (255), others become black (0)
-    // The threshold value of 20 determines how sensitive the change detection is
-    // Lower value = more sensitive to small changes
     cv::threshold(blur, thresh, 20, 255, cv::THRESH_BINARY);
-    
-    // Dilate the binary image to connect nearby changed regions
-    // This makes the white regions larger and helps merge nearby changes
     cv::dilate(thresh, dilated, cv::Mat(), cv::Point(-1, -1), 3);
-    
-    // Find continuous regions (contours) in the binary image
-    // RETR_TREE: retrieves all contours and reconstructs their hierarchy
-    // CHAIN_APPROX_SIMPLE: compresses horizontal, vertical, and diagonal segments
     cv::findContours(dilated, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
-    
-    // Return true if any contours were found (indicating frame changes)
-    // Return false if no changes were detected
     return !contours.empty();
 }
 
