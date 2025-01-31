@@ -10,6 +10,11 @@ namespace perception {
 PerceptionNode::PerceptionNode() 
     : Node("perception_node_cpp")
 {
+    // Initialize tf2 components first
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+    
+    // Rest of initialization
     loadParams();
     initVariables();
     initSubscribers();
@@ -589,6 +594,75 @@ void PerceptionNode::printSubscriberStats() {
         "========================",
         lidar_msg_count_,
         ego_state_msg_count_);
+}
+
+void PerceptionNode::deepAndMatching(const sensor_msgs::msg::PointCloud2::SharedPtr& msg) {
+    // TODO: Implement deep learning detection and matching pipeline
+    // 1. Check if we have a valid image
+    // 2. Get transforms between lidar and camera frames
+    // 3. Process image through deep learning model
+    // 4. Transform lidar points to camera frame
+    // 5. Project 3D points to image plane
+    // 6. Match lidar points with camera detections
+    // 7. Publish results
+}
+
+std::vector<std::tuple<cv::Point2f, std::string, float>> 
+PerceptionNode::process(const cv::Mat& img) {
+    // TODO: Implement deep learning inference
+    // 1. Preprocess image for model
+    // 2. Run inference
+    // 3. Post-process results
+    // 4. Return detections with positions, classes and scores
+    return {};
+}
+
+void PerceptionNode::publish_cone_dets(
+    const std::vector<std::tuple<cv::Point3f, std::string, float>>& cone_detections) {
+    // TODO: Implement cone detection publishing
+    // 1. Create ConeDetections message
+    // 2. Sort cones by type (blue, yellow, orange)
+    // 3. Fill message fields
+    // 4. Publish message
+}
+
+void PerceptionNode::publish_cone_dets_lidar(
+    const sensor_msgs::msg::PointCloud2::SharedPtr& lidar_msg) {
+    // TODO: Implement lidar-only cone detection publishing
+    // 1. Extract point cloud data
+    // 2. Create ConeDetections message
+    // 3. Convert points to cone detections
+    // 4. Publish message
+}
+
+void PerceptionNode::publish_2d_projected_det(
+    const std::vector<cv::Point2f>& projected_pts,
+    const rclcpp::Time& stamp) {
+    // TODO: Implement debug visualization for projected points
+    // 1. Create debug message
+    // 2. Convert points to visualization format
+    // 3. Publish visualization
+}
+
+void PerceptionNode::publish_2d_projected_det_matched(
+    const std::vector<cv::Point2f>& projected_pts,
+    const rclcpp::Time& stamp) {
+    // TODO: Implement debug visualization for matched points
+    // 1. Create debug message
+    // 2. Convert matched points to visualization format
+    // 3. Publish visualization
+}
+
+void PerceptionNode::displayBoundingBox(
+    const std::vector<cv::Rect>& results_left,
+    const std::vector<std::string>& classes_left,
+    const std::vector<float>& scores_left,
+    const rclcpp::Time& img_stamp) {
+    // TODO: Implement bounding box visualization
+    // 1. Create debug message
+    // 2. Draw bounding boxes with labels
+    // 3. Add class and confidence information
+    // 4. Publish visualization
 }
 
 } // namespace perception

@@ -13,6 +13,9 @@
 #include <chrono>
 #include <memory>
 #include <vector>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tuple>
 
 namespace perception {
 
@@ -186,13 +189,38 @@ private:
     // Add these methods
     void deepAndMatching(const sensor_msgs::msg::PointCloud2::SharedPtr& msg);
     std::vector<cv::Point2f> projectLidarToImage(const std::vector<geometry_msgs::msg::Point>& points);
-
-    int cameraStatus();  // Add this declaration
-
+    int cameraStatus();
     void initHeartbeat();
-
-    // Add this declaration
     void initSubscribers();
+
+    // Transform handling
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+    std::string lidar_frame_;
+    std::string camera_frame_;
+
+    // Core perception pipeline methods
+    std::vector<std::tuple<cv::Point2f, std::string, float>> 
+    process(const cv::Mat& img);
+    
+    // Detection publishing methods
+    void publish_cone_dets(
+        const std::vector<std::tuple<cv::Point3f, std::string, float>>& cone_detections);
+    void publish_cone_dets_lidar(
+        const sensor_msgs::msg::PointCloud2::SharedPtr& lidar_msg);
+    
+    // Visualization methods
+    void publish_2d_projected_det(
+        const std::vector<cv::Point2f>& projected_pts,
+        const rclcpp::Time& stamp);
+    void publish_2d_projected_det_matched(
+        const std::vector<cv::Point2f>& projected_pts,
+        const rclcpp::Time& stamp);
+    void displayBoundingBox(
+        const std::vector<cv::Rect>& results_left,
+        const std::vector<std::string>& classes_left,
+        const std::vector<float>& scores_left,
+        const rclcpp::Time& img_stamp);
 };
 
 } // namespace perception

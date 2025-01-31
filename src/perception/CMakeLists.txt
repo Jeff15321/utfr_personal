@@ -54,7 +54,7 @@ target_include_directories(perception_node_cpp PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-ament_target_dependencies(perception_node_cpp rclcpp sensor_msgs OpenCV cv_bridge utfr_msgs)
+ament_target_dependencies(perception_node_cpp rclcpp sensor_msgs OpenCV cv_bridge utfr_msgs geometry_msgs tf2_geometry_msgs tf2_ros)
 target_link_libraries(perception_node_cpp ${OpenCV_LIBS} ${YAML_CPP_LIBRARIES})
 
 add_executable(lidar_proc src/lidar_proc.cpp)
