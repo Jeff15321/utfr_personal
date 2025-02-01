@@ -69,7 +69,7 @@ class PerceptionNode(Node):
         self.lidar_group = (
             MutuallyExclusiveCallbackGroup()
         )  # TODO: maybe change to reentrant
-        self.cam_timer_group = MutuallyExclusiveCallbackGroup()
+        self.cam_group = MutuallyExclusiveCallbackGroup()
         self.preproc_timer_group = MutuallyExclusiveCallbackGroup()
         self.heartbeat_timer_group = MutuallyExclusiveCallbackGroup()
 
@@ -230,6 +230,8 @@ class PerceptionNode(Node):
         self.new_cam_received_ = False
         self.first_img_arrived_ = False
 
+        self.ego_state = None
+
         # Work
         self.img_ = None
         self.img_raw_ = None
@@ -315,7 +317,6 @@ class PerceptionNode(Node):
             self.img_gpu = cv2.cuda_GpuMat()
 
         self.previous_img_ = None
-        self.lastCamCaptureTime = time.time()
         self.lastPreProcTime = time.time()
 
     def initSubscribers(self):
@@ -335,6 +336,14 @@ class PerceptionNode(Node):
             self.lidarCB,
             1,
             callback_group=self.lidar_group,
+        )
+        
+        self.camera_subscriber_ = self.create_subscription(
+            Image,
+            "/perception/debug_undistorted",
+            self.cameraCB,
+            1,
+            callback_group=self.cam_group,
         )
 
         self.ego_state_subscriber_ = self.create_subscription(
@@ -360,6 +369,10 @@ class PerceptionNode(Node):
             ConeDetections, self.cone_detections_topic_, 1
         )
 
+        self.cam_only_debug_publisher_ = self.create_publisher(
+            ConeDetections, "/perception/cam_only_3d_detections", 1
+        )
+
         self.heartbeat_publisher_ = self.create_publisher(
             Heartbeat, self.heartbeat_topic_, 1
         )
@@ -369,10 +382,6 @@ class PerceptionNode(Node):
         )
 
         if self.debug_:
-            self.undistorted_publisher_ = self.create_publisher(
-                Image, "/perception/debug_undistorted", 1
-            )
-
             self.perception_debug_publisher_ = self.create_publisher(
                 PerceptionDebug, self.perception_debug_topic_, 1
             )
@@ -400,11 +409,6 @@ class PerceptionNode(Node):
         """
         Initialize main update timer for timerCB.
         """
-        self.cameraCaptureTimer_ = self.create_timer(
-            self.camera_capture_rate_ / 1000,
-            self.cameraCaptureTimerCB,
-            callback_group=self.cam_timer_group,
-        )
 
         self.heartbeatTimer_ = self.create_timer(
             self.heartbeat_rate / 1000,
@@ -417,7 +421,6 @@ class PerceptionNode(Node):
         )
 
         # Call the timer_  to prevent unused variable warnings
-        self.cameraCaptureTimer_
         self.heartbeatTimer_
         self.preProcTimer_
 
@@ -507,18 +510,11 @@ class PerceptionNode(Node):
           right_bounding_boxes: array of right camera detections
           cone_detections: array of 3d cone detections using stereo ([x, y, z, color])
         """
-        start = (
-            self.get_clock().now().seconds_nanoseconds()[0]
-            + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
-        )
+        start = time.perf_counter()
         (bounding_boxes, classes, scores) = deep_process(
             self.model, img_, self.confidence_
         )
-        end = (
-            self.get_clock().now().seconds_nanoseconds()[0]
-            + self.get_clock().now().seconds_nanoseconds()[1] * 1e-9
-        )
-        print("deep process time: ", end - start)
+        print("deep process time: ", time.perf_counter() - start)
 
         return (bounding_boxes, classes, scores)
 
@@ -541,6 +537,9 @@ class PerceptionNode(Node):
             # self.left_frame_id = msg.header.frame_id
             # self.new_left_img_recieved_ = True
 
+
+            #Uncomment when the new camera is connected, so that the topic name is not debug_undistorted
+            """
             if self.is_cuda_cv:
                 startTime = time.perf_counter()
                 self.img_gpu.upload(self.img_raw_)
@@ -570,6 +569,9 @@ class PerceptionNode(Node):
                     interpolation=cv2.INTER_NEAREST,
                 )
                 # print("remap cpu time: " + str(time.perf_counter() - startTime))
+            """
+            #uncomment this when the new camera is connected
+            self.img_ = self.img_raw_
 
             # compare time it takes to resize on the GPU vs time you save in preprocessing in the YOLO model
             # img_ = cv2.resize(img_, (640, 640))
@@ -581,7 +583,7 @@ class PerceptionNode(Node):
             self.new_cam_received_ = False
 
             if self.debug_:
-                self.publish_undistorted(self.img_)
+                # self.publish_undistorted(self.img_)
 
                 # print("Pre Proc Hz: ", 1 / (time.time() - self.lastPreProcTime))
                 self.lastPreProcTime = time.time()
@@ -603,23 +605,41 @@ class PerceptionNode(Node):
         self.cam_processed_publisher_.publish(cam_process)
         self.publishHeartbeat()
 
-    def cameraCaptureTimerCB(self):
+    def cameraCB(self, msg):
         """
         Runs to capture raw images from the webcam and place into img_ buffer
         """
-        fullyStartTime = time.perf_counter()
-        # TODO: check if unplugging camera will crash this. Also, We should be trying to reconnect to webcam if it disconnects
-        ret, img_ = self.cam_capture.read()
-        if not ret or img_.size == None:
-            print("Error: Could not read frame.")
-            return
+        if self.debug_:
+            fullyStartTime = time.perf_counter()
 
-        self.img_raw_ = img_
+        self.img_raw_ = self.bridge.imgmsg_to_cv2(msg, '8UC3')
         self.new_cam_received_ = True
         if self.debug_:
-            # print("Capture time: ", time.perf_counter() - fullyStartTime)
-            print("Capture Hz: ", 1 / (time.time() - self.lastCamCaptureTime))
-            self.lastCamCaptureTime = time.time()
+            print("cameraCB time: ", time.perf_counter() - fullyStartTime)
+
+    def estimate_depth(self, classes, results):
+        """
+        Estimate depth of cones based on class and bounding box size
+        """
+        sensor_height = 1.5 #mm
+        # cone_heights = [0.0, 325.0, 325.0, 325.0, 505.0] #TODO: get this crap out of here
+        image_height_px = 720 #TODO: change this to be a parameter
+        focal_length = 974 * sensor_height / image_height_px #mm #TODO: change this to be a parameter
+        
+        for i in range(len(classes)):
+            
+            height_box_mm = (results[i][3] / image_height_px) * sensor_height
+
+            # calculate depth in mm using similar triangles
+            if classes[i] == "large_orange_cone":
+                depth = 505 * (focal_length / height_box_mm)/1000
+            elif classes[i] in ["blue_cone", "yellow_cone", "orange_cone"]:
+                depth = 325 * (focal_length / height_box_mm)/1000 #m
+            else: #shouldn't happen anyways
+                depth = 0
+            results[i].append(depth)
+
+        return results
 
     def deep_and_matching(self, lidar_msg):
         if self.lidar_only_detection == False:
@@ -644,26 +664,67 @@ class PerceptionNode(Node):
                 return
 
             frame = self.img_
-            (results_left, classes_left, scores_left) = self.process(frame)
+            (bboxes, classes_left, scores_left) = self.process(frame)
+            
+            # print("score:" + str(scores_left))
+            # print("class:" + str(classes_left))
+            # print("results:" + str(bboxes))
+
+            bboxes = self.estimate_depth(classes=classes_left, results=bboxes)
+            #due to python mem, bboxes is modified as well so be aware of that
+
+            cam_frame = []
+            for cam_det in bboxes:
+                #u, v, w, h, depth of cam_det
+                xydepth = (cam_det[0], cam_det[1], cam_det[4])
+                pt_3d = self.image_to_3d_point(xydepth, self.intrinsics)
+                cam_frame.append(pt_3d)
+            
+            cam_frame = self.tf_cam_axis_swap_inv(np.array(cam_frame))
+
+            #x, y, z in lidar frame
+            cam_det_lidar_frame = self.transform_det_lidar(
+                cam_frame, tf_cam_to_lidar
+            )
+
+
+            cone_detections = ConeDetections()
+            for i, point in enumerate(cam_det_lidar_frame):
+                cone = Cone()
+                cone.pos.x = float(point[0])
+                cone.pos.y = float(point[1])
+                cone.pos.z = float(point[2])
+
+                cone_detections.unknown_cones.append(cone)
+            cone_detections.header.stamp = self.get_clock().now().to_msg()
+            cone_detections.header.frame_id = "ground"
+            self.cam_only_debug_publisher_.publish(cone_detections)
+
+
 
             # Extract point cloud data
             lidar_point_cloud_data = point_cloud2.read_points_numpy(
                 lidar_msg, field_names=["x", "y", "z"], skip_nans=True
             )
-
+            if lidar_point_cloud_data.size == 0:
+                return
             # transform lidar detections to cam frame
             lidar_det_cam_frame = self.transform_det_lidar(
                 lidar_point_cloud_data, tf_lidar_to_cam
             )
+            print("lidar_point_cloud_data: " + str(lidar_det_cam_frame))
 
             # Transform 3D camera frame to 3D camera optical frame (axis swap)
             # x in the left cam frame = z in the transformation frame
             lidar_det_cam_frame = self.tf_cam_axis_swap(lidar_det_cam_frame)
 
+            print("swapped: " + str(lidar_det_cam_frame))
+
             # 3D optical frame to 2D pixel coordinates projection with depth
             projected_pts = self.point_3d_to_image(
                 lidar_det_cam_frame, self.intrinsics
             )  # list of u, v, depth
+            print("projected: " + str(projected_pts))
             projected_pts[:, :2] = np.round(projected_pts[:, :2])
 
             valid_idx = self.filter_points_in_fov(projected_pts, self.img_size)
@@ -671,29 +732,45 @@ class PerceptionNode(Node):
             filtered_projected_pts = projected_pts[valid_idx]
 
             # Hungarian algorithm for matching
+            #matched returns list of 3d lidar detection points
             matched, left_class = self.h_matching(
-                left_projected_lidar_pts=filtered_projected_pts,
-                left_cam_dets=results_left,
-                classes_left=classes_left,
-                duplicate_threshold=0.1,
-                cost_threshold=1000.0,
-                depth_weight=0.5,
-                alpha=0.5,
+                lidar_dets=lidar_point_cloud_data,
+                cam_dets=cam_det_lidar_frame,
+                classes=classes_left,
+                cost_threshold=2.0, #2m euclidean distance
             )
 
-            matched_cam_frame = []
-            for match in matched:
-                matched_cam_frame.append(self.image_to_3d_point(match, self.intrinsics))
+            if len(matched) == 0:
+                return
 
-            matched_cam_frame = self.tf_cam_axis_swap_inv(np.array(matched_cam_frame))
-
-            matched_lidar_frame = self.transform_det_lidar(
-                matched_cam_frame, tf_cam_to_lidar
+            #project matched points to 2d image
+            #axis swap
+            matched_cam_frame = self.transform_det_lidar(
+                matched, tf_lidar_to_cam
             )
+            print("matched:" + str(matched_cam_frame))
+            matched_swapped = self.tf_cam_axis_swap(matched_cam_frame)
+            print("swapped:" + str(matched_swapped))
+            matched_projected = self.point_3d_to_image(matched_swapped, self.intrinsics)
+            print("projected:" + str(matched_projected))
+            matched_projected[:, :2] = np.round(matched_projected[:, :2])
+            VALID_IDX = self.filter_points_in_fov(matched_projected, self.img_size)
+            matched_projected = matched_projected[VALID_IDX]
+            print("filtered:" + str(matched_projected))
+
+            # matched_cam_frame = []
+            # for match in matched:
+            #     matched_cam_frame.append(self.image_to_3d_point(match, self.intrinsics))
+
+            # matched_cam_frame = self.tf_cam_axis_swap_inv(np.array(matched_cam_frame))
+
+            # matched_lidar_frame = self.transform_det_lidar(
+            #     matched_cam_frame, tf_cam_to_lidar
+            # )
 
             cone_detections = ConeDetections()
             # TODO: clean this up and just use the same enum format as in the cone msg template
-            for i, point in enumerate(matched_lidar_frame):
+            for i, point in enumerate(matched):
                 cone = Cone()
                 cone.pos.x = float(point[0])
                 cone.pos.y = float(point[1])
@@ -728,10 +805,10 @@ class PerceptionNode(Node):
                     stamp=self.img_stamp_,
                 )
                 self.publish_2d_projected_det_matched(
-                    projected_pts=matched, stamp=self.img_stamp_
+                    projected_pts=matched_projected, stamp=self.img_stamp_
                 )
                 self.displayBoundingBox(
-                    results_left=results_left,
+                    bboxes=bboxes,
                     classes_left=classes_left,
                     scores_left=scores_left,
                     img_stamp=self.img_stamp_,
@@ -739,13 +816,13 @@ class PerceptionNode(Node):
 
         else:
             self.publish_cone_dets_lidar(lidar_msg=lidar_msg)
-
-        self.ego_state_publisher.publish(self.ego_state)
+        if self.ego_state is not None:
+            self.ego_state_publisher.publish(self.ego_state)
 
     def publish_cone_dets(self, cone_detections):
         print("cone detections: " + str(cone_detections))
 
-        if cone_detections.size != 0:
+        if cone_detections.size != 0: 
             # order cones by distance
             # cone_detections = cone_detections[np.argsort(cone_detections[:, 2])]
 
@@ -835,17 +912,17 @@ class PerceptionNode(Node):
         # to do calibration, set self.bridge.cv2_to_imgmsg(frame, "mono8")
         self.undistorted_publisher_.publish(self.bridge.cv2_to_imgmsg(frame))
 
-    def displayBoundingBox(self, results_left, classes_left, scores_left, img_stamp):
+    def displayBoundingBox(self, bboxes, classes_left, scores_left, img_stamp):
         # Bounding boxes from deep learning model
-        if len(results_left) != 0:
+        if len(bboxes) != 0:
             perception_debug_msg = PerceptionDebug()
             perception_debug_msg.header.stamp = img_stamp
-            for i in range(len(results_left)):
+            for i in range(len(bboxes)):
                 bounding_box = BoundingBox()
-                bounding_box.x = int(results_left[i][0])
-                bounding_box.y = int(results_left[i][1])
-                bounding_box.width = int(results_left[i][2])
-                bounding_box.height = int(results_left[i][3])
+                bounding_box.x = int(bboxes[i][0])
+                bounding_box.y = int(bboxes[i][1])
+                bounding_box.width = int(bboxes[i][2])
+                bounding_box.height = int(bboxes[i][3])
                 bounding_box.type = labelColor(classes_left[i])
                 bounding_box.score = scores_left[i]
                 perception_debug_msg.left.append(bounding_box)
@@ -924,66 +1001,63 @@ class PerceptionNode(Node):
             return np.array([])  # Return an empty array in case of an exception
 
     def cost_mtx_from_bbox(
-        self, projected_lidar_detections, camera_detections, depth_factor
+        self, lidar_dets, camera_detections
     ):
         cost_matrix = np.zeros(
-            (len(projected_lidar_detections), len(camera_detections))
+            (len(lidar_dets), len(camera_detections))
         )
-        for i, (lidar_x, lidar_y, lidar_depth) in enumerate(projected_lidar_detections):
-            for j, (cam_x, cam_y, cam_w, cam_h) in enumerate(camera_detections):
+        
+        for i, (lidar_x, lidar_y, lidar_z) in enumerate(lidar_dets):
+            for j, (cam_x, cam_y, cam_z) in enumerate(camera_detections):
+                cost_matrix[i, j] = np.linalg.norm(
+                    [lidar_x - cam_x, lidar_y - cam_y, lidar_z - cam_z]
+                ) #TODO: make this vectorized
+        
                 # Check if lidar point is inside the bounding box
-                if (
-                    cam_x - 10 <= lidar_x <= cam_x + cam_w + 10
-                    and cam_y - 10 <= lidar_y <= cam_y + cam_h + 10
-                ):
-                    # Lidar point is inside the bounding box (minimal cost)
-                    euclidean_distance = 0
-                else:
-                    # If outside, calculate the distance to the nearest edge of the bounding box
-                    nearest_x = max(cam_x, min(lidar_x, cam_x + cam_w))
-                    nearest_y = max(cam_y, min(lidar_y, cam_y + cam_h))
-                    euclidean_distance = np.linalg.norm(
-                        [lidar_x - nearest_x, lidar_y - nearest_y]
-                    )
-
-                # Add depth-based weighting to the cost
-                cost_matrix[i, j] = euclidean_distance * (
-                    1 + depth_factor * (lidar_depth)
-                )
+                # if (
+                #     cam_x - 10 <= lidar_x <= cam_x + cam_w + 10
+                #     and cam_y - 10 <= lidar_y <= cam_y + cam_h + 10
+                # ):
+                #     # Lidar point is inside the bounding box (minimal cost)
+                #     euclidean_distance = 0
+                # else:
+                #     # If outside, calculate the distance to the nearest edge of the bounding box
+                #     nearest_x = max(cam_x, min(lidar_x, cam_x + cam_w))
+                #     nearest_y = max(cam_y, min(lidar_y, cam_y + cam_h))
+                #     euclidean_distance = np.linalg.norm(
+                #         [lidar_x - nearest_x, lidar_y - nearest_y, lidar_z - cam_depth]
+                #     )
 
         return cost_matrix
 
     def h_matching(
         self,
-        left_projected_lidar_pts,
-        left_cam_dets,
-        classes_left,
-        duplicate_threshold,
+        lidar_dets,
+        cam_dets,
+        classes,
         cost_threshold,
-        depth_weight,
-        alpha,
     ):
         """Performs Hungarian matching for lidar points and bounding boxes."""
 
         # Perform matching for left camera
-        cost_matrix_left = self.cost_mtx_from_bbox(
-            left_projected_lidar_pts, left_cam_dets, depth_factor=depth_weight
+        cost_matrix = self.cost_mtx_from_bbox(
+            lidar_dets, cam_dets
         )
-        row_ind_left, col_ind_left = linear_sum_assignment(cost_matrix_left)
+        row_ind, col_ind = linear_sum_assignment(cost_matrix)
 
-        matched_lidar_left = [left_projected_lidar_pts[i] for i in row_ind_left]
+        matched_lidar = [lidar_dets[i] for i in row_ind]
 
         # Store results after Hungarian matching
-        left_matches, left_classes = [], []
+        matches, matched_classes = [], []
 
-        for i, lidar_point_left in enumerate(matched_lidar_left):
-            cost_left = cost_matrix_left[row_ind_left[i], col_ind_left[i]]
-            if cost_left > cost_threshold:
+        for i, lidar_point in enumerate(matched_lidar):
+            cost = cost_matrix[row_ind[i], col_ind[i]]
+            if cost > cost_threshold:
                 continue
-            left_matches.append(lidar_point_left)
-            left_classes.append(classes_left[col_ind_left[i]])
+            matches.append(lidar_point)
+            matched_classes.append(classes[col_ind[i]])
 
-        return left_matches, left_classes
+        return matches, matched_classes
 
     def filter_points_in_fov(self, projected_points, image_size):
         """Filters out points that are outside the image boundaries."""
