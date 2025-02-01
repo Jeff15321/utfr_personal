@@ -671,7 +671,6 @@ class PerceptionNode(Node):
             # print("results:" + str(bboxes))
 
             bboxes = self.estimate_depth(classes=classes_left, results=bboxes)
-            #due to python mem, bboxes is modified as well so be aware of that
 
             cam_frame = []
             for cam_det in bboxes:
@@ -712,19 +711,15 @@ class PerceptionNode(Node):
             lidar_det_cam_frame = self.transform_det_lidar(
                 lidar_point_cloud_data, tf_lidar_to_cam
             )
-            print("lidar_point_cloud_data: " + str(lidar_det_cam_frame))
 
             # Transform 3D camera frame to 3D camera optical frame (axis swap)
             # x in the left cam frame = z in the transformation frame
             lidar_det_cam_frame = self.tf_cam_axis_swap(lidar_det_cam_frame)
 
-            print("swapped: " + str(lidar_det_cam_frame))
-
             # 3D optical frame to 2D pixel coordinates projection with depth
             projected_pts = self.point_3d_to_image(
                 lidar_det_cam_frame, self.intrinsics
             )  # list of u, v, depth
-            print("projected: " + str(projected_pts))
             projected_pts[:, :2] = np.round(projected_pts[:, :2])
 
             valid_idx = self.filter_points_in_fov(projected_pts, self.img_size)
@@ -748,25 +743,11 @@ class PerceptionNode(Node):
             matched_cam_frame = self.transform_det_lidar(
                 matched, tf_lidar_to_cam
             )
-            print("matched:" + str(matched_cam_frame))
             matched_swapped = self.tf_cam_axis_swap(matched_cam_frame)
-            print("swapped:" + str(matched_swapped))
             matched_projected = self.point_3d_to_image(matched_swapped, self.intrinsics)
-            print("projected:" + str(matched_projected))
             matched_projected[:, :2] = np.round(matched_projected[:, :2])
             VALID_IDX = self.filter_points_in_fov(matched_projected, self.img_size)
             matched_projected = matched_projected[VALID_IDX]
-            print("filtered:" + str(matched_projected))
-
-            # matched_cam_frame = []
-            # for match in matched:
-            #     matched_cam_frame.append(self.image_to_3d_point(match, self.intrinsics))
-
-            # matched_cam_frame = self.tf_cam_axis_swap_inv(np.array(matched_cam_frame))
-
-            # matched_lidar_frame = self.transform_det_lidar(
-            #     matched_cam_frame, tf_cam_to_lidar
-            # )
 
             cone_detections = ConeDetections()
             # TODO: clean this up and just use the same enum format as in the cone msg template
