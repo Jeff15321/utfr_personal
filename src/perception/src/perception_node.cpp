@@ -106,17 +106,19 @@ void PerceptionNode::initVariables() {
         mapy_            // Output: y-coordinate mapping
     );
     
-    // Check CUDA availability before using GPU features
-    // Uploads mapx_ and mapy_ to GPU if CUDA is enabled
-    if (is_cuda_cv_) {
-        if (cv::cuda::getCudaEnabledDeviceCount() > 0) {
-
-            mapx_gpu_.upload(mapx_);
-            mapy_gpu_.upload(mapy_);
-        } else {
-            RCLCPP_WARN(this->get_logger(), "CUDA not available, falling back to CPU");
-            is_cuda_cv_ = false;
-        }
+    // Check CUDA availability
+    int cuda_devices = cv::cuda::getCudaEnabledDeviceCount();
+    RCLCPP_INFO(this->get_logger(), "Found %d CUDA devices", cuda_devices);
+    
+    if (cuda_devices > 0) {
+        cv::cuda::printCudaDeviceInfo(0);  // Print info for first device
+        is_cuda_cv_ = true;
+        mapx_gpu_.upload(mapx_);
+        mapy_gpu_.upload(mapy_);
+        RCLCPP_INFO(this->get_logger(), "CUDA enabled for OpenCV");
+    } else {
+        is_cuda_cv_ = false;
+        RCLCPP_WARN(this->get_logger(), "CUDA not available, falling back to CPU");
     }
     
     // Find and initialize camera
