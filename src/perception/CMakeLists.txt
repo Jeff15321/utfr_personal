@@ -36,8 +36,8 @@ foreach(DEPENDENCY IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${DEPENDENCY} REQUIRED)
 endforeach()
 
-# Find OpenCV without requiring CUDA components
-find_package(OpenCV REQUIRED)
+# Find OpenCV without CUDA
+find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui dnn)
 message(STATUS "=== OpenCV Information ===")
 message(STATUS "OpenCV version: ${OpenCV_VERSION}")
 message(STATUS "OpenCV Include dirs: ${OpenCV_INCLUDE_DIRS}")
@@ -47,12 +47,10 @@ message(STATUS "======================")
 ## Export Dependencies for downstream packages
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
-# Add test_node executable first
+# First define all executables
 add_executable(test_node src/test.cpp)
 ament_target_dependencies(test_node rclcpp)
 
-
-# Update perception_node_cpp target
 add_executable(perception_node_cpp src/perception_node.cpp)
 target_include_directories(perception_node_cpp PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -60,9 +58,11 @@ target_include_directories(perception_node_cpp PUBLIC
 )
 ament_target_dependencies(perception_node_cpp rclcpp sensor_msgs OpenCV cv_bridge utfr_msgs geometry_msgs tf2_geometry_msgs tf2_ros)
 target_link_libraries(perception_node_cpp
+    perception_library
     ${OpenCV_LIBS}
     ${cv_bridge_LIBRARIES}
     ${YAML_CPP_LIBRARIES}
+    rclcpp::rclcpp
 )
 
 add_executable(lidar_proc src/lidar_proc.cpp)
@@ -76,13 +76,21 @@ target_include_directories(lidar_proc
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
 
+# Add test executable
+add_executable(test_dnn src/test_dnn.cpp)
+target_link_libraries(test_dnn
+    ${OpenCV_LIBS}
+)
+
 ## Add Libraries
 add_library(perception_library
    src/lidar_proc_node.cpp
    src/clusterer.cpp
    src/filter.cpp
    src/cone_filter.cpp
-   src/perception_node.cpp)
+   src/perception_node.cpp
+   src/deep.cpp
+)
 # Set Target Dependencies  
 ament_target_dependencies(perception_library ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
@@ -91,6 +99,13 @@ target_include_directories(perception_library
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
+
+# Link libraries
+target_link_libraries(perception_library
+    ${OpenCV_LIBS}
+    ${cv_bridge_LIBRARIES}
+    rclcpp::rclcpp
+)
 
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
@@ -123,6 +138,7 @@ install(TARGETS
     lidar_proc
     test_node
     perception_node_cpp
+    test_dnn
     DESTINATION lib/${PROJECT_NAME})
 
 ## Install Launch files

@@ -105,4 +105,5 @@ perception_node_cpp: # Name of Node
     cone_heights: [0.0, 325.0, 325.0, 325.0, 505.0]
     lidar_only_detection: False
     is_cuda_cv: False
-    is_cuda_deep: False
+    is_cuda_deep: false
+    model_path: "src/perception/perception/models/yolov8n.onnx"

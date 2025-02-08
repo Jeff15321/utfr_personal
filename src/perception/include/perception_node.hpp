@@ -16,6 +16,7 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <tuple>
+#include "deep.hpp"  // Add this to use DeepDetector
 
 namespace perception {
 
@@ -49,8 +50,6 @@ private:
     cv::Size img_size_;
     cv::Mat mapx_, mapy_;
     cv::VideoCapture cam_capture_;
-    cv::cuda::GpuMat mapx_gpu_, mapy_gpu_;
-    cv::cuda::GpuMat img_gpu_;
     cv::Mat previous_img_;
     double last_cam_capture_time_;
     
@@ -221,6 +220,16 @@ private:
 
     // Add heartbeat publisher
     rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_pub_;
+
+    // Add this to the private section
+    std::unique_ptr<DeepDetector> detector_;  // YOLO detector
+
+    // Add this declaration
+    std::tuple<std::vector<cv::Rect>, std::vector<std::string>, std::vector<float>>
+    process_image(const cv::Mat& img);
+
+    // Add to private section
+    std::vector<std::string> class_names_ = {"blue_cone", "yellow_cone", "orange_cone"};
 };
 
 } // namespace perception

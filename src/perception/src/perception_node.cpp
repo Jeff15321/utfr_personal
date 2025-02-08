@@ -2,6 +2,30 @@
 //TODO: fill in the values for distortion, intrinsics, rotation, and translation and correctly distort
 //TODO: fix can't connect to CUDA error
 
+// # 1. Camera capture and initialization
+// - Sets up camera parameters (resolution, FPS)
+// - Loads calibration parameters
+// - Initializes CUDA if available
+
+// # 2. Image preprocessing
+// - Undistorts image using camera calibration
+// - Converts to proper format for model input
+// - Resizes to model input size (640x640)
+// - Normalizes pixel values (0-1)
+
+// # 3. Model inference
+// - Runs YOLO model on preprocessed image
+// - Gets bounding boxes, classes, and confidence scores
+
+// # 4. Post-processing
+// - Filters detections by confidence threshold
+// - Converts normalized coordinates to image coordinates
+// - Maps class indices to class names
+
+// # 5. Debug visualization and publishing
+// - Draws bounding boxes on debug image
+// - Publishes debug messages with detections
+// - Publishes undistorted image if debug enabled
 namespace perception {
 
 // ==========================================
@@ -28,6 +52,20 @@ PerceptionNode::PerceptionNode()
         std::chrono::milliseconds(static_cast<int>(camera_capture_rate_)),
         std::bind(&PerceptionNode::cameraCaptureTimerCallback, this)
     );
+
+    // Add these lines
+    this->declare_parameter("model_path", "");
+    std::string model_path = this->get_parameter("model_path").as_string();
+    
+    // Initialize detector with model path
+    detector_ = std::make_unique<DeepDetector>(model_path, confidence_);
+
+    // Add after model initialization
+    if (!detector_) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to initialize YOLO detector");
+        throw std::runtime_error("Failed to initialize YOLO detector");
+    }
+    RCLCPP_INFO(this->get_logger(), "Successfully initialized YOLO detector");
 }
 
 // ==========================================
@@ -106,33 +144,20 @@ void PerceptionNode::initVariables() {
         mapy_            // Output: y-coordinate mapping
     );
     
-    // Check CUDA availability
-    int cuda_devices = cv::cuda::getCudaEnabledDeviceCount();
-    RCLCPP_INFO(this->get_logger(), "Found %d CUDA devices", cuda_devices);
-    
-    if (cuda_devices > 0) {
-        cv::cuda::printCudaDeviceInfo(0);  // Print info for first device
-        is_cuda_cv_ = true;
-        mapx_gpu_.upload(mapx_);
-        mapy_gpu_.upload(mapy_);
-        RCLCPP_INFO(this->get_logger(), "CUDA enabled for OpenCV");
-    } else {
-        is_cuda_cv_ = false;
-        RCLCPP_WARN(this->get_logger(), "CUDA not available, falling back to CPU");
-    }
+    // Always use CPU
+    is_cuda_cv_ = false;
+    RCLCPP_INFO(this->get_logger(), "Using CPU for image processing");
     
     // Find and initialize camera
     if (!findCamera()) {
         throw std::runtime_error("Unable to detect camera");
     }
-        
+    
     // Initialize performance metrics
     metrics_.fps = 0.0;
     metrics_.processing_time = 0.0;
     metrics_.frame_count = 0;
     metrics_.last_frame_time = std::chrono::steady_clock::now();
-    
-
 }
 
 void PerceptionNode::initSubscribers() {
@@ -248,12 +273,14 @@ bool PerceptionNode::findCamera() {
 void PerceptionNode::cameraCaptureTimerCallback() {
     auto start_time = std::chrono::high_resolution_clock::now();
     
+    // 1. Camera capture
     cv::Mat frame;
     if (!cam_capture_.read(frame)) {
         RCLCPP_ERROR(this->get_logger(), "Error: Could not read frame.");
         return;
     }
     
+    // Store raw image
     img_raw_ = frame;
     img_ = frame;
     new_cam_received_ = true;
@@ -263,23 +290,84 @@ void PerceptionNode::cameraCaptureTimerCallback() {
         RCLCPP_INFO(this->get_logger(), "First camera frame received");
     }
 
-    processImage();
+    // 2. Process image through detection pipeline
+    auto [boxes, classes, scores] = process_image(frame);
     
-    // Display the captured frame
-    cv::imshow("Camera Feed", frame);
-    cv::waitKey(1); 
+    // 3. Visualize results if debug enabled
+    if (debug_) {
+        displayBoundingBox(boxes, classes, scores, this->now());
+    }
     
+    // Update metrics
     if (debug_) {
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-        double current_time = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count()) / 1000.0;
-        
-        last_cam_capture_time_ = current_time;
+        metrics_.processing_time = duration.count() / 1000.0;
+        metrics_.fps = 1000.0 / duration.count();
+        metrics_.frame_count++;
     }
 }
 
+std::tuple<std::vector<cv::Rect>, std::vector<std::string>, std::vector<float>>
+PerceptionNode::process_image(const cv::Mat& img) {
+    // 1. Undistort image using calibration
+    cv::Mat undistorted;
+    cv::undistort(img, undistorted, intrinsics_, distortion_);
+    
+    // 2. Run YOLO detection
+    auto [boxes, classes, scores] = detector_->detect(undistorted);
+    
+    // 3. Publish undistorted image if debug enabled
+    if (debug_) {
+        sensor_msgs::msg::Image::SharedPtr img_msg = 
+            cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", undistorted)
+            .toImageMsg();
+        undistorted_pub_->publish(*img_msg);
+    }
+    
+    return {boxes, classes, scores};
+}
 
+void PerceptionNode::displayBoundingBox(
+    const std::vector<cv::Rect>& results_left,
+    const std::vector<std::string>& classes_left,
+    const std::vector<float>& scores_left,
+    const rclcpp::Time& img_stamp) {
+    
+    // Create debug message
+    utfr_msgs::msg::PerceptionDebug debug_msg;
+    debug_msg.header.stamp = img_stamp;
+    debug_msg.header.frame_id = camera_frame_;
+
+    // Add detections to debug message
+    for (size_t i = 0; i < results_left.size(); i++) {
+        // Convert cv::Rect to BoundingBox message
+        utfr_msgs::msg::BoundingBox bbox;
+        bbox.x = results_left[i].x;
+        bbox.y = results_left[i].y;
+        bbox.width = results_left[i].width;
+        bbox.height = results_left[i].height;
+        debug_msg.left.push_back(bbox);
+    }
+
+    // Draw boxes on debug frame if enabled
+    if (debug_) {
+        cv::Mat debug_frame = img_.clone();
+        for (size_t i = 0; i < results_left.size(); i++) {
+            cv::rectangle(debug_frame, results_left[i], cv::Scalar(0, 255, 0), 2);
+            std::string label = classes_left[i] + " " + 
+                              std::to_string(scores_left[i]);
+            cv::putText(debug_frame, label, 
+                       cv::Point(results_left[i].x, results_left[i].y - 10),
+                       cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
+        }
+        cv::imshow("Detections", debug_frame);
+        cv::waitKey(1);
+    }
+
+    // Publish debug visualization
+    debug_pub_->publish(debug_msg);
+}
 
 // ==========================================
 // Callback Functions
@@ -627,19 +715,6 @@ void PerceptionNode::publish_2d_projected_det_matched(
     (void)projected_pts;
     (void)stamp;
     // TODO: Implement matched projection visualization
-}
-
-void PerceptionNode::displayBoundingBox(
-    const std::vector<cv::Rect>& results_left,
-    const std::vector<std::string>& classes_left,
-    const std::vector<float>& scores_left,
-    const rclcpp::Time& img_stamp) {
-    // Silence warnings until implemented
-    (void)results_left;
-    (void)classes_left;
-    (void)scores_left;
-    (void)img_stamp;
-    // TODO: Implement bounding box visualization
 }
 
 } // namespace perception
