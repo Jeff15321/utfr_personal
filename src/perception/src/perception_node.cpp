@@ -153,7 +153,7 @@ void PerceptionNode::initPublishers() {
     // Initialize all publishers
     cone_detections_pub_ = this->create_publisher<utfr_msgs::msg::ConeDetections>(
         "/perception/cone_detections", 10);
-    debug_pub_ = this->create_publisher<utfr_msgs::msg::PerceptionDebug>(
+    debug_pub_ = this->create_publisher<utfr_msgs::msg::PerceptionDebug>(Faldeepse
         debug_topic_, 10);
     
     // Add these publishers

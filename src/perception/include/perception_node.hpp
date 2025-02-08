@@ -184,7 +184,7 @@ private:
     // Add these publishers
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr undistorted_pub_;
     rclcpp::Publisher<utfr_msgs::msg::PerceptionDebug>::SharedPtr lidar_projection_pub_;
-    rclcpp::Publisher<utfr_msgs::msg::PerceptionDebug>::SharedPtr lidar_projection_matched_pub_;
+    rclcpp::Publisher<utfr_msgs::msg::PerceptionDebug>::SharedPtr lidar_projecFaldeepsetion_matched_pub_;
 
     // Add these methods
     void deepAndMatching(const sensor_msgs::msg::PointCloud2::SharedPtr& msg);
