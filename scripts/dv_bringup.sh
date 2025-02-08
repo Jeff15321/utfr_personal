@@ -54,50 +54,56 @@ trap cleanup SIGINT
 
 cd /home/utfr-dv/utfr_dv/
 source install/setup.bash
+sudo ip link set can0 down
 bash scripts/enable_can.sh
 ros2 launch xsens_mti_ros2_driver xsens_mti_node.launch.py &
-ros2 launch launcher interface.launch.py &
+ros2 launch car_interface car_interface.launch.py &
 PID_LAUNCH=$!
 
-sleep 30 # Wait for nodes to boot up
-
-cd "/media/utfr-dv/1tb ssd/rosbags"
-ros2 bag record -s mcap \
-/car_interface/sensor_can \
-/left_camera/images \
-/right_camera/images \
-/ouster/points \
-/tf \
-/tf_static \
-/perception/cone_detections \
-/lidar_pipeline/detected \
-/perception/lidar_projection_left \
-/perception/lidar_projection_right \
-/perception/lidar_projection_matched_left \
-/perception/lidar_projection_matched_right \
-/perception/left_processed \
-/perception/right_processed \
-/perception/debug_left \
-/perception/debug_right \
-/mapping/cone_map \
-/ekf/ego_state \
-/planning/accel_path \
-/planning/delaunay_midpoints \
-/planning/delaunay_waypoint \
-/planning/pure_pursuit_point \
-/planning/target_state \
-controls/control_cmd \
-car_interface/system_status \
-filter/positionlla \
-filter/quaternion \
-filter/euler \
-filter/twist \
-filter/velocity \
-filter/free_acceleration \ 
--s mcap &
+# sleep 30 # Wait for nodes to boot up
+cd /home/utfr-dv/utfr_dv/rosbags
+# ros2 bag record -s mcap \
+# /tf \
+# /tf_static \
+# /car_interface/system_status \
+# /car_interface/sensor_can \
+# /controls/control_cmd \
+# /left_camera/images \
+# /right_camera/images \
+# /ouster/points \
+# /perception/cone_detections \
+# /lidar_pipeline/detected \
+# /lidar_pipeline/clustered \
+# /lidar_pipeline/filtered \
+# /lidar_pipeline/no_ground \
+# /perception_ego_state \
+# /perception/cone_detections \
+# /perception/debug \
+# /perception/debug_undistorted \
+# /perception/lidar_projection \
+# /perception/lidar_projection_matched \
+# /synced_ego_state \
+# /mapping/cone_map \
+# /IM_GONNA_KMS \
+# /GPS_STATE \
+# /ekf/ego_state \
+# /planning/accel_path \
+# /planning/delaunay_midpoints \
+# /planning/delaunay_waypoint \
+# /planning/center_path \
+# /planning/pure_pursuit_point \
+# /planning/target_state \
+# /planning/controller/path \
+# filter/positionlla \
+# filter/quaternion \
+# filter/euler \
+# filter/twist \
+# filter/velocity \
+# filter/free_acceleration \
+# -s mcap &
 
 PID_RECORD=$!
 
-sleep 120 # Record for 2 minutes
+sleep 500 # Record for x seconds
 
-cleanup # Stop recording after 2 minutes
+cleanup # Stop recording 

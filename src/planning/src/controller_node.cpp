@@ -53,6 +53,7 @@ void ControllerNode::initParams() {
   this->declare_parameter("skip_path_opt", false);
   this->declare_parameter("lookahead_distance", 5.0);
   this->declare_parameter("a_lateral", 1.0);
+  this->declare_parameter("steering_gain", 1.3);
 
   update_rate_ = this->get_parameter("update_rate").as_double();
   event_ = this->get_parameter("event").as_string();
@@ -81,6 +82,8 @@ void ControllerNode::initParams() {
 
   start_time_ = this->get_clock()->now();
 
+  steering_gain_ = this->get_parameter("steering_gain").as_double();
+
   RCLCPP_INFO(this->get_logger(), "Event: %s", event_.c_str());
 }
 
@@ -101,11 +104,11 @@ void ControllerNode::initSubscribers() {
   // this->create_subscription<utfr_msgs::msg::SystemStatus>(
   //     topics::kSystemStatus, 10,
   //     std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
-  if(!use_mapping_){
-    vel_subscriber_ = this->create_subscription<geometry_msgs::msg::Vector3Stamped>(
-      "/filter/velocity",
-      10,
-      std::bind(&ControllerNode::velocityCB, this, _1));
+  if (!use_mapping_) {
+    vel_subscriber_ =
+        this->create_subscription<geometry_msgs::msg::Vector3Stamped>(
+            "/filter/velocity", 10,
+            std::bind(&ControllerNode::velocityCB, this, _1));
   }
 }
 
@@ -161,15 +164,14 @@ void ControllerNode::initEvent() { // TODO: TEST
         this->create_subscription<utfr_msgs::msg::SystemStatus>(
             topics::kSystemStatus, 10,
             std::bind(&ControllerNode::missionCB, this, std::placeholders::_1));
-  }
-  else{ // for sim
+  } else { // for sim
     as_state = utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING;
     this->initTimers();
   }
 }
 
 void ControllerNode::velocityCB(const geometry_msgs::msg::Vector3Stamped &msg){
-    if (ego_state_ == nullptr) {
+  if (ego_state_ == nullptr) {
     // first initialization:
     utfr_msgs::msg::EgoState template_ego;
     ego_state_ = std::make_shared<utfr_msgs::msg::EgoState>(template_ego);
@@ -186,38 +188,39 @@ void ControllerNode::velocityCB(const geometry_msgs::msg::Vector3Stamped &msg){
 void ControllerNode::missionCB(const utfr_msgs::msg::SystemStatus &msg) {
   if(event_ == "read"){
     switch (msg.ami_state) {
-      case utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION: {
-        event_ = "accel";
-        break;
-      }
-      case utfr_msgs::msg::SystemStatus::AMI_STATE_SKIDPAD: {
-        event_ = "skidpad";
-        break;
-      }
-      case utfr_msgs::msg::SystemStatus::AMI_STATE_TRACKDRIVE: {
-        event_ = "trackdrive";
-        break;
-      }
-      case utfr_msgs::msg::SystemStatus::AMI_STATE_EBSTEST: {
-        event_ = "EBSTest";
-        break;
-      }
-      case utfr_msgs::msg::SystemStatus::AMI_STATE_TESTING:
-      case utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION: {
-        event_ = "ASTest";
-        break;
-      }
-      case utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS: {
-        event_ = "autocross";
-        break;
-      }
+    case utfr_msgs::msg::SystemStatus::AMI_STATE_ACCELERATION: {
+      event_ = "accel";
+      break;
+    }
+    case utfr_msgs::msg::SystemStatus::AMI_STATE_SKIDPAD: {
+      event_ = "skidpad";
+      break;
+    }
+    case utfr_msgs::msg::SystemStatus::AMI_STATE_TRACKDRIVE: {
+      event_ = "trackdrive";
+      break;
+    }
+    case utfr_msgs::msg::SystemStatus::AMI_STATE_EBSTEST: {
+      event_ = "EBSTest";
+      break;
+    }
+    case utfr_msgs::msg::SystemStatus::AMI_STATE_TESTING:
+    case utfr_msgs::msg::SystemStatus::AMI_STATE_INSPECTION: {
+      event_ = "ASTest";
+      break;
+    }
+    case utfr_msgs::msg::SystemStatus::AMI_STATE_AUTOCROSS: {
+      event_ = "autocross";
+      break;
+    }
     }
     if(event_ != "read"){
       this->initTimers();
     }
   }
-  
-  if (as_state == utfr_msgs::msg::SystemStatus::AS_STATE_READY && msg.as_state == utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING) {
+
+  if (as_state == utfr_msgs::msg::SystemStatus::AS_STATE_READY &&
+      msg.as_state == utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING) {
     start_time_ = this->get_clock()->now();
   }
 
@@ -674,7 +677,8 @@ void ControllerNode::timerCBAS() {
   double curr_time = this->now().seconds();
   double time_diff = curr_time - start_time_.seconds();
 
-  if (as_state == utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING && time_diff < 30.0) {
+  if (as_state == utfr_msgs::msg::SystemStatus::AS_STATE_DRIVING &&
+      time_diff < 30.0) {
     target_.speed = 1.0;
     target_.steering_angle = sin(time_diff * 3.1415 / 3) * max_steering_angle_;
     publishHeartbeat(utfr_msgs::msg::Heartbeat::ACTIVE);
@@ -911,16 +915,16 @@ ControllerNode::purePursuitController(double max_steering_angle,
   // Limit steering angle within bounds.
   delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
 
-  double max_steering_rate =
-      static_cast<double>(109 * 100 / 22.0 / 60.0 / update_rate_);
-  if (abs(delta - last_steering_angle_) > max_steering_rate) {
-    if (delta > last_steering_angle_) {
-      delta = last_steering_angle_ + max_steering_rate;
-    } else {
-      delta = last_steering_angle_ - max_steering_rate;
-    }
-  }
-  last_steering_angle_ = delta;
+  // double max_steering_rate =
+  //     static_cast<double>(109 * 100 / 22.0 / 60.0 / update_rate_);
+  // if (abs(delta - last_steering_angle_) > max_steering_rate) {
+  //   if (delta > last_steering_angle_) {
+  //     delta = last_steering_angle_ + max_steering_rate;
+  //   } else {
+  //     delta = last_steering_angle_ - max_steering_rate;
+  //   }
+  // }
+  // last_steering_angle_ = delta;
 
   // Reduce speed if turning sharply or near max steering.
   // if ((abs(util::quaternionToYaw(discretized_points[5].orientation)) > 0.2 ||
@@ -931,14 +935,14 @@ ControllerNode::purePursuitController(double max_steering_angle,
 
   rclcpp::Time curr_time = this->get_clock()->now();
 
-  if (lap_count_ == last_lap_count_ || finished_event_) {
-    if (start_finish_time) {
-      start_time_ == curr_time;
-      start_finish_time = false;
-    }
-    finished_event_ = true;
-    desired_velocity = 1.0;
-  }
+  // if (lap_count_ == last_lap_count_ || finished_event_) {
+  //   if (start_finish_time) {
+  //     start_time_ == curr_time;
+  //     start_finish_time = false;
+  //   }
+  //   finished_event_ = true;
+  //   desired_velocity = 1.0;
+  // }
 
   // if (abs((curr_time - start_time_).seconds()) > 5.0 && finished_event_) {
   //   desired_velocity = 0.0;
@@ -957,6 +961,10 @@ ControllerNode::purePursuitController(double max_steering_angle,
   if (desired_velocity > max_velocity_) {
     desired_velocity = max_velocity_;
   }
+
+  delta = delta * steering_gain_;
+
+  delta = std::clamp(delta, -max_steering_angle, max_steering_angle);
 
   // Set target state values.
   utfr_msgs::msg::TargetState target;
