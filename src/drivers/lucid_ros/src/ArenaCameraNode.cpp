@@ -276,8 +276,8 @@ void ArenaCameraNode::publish_images_() {
       this->m_pDevice->RequeueBuffer(pImage);
 
       auto t2 = high_resolution_clock::now();
-      duration<double, std::milli> ms_double = t2 - t1;
-      std::cout << "cam: " << (1000.0 / ms_double.count()) << "fps\n";
+      // duration<double, std::milli> ms_double = t2 - t1;
+      // std::cout << "cam: " << (1000.0 / ms_double.count()) << "fps\n";
       continue;
     } catch (std::exception &e) {
       if (pImage) {

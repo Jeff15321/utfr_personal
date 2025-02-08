@@ -36,7 +36,7 @@ perception_node: # Name of Node
 lidar_proc_node:
   ros__parameters:
     update_rate: 50.0 #[ms]
-    debug: False
+    debug: True
     topics: # TODO: fix
       input: "/ouster/points"
       filtered: "/lidar_pipeline/filtered"
@@ -55,7 +55,7 @@ lidar_proc_node:
         # ymax: 1.50
       inner_box: #remove all points within inner box
         xmin: -1.013
-        xmax: 2.1
+        xmax: 4.5
         ymin: -0.8
         ymax: 0.8
       grid_size_x: 40 #create grid of lowest z points for each cell in grid

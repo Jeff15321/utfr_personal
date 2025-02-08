@@ -78,6 +78,13 @@ class VisualizationNode(Node):
             1,
         )
 
+        self.debug_3d_subscriber_ = self.create_subscription(
+            ConeDetections,
+            "/perception/cam_only_3d_detections",
+            self.camOnly3dDetectionsCB,
+            1,
+        )
+
         self.lidar_projection_subscriber_ = self.create_subscription(
             PerceptionDebug,
             "/perception/lidar_projection_matched",
@@ -125,6 +132,10 @@ class VisualizationNode(Node):
 
         self.cone_map_publisher_ = self.create_publisher(
             MarkerArray, "/visualization/cone_map", 1
+        )
+
+        self.debug_3d_publisher_ = self.create_publisher(
+            MarkerArray, "/visualization/debug_3d", 1
         )
 
         self.ego_state_publisher_ = self.create_publisher(
@@ -398,6 +409,48 @@ class VisualizationNode(Node):
             addCones(unknown_cones, 1.0, 1.0, 1.0)
 
             self.cone_markers_publisher_.publish(cone_markers)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+    
+    def camOnly3dDetectionsCB(self, msg):
+        """
+        Visualize 3D detections from camera only
+        """
+        try:
+            self.get_logger().warn("Recieved cam only 3D detections msg")
+            print(msg.header.frame_id)
+            cone_markers = MarkerArray()
+            self.delete_all_marker.header = msg.header
+            cone_markers.markers.append(self.delete_all_marker)
+
+            
+            def addCones(cones, r, g, b, scale=0.2):
+                for cone in cones:
+                    print("position: ", cone.pos)
+                    cone_marker = Marker()
+                    cone_marker.header = msg.header
+                    cone_marker.header.frame_id = msg.header.frame_id
+                    cone_marker.ns = "utfr_foxglove"
+                    cone_marker.id = len(cone_markers.markers)
+                    cone_marker.type = 1  # cube
+                    cone_marker.action = 0  # add
+                    cone_marker.pose.position = cone.pos
+                    cone_marker.pose.orientation.x = 0.0
+                    cone_marker.pose.orientation.y = 0.0
+                    cone_marker.pose.orientation.z = 0.0
+                    cone_marker.pose.orientation.w = 1.0
+                    cone_marker.scale.x = scale
+                    cone_marker.scale.y = scale
+                    cone_marker.scale.z = scale
+                    cone_marker.color.a = 1.0
+                    cone_marker.color.r = r
+                    cone_marker.color.g = g
+                    cone_marker.color.b = b
+
+                    cone_markers.markers.append(cone_marker)
+            addCones(msg.unknown_cones, 1.0, 1.0, 1.0)
+
+            self.debug_3d_publisher_.publish(cone_markers)
         except Exception as e:
             print(f"An error occurred: {e}")
 
