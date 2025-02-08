@@ -95,9 +95,11 @@ private:
     int max_cone_height_;
     
     // Publishers
-    rclcpp::Publisher<utfr_msgs::msg::ConeDetections>::SharedPtr cone_detections_pub_;
-    rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr undistorted_pub_;
+    rclcpp::Publisher<utfr_msgs::msg::PerceptionDebug>::SharedPtr lidar_projection_pub_;
+    rclcpp::Publisher<utfr_msgs::msg::PerceptionDebug>::SharedPtr lidar_projection_matched_pub_;
     rclcpp::Publisher<utfr_msgs::msg::PerceptionDebug>::SharedPtr debug_pub_;
+    rclcpp::Publisher<utfr_msgs::msg::ConeDetections>::SharedPtr cone_detections_pub_;
     
     // Timers
     rclcpp::TimerBase::SharedPtr heartbeat_timer_;
@@ -181,18 +183,6 @@ private:
     static const int MIN_HEIGHT = 100;  // For camera status checks
     static const int MIN_WIDTH = 100;
 
-    // Add these publishers
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr undistorted_pub_;
-    rclcpp::Publisher<utfr_msgs::msg::PerceptionDebug>::SharedPtr lidar_projection_pub_;
-    rclcpp::Publisher<utfr_msgs::msg::PerceptionDebug>::SharedPtr lidar_projecFaldeepsetion_matched_pub_;
-
-    // Add these methods
-    void deepAndMatching(const sensor_msgs::msg::PointCloud2::SharedPtr& msg);
-    std::vector<cv::Point2f> projectLidarToImage(const std::vector<geometry_msgs::msg::Point>& points);
-    int cameraStatus();
-    void initHeartbeat();
-    void initSubscribers();
-
     // Transform handling
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
@@ -221,6 +211,16 @@ private:
         const std::vector<std::string>& classes_left,
         const std::vector<float>& scores_left,
         const rclcpp::Time& img_stamp);
+
+    // Add these method declarations in the private section
+    // Initialization methods
+    void initSubscribers();
+    void initHeartbeat();
+    int cameraStatus();
+    void deepAndMatching(const sensor_msgs::msg::PointCloud2::SharedPtr& msg);
+
+    // Add heartbeat publisher
+    rclcpp::Publisher<utfr_msgs::msg::Heartbeat>::SharedPtr heartbeat_pub_;
 };
 
 } // namespace perception
