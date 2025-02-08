@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(perception CUDA CXX)
+project(perception CXX)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -36,25 +36,6 @@ foreach(DEPENDENCY IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${DEPENDENCY} REQUIRED)
 endforeach()
 
-# Find CUDA first
-find_package(CUDA QUIET)
-if(CUDA_FOUND)
-    message(STATUS "=== CUDA Information ===")
-    message(STATUS "CUDA Found: YES")
-    message(STATUS "CUDA Version: ${CUDA_VERSION_STRING}")
-    message(STATUS "CUDA Include dirs: ${CUDA_INCLUDE_DIRS}")
-    message(STATUS "CUDA Libraries: ${CUDA_LIBRARIES}")
-    message(STATUS "CUDA Toolkit Root: ${CUDA_TOOLKIT_ROOT_DIR}")
-    message(STATUS "CUDA Compute Capability: ${CUDA_COMPUTE_CAPABILITIES}")
-    message(STATUS "======================")
-    add_definitions(-DWITH_CUDA)
-else()
-    message(STATUS "=== CUDA Information ===")
-    message(STATUS "CUDA Found: NO")
-    message(STATUS "Will build without CUDA support")
-    message(STATUS "======================")
-endif()
-
 # Find OpenCV without requiring CUDA components
 find_package(OpenCV REQUIRED)
 message(STATUS "=== OpenCV Information ===")
@@ -74,14 +55,12 @@ ament_target_dependencies(test_node rclcpp)
 # Update perception_node_cpp target
 add_executable(perception_node_cpp src/perception_node.cpp)
 target_include_directories(perception_node_cpp PUBLIC
-    $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 ament_target_dependencies(perception_node_cpp rclcpp sensor_msgs OpenCV cv_bridge utfr_msgs geometry_msgs tf2_geometry_msgs tf2_ros)
 target_link_libraries(perception_node_cpp
     ${OpenCV_LIBS}
-    $<$<BOOL:${CUDA_FOUND}>:${CUDA_LIBRARIES}>
     ${cv_bridge_LIBRARIES}
     ${YAML_CPP_LIBRARIES}
 )
