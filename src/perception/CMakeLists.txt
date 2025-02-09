@@ -48,8 +48,8 @@ message(STATUS "======================")
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
 # First define all executables
-add_executable(test_node src/test.cpp)
-ament_target_dependencies(test_node rclcpp)
+# add_executable(test_node src/test.cpp)
+# ament_target_dependencies(test_node rclcpp)
 
 add_executable(perception_node_cpp src/perception_node.cpp)
 target_include_directories(perception_node_cpp PUBLIC
@@ -76,10 +76,20 @@ target_include_directories(lidar_proc
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>)
 
-# Add test executable
+# Find Python and pybind11
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(pybind11 REQUIRED)
+
+# Update test_dnn target
 add_executable(test_dnn src/test_dnn.cpp)
 target_link_libraries(test_dnn
     ${OpenCV_LIBS}
+    pybind11::embed
+    Python3::Python
+)
+target_include_directories(test_dnn PRIVATE
+    ${PYTHON_INCLUDE_DIRS}
+    ${pybind11_INCLUDE_DIRS}
 )
 
 ## Add Libraries
@@ -136,7 +146,6 @@ install(TARGETS perception_library
 ## Install Executables
 install(TARGETS 
     lidar_proc
-    test_node
     perception_node_cpp
     test_dnn
     DESTINATION lib/${PROJECT_NAME})
